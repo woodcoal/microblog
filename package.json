@@ -5,6 +5,14 @@
 	"description": "睦谈 — 轻量级多用户微博系统",
 	"author": "MuTan",
 	"license": "MIT",
+	"homepage": "https://github.com/woodcoal/microblog",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/woodcoal/microblog.git"
+	},
+	"bugs": {
+		"url": "https://github.com/woodcoal/microblog/issues"
+	},
 	"private": true,
 	"scripts": {
 		"dev": "astro dev",

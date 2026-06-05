@@ -16,6 +16,7 @@ model User {
   passwordHash String
   avatarUrl    String   @default("")
   bio          String   @default("")
+  note         String   @default("")  // 个人备注，仅自己可见
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
   createdAt    DateTime @default(now())

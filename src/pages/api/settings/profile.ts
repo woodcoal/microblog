@@ -1,7 +1,7 @@
 /**
  * 个人资料更新 API
  *
- * PUT /api/settings/profile — 更新当前用户的个人资料
+ * PUT /api/settings/profile — 更新当前用户的个人资料（含个人备注）
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -12,15 +12,17 @@ import { successResponse, jsonErrorResponse, parseJsonBody } from '@/lib/utils';
 const DISPLAY_NAME_MAX_LENGTH = 50;
 /** 简介最大长度 */
 const BIO_MAX_LENGTH = 160;
+/** 个人备注最大长度 */
+const NOTE_MAX_LENGTH = 2000;
 
 /**
  * 更新个人资料
  *
- * 支持更新 displayName（1-50字符）、bio（最多160字符）、avatarUrl。
+ * 支持更新 displayName（1-50字符）、bio（最多160字符）、avatarUrl、note（最多2000字符，仅自己可见）。
  * 只更新请求体中传入的字段，未传入的字段保持不变。
  *
  * @param context - Astro API 上下文
- * @returns 更新后的个人资料或错误
+ * @returns 更新后的个人资料（不含 note）
  */
 export const PUT: APIRoute = async (context) => {
 	try {
@@ -33,10 +35,11 @@ export const PUT: APIRoute = async (context) => {
 
 		// 解析请求体
 		const body = await parseJsonBody(context.request);
-		const { displayName, bio, avatarUrl } = body as {
+		const { displayName, bio, avatarUrl, note } = body as {
 			displayName?: string;
 			bio?: string;
 			avatarUrl?: string;
+			note?: string;
 		};
 
 		// 2. 验证 displayName
@@ -63,17 +66,24 @@ export const PUT: APIRoute = async (context) => {
 			}
 		}
 
-		// 4. 构建更新数据（只更新传入的字段）
+		// 5. 验证 note 长度
+		if (note !== undefined && note.length > NOTE_MAX_LENGTH) {
+			return jsonErrorResponse(`备注最多 ${NOTE_MAX_LENGTH} 字符`);
+		}
+
+		// 6. 构建更新数据（只更新传入的字段）
 		const updateData: {
 			displayName?: string;
 			bio?: string;
 			avatarUrl?: string;
+			note?: string;
 		} = {};
 		if (displayName !== undefined) updateData.displayName = displayName;
 		if (bio !== undefined) updateData.bio = bio;
 		if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+		if (note !== undefined) updateData.note = note;
 
-		// 5. 更新 User 表
+		// 7. 更新 User 表
 		const updatedUser = await prisma.user.update({
 			where: { id: currentUser.userId },
 			data: updateData,
@@ -84,7 +94,7 @@ export const PUT: APIRoute = async (context) => {
 			}
 		});
 
-		// 6. 返回更新后的个人资料
+		// 8. 返回更新后的个人资料（note 为隐私数据，不在公开响应中返回）
 		return new Response(JSON.stringify(successResponse(updatedUser)), {
 			status: 200,
 			headers: { 'Content-Type': 'application/json' }

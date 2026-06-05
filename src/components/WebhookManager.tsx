@@ -74,7 +74,10 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 	const [revealedSecret, setRevealedSecret] = useState<{
 		url: string;
 		secret: string;
+		isNew: boolean;
 	} | null>(null);
+	// 密钥查看中加载状态
+	const [revealingId, setRevealingId] = useState<string | null>(null);
 	// 错误信息
 	const [error, setError] = useState('');
 
@@ -159,7 +162,8 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 				// 弹窗显示明文 Secret
 				setRevealedSecret({
 					url: webhook.url,
-					secret: webhook.secret
+					secret: webhook.secret,
+					isNew: true
 				});
 				setNewUrl('');
 				setNewEvents(['notification.follow']);
@@ -190,6 +194,39 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 		}
 		setEditIsActive(webhook.isActive);
 		setError('');
+	};
+
+	/**
+	 * 查看 Webhook 明文 Secret
+	 *
+	 * 调用 GET /api/webhooks/:id/secret 获取明文密钥并弹窗展示。
+	 *
+	 * @param webhook - 目标 Webhook
+	 */
+	const handleRevealSecret = async (webhook: WebhookItem) => {
+		if (revealingId) return;
+
+		setRevealingId(webhook.id);
+		setError('');
+
+		try {
+			const res = await fetch(`/api/webhooks/${webhook.id}/secret`);
+			const data = await res.json();
+
+			if (data.success) {
+				setRevealedSecret({
+					url: webhook.url,
+					secret: data.data.secret,
+					isNew: false
+				});
+			} else {
+				setError(data.error?.message || '获取密钥失败');
+			}
+		} catch {
+			setError('网络错误');
+		} finally {
+			setRevealingId(null);
+		}
 	};
 
 	/**
@@ -444,6 +481,14 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 										>
 											编辑
 										</button>
+										<button
+											type="button"
+											className="btn btn-outline btn-sm"
+											onClick={() => handleRevealSecret(webhook)}
+											disabled={revealingId === webhook.id}
+										>
+											{revealingId === webhook.id ? '获取中...' : '查看密钥'}
+										</button>
 										{deletingId === webhook.id ? (
 											<>
 												<span className="confirm-text">确认删除？</span>
@@ -485,9 +530,11 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 			{revealedSecret && (
 				<div className="modal-overlay" onClick={() => setRevealedSecret(null)}>
 					<div className="modal-content" onClick={(e) => e.stopPropagation()}>
-						<h3>Webhook 创建成功</h3>
+						<h3>{revealedSecret.isNew ? 'Webhook 创建成功' : 'Webhook 签名密钥'}</h3>
 						<p className="warning-text">
-							⚠️ 请立即复制保存 Secret，此 Secret 仅显示一次，关闭后无法再次查看！
+							{revealedSecret.isNew
+								? '⚠️ 请立即复制保存 Secret，此 Secret 仅显示一次，关闭后无法再次查看！'
+								: '⚠️ 关闭后如需再次查看可点击「查看密钥」按钮。请勿泄露给他人！'}
 						</p>
 						<div className="token-reveal">
 							<code>{revealedSecret.secret}</code>
@@ -507,7 +554,7 @@ export default function WebhookManager({ initialWebhooks }: WebhookManagerProps)
 							className="btn btn-primary"
 							onClick={() => setRevealedSecret(null)}
 						>
-							我已保存，关闭
+							关闭
 						</button>
 					</div>
 				</div>
