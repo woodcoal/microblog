@@ -1,0 +1,216 @@
+---
+/**
+ * 图片 Lightbox 组件
+ *
+ * 全屏图片浏览遮罩，支持键盘导航和触屏手势。
+ *
+ * 使用方法：在页面任意位置放置本组件（通常放在 </BaseLayout> 前），
+ * 然后在需要触发 Lightbox 的 <img> 标签上添加 data-lightbox="true" 属性
+ * 和 data-lightbox-src="大图URL"（可选，默认使用 src 属性）。
+ *
+ * 示例：
+ *   <img src="photo.jpg" data-lightbox="true" alt="" />
+ *   <img src="thumb.jpg" data-lightbox="true" data-lightbox-src="full.jpg" alt="" />
+ */
+---
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="图片查看" aria-hidden="true">
+	<div class="lightbox-overlay" id="lightbox-overlay"></div>
+	<button class="lightbox-btn lightbox-close" id="lightbox-close" type="button" aria-label="关闭"
+		>✕</button
+	>
+	<button class="lightbox-btn lightbox-prev" id="lightbox-prev" type="button" aria-label="上一张"
+		>‹</button
+	>
+	<button class="lightbox-btn lightbox-next" id="lightbox-next" type="button" aria-label="下一张"
+		>›</button
+	>
+	<div class="lightbox-container" id="lightbox-container">
+		<img class="lightbox-image" id="lightbox-image" src="" alt="" />
+	</div>
+	<div class="lightbox-counter" id="lightbox-counter" aria-live="polite"></div>
+</div>
+
+<script>
+	/**
+	 * Lightbox 控制器
+	 *
+	 * 自动收集页面上所有 data-lightbox="true" 的图片，
+	 * 点击后展示全屏遮罩浏览，支持：
+	 * - ESC / 点击遮罩 / 关闭按钮：关闭
+	 * - ← → 键 / 点击左右按钮：切换图片
+	 * - 触屏左右滑动：切换图片（移动端优化）
+	 */
+	(function () {
+		/** @type {HTMLElement} */
+		const lightbox = document.getElementById('lightbox');
+		/** @type {HTMLImageElement} */
+		const lightboxImg = document.getElementById('lightbox-image');
+		/** @type {HTMLElement} */
+		const counter = document.getElementById('lightbox-counter');
+		/** @type {HTMLElement} */
+		const overlay = document.getElementById('lightbox-overlay');
+		/** @type {HTMLElement} */
+		const closeBtn = document.getElementById('lightbox-close');
+		/** @type {HTMLElement} */
+		const prevBtn = document.getElementById('lightbox-prev');
+		/** @type {HTMLElement} */
+		const nextBtn = document.getElementById('lightbox-next');
+
+		/** @type {{ element: HTMLElement, src: string }[]} */
+		let items = [];
+		/** @type {number} */
+		let currentIndex = -1;
+
+		/**
+		 * 收集所有标记为 lightbox 的图片
+		 */
+		function collectItems() {
+			items = [];
+			const imgs = document.querySelectorAll('img[data-lightbox="true"]');
+			imgs.forEach((img) => {
+				const src = img.getAttribute('data-lightbox-src') || img.getAttribute('src') || '';
+				if (src) {
+					items.push({ element: img, src: src });
+				}
+			});
+		}
+
+		/**
+		 * 打开 Lightbox 并显示指定索引的图片
+		 * @param {number} index - 图片在 items 中的索引
+		 */
+		function open(index) {
+			if (!items.length) return;
+			currentIndex = index;
+			showImage(currentIndex);
+			lightbox.classList.add('lightbox-open');
+			lightbox.setAttribute('aria-hidden', 'false');
+			document.body.style.overflow = 'hidden';
+		}
+
+		/**
+		 * 关闭 Lightbox
+		 */
+		function close() {
+			lightbox.classList.remove('lightbox-open');
+			lightbox.setAttribute('aria-hidden', 'true');
+			document.body.style.overflow = '';
+			currentIndex = -1;
+		}
+
+		/**
+		 * 显示指定索引的图片
+		 * @param {number} index
+		 */
+		function showImage(index) {
+			if (!items.length) return;
+			const item = items[index];
+			if (!item) return;
+			lightboxImg.src = item.src;
+			lightboxImg.alt = item.element.getAttribute('alt') || '';
+			// 更新计数器
+			if (items.length > 1) {
+				counter.textContent = `${index + 1} / ${items.length}`;
+				counter.style.display = '';
+			} else {
+				counter.style.display = 'none';
+			}
+			// 更新导航按钮可见性
+			prevBtn.style.display = items.length > 1 ? '' : 'none';
+			nextBtn.style.display = items.length > 1 ? '' : 'none';
+		}
+
+		/**
+		 * 上一张
+		 */
+		function prev() {
+			if (items.length < 2) return;
+			currentIndex = (currentIndex - 1 + items.length) % items.length;
+			showImage(currentIndex);
+		}
+
+		/**
+		 * 下一张
+		 */
+		function next() {
+			if (items.length < 2) return;
+			currentIndex = (currentIndex + 1) % items.length;
+			showImage(currentIndex);
+		}
+
+		// ===== 事件绑定 =====
+
+		// 事件委托监听所有 data-lightbox 图片点击
+		document.addEventListener('click', function (e) {
+			const img = e.target.closest('img[data-lightbox="true"]');
+			if (!img) return;
+			// 重新收集确保数据最新（如动态加载后）
+			collectItems();
+			const idx = items.findIndex((item) => item.element === img);
+			if (idx !== -1) {
+				e.preventDefault();
+				open(idx);
+			}
+		});
+
+		// 点击遮罩关闭
+		overlay.addEventListener('click', close);
+
+		// 关闭按钮
+		closeBtn.addEventListener('click', close);
+
+		// 上一张 / 下一张
+		prevBtn.addEventListener('click', function (e) {
+			e.stopPropagation();
+			prev();
+		});
+		nextBtn.addEventListener('click', function (e) {
+			e.stopPropagation();
+			next();
+		});
+
+		// 键盘导航
+		document.addEventListener('keydown', function (e) {
+			if (!lightbox.classList.contains('lightbox-open')) return;
+			switch (e.key) {
+				case 'Escape':
+					close();
+					break;
+				case 'ArrowLeft':
+					prev();
+					break;
+				case 'ArrowRight':
+					next();
+					break;
+			}
+		});
+
+		// 触屏手势支持
+		let touchStartX = 0;
+		lightbox.addEventListener(
+			'touchstart',
+			function (e) {
+				touchStartX = e.changedTouches[0].screenX;
+			},
+			{ passive: true }
+		);
+		lightbox.addEventListener(
+			'touchend',
+			function (e) {
+				const diffX = e.changedTouches[0].screenX - touchStartX;
+				if (Math.abs(diffX) > 50) {
+					if (diffX > 0) {
+						prev();
+					} else {
+						next();
+					}
+				}
+			},
+			{ passive: true }
+		);
+
+		// 初始收集
+		collectItems();
+	})();
+</script>

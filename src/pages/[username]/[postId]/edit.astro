@@ -1,0 +1,100 @@
+---
+/**
+ * 帖子编辑页面
+ *
+ * 需要认证，仅作者可访问。
+ * 预填充当前内容，使用 React Island 编辑表单。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import PostEditForm from '@/components/PostEditForm';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+
+// 路由参数
+const { username, postId } = Astro.params;
+
+// 查询帖子
+const post = await prisma.post.findUnique({
+	where: { id: postId },
+	include: {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		},
+		media: {
+			orderBy: { sortOrder: 'asc' },
+			include: {
+				fileStorage: {
+					select: {
+						id: true,
+						filePath: true,
+						fileSize: true,
+						mimeType: true,
+						fileType: true
+					}
+				}
+			}
+		}
+	}
+});
+
+// 帖子不存在或用户名不匹配则 404
+if (!post || post.user.username !== username) {
+	return Astro.redirect('/404');
+}
+
+// 获取当前登录用户
+const currentUser = await getUserFromRequest(Astro);
+
+// 未登录或非作者，跳转到帖子详情页
+if (!currentUser || currentUser.userId !== post.userId) {
+	return Astro.redirect(`/${username}/${postId}`);
+}
+
+// 已删除或已锁定的帖子不可编辑
+if (post.isDeleted) {
+	return Astro.redirect(`/${username}/${postId}`);
+}
+
+if (post.isLocked) {
+	return Astro.redirect(`/${username}/${postId}`);
+}
+
+// 构建媒体数据传给编辑表单
+const initialMedia = post.media.map((m) => ({
+	id: m.id,
+	fileStorageId: m.fileStorageId,
+	fileType: m.fileType,
+	originalName: m.originalName,
+	url: `/uploads/${m.fileStorage.filePath}`
+}));
+---
+
+<BaseLayout title="编辑帖子">
+	<div class="edit-page">
+		<h1 class="edit-page-title">编辑帖子</h1>
+		<PostEditForm
+			client:load
+			postId={post.id}
+			initialContent={post.content}
+			username={post.user.username}
+			initialMedia={initialMedia}
+			initialVisibility={post.visibility}
+		/>
+	</div>
+</BaseLayout>
+
+<style>
+	.edit-page {
+		padding: 1rem 0;
+	}
+	.edit-page-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+	}
+</style>

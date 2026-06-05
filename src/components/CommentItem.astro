@@ -1,0 +1,307 @@
+---
+/**
+ * 单条评论组件（Astro 版本）
+ *
+ * 显示评论内容、作者信息、相对时间、点赞按钮、回复按钮。
+ * 已删除评论显示"该内容已删除"。
+ * 支持展开回复表单和递归渲染子评论。
+ */
+import LikeButton from '@/components/LikeButton';
+import CommentForm from '@/components/CommentForm.astro';
+import { renderMarkdown } from '@/lib/markdown';
+import { formatRelativeTime } from '@/lib/utils';
+
+/** 评论用户信息 */
+interface CommentUser {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+}
+
+/** 子评论数据（无嵌套 replies） */
+interface ReplyData {
+	id: string;
+	postId: string;
+	userId: string;
+	parentId: string | null;
+	content: string;
+	isDeleted: boolean;
+	createdAt: string;
+	updatedAt: string;
+	user: CommentUser;
+	likeCount: number;
+	liked: boolean;
+}
+
+/** 评论数据（含嵌套 replies） */
+interface CommentData {
+	id: string;
+	postId: string;
+	userId: string;
+	parentId: string | null;
+	content: string;
+	isDeleted: boolean;
+	createdAt: string;
+	updatedAt: string;
+	user: CommentUser;
+	likeCount: number;
+	liked: boolean;
+	replies?: ReplyData[];
+}
+
+/** 当前登录用户信息 */
+interface CurrentUser {
+	userId: string;
+	username: string;
+}
+
+/**
+ * 组件属性
+ *
+ * @property comment - 评论数据
+ * @property postId - 所属帖子 ID
+ * @property currentUser - 当前登录用户，未登录为 null
+ */
+interface Props {
+	comment: CommentData;
+	postId: string;
+	currentUser: CurrentUser | null;
+}
+
+const { comment, postId, currentUser } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasAvatar = !!comment.user.avatarUrl;
+const isAuthor = currentUser?.userId === comment.userId;
+const isDeleted = comment.isDeleted;
+const isTopLevel = !comment.parentId;
+const canReply = isTopLevel && !!currentUser;
+const hasReplies = comment.replies && comment.replies.length > 0;
+const relativeTime = formatRelativeTime(new Date(comment.createdAt));
+
+// 渲染评论内容（非删除状态时渲染 Markdown）
+const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
+---
+
+<div class="comment-item" data-comment-id={comment.id}>
+	<div class="comment-item-header">
+		<a href={`/${comment.user.username}`} class="comment-item-author">
+			{
+				hasAvatar ? (
+					<img
+						src={comment.user.avatarUrl}
+						alt={comment.user.displayName}
+						class="comment-item-avatar"
+					/>
+				) : (
+					<div class="comment-item-avatar comment-item-avatar-placeholder">
+						{comment.user.displayName.charAt(0).toUpperCase()}
+					</div>
+				)
+			}
+			<div class="comment-item-author-info">
+				<span class="comment-item-name">{comment.user.displayName}</span>
+				<span class="comment-item-username">@{comment.user.username}</span>
+			</div>
+		</a>
+		<time class="comment-item-time" datetime={comment.createdAt}>
+			{relativeTime}
+		</time>
+	</div>
+
+	<div class="comment-item-content">
+		{
+			isDeleted ? (
+				<span class="comment-item-deleted">该内容已删除</span>
+			) : (
+				<div set:html={commentHtml} />
+			)
+		}
+	</div>
+
+	{
+		!isDeleted && (
+			<div class="comment-item-actions">
+				{/* 点赞按钮（React island） */}
+				<LikeButton
+					client:load
+					commentId={comment.id}
+					initialLiked={comment.liked}
+					initialLikeCount={comment.likeCount}
+				/>
+
+				{/* 回复按钮（仅一级评论且已登录时显示） */}
+				{canReply && (
+					<button
+						type="button"
+						class="comment-reply-btn"
+						data-action="toggle-reply"
+						data-comment-id={comment.id}
+					>
+						回复
+					</button>
+				)}
+
+				{/* 删除按钮（仅作者可见） */}
+				{isAuthor && (
+					<button
+						type="button"
+						class="comment-delete-btn"
+						data-action="delete-comment"
+						data-comment-id={comment.id}
+					>
+						删除
+					</button>
+				)}
+			</div>
+		)
+	}
+
+	{/* 回复表单（默认隐藏，点击回复按钮后显示） */}
+	{
+		canReply && (
+			<div class="comment-reply-form" id={`reply-form-${comment.id}`} style="display:none">
+				<CommentForm postId={postId} parentId={comment.id} />
+			</div>
+		)
+	}
+
+	{/* 子评论列表（内联渲染，因为 Astro 不支持组件自递归） */}
+	{
+		hasReplies && (
+			<div class="comment-replies">
+				{comment.replies!.map((reply) => {
+					// 在模板表达式中提取变量，避免比较运算符
+					const replyHasAvatar = !!reply.user.avatarUrl;
+					const replyIsAuthor = currentUser?.userId === reply.userId;
+					const replyIsDeleted = reply.isDeleted;
+					const replyRelativeTime = formatRelativeTime(new Date(reply.createdAt));
+					const replyHtml = replyIsDeleted ? '' : renderMarkdown(reply.content);
+
+					return (
+						<div class="comment-item" data-comment-id={reply.id}>
+							<div class="comment-item-header">
+								<a href={`/${reply.user.username}`} class="comment-item-author">
+									{replyHasAvatar ? (
+										<img
+											src={reply.user.avatarUrl}
+											alt={reply.user.displayName}
+											class="comment-item-avatar"
+										/>
+									) : (
+										<div class="comment-item-avatar comment-item-avatar-placeholder">
+											{reply.user.displayName.charAt(0).toUpperCase()}
+										</div>
+									)}
+									<div class="comment-item-author-info">
+										<span class="comment-item-name">
+											{reply.user.displayName}
+										</span>
+										<span class="comment-item-username">
+											@{reply.user.username}
+										</span>
+									</div>
+								</a>
+								<time class="comment-item-time" datetime={reply.createdAt}>
+									{replyRelativeTime}
+								</time>
+							</div>
+
+							<div class="comment-item-content">
+								{replyIsDeleted ? (
+									<span class="comment-item-deleted">该内容已删除</span>
+								) : (
+									<div set:html={replyHtml} />
+								)}
+							</div>
+
+							{!replyIsDeleted && (
+								<div class="comment-item-actions">
+									<LikeButton
+										client:load
+										commentId={reply.id}
+										initialLiked={reply.liked}
+										initialLikeCount={reply.likeCount}
+									/>
+									{replyIsAuthor && (
+										<button
+											type="button"
+											class="comment-delete-btn"
+											data-action="delete-comment"
+											data-comment-id={reply.id}
+										>
+											删除
+										</button>
+									)}
+								</div>
+							)}
+						</div>
+					);
+				})}
+			</div>
+		)
+	}
+</div>
+
+<script>
+	/**
+	 * 评论项交互逻辑
+	 *
+	 * 功能：
+	 * - 回复按钮：切换回复表单的显示/隐藏
+	 * - 删除按钮：确认后发送 DELETE 请求，成功后刷新页面
+	 */
+	document.addEventListener('DOMContentLoaded', () => {
+		// 回复按钮：切换回复表单
+		document.querySelectorAll('[data-action="toggle-reply"]').forEach((btn) => {
+			btn.addEventListener('click', () => {
+				const commentId = (btn as HTMLElement).dataset.commentId;
+				if (!commentId) return;
+
+				const replyForm = document.getElementById(`reply-form-${commentId}`);
+				if (replyForm) {
+					const isVisible = replyForm.style.display !== 'none';
+					replyForm.style.display = isVisible ? 'none' : 'block';
+				}
+			});
+		});
+
+		// 删除按钮：确认后删除评论
+		document.querySelectorAll('[data-action="delete-comment"]').forEach((btn) => {
+			btn.addEventListener('click', async () => {
+				if (
+					!(await MutanDialog.confirm('确定要删除这条评论吗？', {
+						title: '删除评论',
+						danger: true
+					}))
+				)
+					return;
+
+				const commentId = (btn as HTMLElement).dataset.commentId;
+				if (!commentId) return;
+
+				// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
+				const token = localStorage.getItem('token');
+
+				try {
+					const res = await fetch(`/api/comments/${commentId}`, {
+						method: 'DELETE',
+						headers: token ? { Authorization: `Bearer ${token}` } : undefined
+					});
+
+					const data = await res.json();
+					if (data.success) {
+						location.reload();
+					} else if (res.status === 401) {
+						window.location.href = '/login';
+					} else {
+						await MutanDialog.alert(data.error?.message || '删除失败');
+					}
+				} catch {
+					await MutanDialog.alert('网络错误，请稍后重试');
+				}
+			});
+		});
+	});
+</script>

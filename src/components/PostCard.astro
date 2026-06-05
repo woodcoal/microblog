@@ -1,0 +1,246 @@
+---
+/**
+ * 帖子卡片组件（Astro 版本）
+ *
+ * 在列表中展示帖子摘要，包含作者信息、相对时间、渲染后的内容。
+ * 点击可跳转到帖子详情页。
+ * 底部包含点赞按钮（React island）和评论数统计。
+ * 支持可见度门控：受限帖子显示提示信息而非内容。
+ */
+import LikeButton from '@/components/LikeButton';
+import { formatRelativeTime } from '@/lib/utils';
+
+/** 帖子卡片所需的用户信息 */
+interface PostUser {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+}
+
+/** 帖子卡片所需的媒体信息 */
+interface PostMedia {
+	id: string;
+	fileType: string;
+	fileStorage: {
+		id: string;
+		filePath: string;
+		fileSize: number;
+		mimeType: string;
+		fileType: string;
+	};
+}
+
+/** 帖子卡片所需的帖子数据 */
+interface PostData {
+	id: string;
+	content: string;
+	createdAt: string;
+	isPinned?: boolean;
+	isGlobalPinned?: boolean;
+	user: PostUser;
+	media?: PostMedia[];
+	/** 可见度类型 */
+	visibility?: string;
+}
+
+/** 帖子标签信息 */
+interface PostTag {
+	id: string;
+	name: string;
+}
+
+/**
+ * 组件属性
+ *
+ * @property post - 帖子数据
+ * @property htmlContent - 服务端渲染好的 HTML 内容
+ * @property likeCount - 点赞数
+ * @property liked - 当前用户是否已点赞
+ * @property commentCount - 评论数
+ * @property tags - 帖子标签列表
+ * @property isRestricted - 帖子是否被可见度限制（无权限查看内容）
+ */
+interface Props {
+	post: PostData;
+	htmlContent: string;
+	likeCount?: number;
+	liked?: boolean;
+	commentCount?: number;
+	tags?: PostTag[];
+	isRestricted?: boolean;
+}
+
+const {
+	post,
+	htmlContent,
+	likeCount = 0,
+	liked = false,
+	commentCount = 0,
+	tags = [],
+	isRestricted = false
+} = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasAvatar = !!post.user.avatarUrl;
+const images = post.media?.filter((m) => m.fileType === 'image') ?? [];
+const hasImages = images.length > 0;
+const isPinned = post.isPinned || post.isGlobalPinned;
+const hasTags = tags.length > 0;
+const relativeTime = formatRelativeTime(new Date(post.createdAt));
+
+/** 可见度徽章映射：非 public 时显示对应徽章 */
+const visibilityBadge = (() => {
+	switch (post.visibility) {
+		case 'logged_in':
+			return { text: '登录可见', cls: 'badge-logged-in' };
+		case 'followers':
+			return { text: '粉丝可见', cls: 'badge-followers' };
+		case 'following':
+			return { text: '关注可见', cls: 'badge-followers' };
+		case 'private':
+			return { text: '仅自己', cls: 'badge-private' };
+		case 'password':
+			return { text: '密码保护', cls: 'badge-private' };
+		case 'users':
+			return { text: '指定用户', cls: 'badge-logged-in' };
+		default:
+			return null;
+	}
+})();
+
+/** 是否需要显示可见度徽章（非公开帖子才显示） */
+const showVisibilityBadge = post.visibility !== 'public' && visibilityBadge;
+---
+
+<article class:list={['card post-card', { 'post-card-pinned': isPinned }]}>
+	<div class="post-card-header">
+		<a href={`/${post.user.username}`} class="post-card-author">
+			{
+				hasAvatar ? (
+					<img
+						src={post.user.avatarUrl}
+						alt={`${post.user.displayName} 的头像`}
+						class="post-card-avatar"
+						loading="lazy"
+					/>
+				) : (
+					<div class="post-card-avatar post-card-avatar-placeholder" aria-hidden="true">
+						{post.user.displayName.charAt(0).toUpperCase()}
+					</div>
+				)
+			}
+			<div class="post-card-author-info">
+				<span class="post-card-name">{post.user.displayName}</span>
+				<span class="post-card-username">@{post.user.username}</span>
+			</div>
+		</a>
+		<time class="post-card-time" datetime={post.createdAt}>
+			{relativeTime}
+		</time>
+	</div>
+
+	{
+		isRestricted ? (
+			/* 受限帖子：显示简短提示而非内容 */
+			<a
+				href={`/${post.user.username}/${post.id}`}
+				class="post-card-body post-card-restricted"
+				aria-label="查看帖子详情"
+			>
+				<div class="post-card-restricted-msg">
+					<span>内容受限</span>
+				</div>
+			</a>
+		) : (
+			/* 正常帖子：显示内容和图片 */
+			<a
+				href={`/${post.user.username}/${post.id}`}
+				class="post-card-body"
+				aria-label="查看帖子详情"
+			>
+				<div class="post-card-content" set:html={htmlContent} />
+				{/* 多图网格展示 */}
+				{hasImages && (
+					<div
+						class={`post-card-images post-card-images-${images.length >= 5 ? 'grid' : images.length}`}
+					>
+						{images.map((img) => (
+							<div class="post-card-image-item">
+								<img
+									src={`/uploads/${img.fileStorage.filePath}`}
+									alt=""
+									loading="lazy"
+								/>
+							</div>
+						))}
+					</div>
+				)}
+			</a>
+		)
+	}
+
+	{isPinned && <span class="badge badge-pinned">📌 置顶</span>}
+
+	{/* 标签列表 */}
+	{
+		hasTags && (
+			<div class="post-card-tags">
+				{tags.map((tag) => (
+					<a href={`/tags/${tag.name}`} class="post-card-tag">
+						{tag.name}
+					</a>
+				))}
+			</div>
+		)
+	}
+
+	<div class="post-card-footer">
+		<LikeButton
+			client:load
+			postId={post.id}
+			initialLiked={liked}
+			initialLikeCount={likeCount}
+		/>
+		<a
+			href={`/${post.user.username}/${post.id}`}
+			class="post-card-stat"
+			aria-label={`${commentCount} 条评论`}
+		>
+			<svg
+				viewBox="0 0 24 24"
+				width="16"
+				height="16"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="2"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+			</svg>
+			<span>{commentCount}</span>
+		</a>
+		{
+			showVisibilityBadge && (
+				<span class={`badge ${visibilityBadge.cls} post-card-visibility-badge`}>
+					{visibilityBadge.text}
+				</span>
+			)
+		}
+	</div>
+</article>
+
+<script>
+	/**
+	 * 检测内容溢出并在超出时添加类名，控制渐隐遮罩的显示
+	 */
+	(function () {
+		const contents = document.querySelectorAll('.post-card-content');
+		for (const el of contents) {
+			if (el.scrollHeight > el.clientHeight) {
+				el.classList.add('post-card-content-overflow');
+			}
+		}
+	})();
+</script>

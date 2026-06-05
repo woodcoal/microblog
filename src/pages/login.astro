@@ -1,0 +1,190 @@
+---
+/**
+ * 登录页面
+ *
+ * 纯 Astro 实现，不依赖 React 组件。
+ * 表单提交逻辑通过 <script> 处理。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
+---
+
+<BaseLayout title="登录" layoutMode="narrow">
+	<div class="auth-page card">
+		<div class="auth-brand">
+			<img src={SITE_LOGO_URL} alt={SITE_TITLE} class="auth-logo" />
+			<h1 class="auth-title">欢迎回来</h1>
+		</div>
+
+		<form id="login-form" class="auth-form">
+			<div class="form-group">
+				<label for="email" class="form-label"> 邮箱 </label>
+				<input
+					type="email"
+					id="email"
+					name="email"
+					class="form-input"
+					placeholder="请输入邮箱"
+					required
+				/>
+			</div>
+
+			<div class="form-group">
+				<label for="password" class="form-label"> 密码 </label>
+				<input
+					type="password"
+					id="password"
+					name="password"
+					class="form-input"
+					placeholder="请输入密码"
+					required
+				/>
+			</div>
+
+			<div id="form-error" class="form-error"></div>
+
+			<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
+				登录
+			</button>
+		</form>
+
+		<p class="auth-footer">
+			还没有账号？<a href="/register">立即注册</a>
+		</p>
+	</div>
+</BaseLayout>
+
+<style>
+	.auth-page {
+		max-width: 400px;
+		margin: var(--spacing-8) auto;
+	}
+
+	.auth-brand {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin-bottom: var(--spacing-6);
+	}
+
+	.auth-logo {
+		width: 48px;
+		height: 48px;
+		margin-bottom: var(--spacing-3);
+		border-radius: var(--radius-md);
+	}
+
+	.auth-title {
+		font-size: 1.375rem;
+		font-weight: 700;
+		margin-bottom: var(--spacing-5);
+		text-align: center;
+		letter-spacing: -0.02em;
+	}
+
+	.auth-form {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.auth-submit {
+		margin-top: var(--spacing-1);
+		width: 100%;
+	}
+
+	.auth-footer {
+		text-align: center;
+		margin-top: var(--spacing-4);
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		padding-top: var(--spacing-4);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.auth-footer a {
+		color: var(--color-primary);
+		text-decoration: none;
+		font-weight: 500;
+	}
+
+	.auth-footer a:hover {
+		text-decoration: underline;
+	}
+
+	.auth-error-shake {
+		animation: auth-shake 0.3s ease;
+	}
+
+	@keyframes auth-shake {
+		0%,
+		100% {
+			transform: translateX(0);
+		}
+		25% {
+			transform: translateX(-4px);
+		}
+		75% {
+			transform: translateX(4px);
+		}
+	}
+</style>
+
+<script>
+	// 登录表单提交处理
+	const form = document.getElementById('login-form') as HTMLFormElement;
+	const errorEl = document.getElementById('form-error')!;
+	const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+
+	if (form) {
+		form.addEventListener('submit', async (e) => {
+			// 阻止默认提交
+			e.preventDefault();
+
+			const email = (form.querySelector('#email') as HTMLInputElement).value.trim();
+			const password = (form.querySelector('#password') as HTMLInputElement).value;
+
+			// 清除之前的错误提示
+			errorEl.textContent = '';
+
+			// 前端校验：非空
+			if (!email || !password) {
+				errorEl.textContent = '请填写邮箱和密码';
+				return;
+			}
+
+			// 禁用按钮，防止重复提交
+			submitBtn.disabled = true;
+			submitBtn.textContent = '登录中...';
+
+			try {
+				const res = await fetch('/api/auth/login', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ email, password })
+				});
+
+				const data = await res.json();
+
+				if (!data.success) {
+					errorEl.textContent = data.error?.message || '登录失败';
+					return;
+				}
+
+				// 登录成功：token 写入 localStorage 和 cookie
+				const { token } = data.data;
+				localStorage.setItem('token', token);
+				// 前端写入非 HttpOnly 的 cookie，供 SSR 页面读取
+				document.cookie =
+					'token=' + token + '; path=/; max-age=' + 7 * 24 * 60 * 60 + '; SameSite=Lax';
+
+				// 跳转首页
+				window.location.href = '/';
+			} catch {
+				errorEl.textContent = '网络错误，请稍后重试';
+			} finally {
+				submitBtn.disabled = false;
+				submitBtn.textContent = '登录';
+			}
+		});
+	}
+</script>

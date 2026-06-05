@@ -1,0 +1,288 @@
+---
+/**
+ * 标签聚合页面
+ *
+ * 展示使用该标签的所有帖子。
+ * 标签不存在或已隐藏时显示 404。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import PostCard from '@/components/PostCard.astro';
+import { prisma } from '@/lib/db';
+import { renderMarkdown } from '@/lib/markdown';
+import { POST_CARD_INCLUDE } from '@/lib/queries';
+import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
+import { getUserFromRequest } from '@/lib/auth';
+
+// 路由参数
+const tag = Astro.params.tag;
+
+// 标签不存在返回 404
+if (!tag) {
+	return Astro.redirect('/404');
+}
+
+// 查询标签记录
+const tagRecord = await prisma.tag.findUnique({ where: { name: tag } });
+
+// 标签不存在或已隐藏时显示 404
+if (!tagRecord || tagRecord.isHidden) {
+	return Astro.redirect('/404');
+}
+
+// 获取当前登录用户（标签页可能需要检查帖子可见度）
+const currentUser = await getUserFromRequest(Astro);
+
+// 查询当前用户的关注关系，用于可见度过滤
+const followingIds: string[] = [];
+const followerIds: string[] = [];
+if (currentUser) {
+	const follows = await prisma.follow.findMany({
+		where: { followerId: currentUser.userId },
+		select: { followingId: true }
+	});
+	followingIds.push(...follows.map((f) => f.followingId));
+	const followers = await prisma.follow.findMany({
+		where: { followingId: currentUser.userId },
+		select: { followerId: true }
+	});
+	followerIds.push(...followers.map((f) => f.followerId));
+}
+const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, {
+	followingIds,
+	followerIds
+});
+
+// 查询该标签下的帖子数量（所有可见度，未删除）
+const postCount = await prisma.postTag.count({
+	where: {
+		tagId: tagRecord.id,
+		post: {
+			isDeleted: false
+		}
+	}
+});
+
+// 查询该标签下的帖子 ID 列表（SQLite 不支持关系排序，分步查询）
+const postTagIds = await prisma.postTag.findMany({
+	where: { tagId: tagRecord.id },
+	select: { postId: true }
+});
+const postIds = postTagIds.map((pt) => pt.postId);
+
+// 解析排序参数：latest（最新，默认）、popular（热门）、oldest（最早）
+const sortParam = Astro.url.searchParams.get('sort') || 'latest';
+const validSorts = ['latest', 'popular', 'oldest'];
+const sort = validSorts.includes(sortParam) ? sortParam : 'latest';
+
+// 根据排序方式构建 orderBy 条件
+const orderBy: Record<string, unknown>[] = [{ isPinned: 'desc' }];
+if (sort === 'popular') {
+	orderBy.push({ likes: { _count: 'desc' } });
+} else if (sort === 'oldest') {
+	orderBy.push({ createdAt: 'asc' });
+} else {
+	orderBy.push({ createdAt: 'desc' });
+}
+
+// 查询帖子列表（直接在 Post 表上排序）
+const posts =
+	postIds.length > 0
+		? await prisma.post.findMany({
+				where: {
+					id: { in: postIds },
+					isDeleted: false,
+					...visibilityFilter
+				},
+				orderBy,
+				take: 50,
+				include: {
+					...POST_CARD_INCLUDE,
+					likes: { select: { id: true } }
+				}
+			})
+		: [];
+
+// 预计算每个帖子的可见度限制状态（避免在模板表达式中使用 await）
+const restrictedMap = new Map<string, boolean>();
+for (const post of posts) {
+	const visible = await checkPostVisibility(
+		{
+			visibility: post.visibility,
+			userId: post.userId,
+			passwordHash: post.passwordHash,
+			allowedUserIds: post.allowedUserIds
+		},
+		currentUser ? { userId: currentUser.userId } : null,
+		{
+			isFollower: followingIds.includes(post.userId),
+			isFollowing: followerIds.includes(post.userId)
+		}
+	);
+	restrictedMap.set(post.id, !visible);
+}
+
+// 判断帖子列表是否为空
+const hasPosts = posts.length > 0;
+---
+
+<BaseLayout title={`#${tag}# - 标签`}>
+	<div class="tag-page">
+		<div class="tag-page-header">
+			<div class="tag-page-header-left">
+				<h1 class="tag-page-title">{tag}</h1>
+				<span class="tag-page-count">{postCount} 条动态</span>
+			</div>
+			<div class="sort-tabs">
+				<a
+					href={`/tags/${tag}?sort=latest`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'latest' }]}
+				>
+					最新
+				</a>
+				<a
+					href={`/tags/${tag}?sort=popular`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'popular' }]}
+				>
+					热门
+				</a>
+				<a
+					href={`/tags/${tag}?sort=oldest`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'oldest' }]}
+				>
+					最早
+				</a>
+			</div>
+		</div>
+
+		{
+			hasPosts ? (
+				<div class="tag-page-posts">
+					{posts.map((post) => {
+						// 提取标签列表
+						const postTags = post.tags.map((pt) => ({
+							id: pt.tag.id,
+							name: pt.tag.name
+						}));
+						// 渲染 Markdown 内容
+						const htmlContent = renderMarkdown(post.content);
+						// 点赞数
+						const likeCount = post.likes.length;
+						// 从预计算结果中获取帖子可见度限制状态
+						const isPostRestricted = restrictedMap.get(post.id) ?? false;
+
+						return (
+							<PostCard
+								post={{
+									id: post.id,
+									content: post.content,
+									createdAt: post.createdAt.toISOString(),
+									isPinned: post.isPinned,
+									isGlobalPinned: post.isGlobalPinned,
+									user: {
+										id: post.user.id,
+										username: post.user.username,
+										displayName: post.user.displayName,
+										avatarUrl: post.user.avatarUrl
+									},
+									media: post.media.map((m) => ({
+										id: m.id,
+										fileType: m.fileType,
+										fileStorage: {
+											id: m.fileStorage.id,
+											filePath: m.fileStorage.filePath,
+											fileSize: m.fileStorage.fileSize,
+											mimeType: m.fileStorage.mimeType,
+											fileType: m.fileStorage.fileType
+										}
+									}))
+								}}
+								htmlContent={htmlContent}
+								likeCount={likeCount}
+								tags={postTags}
+								visibility={post.visibility}
+								isRestricted={isPostRestricted}
+							/>
+						);
+					})}
+				</div>
+			) : (
+				<p class="tag-page-empty">该标签下暂无动态</p>
+			)
+		}
+	</div>
+</BaseLayout>
+
+<style>
+	.tag-page {
+		padding: 1rem 0;
+	}
+	.tag-page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 0.75rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+	.tag-page-header-left {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+	}
+	.tag-page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		color: var(--color-primary);
+		margin: 0;
+	}
+	.tag-page-count {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.tag-page-posts {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+	.tag-page-empty {
+		text-align: center;
+		color: var(--color-muted);
+		padding: 2rem 0;
+	}
+
+	/* 排序选项卡 — 内联按钮组 */
+	.sort-tabs {
+		display: flex;
+		gap: 0;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.sort-tab {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		text-decoration: none;
+		border-right: 1px solid var(--color-border);
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.sort-tab:last-child {
+		border-right: none;
+	}
+
+	.sort-tab:hover {
+		color: var(--color-text);
+		background: var(--color-surface);
+	}
+
+	.sort-tab-active {
+		color: var(--color-primary);
+		background: var(--color-surface);
+		font-weight: 600;
+	}
+</style>

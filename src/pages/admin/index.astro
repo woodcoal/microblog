@@ -1,0 +1,249 @@
+---
+/**
+ * 管理后台 - 仪表盘页面
+ *
+ * 展示系统统计数据：
+ * - 统计卡片：总用户数、总帖子数、总评论数、总关注数
+ * - 今日新增：今日新增用户数、今日新增帖子数
+ * - 30天趋势：每日发帖数折线图
+ * - 最近活动：最新 10 条操作记录（ActivityLog）
+ */
+import AdminLayout from '@/layouts/Admin.astro';
+import { prisma } from '@/lib/db';
+import { formatRelativeTime } from '@/lib/utils';
+
+// 获取今日零点时间
+const todayStart = new Date();
+todayStart.setHours(0, 0, 0, 0);
+
+// 获取30天前零点时间
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+// 并行获取所有统计数据
+const [
+	totalUsers,
+	totalPosts,
+	totalComments,
+	totalFollows,
+	todayNewUsers,
+	todayNewPosts,
+	recentActivityLogs,
+	recentPostsForTrend
+] = await Promise.all([
+	// 总用户数
+	prisma.user.count(),
+	// 总帖子数（含已删除）
+	prisma.post.count(),
+	// 总评论数（含已删除）
+	prisma.comment.count(),
+	// 总关注数
+	prisma.follow.count(),
+	// 今日新增用户数
+	prisma.user.count({
+		where: { createdAt: { gte: todayStart } }
+	}),
+	// 今日新增帖子数
+	prisma.post.count({
+		where: { createdAt: { gte: todayStart } }
+	}),
+	// 最新 10 条操作日志（含操作者信息）
+	prisma.activityLog.findMany({
+		select: {
+			id: true,
+			action: true,
+			createdAt: true,
+			actor: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true,
+					avatarUrl: true
+				}
+			}
+		},
+		orderBy: { createdAt: 'desc' },
+		take: 10
+	}),
+	// 30天内帖子创建时间（用于趋势图）
+	prisma.post.findMany({
+		where: {
+			createdAt: { gte: thirtyDaysAgo },
+			isDeleted: false
+		},
+		select: { createdAt: true }
+	})
+]);
+
+// 操作类型到中文描述的映射表
+const actionLabelMap: Record<string, string> = {
+	'post.create': '发布了帖子',
+	'post.update': '编辑了帖子',
+	'post.delete': '删除了帖子',
+	'comment.create': '发表了评论',
+	'comment.delete': '删除了评论',
+	'like.create': '点赞了',
+	'like.remove': '取消点赞',
+	'follow.create': '关注了用户',
+	'follow.remove': '取消关注'
+};
+
+// 格式化操作日志为模板所需结构（在服务端完成，避免模板中使用比较运算符）
+const recentActivities = recentActivityLogs.map((log) => ({
+	id: log.id,
+	actorName: log.actor.displayName || log.actor.username,
+	actorAvatar: log.actor.avatarUrl,
+	actionLabel: actionLabelMap[log.action] || log.action,
+	time: formatRelativeTime(log.createdAt)
+}));
+
+// ===== 30天趋势图数据计算 =====
+
+// 初始化每日计数（最近30天，每天默认0）
+const dailyCounts: Record<string, number> = {};
+for (let i = 29; i >= 0; i--) {
+	const d = new Date();
+	d.setDate(d.getDate() - i);
+	const key = d.toISOString().split('T')[0];
+	dailyCounts[key] = 0;
+}
+
+// 统计每天的发帖数
+for (const p of recentPostsForTrend) {
+	const key = p.createdAt.toISOString().split('T')[0];
+	if (dailyCounts[key] !== undefined) {
+		dailyCounts[key]++;
+	}
+}
+
+// 转为数组格式，方便模板遍历
+const trendData = Object.entries(dailyCounts).map(([date, count]) => ({ date, count }));
+
+// 最大发帖数（用于Y轴缩放，至少为1避免除零）
+const maxCount = Math.max(...trendData.map((d) => d.count), 1);
+
+// SVG 图表尺寸常量
+const SVG_WIDTH = 600;
+const SVG_HEIGHT = 200;
+const CHART_PADDING = 10;
+
+// 预计算每个数据点的 SVG 坐标（避免模板中使用比较运算符）
+const trendPoints = trendData.map((d, i) => {
+	const x = (i / 29) * SVG_WIDTH;
+	const y = SVG_HEIGHT - (d.count / maxCount) * (SVG_HEIGHT - CHART_PADDING * 2);
+	return { x, y, date: d.date, count: d.count };
+});
+
+// 折线 points 属性字符串
+const polylinePoints = trendPoints.map((p) => `${p.x},${p.y}`).join(' ');
+
+// 网格线 Y 坐标（5条水平线）
+const gridLines = Array.from({ length: 5 }, (_, i) => i * (SVG_HEIGHT / 4));
+
+// 起止日期标签（MM-DD 格式）
+const trendStartDate = trendPoints[0]?.date.slice(5) || '';
+const trendEndDate = trendPoints[trendPoints.length - 1]?.date.slice(5) || '';
+---
+
+<AdminLayout title="仪表盘">
+	<h1 class="admin-page-title">📊 仪表盘</h1>
+
+	<!-- 统计卡片 -->
+	<div class="admin-stats-grid">
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">总用户数</div>
+			<div class="admin-stat-value">{totalUsers}</div>
+		</div>
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">总帖子数</div>
+			<div class="admin-stat-value">{totalPosts}</div>
+		</div>
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">总评论数</div>
+			<div class="admin-stat-value">{totalComments}</div>
+		</div>
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">总关注数</div>
+			<div class="admin-stat-value">{totalFollows}</div>
+		</div>
+	</div>
+
+	<!-- 今日新增 -->
+	<h2 class="admin-section-title">今日新增</h2>
+	<div class="admin-stats-grid">
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">新增用户</div>
+			<div class="admin-stat-value">{todayNewUsers}</div>
+			{
+				todayNewUsers > 0 && (
+					<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewUsers}</span>
+				)
+			}
+		</div>
+		<div class="admin-stat-card">
+			<div class="admin-stat-label">新增帖子</div>
+			<div class="admin-stat-value">{todayNewPosts}</div>
+			{
+				todayNewPosts > 0 && (
+					<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewPosts}</span>
+				)
+			}
+		</div>
+	</div>
+
+	<!-- 30天发帖趋势图 -->
+	<h2 class="admin-section-title">30天趋势</h2>
+	<div class="admin-trend-chart">
+		<svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} class="admin-trend-svg">
+			<!-- 水平网格线 -->
+			{
+				gridLines.map((y) => (
+					<line
+						x1="0"
+						y1={y}
+						x2={SVG_WIDTH}
+						y2={y}
+						stroke="var(--color-border)"
+						stroke-width="0.5"
+					/>
+				))
+			}
+			<!-- 折线 -->
+			<polyline
+				fill="none"
+				stroke="var(--color-primary)"
+				stroke-width="2"
+				points={polylinePoints}></polyline>
+			<!-- 数据点 -->
+			{trendPoints.map((p) => <circle cx={p.x} cy={p.y} r="3" fill="var(--color-primary)" />)}
+		</svg>
+		<div class="admin-trend-labels">
+			<span>{trendStartDate}</span>
+			<span>{trendEndDate}</span>
+		</div>
+	</div>
+
+	<!-- 最近活动 -->
+	<h2 class="admin-section-title">最近活动</h2>
+	<div class="admin-activity-list">
+		{
+			recentActivities.map((activity) => (
+				<div class="admin-activity-item">
+					<div class="admin-activity-content">
+						<span class="admin-activity-author">{activity.actorName}</span>
+						<span class="admin-activity-action">{activity.actionLabel}</span>
+					</div>
+					<span class="admin-activity-time">{activity.time}</span>
+				</div>
+			))
+		}
+		{
+			recentActivities.length === 0 && (
+				<div class="empty-state">
+					<p>暂无活动</p>
+				</div>
+			)
+		}
+	</div>
+</AdminLayout>

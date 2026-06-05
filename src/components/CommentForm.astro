@@ -1,0 +1,141 @@
+---
+/**
+ * 评论输入框组件（Astro 版本）
+ *
+ * 提供 textarea 输入区域和字数统计，
+ * 提交到 POST /api/posts/:id/comments。
+ * 提交成功后刷新页面。
+ */
+
+/** 评论内容最大长度 */
+const COMMENT_MAX_LENGTH = 1000;
+
+/**
+ * 组件属性
+ *
+ * @property postId - 所属帖子 ID
+ * @property parentId - 父评论 ID（二级评论时传入）
+ */
+interface Props {
+	postId: string;
+	parentId?: string;
+}
+
+const { postId, parentId } = Astro.props;
+
+// 生成唯一 ID，用于关联 textarea 和字数统计
+const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
+---
+
+<div class="comment-form" id={formId}>
+	<textarea
+		class="comment-form-textarea"
+		placeholder="写下你的评论..."
+		maxlength={COMMENT_MAX_LENGTH}
+		rows="3"
+		aria-label="评论内容"
+		data-post-id={postId}
+		data-parent-id={parentId || ''}></textarea>
+	<div class="comment-form-footer">
+		<span class="comment-form-count">
+			0/{COMMENT_MAX_LENGTH}
+		</span>
+		<button type="button" class="comment-form-submit" disabled> 发表评论 </button>
+	</div>
+</div>
+
+<script>
+	/**
+	 * 评论表单交互逻辑
+	 *
+	 * 功能：
+	 * - 实时字数统计，超过限制时标红
+	 * - 提交评论到 API
+	 * - 成功后刷新页面
+	 */
+	document.addEventListener('DOMContentLoaded', () => {
+		const forms = document.querySelectorAll('.comment-form');
+
+		forms.forEach((form) => {
+			const textarea = form.querySelector('.comment-form-textarea') as HTMLTextAreaElement;
+			const countEl = form.querySelector('.comment-form-count') as HTMLSpanElement;
+			const submitBtn = form.querySelector('.comment-form-submit') as HTMLButtonElement;
+			const MAX_LENGTH = 1000;
+
+			if (!textarea || !countEl || !submitBtn) return;
+
+			/**
+			 * 更新字数统计和提交按钮状态
+			 */
+			const updateCount = () => {
+				const len = textarea.value.length;
+				countEl.textContent = `${len}/${MAX_LENGTH}`;
+
+				// 超过限制时添加红色样式
+				if (len > MAX_LENGTH) {
+					countEl.classList.add('comment-form-count-over');
+				} else {
+					countEl.classList.remove('comment-form-count-over');
+				}
+
+				// 内容非空且未超限时启用提交按钮
+				const canSubmit = textarea.value.trim().length > 0 && len <= MAX_LENGTH;
+				submitBtn.disabled = !canSubmit;
+			};
+
+			textarea.addEventListener('input', updateCount);
+
+			/**
+			 * 提交评论
+			 *
+			 * 1. 校验登录状态
+			 * 2. 发送 POST 请求
+			 * 3. 成功后刷新页面
+			 */
+			submitBtn.addEventListener('click', async () => {
+				const content = textarea.value.trim();
+				if (!content || content.length > MAX_LENGTH) return;
+
+				// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
+				const token = localStorage.getItem('token');
+
+				submitBtn.disabled = true;
+				submitBtn.textContent = '发表中...';
+
+				const postId = textarea.dataset.postId;
+				const parentId = textarea.dataset.parentId || null;
+
+				try {
+					const res = await fetch(`/api/posts/${postId}/comments`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							...(token ? { Authorization: `Bearer ${token}` } : {})
+						},
+						body: JSON.stringify({
+							content,
+							parentId
+						})
+					});
+
+					const data = await res.json();
+					if (data.success) {
+						// 成功后刷新页面
+						location.reload();
+					} else if (res.status === 401) {
+						// 未登录跳转登录页
+						window.location.href = '/login';
+					} else {
+						await MutanDialog.alert(data.error?.message || '发表评论失败');
+						submitBtn.disabled = false;
+						submitBtn.textContent = '发表评论';
+					}
+				} catch {
+					await MutanDialog.alert('网络错误，请稍后重试');
+					submitBtn.disabled = false;
+					submitBtn.textContent = '发表评论';
+				}
+			});
+		});
+	});
+</script>

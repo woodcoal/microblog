@@ -1,0 +1,175 @@
+---
+/**
+ * 管理后台 - 标签列表组件
+ *
+ * 服务端渲染标签表格，支持：
+ * - 隐藏/显示：通过 fetch 请求对应 API
+ * - 分页
+ *
+ * @prop tags - 标签列表
+ * @prop total - 总数
+ * @prop page - 当前页码
+ * @prop totalPages - 总页数
+ * @prop hasPrev - 是否有上一页
+ * @prop hasNext - 是否有下一页
+ */
+
+/** 标签数据结构 */
+interface TagData {
+	id: string;
+	name: string;
+	isHidden: boolean;
+	usageCount: number;
+	createdAt: string;
+}
+
+interface Props {
+	tags: TagData[];
+	total: number;
+	page: number;
+	totalPages: number;
+	hasPrev: boolean;
+	hasNext: boolean;
+}
+
+const { tags, total, page, totalPages, hasPrev, hasNext } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasTags = tags.length > 0;
+const prevPage = page - 1;
+const nextPage = page + 1;
+---
+
+<!-- 标签表格 -->
+<div class="admin-table-wrapper">
+	<table class="admin-table">
+		<thead>
+			<tr>
+				<th>名称</th>
+				<th>使用次数</th>
+				<th>状态</th>
+				<th>创建时间</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				tags.map((tag) => {
+					const statusBadgeClass = tag.isHidden
+						? 'admin-badge-hidden'
+						: 'admin-badge-visible';
+					const statusLabel = tag.isHidden ? '已隐藏' : '显示中';
+					const actionLabel = tag.isHidden ? '显示' : '隐藏';
+					const actionBtnClass = tag.isHidden
+						? 'admin-btn-sm-primary'
+						: 'admin-btn-sm-warning';
+					const actionEndpoint = tag.isHidden
+						? `/api/admin/tags/${tag.id}/show`
+						: `/api/admin/tags/${tag.id}/hide`;
+					const formattedDate = new Date(tag.createdAt).toLocaleDateString('zh-CN', {
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+
+					return (
+						<tr>
+							<td>
+								<a href={`/tags/${tag.name}`}>{tag.name}</a>
+							</td>
+							<td>{tag.usageCount}</td>
+							<td>
+								<span class={`admin-badge ${statusBadgeClass}`}>{statusLabel}</span>
+							</td>
+							<td>{formattedDate}</td>
+							<td>
+								<div class="admin-actions">
+									<button
+										type="button"
+										class={`admin-btn-sm ${actionBtnClass}`}
+										data-action={tag.isHidden ? 'show' : 'hide'}
+										data-tag-id={tag.id}
+									>
+										{actionLabel}
+									</button>
+								</div>
+							</td>
+						</tr>
+					);
+				})
+			}
+			{
+				!hasTags && (
+					<tr>
+						<td colspan="5" class="admin-empty-cell">
+							暂无标签数据
+						</td>
+					</tr>
+				)
+			}
+		</tbody>
+	</table>
+</div>
+
+<!-- 分页 -->
+<div class="admin-pagination">
+	{
+		hasPrev ? (
+			<a href={`/admin/tags?page=${prevPage}`} class="admin-pagination-btn">
+				上一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">上一页</span>
+		)
+	}
+	<span class="admin-pagination-info">
+		第 {page} / {totalPages} 页，共 {total} 条
+	</span>
+	{
+		hasNext ? (
+			<a href={`/admin/tags?page=${nextPage}`} class="admin-pagination-btn">
+				下一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">下一页</span>
+		)
+	}
+</div>
+
+<script>
+	/**
+	 * 标签管理操作交互逻辑
+	 *
+	 * 通过 data-action 属性识别操作类型，
+	 * 使用 fetch 发送 PUT 请求到对应 API 端点。
+	 * 操作类型与端点映射：
+	 * - hide → PUT /api/admin/tags/:id/hide
+	 * - show → PUT /api/admin/tags/:id/show
+	 */
+	document.querySelectorAll('[data-action="hide"], [data-action="show"]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.action || '';
+			const tagId = (btn as HTMLElement).dataset.tagId || '';
+
+			// 根据 action 类型拼接 API 端点
+			const endpoint = `/api/admin/tags/${tagId}/${action}`;
+
+			try {
+				const res = await fetch(endpoint, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+</script>

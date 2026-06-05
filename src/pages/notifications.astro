@@ -1,0 +1,535 @@
+---
+/**
+ * 通知列表页面
+ *
+ * SSR 页面，服务端获取通知列表，Astro 组件服务端渲染。
+ * 支持按通知类型筛选（type 查询参数）和分页加载更多。
+ * 需要登录，未登录重定向到 /login。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import NotificationList from '@/components/NotificationList.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+
+// 需要认证，未登录重定向
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) {
+	return Astro.redirect('/login');
+}
+
+/** 每页通知数量 */
+const PAGE_SIZE = 20;
+
+/** 合法的通知类型筛选值 */
+const VALID_TYPES = ['follow', 'comment', 'like', 'mention'];
+
+// 解析 URL 查询参数
+const url = new URL(Astro.request.url);
+const typeFilter = url.searchParams.get('type') || '';
+
+// 构建查询条件
+const where: any = { recipientId: currentUser.userId };
+if (typeFilter && VALID_TYPES.includes(typeFilter)) {
+	where.type = typeFilter;
+}
+
+// 查询当前用户的通知列表（按时间倒序，包含 actor 用户信息）
+const notifications = await prisma.notification.findMany({
+	where,
+	include: {
+		actor: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		}
+	},
+	orderBy: { createdAt: 'desc' },
+	take: PAGE_SIZE + 1
+});
+
+// 判断是否有更多通知（用于"加载更多"分页）
+const hasMoreInitial = notifications.length > PAGE_SIZE;
+const displayNotifications = hasMoreInitial ? notifications.slice(0, PAGE_SIZE) : notifications;
+
+// 批量查询通知关联帖子的作者用户名（Notification 模型没有 post 关系，需单独查询）
+const postIds = [...new Set(displayNotifications.map((n) => n.postId).filter(Boolean))] as string[];
+const postAuthorMap = new Map<string, string>();
+if (postIds.length > 0) {
+	const posts = await prisma.post.findMany({
+		where: { id: { in: postIds } },
+		select: {
+			id: true,
+			user: { select: { username: true } }
+		}
+	});
+	for (const p of posts) {
+		postAuthorMap.set(p.id, p.user.username);
+	}
+}
+
+// 查询未读通知数量（不受类型筛选影响，始终显示全部未读数）
+const unreadCount = await prisma.notification.count({
+	where: {
+		recipientId: currentUser.userId,
+		isRead: false
+	}
+});
+
+// 序列化通知数据（将 Date 对象转为字符串，附加帖子作者用户名）
+const serializedNotifications = displayNotifications.map((n: any) => ({
+	...n,
+	createdAt: n.createdAt.toISOString(),
+	postAuthorUsername: n.postId ? (postAuthorMap.get(n.postId) ?? null) : null
+}));
+
+// 通知类型筛选选项
+const filterOptions = [
+	{ value: '', label: '全部' },
+	{ value: 'follow', label: '关注' },
+	{ value: 'comment', label: '评论' },
+	{ value: 'like', label: '点赞' },
+	{ value: 'mention', label: '提及' }
+];
+---
+
+<BaseLayout title="通知">
+	<div>
+		<!-- 标题栏 -->
+		<div class="notification-header">
+			<h1 class="page-title">通知</h1>
+			<div class="notification-header-actions">
+				{
+					unreadCount > 0 && (
+						<button type="button" class="btn btn-outline" data-action="mark-all-read">
+							全部已读
+						</button>
+					)
+				}
+				{
+					hasMoreInitial || displayNotifications.length > 0 ? (
+						<button
+							type="button"
+							class="btn btn-outline btn-danger-outline"
+							data-action="delete-all"
+						>
+							全部删除
+						</button>
+					) : null
+				}
+			</div>
+		</div>
+
+		<!-- 类型筛选标签 -->
+		<div class="notification-filters">
+			{
+				filterOptions.map((opt) => (
+					<a
+						href={`/notifications${opt.value ? `?type=${opt.value}` : ''}`}
+						class:list={['filter-tab', { active: typeFilter === opt.value }]}
+					>
+						{opt.label}
+					</a>
+				))
+			}
+		</div>
+
+		<!-- 通知列表 -->
+		<NotificationList notifications={serializedNotifications} unreadCount={unreadCount} />
+
+		<!-- 加载更多按钮 -->
+		{
+			hasMoreInitial && (
+				<div class="load-more-wrap">
+					<button
+						type="button"
+						class="btn btn-outline load-more-btn"
+						data-action="load-more"
+						data-type-filter={typeFilter}
+					>
+						加载更多
+					</button>
+				</div>
+			)
+		}
+	</div>
+</BaseLayout>
+
+<style>
+	/* 通知标题栏 */
+	.notification-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		margin-bottom: 1rem;
+	}
+
+	.notification-header-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	/* 危险操作按钮轮廓样式 */
+	.btn-danger-outline {
+		color: var(--color-danger);
+		border-color: var(--color-danger);
+	}
+
+	.btn-danger-outline:hover {
+		background: var(--color-danger);
+		color: #fff;
+	}
+
+	/* 类型筛选标签栏 */
+	.notification-filters {
+		display: flex;
+		gap: 0.25rem;
+		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--color-border);
+		padding-bottom: 0.5rem;
+		overflow-x: auto;
+	}
+
+	.filter-tab {
+		padding: 0.375rem 0.75rem;
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		text-decoration: none;
+		white-space: nowrap;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.filter-tab:hover {
+		color: var(--color-text);
+		background: var(--color-surface);
+	}
+
+	.filter-tab.active {
+		color: var(--color-primary);
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+		font-weight: 500;
+	}
+
+	/* 加载更多 */
+	.load-more-wrap {
+		display: flex;
+		justify-content: center;
+		margin-top: 1rem;
+	}
+
+	.load-more-btn {
+		min-width: 120px;
+	}
+</style>
+
+<script>
+	/**
+	 * 通知页面交互逻辑
+	 *
+	 * 功能：
+	 * - 点击未读通知项：标记该条已读，移除未读样式
+	 * - "全部已读"按钮：通过 fetch 请求 PUT /api/notifications/read，成功后刷新
+	 * - "加载更多"按钮：通过 fetch 请求 GET /api/notifications，追加通知到列表
+	 */
+
+	/** 构建带认证的请求头 */
+	function getAuthHeaders(): HeadersInit {
+		const token = localStorage.getItem('token');
+		return {
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		};
+	}
+
+	/**
+	 * 标记指定通知为已读，并移除未读样式
+	 *
+	 * @param notificationId - 通知 ID
+	 * @param itemEl - 通知项 DOM 元素
+	 */
+	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
+		try {
+			await fetch('/api/notifications/read', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ ids: [notificationId] })
+			});
+			// 移除未读样式和标记
+			itemEl.classList.remove('notification-unread');
+			itemEl.removeAttribute('data-unread');
+			// 移除未读指示点
+			const dot = itemEl.querySelector('.notification-dot');
+			if (dot) dot.remove();
+		} catch {
+			// 标记已读失败不影响操作
+		}
+	}
+
+	// 点击未读通知项时标记已读
+	document.querySelectorAll('.notification-item[data-unread="true"]').forEach((item) => {
+		item.addEventListener('click', (e) => {
+			const target = e.target as HTMLElement;
+			// 删除按钮点击不触发已读
+			if (target.closest('[data-action="delete-notification"]')) return;
+			if (
+				target.closest('.notification-actor-link') ||
+				target.closest('.notification-post-link') ||
+				target.closest('.notification-avatar-link')
+			) {
+				const notificationId = (item as HTMLElement).dataset.notificationId;
+				if (notificationId) {
+					markAsRead(notificationId, item as HTMLElement);
+				}
+				return;
+			}
+			const notificationId = (item as HTMLElement).dataset.notificationId;
+			if (notificationId) {
+				markAsRead(notificationId, item as HTMLElement);
+			}
+		});
+	});
+
+	// 删除通知（事件委托，支持动态创建的元素）
+	document.addEventListener('click', async (e) => {
+		const target = (e.target as HTMLElement).closest(
+			'[data-action="delete-notification"]'
+		) as HTMLElement | null;
+		if (!target) return;
+
+		e.stopPropagation();
+		const item = target.closest('.notification-item') as HTMLElement;
+		const notificationId = item?.dataset.notificationId;
+		if (!notificationId) return;
+
+		if (!(await MutanDialog.confirm('确定删除此通知？', { title: '删除通知', danger: true })))
+			return;
+
+		try {
+			const res = await fetch(`/api/notifications/${notificationId}`, {
+				method: 'DELETE',
+				headers: getAuthHeaders()
+			});
+			const data = await res.json();
+			if (data.success) {
+				item.remove();
+			} else {
+				await MutanDialog.alert(data.error?.message || '删除失败');
+			}
+		} catch {
+			await MutanDialog.alert('网络错误');
+		}
+	});
+
+	// "全部已读"按钮
+	document.querySelectorAll('[data-action="mark-all-read"]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			try {
+				const res = await fetch('/api/notifications/read', {
+					method: 'PUT',
+					headers: getAuthHeaders()
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else if (res.status === 401) {
+					window.location.href = '/login';
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+
+	// "全部删除"按钮
+	document.querySelectorAll('[data-action="delete-all"]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			if (
+				!(await MutanDialog.confirm('确定删除所有通知？此操作不可恢复。', {
+					title: '删除全部通知',
+					danger: true
+				}))
+			)
+				return;
+
+			try {
+				const res = await fetch('/api/notifications', {
+					method: 'DELETE',
+					headers: getAuthHeaders()
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '删除失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+
+	// "加载更多"按钮 — 游标分页加载下一页通知
+	let nextCursor: string | null = null;
+	const loadMoreBtn = document.querySelector('[data-action="load-more"]') as HTMLButtonElement;
+	const notificationList = document.querySelector('.notification-list');
+
+	if (loadMoreBtn && notificationList) {
+		loadMoreBtn.addEventListener('click', async () => {
+			loadMoreBtn.disabled = true;
+			loadMoreBtn.textContent = '加载中...';
+
+			try {
+				// 构建请求 URL，带上游标和类型筛选
+				const typeFilter = loadMoreBtn.dataset.typeFilter || '';
+				let fetchUrl = '/api/notifications';
+				const params = new URLSearchParams();
+				if (nextCursor) params.set('cursor', nextCursor);
+				if (typeFilter) params.set('type', typeFilter);
+				if (params.toString()) fetchUrl += `?${params.toString()}`;
+
+				const res = await fetch(fetchUrl, { headers: getAuthHeaders() });
+				const data = await res.json();
+
+				if (data.success) {
+					const items = data.data.items;
+					nextCursor = data.data.nextCursor;
+
+					// 将新通知追加到列表（API 已包含 postAuthorUsername）
+					for (const notification of items) {
+						const el = createNotificationElement(notification);
+						notificationList.appendChild(el);
+					}
+
+					// 没有更多数据时隐藏按钮
+					if (!data.data.hasMore) {
+						loadMoreBtn.style.display = 'none';
+					}
+				}
+			} catch {
+				await MutanDialog.alert('加载失败，请重试');
+			} finally {
+				loadMoreBtn.disabled = false;
+				loadMoreBtn.textContent = '加载更多';
+			}
+		});
+	}
+
+	/**
+	 * 根据通知数据创建 DOM 元素
+	 *
+	 * @param notification - 通知数据对象（包含 postAuthorUsername）
+	 * @returns 通知项 DOM 元素
+	 */
+	function createNotificationElement(notification: any): HTMLElement {
+		const typeIconMap: Record<string, string> = {
+			like: '❤️',
+			follow: '👤',
+			comment: '💬',
+			mention: '📢',
+			boost: '🔄'
+		};
+		const iconClassMap: Record<string, string> = {
+			like: 'notification-icon-like',
+			follow: 'notification-icon-follow',
+			comment: 'notification-icon-comment',
+			mention: 'notification-icon-mention',
+			boost: 'notification-icon-boost'
+		};
+
+		const typeIcon = typeIconMap[notification.type] || '📌';
+		const iconClass = iconClassMap[notification.type] || 'notification-icon-follow';
+		const postAuthorUsername = notification.postAuthorUsername ?? null;
+		const postLink =
+			notification.type !== 'follow' && notification.postId && postAuthorUsername
+				? `/${postAuthorUsername}/${notification.postId}`
+				: null;
+		const actorLink = `/${notification.actor.username}`;
+		const actorName = notification.actor.displayName;
+		const avatarUrl = notification.actor.avatarUrl;
+		const initial = actorName.charAt(0).toUpperCase();
+		const isUnread = !notification.isRead;
+
+		// 构建通知文案
+		let textHtml = `<a href="${actorLink}" class="notification-actor-link">${actorName}</a>`;
+		if (notification.type === 'follow') {
+			textHtml += ' 关注了你';
+		} else if (notification.type === 'comment') {
+			textHtml += ' 评论了';
+			textHtml += postLink
+				? `<a href="${postLink}" class="notification-post-link">你的帖子</a>`
+				: '你的帖子';
+		} else if (notification.type === 'like') {
+			textHtml += ' 赞了';
+			textHtml += postLink
+				? `<a href="${postLink}" class="notification-post-link">你的帖子</a>`
+				: '你的帖子';
+		} else if (notification.type === 'mention') {
+			textHtml += ' 在';
+			textHtml += postLink
+				? `<a href="${postLink}" class="notification-post-link">帖子</a>`
+				: '帖子';
+			textHtml += '中提到了你';
+		} else {
+			textHtml += ' 与你互动';
+		}
+
+		// 计算相对时间
+		const createdDate = new Date(notification.createdAt);
+		const now = new Date();
+		const diffMs = now.getTime() - createdDate.getTime();
+		const diffMin = Math.floor(diffMs / 60000);
+		let relativeTime: string;
+		if (diffMin < 1) relativeTime = '刚刚';
+		else if (diffMin < 60) relativeTime = `${diffMin} 分钟前`;
+		else if (diffMin < 1440) relativeTime = `${Math.floor(diffMin / 60)} 小时前`;
+		else relativeTime = `${Math.floor(diffMin / 1440)} 天前`;
+
+		// 创建 DOM
+		const item = document.createElement('div');
+		item.className = `notification-item${isUnread ? ' notification-unread' : ''}`;
+		item.dataset.notificationId = notification.id;
+		if (isUnread) item.dataset.unread = 'true';
+
+		item.innerHTML = `
+			<span class="notification-icon-wrap ${iconClass}" aria-hidden="true">${typeIcon}</span>
+			<a href="${actorLink}" class="notification-avatar-link" aria-label="${actorName} 的主页">
+				${
+					avatarUrl
+						? `<img src="${avatarUrl}" alt="${actorName} 的头像" class="notification-avatar" loading="lazy" />`
+						: `<div class="notification-avatar notification-avatar-placeholder" aria-hidden="true">${initial}</div>`
+				}
+			</a>
+			<div class="notification-content">
+				<p class="notification-text">${textHtml}</p>
+				<time class="notification-time">${relativeTime}</time>
+			</div>
+			${isUnread ? '<span class="notification-dot"></span>' : ''}
+			<button type="button" class="notification-delete" data-action="delete-notification" aria-label="删除此通知" title="删除">✕</button>
+		`;
+
+		// 绑定点击已读事件
+		if (isUnread) {
+			item.addEventListener('click', (e) => {
+				const target = e.target as HTMLElement;
+				if (
+					target.closest('.notification-actor-link') ||
+					target.closest('.notification-post-link') ||
+					target.closest('.notification-avatar-link')
+				) {
+					markAsRead(notification.id, item);
+					return;
+				}
+				markAsRead(notification.id, item);
+			});
+		}
+
+		return item;
+	}
+</script>

@@ -1,0 +1,204 @@
+/**
+ * 设计令牌 — 全局 CSS 变量
+ *
+ * 定义颜色之外的设计系统基线值：
+ * 间距、阴影、圆角、过渡、字体等。
+ *
+ * 使用方式：var(--spacing-4) var(--shadow-sm) var(--radius-md)
+ * 颜色变量在 Base.astro 的 data-theme 中定义。
+ */
+
+:root {
+	/* ===== 间距（4px 基准） ===== */
+	--spacing-1: 0.25rem; /* 4px */
+	--spacing-2: 0.5rem; /* 8px */
+	--spacing-3: 0.75rem; /* 12px */
+	--spacing-4: 1rem; /* 16px */
+	--spacing-5: 1.25rem; /* 20px */
+	--spacing-6: 1.5rem; /* 24px */
+	--spacing-8: 2rem; /* 32px */
+	--spacing-10: 2.5rem; /* 40px */
+	--spacing-12: 3rem; /* 48px */
+
+	/* ===== 阴影 ===== */
+	--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+	--shadow-md: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+	--shadow-lg: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	--shadow-xl: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+	--shadow-card: var(--shadow-md);
+	--shadow-card-hover: var(--shadow-lg);
+	--shadow-dropdown: var(--shadow-xl);
+	--shadow-modal: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+	/* ===== 圆角 ===== */
+	--radius-sm: 6px;
+	--radius-md: 8px;
+	--radius-lg: 12px;
+	--radius-xl: 16px;
+	--radius-full: 9999px;
+
+	/* ===== 过渡 ===== */
+	--transition-fast: 150ms ease;
+	--transition-base: 200ms ease;
+	--transition-slow: 300ms ease;
+
+	/* ===== 字体 ===== */
+	--font-sans:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', 'Microsoft YaHei',
+		sans-serif;
+	--font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+
+	/* ===== 布局 ===== */
+	--max-width: 720px;
+	--layout-content: 640px;
+	--layout-sidebar-width: 220px;
+	--layout-sidebar-collapsed: 64px;
+	--layout-wide: 900px;
+	--layout-gap: 1.5rem;
+	--navbar-height: 56px;
+
+	/* ===== z-index 层级 ===== */
+	--z-navbar: 100;
+	--z-dropdown: 200;
+	--z-sidebar: 300;
+	--z-sidebar-overlay: 299;
+	--z-modal: 1000;
+	--z-lightbox: 1050;
+	--z-toast: 1100;
+}
+
+/* ===== 亮色主题（默认） ===== */
+:root,
+[data-theme='light'] {
+	--color-bg: #ffffff;
+	--color-text: #1a1a2e;
+	--color-primary: #4f46e5;
+	--color-primary-hover: #4338ca;
+	--color-border: #e2e8f0;
+	--color-muted: #64748b;
+	--color-surface: #f8fafc;
+	--color-danger: #ef4444;
+	--color-success: #22c55e;
+	--color-card-bg: #ffffff;
+	--color-input-bg: #ffffff;
+	--color-navbar-bg: #ffffff;
+	--color-navbar-text: #1a1a2e;
+	--color-sidebar-bg: #f8fafc;
+	--color-sidebar-text: #1a1a2e;
+	--color-sidebar-hover: color-mix(in srgb, #4f46e5 6%, transparent);
+	--color-sidebar-active: color-mix(in srgb, #4f46e5 10%, transparent);
+	--color-card-border: #e2e8f0;
+	--color-input-border: #e2e8f0;
+	--color-input-focus: #4f46e5;
+	--color-tag-bg: color-mix(in srgb, #4f46e5 8%, transparent);
+	--color-tag-text: #4f46e5;
+	--color-overlay: rgba(0, 0, 0, 0.5);
+	--color-link-visited: #7c3aed;
+}
+
+/* ===== 暗色主题 ===== */
+[data-theme='dark'] {
+	--color-bg: #0f172a;
+	--color-text: #e2e8f0;
+	--color-primary: #818cf8;
+	--color-primary-hover: #6366f1;
+	--color-border: #334155;
+	--color-muted: #94a3b8;
+	--color-surface: #1e293b;
+	--color-danger: #f87171;
+	--color-success: #4ade80;
+	--color-card-bg: #1e293b;
+	--color-input-bg: #1e293b;
+	--color-navbar-bg: #1e293b;
+	--color-navbar-text: #e2e8f0;
+	--color-sidebar-bg: #0f172a;
+	--color-sidebar-text: #e2e8f0;
+	--color-sidebar-hover: color-mix(in srgb, #818cf8 6%, transparent);
+	--color-sidebar-active: color-mix(in srgb, #818cf8 10%, transparent);
+	--color-card-border: #334155;
+	--color-input-border: #334155;
+	--color-input-focus: #818cf8;
+	--color-tag-bg: color-mix(in srgb, #818cf8 10%, transparent);
+	--color-tag-text: #818cf8;
+	--color-overlay: rgba(0, 0, 0, 0.6);
+	--color-link-visited: #a78bfa;
+}
+
+/* ===== 护眼主题 ===== */
+[data-theme='eye-care'] {
+	--color-bg: #f5f0e8;
+	--color-text: #3d3929;
+	--color-primary: #6b8e4e;
+	--color-primary-hover: #5a7a40;
+	--color-border: #d4cfc4;
+	--color-muted: #8a8474;
+	--color-surface: #ede8dc;
+	--color-danger: #c0392b;
+	--color-success: #27ae60;
+	--color-card-bg: #f5f0e8;
+	--color-input-bg: #f5f0e8;
+	--color-navbar-bg: #ede8dc;
+	--color-navbar-text: #3d3929;
+	--color-sidebar-bg: #ede8dc;
+	--color-sidebar-text: #3d3929;
+	--color-sidebar-hover: color-mix(in srgb, #6b8e4e 6%, transparent);
+	--color-sidebar-active: color-mix(in srgb, #6b8e4e 10%, transparent);
+	--color-card-border: #d4cfc4;
+	--color-input-border: #d4cfc4;
+	--color-input-focus: #6b8e4e;
+	--color-tag-bg: color-mix(in srgb, #6b8e4e 10%, transparent);
+	--color-tag-text: #6b8e4e;
+	--color-overlay: rgba(0, 0, 0, 0.4);
+	--color-link-visited: #7d6b4e;
+}
+
+/* ===== 高对比度主题 ===== */
+[data-theme='high-contrast'] {
+	--color-bg: #000000;
+	--color-text: #ffffff;
+	--color-primary: #ffff00;
+	--color-primary-hover: #e6e600;
+	--color-border: #ffffff;
+	--color-muted: #cccccc;
+	--color-surface: #1a1a1a;
+	--color-danger: #ff4444;
+	--color-success: #44ff44;
+	--color-card-bg: #000000;
+	--color-input-bg: #000000;
+	--color-navbar-bg: #000000;
+	--color-navbar-text: #ffffff;
+	--color-sidebar-bg: #1a1a1a;
+	--color-sidebar-text: #ffffff;
+	--color-sidebar-hover: color-mix(in srgb, #ffff00 10%, transparent);
+	--color-sidebar-active: color-mix(in srgb, #ffff00 15%, transparent);
+	--color-card-border: #ffffff;
+	--color-input-border: #ffffff;
+	--color-input-focus: #ffff00;
+	--color-tag-bg: color-mix(in srgb, #ffff00 15%, transparent);
+	--color-tag-text: #ffff00;
+	--color-overlay: rgba(0, 0, 0, 0.7);
+	--color-link-visited: #ff9900;
+}
+
+/* ===== 强调色覆盖 ===== */
+/* 通过 data-accent 属性覆盖主色调，不影响主题切换 */
+[data-accent='blue'] {
+	--color-primary: #4f46e5;
+	--color-primary-hover: #4338ca;
+}
+[data-accent='green'] {
+	--color-primary: #16a34a;
+	--color-primary-hover: #15803d;
+}
+[data-accent='orange'] {
+	--color-primary: #ea580c;
+	--color-primary-hover: #c2410c;
+}
+[data-accent='purple'] {
+	--color-primary: #9333ea;
+	--color-primary-hover: #7e22ce;
+}
+[data-accent='rose'] {
+	--color-primary: #e11d48;
+	--color-primary-hover: #be123c;
+}

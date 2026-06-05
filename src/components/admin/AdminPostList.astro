@@ -1,0 +1,517 @@
+---
+/**
+ * 管理后台 - 帖子列表组件
+ *
+ * 服务端渲染帖子表格，支持：
+ * - 搜索：URL 参数 ?search=xxx
+ * - 删除/恢复/置顶/锁定：form 提交对应 API
+ * - 管理员操作弹窗：用 <dialog> 元素 + 少量 <script> 处理
+ * - 分页：URL 参数 ?page=xxx
+ *
+ * @prop posts - 帖子列表
+ * @prop total - 总数
+ * @prop page - 当前页码
+ * @prop totalPages - 总页数
+ * @prop hasPrev - 是否有上一页
+ * @prop hasNext - 是否有下一页
+ * @prop search - 当前搜索关键词
+ */
+
+/** 帖子数据结构 */
+interface PostData {
+	id: string;
+	content: string;
+	visibility: string;
+	isPinned: boolean;
+	isGlobalPinned: boolean;
+	isLocked: boolean;
+	lockReason: string | null;
+	isDeleted: boolean;
+	deleteReason: string | null;
+	isEdited: boolean;
+	createdAt: string;
+	user: {
+		id: string;
+		username: string;
+		displayName: string;
+	};
+}
+
+interface Props {
+	posts: PostData[];
+	total: number;
+	page: number;
+	totalPages: number;
+	hasPrev: boolean;
+	hasNext: boolean;
+	search: string;
+}
+
+const { posts, total, page, totalPages, hasPrev, hasNext, search } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasPosts = posts.length > 0;
+const prevPage = page - 1;
+const nextPage = page + 1;
+const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+---
+
+<!-- 搜索栏 -->
+<form class="admin-search-bar" action="/admin/posts" method="GET">
+	<input
+		type="text"
+		class="admin-search-input"
+		name="search"
+		value={search}
+		placeholder="搜索帖子内容..."
+	/>
+	<button type="submit" class="btn btn-primary"> 搜索 </button>
+</form>
+
+<!-- 批量操作栏 -->
+<div class="admin-batch-bar" id="batch-bar" style="display: none;">
+	<span class="admin-batch-count">已选择 <strong id="batch-count">0</strong> 项</span>
+	<div class="admin-batch-actions">
+		<button type="button" class="admin-btn-sm admin-btn-sm-danger" data-batch="delete"
+			>批量删除</button
+		>
+		<button type="button" class="admin-btn-sm admin-btn-sm-warning" data-batch="lock"
+			>批量锁定</button
+		>
+		<button type="button" class="admin-btn-sm admin-btn-sm-primary" data-batch="unlock"
+			>批量解锁</button
+		>
+	</div>
+</div>
+
+<!-- 帖子表格 -->
+<div class="admin-table-wrapper">
+	<table class="admin-table">
+		<thead>
+			<tr>
+				<th><input type="checkbox" id="select-all-posts" aria-label="全选" /></th>
+				<th>ID</th>
+				<th>作者</th>
+				<th>内容摘要</th>
+				<th>状态</th>
+				<th>创建时间</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				posts.map((post) => {
+					const contentPreview =
+						post.content.length > 60 ? post.content.slice(0, 60) + '...' : post.content;
+					const formattedDate = new Date(post.createdAt).toLocaleDateString('zh-CN', {
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+					const authorName = post.user.displayName || post.user.username;
+					const pinLabel = post.isGlobalPinned ? '取消置顶' : '置顶';
+
+					return (
+						<tr>
+							<td>
+								<input type="checkbox" class="batch-checkbox" data-id={post.id} />
+							</td>
+							<td>
+								<a href={`/post/${post.id}`}>{post.id}</a>
+							</td>
+							<td>
+								<a href={`/${post.user.username}`}>{authorName}</a>
+							</td>
+							<td>
+								<div class="admin-text-truncate" title={post.content}>
+									{contentPreview}
+								</div>
+							</td>
+							<td>
+								<div class="admin-status-badges">
+									{post.isDeleted && (
+										<span class="admin-badge admin-badge-deleted">已删除</span>
+									)}
+									{post.isLocked && (
+										<span class="admin-badge admin-badge-locked">已锁定</span>
+									)}
+									{post.isGlobalPinned && (
+										<span class="admin-badge admin-badge-pinned">已置顶</span>
+									)}
+									{!post.isDeleted && !post.isLocked && !post.isGlobalPinned && (
+										<span class="admin-badge admin-badge-active">正常</span>
+									)}
+								</div>
+							</td>
+							<td>{formattedDate}</td>
+							<td>
+								<div class="admin-actions">
+									{!post.isDeleted && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-danger"
+											data-action="delete"
+											data-post-id={post.id}
+										>
+											删除
+										</button>
+									)}
+									{post.isDeleted && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-primary"
+											data-action="restore"
+											data-post-id={post.id}
+										>
+											恢复
+										</button>
+									)}
+									{/* 置顶/取消置顶：通过 fetch 请求 */}
+									<button
+										type="button"
+										class="admin-btn-sm admin-btn-sm-primary"
+										data-action="global-pin"
+										data-post-id={post.id}
+									>
+										{pinLabel}
+									</button>
+									{!post.isLocked && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-warning"
+											data-action="lock"
+											data-post-id={post.id}
+										>
+											锁定
+										</button>
+									)}
+									{post.isLocked && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-primary"
+											data-action="unlock"
+											data-post-id={post.id}
+										>
+											解锁
+										</button>
+									)}
+								</div>
+							</td>
+						</tr>
+					);
+				})
+			}
+			{
+				!hasPosts && (
+					<tr>
+						<td colspan="7" class="admin-empty-cell">
+							暂无帖子数据
+						</td>
+					</tr>
+				)
+			}
+		</tbody>
+	</table>
+</div>
+
+<!-- 分页 -->
+<div class="admin-pagination">
+	{
+		hasPrev ? (
+			<a href={`/admin/posts?page=${prevPage}${searchParam}`} class="admin-pagination-btn">
+				上一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">上一页</span>
+		)
+	}
+	<span class="admin-pagination-info">
+		第 {page} / {totalPages} 页，共 {total} 条
+	</span>
+	{
+		hasNext ? (
+			<a href={`/admin/posts?page=${nextPage}${searchParam}`} class="admin-pagination-btn">
+				下一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">下一页</span>
+		)
+	}
+</div>
+
+<!-- 操作弹窗（删除/恢复/锁定需填写理由） -->
+<dialog id="admin-post-modal" class="admin-modal">
+	<h3 class="admin-modal-title" id="admin-modal-title">操作</h3>
+	<div class="form-group">
+		<label class="form-label" for="admin-modal-reason">理由（必填）</label>
+		<textarea
+			id="admin-modal-reason"
+			class="form-input"
+			style="min-height: 80px"
+			placeholder="请填写操作理由..."></textarea>
+	</div>
+	<div class="admin-modal-actions">
+		<button type="button" class="btn btn-outline" id="admin-modal-cancel"> 取消 </button>
+		<button type="submit" class="btn btn-primary" id="admin-modal-confirm"> 确认 </button>
+	</div>
+</dialog>
+
+<style>
+	/* 弹窗样式 */
+	.admin-modal {
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		padding: 1.5rem;
+		max-width: 480px;
+		width: 90%;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+	}
+	.admin-modal::backdrop {
+		background: rgba(0, 0, 0, 0.4);
+	}
+	.admin-modal-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+	}
+	.admin-modal-actions {
+		display: flex;
+		gap: 0.75rem;
+		justify-content: flex-end;
+		margin-top: 1rem;
+	}
+	/* 批量操作栏样式 */
+	.admin-batch-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 1rem;
+		margin-bottom: 0.75rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+	.admin-batch-count {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.admin-batch-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+</style>
+
+<script>
+	/**
+	 * 管理员操作弹窗交互逻辑
+	 *
+	 * 使用 HTML <dialog> 元素实现弹窗，
+	 * 删除/恢复/锁定操作需填写理由后提交。
+	 */
+	const modal = document.getElementById('admin-post-modal') as HTMLDialogElement;
+	const titleEl = document.getElementById('admin-modal-title') as HTMLHeadingElement;
+	const reasonEl = document.getElementById('admin-modal-reason') as HTMLTextAreaElement;
+	const cancelBtn = document.getElementById('admin-modal-cancel');
+	const confirmBtn = document.getElementById('admin-modal-confirm');
+
+	// 当前操作状态
+	let currentAction = '';
+	let currentPostId = '';
+
+	/**
+	 * 操作类型到标题和 API 端点的映射
+	 *
+	 * delete/restore/lock 需弹窗填写理由；
+	 * global-pin/unlock 直接发送请求无需理由。
+	 */
+	const actionConfig: Record<
+		string,
+		{ title: string; endpoint: (id: string) => string; method: string; needReason: boolean }
+	> = {
+		delete: {
+			title: '删除帖子',
+			endpoint: (id) => `/api/admin/posts/${id}/delete`,
+			method: 'DELETE',
+			needReason: true
+		},
+		restore: {
+			title: '恢复帖子',
+			endpoint: (id) => `/api/admin/posts/${id}/restore`,
+			method: 'PUT',
+			needReason: true
+		},
+		lock: {
+			title: '锁定帖子',
+			endpoint: (id) => `/api/admin/posts/${id}/lock`,
+			method: 'PUT',
+			needReason: true
+		},
+		'global-pin': {
+			title: '置顶/取消置顶',
+			endpoint: (id) => `/api/admin/posts/${id}/global-pin`,
+			method: 'PUT',
+			needReason: false
+		},
+		unlock: {
+			title: '解锁帖子',
+			endpoint: (id) => `/api/admin/posts/${id}/unlock`,
+			method: 'PUT',
+			needReason: false
+		}
+	};
+
+	// 为所有带 data-action 的按钮绑定点击事件
+	document.querySelectorAll('[data-action]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.action || '';
+			const postId = (btn as HTMLElement).dataset.postId || '';
+			const config = actionConfig[action];
+			if (!config) return;
+
+			// 不需要理由的操作（置顶/解锁）：直接发送请求
+			if (!config.needReason) {
+				try {
+					const res = await fetch(config.endpoint(postId), {
+						method: config.method,
+						headers: { 'Content-Type': 'application/json' }
+					});
+					const data = await res.json();
+					if (data.success) {
+						window.location.reload();
+					} else {
+						await MutanDialog.alert(data.error?.message || '操作失败');
+					}
+				} catch {
+					await MutanDialog.alert('网络错误');
+				}
+				return;
+			}
+
+			// 需要理由的操作（删除/恢复/锁定）：弹出弹窗
+			currentAction = action;
+			currentPostId = postId;
+			titleEl.textContent = config.title;
+			reasonEl.value = '';
+			modal.showModal();
+		});
+	});
+
+	// 取消按钮关闭弹窗
+	cancelBtn?.addEventListener('click', () => {
+		modal.close();
+	});
+
+	// 确认按钮提交操作
+	confirmBtn?.addEventListener('click', async () => {
+		const reason = reasonEl.value.trim();
+		if (!reason) {
+			await MutanDialog.alert('请填写理由', { title: '提示' });
+			return;
+		}
+
+		const config = actionConfig[currentAction];
+		if (!config) return;
+
+		try {
+			const res = await fetch(config.endpoint(currentPostId), {
+				method: config.method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ reason })
+			});
+			const data = await res.json();
+			if (data.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(data.error?.message || '操作失败');
+			}
+		} catch {
+			await MutanDialog.alert('网络错误');
+		}
+	});
+
+	// 点击弹窗外部关闭
+	modal?.addEventListener('click', (e) => {
+		if (e.target === modal) {
+			modal.close();
+		}
+	});
+
+	// ===== 批量操作逻辑 =====
+	const batchBar = document.getElementById('batch-bar');
+	const batchCount = document.getElementById('batch-count');
+	const selectAll = document.getElementById('select-all-posts') as HTMLInputElement;
+	const checkboxes = document.querySelectorAll('.batch-checkbox') as NodeListOf<HTMLInputElement>;
+
+	/** 更新批量操作栏的可见性和选中计数 */
+	function updateBatchBar() {
+		const checked = document.querySelectorAll('.batch-checkbox:checked');
+		const count = checked.length;
+		if (batchCount) batchCount.textContent = String(count);
+		if (batchBar) batchBar.style.display = count > 0 ? 'flex' : 'none';
+		if (selectAll) selectAll.checked = count > 0 && count === checkboxes.length;
+	}
+
+	// 全选复选框
+	selectAll?.addEventListener('change', () => {
+		checkboxes.forEach((cb) => {
+			cb.checked = selectAll.checked;
+		});
+		updateBatchBar();
+	});
+
+	// 单个复选框变化
+	checkboxes.forEach((cb) => {
+		cb.addEventListener('change', updateBatchBar);
+	});
+
+	// 批量操作按钮
+	document.querySelectorAll('[data-batch]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.batch;
+			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
+				.map((cb) => (cb as HTMLInputElement).dataset.id)
+				.filter(Boolean);
+
+			if (checkedIds.length === 0) {
+				await MutanDialog.alert('请先选择项目', { title: '提示' });
+				return;
+			}
+
+			// 删除/锁定需要填写理由
+			let reason = '';
+			if (action === 'delete' || action === 'lock') {
+				reason = prompt(`请输入批量${action === 'delete' ? '删除' : '锁定'}的理由：`) || '';
+				if (!reason.trim()) {
+					await MutanDialog.alert('理由不能为空', { title: '提示' });
+					return;
+				}
+			}
+
+			if (
+				!(await MutanDialog.confirm(
+					`确认要批量${action === 'delete' ? '删除' : action === 'lock' ? '锁定' : '解锁'} ${checkedIds.length} 项吗？`,
+					{ title: '批量操作', danger: true }
+				))
+			)
+				return;
+
+			try {
+				const res = await fetch('/api/admin/posts/batch', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, ids: checkedIds, reason })
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+</script>

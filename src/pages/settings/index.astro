@@ -1,0 +1,798 @@
+---
+/**
+ * 个人设置页面
+ *
+ * SSR 页面，包含个人资料、账号安全、外观、API Token、Webhook 五个分区。
+ * 需要登录，未登录重定向到 /login。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import TokenManager from '@/components/TokenManager';
+import WebhookManager from '@/components/WebhookManager';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { THEMES, DEFAULT_THEME } from '@/lib/theme';
+
+// 需要认证，未登录重定向
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) {
+	return Astro.redirect('/login');
+}
+
+// 并行查询用户设置、用户信息、Token 列表、Webhook 列表
+const [settings, user, tokens, webhooks] = await Promise.all([
+	prisma.userSettings.findUnique({
+		where: { userId: currentUser.userId }
+	}),
+	prisma.user.findUnique({
+		where: { id: currentUser.userId },
+		select: {
+			displayName: true,
+			bio: true,
+			avatarUrl: true
+		}
+	}),
+	prisma.apiToken.findMany({
+		where: { userId: currentUser.userId },
+		select: {
+			id: true,
+			name: true,
+			lastUsedAt: true,
+			createdAt: true
+		},
+		orderBy: { createdAt: 'desc' }
+	}),
+	prisma.webhook.findMany({
+		where: { userId: currentUser.userId },
+		orderBy: { createdAt: 'desc' }
+	})
+]);
+
+// 当前主题（设置不存在时使用默认值）
+const currentTheme = settings?.theme ?? DEFAULT_THEME;
+// 当前评论排序偏好
+const currentSortOrder = settings?.commentSortOrder ?? 'asc';
+// 当前通知开关状态
+const notificationsEnabled = settings?.notificationsEnabled ?? true;
+
+// 用户基本信息
+const displayName = user?.displayName ?? '';
+const bio = user?.bio ?? '';
+const avatarUrl = user?.avatarUrl ?? '';
+
+// 序列化数据（将 Date 对象转为字符串，供 React 组件使用）
+const serializedTokens = tokens.map((t: any) => ({
+	...t,
+	lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString() : null,
+	createdAt: t.createdAt.toISOString()
+}));
+
+// Webhook 列表 secret 脱敏
+const serializedWebhooks = webhooks.map((w: any) => ({
+	...w,
+	secret: w.secret.slice(0, 8) + '***',
+	createdAt: w.createdAt.toISOString(),
+	updatedAt: w.updatedAt.toISOString()
+}));
+---
+
+<BaseLayout title="设置">
+	<div class="settings-page">
+		<h1 class="page-title">个人设置</h1>
+
+		<!-- 个人资料区 -->
+		<section class="settings-section">
+			<h2 class="section-title">个人资料</h2>
+			<p class="section-desc">管理你的公开个人信息</p>
+			<form id="profile-form" class="settings-form">
+				<div class="form-group">
+					<label for="displayName" class="form-label">显示名</label>
+					<input
+						type="text"
+						id="displayName"
+						name="displayName"
+						class="form-input"
+						value={displayName}
+						maxlength="50"
+						placeholder="输入显示名"
+					/>
+					<span class="form-hint">1-50 个字符</span>
+				</div>
+				<div class="form-group">
+					<label for="bio" class="form-label">简介</label>
+					<textarea
+						id="bio"
+						name="bio"
+						class="form-input form-textarea"
+						maxlength="160"
+						rows="3"
+						placeholder="介绍一下自己">{bio}</textarea
+					>
+					<span class="form-hint">最多 160 个字符</span>
+				</div>
+				<div class="form-group">
+					<label class="form-label">头像</label>
+					<div class="avatar-upload">
+						<div class="avatar-preview" id="avatar-preview">
+							{
+								avatarUrl ? (
+									<img src={avatarUrl} alt="当前头像" class="avatar-img" />
+								) : (
+									<span class="avatar-placeholder">
+										{displayName.charAt(0).toUpperCase() || 'U'}
+									</span>
+								)
+							}
+						</div>
+						<div class="avatar-actions">
+							<label for="avatar-file" class="btn btn-outline avatar-upload-btn">
+								选择图片
+							</label>
+							<input
+								type="file"
+								id="avatar-file"
+								name="avatar-file"
+								accept="image/jpeg,image/png,image/gif,image/webp"
+								class="avatar-file-input"
+							/>
+							<span class="avatar-hint">支持 JPG/PNG/GIF/WebP，最大 2MB</span>
+						</div>
+					</div>
+					<input type="hidden" id="avatarUrl" name="avatarUrl" value={avatarUrl} />
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">保存资料</button>
+					<span id="profile-msg" class="form-msg"></span>
+				</div>
+			</form>
+		</section>
+
+		<!-- 账号安全区 -->
+		<section class="settings-section">
+			<h2 class="section-title">账号安全</h2>
+			<p class="section-desc">修改你的登录密码</p>
+			<form id="password-form" class="settings-form">
+				<div class="form-group">
+					<label for="oldPassword" class="form-label">旧密码</label>
+					<input
+						type="password"
+						id="oldPassword"
+						name="oldPassword"
+						class="form-input"
+						placeholder="输入当前密码"
+						autocomplete="current-password"
+					/>
+				</div>
+				<div class="form-group">
+					<label for="newPassword" class="form-label">新密码</label>
+					<input
+						type="password"
+						id="newPassword"
+						name="newPassword"
+						class="form-input"
+						placeholder="输入新密码"
+						autocomplete="new-password"
+					/>
+					<span class="form-hint">至少 8 个字符</span>
+				</div>
+				<div class="form-group">
+					<label for="confirmPassword" class="form-label">确认新密码</label>
+					<input
+						type="password"
+						id="confirmPassword"
+						name="confirmPassword"
+						class="form-input"
+						placeholder="再次输入新密码"
+						autocomplete="new-password"
+					/>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">修改密码</button>
+					<span id="password-msg" class="form-msg"></span>
+				</div>
+			</form>
+		</section>
+
+		<!-- 外观区 -->
+		<section class="settings-section">
+			<h2 class="section-title">外观</h2>
+			<p class="section-desc">自定义界面显示偏好</p>
+
+			<!-- 主题切换 -->
+			<div class="form-group">
+				<span class="form-label" aria-label="主题偏好">主题</span>
+				<div class="theme-buttons">
+					{
+						THEMES.map((theme) => {
+							const isActive = theme.id === currentTheme;
+							return (
+								<button
+									type="button"
+									class:list={['theme-btn', { active: isActive }]}
+									data-theme-id={theme.id}
+								>
+									{theme.name}
+								</button>
+							);
+						})
+					}
+				</div>
+			</div>
+
+			<!-- 评论排序偏好 -->
+			<div class="form-group">
+				<label for="commentSortOrder" class="form-label">评论排序</label>
+				<select id="commentSortOrder" class="form-input form-select">
+					<option value="asc" selected={currentSortOrder === 'asc'}
+						>正序（最早优先）</option
+					>
+					<option value="desc" selected={currentSortOrder === 'desc'}
+						>倒序（最新优先）</option
+					>
+				</select>
+			</div>
+			<div class="form-actions">
+				<button type="button" id="save-appearance" class="btn btn-primary">保存偏好</button>
+				<span id="appearance-msg" class="form-msg"></span>
+			</div>
+		</section>
+
+		<!-- 通知设置区 -->
+		<section class="settings-section">
+			<h2 class="section-title">通知</h2>
+			<p class="section-desc">管理通知接收偏好</p>
+			<div class="form-group">
+				<label class="toggle-label">
+					<input
+						type="checkbox"
+						id="notificationsEnabled"
+						name="notificationsEnabled"
+						checked={notificationsEnabled}
+					/>
+					<span>接收通知</span>
+				</label>
+				<span class="form-hint">关闭后将不再接收任何通知，通知栏目也会隐藏</span>
+			</div>
+			<div class="form-actions">
+				<button type="button" id="save-notification" class="btn btn-primary"
+					>保存设置</button
+				>
+				<span id="notification-msg" class="form-msg"></span>
+			</div>
+		</section>
+
+		<!-- API Token 管理 -->
+		<section class="settings-section">
+			<h2 class="section-title">API Token</h2>
+			<p class="section-desc">管理用于 API 访问的令牌</p>
+			<TokenManager client:load initialTokens={serializedTokens} />
+		</section>
+
+		<!-- Webhook 管理 -->
+		<section class="settings-section">
+			<h2 class="section-title">Webhook</h2>
+			<p class="section-desc">管理事件回调通知</p>
+			<WebhookManager client:load initialWebhooks={serializedWebhooks} />
+		</section>
+	</div>
+</BaseLayout>
+
+<script>
+	/**
+	 * 设置页面客户端交互逻辑
+	 *
+	 * 处理个人资料、密码修改、外观偏好的表单提交。
+	 * 所有请求使用 fetch 调用对应 API。
+	 */
+
+	/** 显示提示消息 */
+	function showMsg(el: HTMLElement, text: string, isError: boolean) {
+		el.textContent = text;
+		el.className = isError ? 'form-msg msg-error' : 'form-msg msg-success';
+		// 3 秒后自动清除
+		setTimeout(() => {
+			el.textContent = '';
+		}, 3000);
+	}
+
+	/** 构建带认证的请求头 */
+	function getAuthHeaders(): HeadersInit {
+		const token = localStorage.getItem('token');
+		return {
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		};
+	}
+
+	// ===== 头像上传 =====
+	const avatarFileInput = document.getElementById('avatar-file') as HTMLInputElement;
+	const avatarPreview = document.getElementById('avatar-preview') as HTMLElement;
+	const avatarUrlInput = document.getElementById('avatarUrl') as HTMLInputElement;
+
+	avatarFileInput?.addEventListener('change', async () => {
+		const file = avatarFileInput.files?.[0];
+		if (!file) return;
+
+		// 前端校验文件大小
+		if (file.size > 2 * 1024 * 1024) {
+			await MutanDialog.alert('头像图片大小不能超过 2MB', { title: '提示' });
+			avatarFileInput.value = '';
+			return;
+		}
+
+		// 本地预览
+		const reader = new FileReader();
+		reader.onload = (e) => {
+			const imgSrc = e.target?.result as string;
+			avatarPreview.innerHTML = `<img src="${imgSrc}" alt="头像预览" class="avatar-img" />`;
+		};
+		reader.readAsDataURL(file);
+
+		// 上传到服务器
+		try {
+			const uploadFormData = new FormData();
+			uploadFormData.append('image', file);
+
+			const token = localStorage.getItem('token');
+			const res = await fetch('/api/settings/avatar', {
+				method: 'POST',
+				headers: token ? { Authorization: `Bearer ${token}` } : {},
+				body: uploadFormData
+			});
+			const data = await res.json();
+			if (data.success) {
+				// 更新隐藏字段的值
+				avatarUrlInput.value = data.data.avatarUrl;
+				showMsg(profileMsg, '头像已更新', false);
+			} else {
+				await MutanDialog.alert(data.error?.message || '头像上传失败');
+				// 恢复原始预览
+				avatarFileInput.value = '';
+			}
+		} catch {
+			await MutanDialog.alert('网络错误');
+			avatarFileInput.value = '';
+		}
+	});
+
+	// ===== 个人资料表单 =====
+	const profileForm = document.getElementById('profile-form') as HTMLFormElement;
+	const profileMsg = document.getElementById('profile-msg') as HTMLElement;
+
+	profileForm?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const formData = new FormData(profileForm);
+		const displayName = formData.get('displayName') as string;
+		const bio = formData.get('bio') as string;
+		const avatarUrl = formData.get('avatarUrl') as string;
+
+		try {
+			const res = await fetch('/api/settings/profile', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ displayName, bio, avatarUrl })
+			});
+			const data = await res.json();
+			if (data.success) {
+				showMsg(profileMsg, '资料已更新', false);
+			} else {
+				showMsg(profileMsg, data.error?.message ?? '更新失败', true);
+			}
+		} catch {
+			showMsg(profileMsg, '网络错误', true);
+		}
+	});
+
+	// ===== 密码修改表单 =====
+	const passwordForm = document.getElementById('password-form') as HTMLFormElement;
+	const passwordMsg = document.getElementById('password-msg') as HTMLElement;
+
+	passwordForm?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const formData = new FormData(passwordForm);
+		const oldPassword = formData.get('oldPassword') as string;
+		const newPassword = formData.get('newPassword') as string;
+		const confirmPassword = formData.get('confirmPassword') as string;
+
+		// 前端验证：新密码与确认密码一致
+		if (newPassword !== confirmPassword) {
+			showMsg(passwordMsg, '两次输入的新密码不一致', true);
+			return;
+		}
+
+		try {
+			const res = await fetch('/api/settings/password', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ oldPassword, newPassword })
+			});
+			const data = await res.json();
+			if (data.success) {
+				showMsg(passwordMsg, '密码修改成功', false);
+				passwordForm.reset();
+			} else {
+				showMsg(passwordMsg, data.error?.message ?? '修改失败', true);
+			}
+		} catch {
+			showMsg(passwordMsg, '网络错误', true);
+		}
+	});
+
+	// ===== 外观偏好 =====
+	let selectedTheme: string | null = null;
+	const themeButtons = document.querySelectorAll('.theme-btn');
+	const sortOrderSelect = document.getElementById('commentSortOrder') as HTMLSelectElement;
+	const saveAppearanceBtn = document.getElementById('save-appearance');
+	const appearanceMsg = document.getElementById('appearance-msg') as HTMLElement;
+
+	// 主题按钮点击切换
+	themeButtons.forEach((btn) => {
+		btn.addEventListener('click', () => {
+			// 移除所有 active 状态
+			themeButtons.forEach((b) => b.classList.remove('active'));
+			// 激活当前按钮
+			btn.classList.add('active');
+			selectedTheme = (btn as HTMLElement).dataset.themeId ?? null;
+		});
+	});
+
+	// 保存外观偏好
+	saveAppearanceBtn?.addEventListener('click', async () => {
+		const commentSortOrder = sortOrderSelect?.value;
+		const body: Record<string, string> = {};
+		if (selectedTheme) body.theme = selectedTheme;
+		if (commentSortOrder) body.commentSortOrder = commentSortOrder;
+
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify(body)
+			});
+			const data = await res.json();
+			if (data.success) {
+				showMsg(appearanceMsg, '偏好已保存', false);
+				// 如果切换了主题，立即应用
+				if (selectedTheme) {
+					document.documentElement.setAttribute('data-theme', selectedTheme);
+				}
+			} else {
+				showMsg(appearanceMsg, data.error?.message ?? '保存失败', true);
+			}
+		} catch {
+			showMsg(appearanceMsg, '网络错误', true);
+		}
+	});
+
+	// ===== 通知设置 =====
+	const notificationsCheckbox = document.getElementById(
+		'notificationsEnabled'
+	) as HTMLInputElement;
+	const saveNotificationBtn = document.getElementById('save-notification');
+	const notificationMsg = document.getElementById('notification-msg') as HTMLElement;
+
+	saveNotificationBtn?.addEventListener('click', async () => {
+		const enabled = notificationsCheckbox?.checked ?? true;
+		try {
+			const res = await fetch('/api/settings', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ notificationsEnabled: enabled })
+			});
+			const data = await res.json();
+			if (data.success) {
+				showMsg(notificationMsg, '通知设置已保存', false);
+			} else {
+				showMsg(notificationMsg, data.error?.message ?? '保存失败', true);
+			}
+		} catch {
+			showMsg(notificationMsg, '网络错误', true);
+		}
+	});
+</script>
+
+<style is:global>
+	/* 设置页面 */
+	.settings-page {
+		max-width: 720px;
+		margin: 0 auto;
+		padding: var(--spacing-6) var(--spacing-4);
+	}
+
+	.settings-page .page-title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin-bottom: var(--spacing-6);
+	}
+
+	/* 设置区块 */
+	.settings-section {
+		margin-bottom: var(--spacing-8);
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+
+	.settings-section .section-title {
+		font-size: 1.0625rem;
+		font-weight: 700;
+		margin-bottom: var(--spacing-1);
+	}
+
+	.settings-section .section-desc {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-4);
+	}
+
+	/* 表单布局 */
+	.settings-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.settings-form .form-textarea {
+		resize: vertical;
+		min-height: 60px;
+	}
+
+	.settings-form .form-select {
+		appearance: auto;
+		max-width: 240px;
+	}
+
+	.form-actions {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+	}
+
+	.form-msg {
+		font-size: 0.8125rem;
+	}
+
+	.msg-success {
+		color: var(--color-success);
+	}
+
+	.msg-error {
+		color: var(--color-danger);
+	}
+
+	/* 主题按钮组 */
+	.theme-buttons {
+		display: flex;
+		gap: var(--spacing-2);
+		flex-wrap: wrap;
+	}
+
+	.theme-btn {
+		padding: 0.5rem 1rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		background: var(--color-card-bg);
+		color: var(--color-text);
+		cursor: pointer;
+		transition:
+			border-color var(--transition-fast),
+			background var(--transition-fast);
+	}
+
+	.theme-btn:hover {
+		border-color: var(--color-primary);
+	}
+
+	.theme-btn.active {
+		border-color: var(--color-primary);
+		background: var(--color-primary);
+		color: #fff;
+	}
+
+	/* 创建表单 */
+	.create-form {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.create-form .input {
+		flex: 1;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		font-size: 0.875rem;
+		background: var(--color-input-bg);
+		color: var(--color-text);
+	}
+
+	.create-form .input:focus {
+		outline: none;
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
+	}
+
+	/* 事件复选框 */
+	.event-checkboxes {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+	}
+
+	.checkbox-label {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-1);
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+
+	.checkbox-label input[type='checkbox'] {
+		accent-color: var(--color-primary);
+	}
+
+	/* 通知开关标签 */
+	.toggle-label {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		font-size: 0.9375rem;
+		cursor: pointer;
+	}
+
+	.toggle-label input[type='checkbox'] {
+		accent-color: var(--color-primary);
+		width: 18px;
+		height: 18px;
+	}
+
+	/* 列表 */
+	.item-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+	}
+
+	.item-card {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--spacing-3) var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		transition: background var(--transition-fast);
+	}
+
+	.item-card:hover {
+		background: color-mix(in srgb, var(--color-text) 4%, transparent);
+	}
+
+	.item-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.item-name {
+		font-size: 0.875rem;
+		font-weight: 600;
+	}
+
+	.item-desc {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+
+	/* 令牌显示 */
+	.token-wrap {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+	}
+
+	.token-display {
+		font-family: var(--font-mono);
+		font-size: 0.8125rem;
+		padding: 0.375rem 0.625rem;
+		background: var(--color-surface);
+		border-radius: var(--radius-sm);
+		word-break: break-all;
+	}
+
+	/* 删除区域 */
+	.danger-zone {
+		border-color: var(--color-danger);
+	}
+
+	.danger-zone .section-title {
+		color: var(--color-danger);
+	}
+
+	/* —— 账号删除二次确认弹窗 —— */
+	.delete-modal-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.5);
+		z-index: var(--z-modal);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.delete-modal {
+		background: var(--color-card-bg);
+		border-radius: var(--radius-md);
+		padding: var(--spacing-6);
+		width: 90%;
+		max-width: 400px;
+		box-shadow: var(--shadow-modal);
+	}
+
+	.delete-modal-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin-bottom: var(--spacing-3);
+	}
+
+	.delete-modal-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-4);
+	}
+
+	.delete-modal-actions {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--spacing-2);
+	}
+
+	/* 头像上传 */
+	.avatar-upload {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+	}
+
+	.avatar-preview {
+		width: 72px;
+		height: 72px;
+		border-radius: 50%;
+		overflow: hidden;
+		flex-shrink: 0;
+		border: 2px solid var(--color-border);
+	}
+
+	.avatar-img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 100%;
+		height: 100%;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1.5rem;
+		font-weight: 600;
+	}
+
+	.avatar-actions {
+		display: flex;
+		flex-direction: column;
+		gap: 0.375rem;
+	}
+
+	.avatar-file-input {
+		display: none;
+	}
+
+	.avatar-hint {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+</style>

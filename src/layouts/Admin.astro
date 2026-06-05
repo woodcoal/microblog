@@ -1,0 +1,147 @@
+---
+/**
+ * 管理后台布局组件
+ *
+ * 提供管理后台的公共 HTML 骨架，包括：
+ * - 侧边栏导航（仪表盘、用户管理、帖子管理、评论管理、标签管理）
+ * - 当前页面高亮
+ * - 顶部管理员信息
+ * - 访问控制：未登录重定向 /login，非 admin 返回 403
+ * - 响应式设计：桌面端侧边栏固定，移动端可折叠
+ */
+import { getUserFromRequest } from '@/lib/auth';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_FAVICON_URL } from '@/lib/config';
+
+// 导入样式依赖（主题变量 + 全局样式 + 管理后台样式）
+import '@/styles/tokens.css';
+import '@/styles/base.css';
+import '@/styles/components.css';
+import '@/styles/admin.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+}
+
+const { title, description } = Astro.props;
+
+// 从 cookie 获取当前登录用户（SSR）
+const currentUser = await getUserFromRequest(Astro);
+
+// 访问控制：未登录重定向到登录页
+const isLoggedIn = !!currentUser;
+const isAdmin = currentUser?.role === 'admin';
+
+if (!isLoggedIn) {
+	return Astro.redirect('/login');
+}
+
+// 非 admin 角色返回 403
+if (!isAdmin) {
+	return new Response('Forbidden: 无权访问管理后台', { status: 403 });
+}
+
+// 页面标题
+const siteTitle = SITE_TITLE;
+const siteDesc = description || SITE_DESCRIPTION;
+const pageTitle = title ? `${title} - 管理后台 - ${siteTitle}` : `管理后台 - ${siteTitle}`;
+
+// 当前路径，用于侧边栏高亮
+const currentPath = Astro.url.pathname;
+
+// 侧边栏导航项
+const navItems = [
+	{ name: '仪表盘', path: '/admin', icon: '📊' },
+	{ name: '用户管理', path: '/admin/users', icon: '👥' },
+	{ name: '帖子管理', path: '/admin/posts', icon: '📝' },
+	{ name: '评论管理', path: '/admin/comments', icon: '💬' },
+	{ name: '标签管理', path: '/admin/tags', icon: '🏷️' }
+];
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="description" content={siteDesc} />
+		<title>{pageTitle}</title>
+		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
+	</head>
+	<body class="admin-body">
+		<!-- 移动端顶部栏 -->
+		<header class="admin-mobile-header">
+			<button class="admin-sidebar-toggle" id="sidebar-toggle" aria-label="切换侧边栏">
+				☰
+			</button>
+			<span class="admin-mobile-title">管理后台</span>
+			<span class="admin-mobile-user">{currentUser.username}</span>
+		</header>
+
+		<!-- 侧边栏遮罩（移动端） -->
+		<div class="admin-sidebar-overlay" id="sidebar-overlay"></div>
+
+		<!-- 侧边栏 -->
+		<aside class="admin-sidebar" id="admin-sidebar">
+			<div class="admin-sidebar-header">
+				<a href="/admin" class="admin-sidebar-brand">🛡️ 管理后台</a>
+			</div>
+			<nav class="admin-sidebar-nav">
+				{
+					navItems.map((item) => {
+						// 判断当前导航项是否激活
+						const isActive =
+							item.path === '/admin'
+								? currentPath === '/admin' || currentPath === '/admin/'
+								: currentPath.startsWith(item.path);
+						return (
+							<a
+								href={item.path}
+								class:list={[
+									'admin-sidebar-link',
+									{ 'admin-sidebar-link-active': isActive }
+								]}
+							>
+								<span class="admin-sidebar-icon">{item.icon}</span>
+								<span>{item.name}</span>
+							</a>
+						);
+					})
+				}
+			</nav>
+			<div class="admin-sidebar-footer">
+				<div class="admin-sidebar-user">
+					<span class="admin-sidebar-username">👤 {currentUser.username}</span>
+				</div>
+				<a href="/" class="admin-sidebar-back">← 返回前台</a>
+			</div>
+		</aside>
+
+		<!-- 主内容区 -->
+		<main class="admin-main">
+			<slot />
+		</main>
+
+		<script>
+			/**
+			 * 侧边栏折叠/展开交互
+			 *
+			 * 移动端点击汉堡按钮切换侧边栏显示，
+			 * 点击遮罩层关闭侧边栏。
+			 */
+			const toggle = document.getElementById('sidebar-toggle');
+			const sidebar = document.getElementById('admin-sidebar');
+			const overlay = document.getElementById('sidebar-overlay');
+
+			toggle?.addEventListener('click', () => {
+				sidebar?.classList.toggle('admin-sidebar-open');
+				overlay?.classList.toggle('admin-sidebar-overlay-visible');
+			});
+
+			overlay?.addEventListener('click', () => {
+				sidebar?.classList.remove('admin-sidebar-open');
+				overlay?.classList.remove('admin-sidebar-overlay-visible');
+			});
+		</script>
+	</body>
+</html>

@@ -1,0 +1,307 @@
+---
+/**
+ * 管理后台 - 用户列表组件
+ *
+ * 服务端渲染用户表格，支持：
+ * - 搜索：URL 参数 ?search=xxx
+ * - 禁用/启用：通过 fetch 请求对应 API，刷新页面
+ * - 分页：URL 参数 ?page=xxx
+ *
+ * @prop users - 用户列表
+ * @prop total - 总数
+ * @prop page - 当前页码
+ * @prop totalPages - 总页数
+ * @prop hasPrev - 是否有上一页
+ * @prop hasNext - 是否有下一页
+ * @prop search - 当前搜索关键词
+ */
+
+/** 用户数据结构 */
+interface UserData {
+	id: string;
+	username: string;
+	displayName: string;
+	email: string;
+	role: string;
+	isDisabled: boolean;
+	createdAt: string;
+}
+
+interface Props {
+	users: UserData[];
+	total: number;
+	page: number;
+	totalPages: number;
+	hasPrev: boolean;
+	hasNext: boolean;
+	search: string;
+}
+
+const { users, total, page, totalPages, hasPrev, hasNext, search } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasUsers = users.length > 0;
+const prevPage = page - 1;
+const nextPage = page + 1;
+const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+---
+
+<!-- 搜索栏 -->
+<form class="admin-search-bar" action="/admin/users" method="GET">
+	<input
+		type="text"
+		class="admin-search-input"
+		name="search"
+		value={search}
+		placeholder="搜索用户名或邮箱..."
+	/>
+	<button type="submit" class="btn btn-primary"> 搜索 </button>
+</form>
+
+<!-- 批量操作栏 -->
+<div class="admin-batch-bar" id="batch-bar" style="display: none;">
+	<span class="admin-batch-count">已选择 <strong id="batch-count">0</strong> 项</span>
+	<div class="admin-batch-actions">
+		<button type="button" class="admin-btn-sm admin-btn-sm-danger" data-batch="disable"
+			>批量禁用</button
+		>
+		<button type="button" class="admin-btn-sm admin-btn-sm-primary" data-batch="enable"
+			>批量启用</button
+		>
+	</div>
+</div>
+
+<!-- 用户表格 -->
+<div class="admin-table-wrapper">
+	<table class="admin-table">
+		<thead>
+			<tr>
+				<th><input type="checkbox" id="select-all-users" aria-label="全选" /></th>
+				<th>用户名</th>
+				<th>显示名</th>
+				<th>邮箱</th>
+				<th>角色</th>
+				<th>状态</th>
+				<th>注册时间</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				users.map((user) => {
+					const isAdmin = user.role === 'admin';
+					const roleBadgeClass = isAdmin ? 'admin-badge-admin' : 'admin-badge-user';
+					const roleLabel = isAdmin ? '管理员' : '用户';
+					const statusBadgeClass = user.isDisabled
+						? 'admin-badge-disabled'
+						: 'admin-badge-active';
+					const statusLabel = user.isDisabled ? '已禁用' : '正常';
+					const actionLabel = user.isDisabled ? '启用' : '禁用';
+					const actionBtnClass = user.isDisabled
+						? 'admin-btn-sm-primary'
+						: 'admin-btn-sm-danger';
+					const actionEndpoint = user.isDisabled
+						? `/api/admin/users/${user.id}/enable`
+						: `/api/admin/users/${user.id}/disable`;
+					const formattedDate = new Date(user.createdAt).toLocaleDateString('zh-CN', {
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+
+					return (
+						<tr>
+							<td>
+								<input type="checkbox" class="batch-checkbox" data-id={user.id} />
+							</td>
+							<td>
+								<a href={`/${user.username}`}>{user.username}</a>
+							</td>
+							<td>{user.displayName}</td>
+							<td>{user.email}</td>
+							<td>
+								<span class={`admin-badge ${roleBadgeClass}`}>{roleLabel}</span>
+							</td>
+							<td>
+								<span class={`admin-badge ${statusBadgeClass}`}>{statusLabel}</span>
+							</td>
+							<td>{formattedDate}</td>
+							<td>
+								<div class="admin-actions">
+									<button
+										type="button"
+										class={`admin-btn-sm ${actionBtnClass}`}
+										data-action={user.isDisabled ? 'enable' : 'disable'}
+										data-user-id={user.id}
+									>
+										{actionLabel}
+									</button>
+								</div>
+							</td>
+						</tr>
+					);
+				})
+			}
+			{
+				!hasUsers && (
+					<tr>
+						<td colspan="8" class="admin-empty-cell">
+							暂无用户数据
+						</td>
+					</tr>
+				)
+			}
+		</tbody>
+	</table>
+</div>
+
+<!-- 分页 -->
+<div class="admin-pagination">
+	{
+		hasPrev ? (
+			<a href={`/admin/users?page=${prevPage}${searchParam}`} class="admin-pagination-btn">
+				上一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">上一页</span>
+		)
+	}
+	<span class="admin-pagination-info">
+		第 {page} / {totalPages} 页，共 {total} 条
+	</span>
+	{
+		hasNext ? (
+			<a href={`/admin/users?page=${nextPage}${searchParam}`} class="admin-pagination-btn">
+				下一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">下一页</span>
+		)
+	}
+</div>
+
+<script>
+	/**
+	 * 用户管理操作交互逻辑
+	 *
+	 * 通过 data-action 属性识别操作类型，
+	 * 使用 fetch 发送 PUT 请求到对应 API 端点。
+	 * 操作类型与端点映射：
+	 * - disable → PUT /api/admin/users/:id/disable
+	 * - enable  → PUT /api/admin/users/:id/enable
+	 */
+	document.querySelectorAll('[data-action="disable"], [data-action="enable"]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.action || '';
+			const userId = (btn as HTMLElement).dataset.userId || '';
+
+			// 根据 action 类型拼接 API 端点
+			const endpoint = `/api/admin/users/${userId}/${action}`;
+
+			try {
+				const res = await fetch(endpoint, {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+
+	// 批量操作逻辑
+	const batchBar = document.getElementById('batch-bar');
+	const batchCount = document.getElementById('batch-count');
+	const selectAll = document.getElementById('select-all-users') as HTMLInputElement;
+	const checkboxes = document.querySelectorAll('.batch-checkbox') as NodeListOf<HTMLInputElement>;
+
+	/** 更新批量操作栏显示状态 */
+	function updateBatchBar() {
+		const checked = document.querySelectorAll('.batch-checkbox:checked');
+		const count = checked.length;
+		if (batchCount) batchCount.textContent = String(count);
+		if (batchBar) batchBar.style.display = count > 0 ? 'flex' : 'none';
+		if (selectAll) selectAll.checked = count > 0 && count === checkboxes.length;
+	}
+
+	// 全选/取消全选
+	selectAll?.addEventListener('change', () => {
+		checkboxes.forEach((cb) => {
+			cb.checked = selectAll.checked;
+		});
+		updateBatchBar();
+	});
+
+	// 单个复选框变化时更新批量栏
+	checkboxes.forEach((cb) => {
+		cb.addEventListener('change', updateBatchBar);
+	});
+
+	// 批量操作按钮点击
+	document.querySelectorAll('[data-batch]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.batch;
+			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
+				.map((cb) => (cb as HTMLInputElement).dataset.id)
+				.filter(Boolean);
+
+			if (checkedIds.length === 0) {
+				await MutanDialog.alert('请先选择项目', { title: '提示' });
+				return;
+			}
+
+			if (
+				!(await MutanDialog.confirm(
+					`确认要批量${action === 'disable' ? '禁用' : '启用'} ${checkedIds.length} 个用户吗？`,
+					{ title: '批量操作', danger: true }
+				))
+			)
+				return;
+
+			try {
+				const res = await fetch('/api/admin/users/batch', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, ids: checkedIds })
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+</script>
+
+<style>
+	.admin-batch-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 1rem;
+		margin-bottom: 0.75rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+	.admin-batch-count {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.admin-batch-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+</style>

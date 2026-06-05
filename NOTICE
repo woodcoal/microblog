@@ -1,0 +1,23 @@
+睦谈（MuTan）轻量级多用户微博系统
+Copyright (c) 2026 木炭 <woodcoal@qq.com>
+
+本项目基于 MIT 许可证开源，详见 LICENSE 文件。
+
+---
+
+本软件依赖以下开源项目（按字母排序）：
+
+| 项目                      | 许可证          | 说明                     |
+| ------------------------- | --------------- | ------------------------ |
+| Astro                     | MIT             | Web 框架                 |
+| React                     | MIT             | UI 组件库                |
+| Prisma                    | Apache-2.0      | ORM                      |
+| @libsql/client            | MIT             | libSQL/SQLite 客户端     |
+| bcryptjs                  | MIT             | 密码哈希                 |
+| jose                      | MIT             | JWT 处理                 |
+| marked                    | MIT             | Markdown 解析            |
+| DOMPurify                 | Apache-2.0/MIT  | XSS 防护                 |
+| @scalar/api-reference     | MIT             | API 文档界面             |
+| dotenv                    | BSD-2-Clause    | 环境变量加载             |
+
+以上仅列出直接依赖，完整列表请参阅 node_modules 下各包的 LICENSE 文件。

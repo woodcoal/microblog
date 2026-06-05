@@ -1,0 +1,80 @@
+---
+/**
+ * 管理后台 - 帖子管理页面
+ *
+ * 功能：
+ * - 帖子列表（表格形式，含已删除帖子）
+ * - 搜索框：按内容搜索
+ * - 操作按钮：删除、恢复、全局置顶/取消、锁定/解锁
+ * - 管理员操作弹窗：删除/恢复/锁定需填写理由
+ * - 分页
+ */
+import AdminLayout from '@/layouts/Admin.astro';
+import { prisma } from '@/lib/db';
+import AdminPostList from '@/components/admin/AdminPostList.astro';
+
+// 分页参数
+const page = Math.max(Number(Astro.url.searchParams.get('page')) || 1, 1);
+const limit = 20;
+const search = Astro.url.searchParams.get('search') || '';
+const skip = (page - 1) * limit;
+
+// 构建查询条件（管理后台包含已删除帖子）
+const where = search ? { content: { contains: search } } : {};
+
+// 并行查询
+const [posts, total] = await Promise.all([
+	prisma.post.findMany({
+		where,
+		select: {
+			id: true,
+			content: true,
+			visibility: true,
+			isPinned: true,
+			isGlobalPinned: true,
+			isLocked: true,
+			lockReason: true,
+			isDeleted: true,
+			deleteReason: true,
+			isEdited: true,
+			createdAt: true,
+			user: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true
+				}
+			}
+		},
+		orderBy: { createdAt: 'desc' },
+		skip,
+		take: limit
+	}),
+	prisma.post.count({ where })
+]);
+
+// 计算分页信息
+const totalPages = Math.ceil(total / limit);
+const hasPrev = page > 1;
+const hasNext = page < totalPages;
+
+// 序列化日期
+const serializedPosts = posts.map((p) => ({
+	...p,
+	createdAt: p.createdAt.toISOString()
+}));
+---
+
+<AdminLayout title="帖子管理">
+	<h1 class="admin-page-title">📝 帖子管理</h1>
+
+	<AdminPostList
+		posts={serializedPosts}
+		total={total}
+		page={page}
+		totalPages={totalPages}
+		hasPrev={hasPrev}
+		hasNext={hasNext}
+		search={search}
+	/>
+</AdminLayout>

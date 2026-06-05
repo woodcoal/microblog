@@ -1,0 +1,719 @@
+---
+/**
+ * 基础布局组件
+ *
+ * 提供所有页面的公共 HTML 骨架，包括：
+ * - HTML head（meta、title、CSS）
+ * - 导航栏（站点标题、登录/注册/用户信息、主题切换）
+ * - 页脚
+ * - 主题系统（4套预置主题 CSS 变量 + 初始化脚本）
+ */
+import { getUserFromRequest } from '@/lib/auth';
+import { getUnreadCount } from '@/lib/notification';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_LOGO_URL, SITE_FAVICON_URL } from '@/lib/config';
+import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
+import { prisma } from '@/lib/db';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
+import ComposeModal from '@/components/ComposeModal';
+
+// 导入设计令牌、全局样式和组件样式
+import '@/styles/tokens.css';
+import '@/styles/base.css';
+import '@/styles/components.css';
+
+interface Props {
+	title?: string;
+	description?: string;
+	/** Open Graph 标题，未设置时使用页面标题 */
+	ogTitle?: string;
+	/** Open Graph 描述，未设置时使用页面 description */
+	ogDescription?: string;
+	/** Open Graph 图片 URL */
+	ogImage?: string;
+	/** Open Graph 类型，默认 website */
+	ogType?: string;
+	/** 规范链接（canonical URL），用于 SEO 去重 */
+	canonicalUrl?: string;
+	/** 是否禁止搜索引擎索引此页面 */
+	noindex?: boolean;
+	/** 布局模式：wide（两栏带侧栏）| narrow（单列窄版） */
+	layoutMode?: 'wide' | 'narrow';
+	/** JSON-LD 结构化数据（SEO），传入对象将自动序列化为 script 标签 */
+	jsonLd?: Record<string, unknown>;
+}
+
+const {
+	title,
+	description,
+	ogTitle,
+	ogDescription,
+	ogImage,
+	ogType,
+	canonicalUrl,
+	noindex,
+	layoutMode = 'wide',
+	jsonLd
+} = Astro.props;
+
+// 从 cookie 获取当前登录用户（SSR）
+const currentUser = await getUserFromRequest(Astro);
+
+// 获取未读通知数量（仅已登录用户且通知开启时）
+let unreadCount = 0;
+let notificationsEnabled = true;
+if (currentUser) {
+	// 查询通知开关状态
+	const userSettings = await prisma.userSettings.findUnique({
+		where: { userId: currentUser.userId }
+	});
+	notificationsEnabled = userSettings?.notificationsEnabled ?? true;
+	// 通知开启时才查询未读数
+	if (notificationsEnabled) {
+		unreadCount = await getUnreadCount(currentUser.userId);
+	}
+}
+
+// 获取用户主题偏好（已登录用户从数据库读取，未登录使用默认值）
+let userTheme = 'light';
+let userAccent = '';
+let userDisplayName = '';
+let userAvatarUrl = '';
+if (currentUser) {
+	userTheme = await getThemeFromUserSettings(currentUser.userId);
+	userAccent = await getAccentFromUserSettings(currentUser.userId);
+	// 查询用户显示名称和头像（JWT payload 中无 displayName/avatarUrl）
+	const userRecord = await prisma.user.findUnique({
+		where: { id: currentUser.userId },
+		select: { displayName: true, avatarUrl: true }
+	});
+	userDisplayName = userRecord?.displayName || currentUser.username;
+	userAvatarUrl = userRecord?.avatarUrl || '';
+}
+
+// 是否有未读通知（在 frontmatter 中提取，避免模板表达式中使用比较运算符）
+const hasUnread = unreadCount > 0;
+
+// 当前路径，用于侧栏高亮
+const currentPath = Astro.url.pathname;
+
+// 从环境变量读取站点设置
+const siteTitle = SITE_TITLE;
+const siteDesc = description || SITE_DESCRIPTION;
+const siteLogoUrl = SITE_LOGO_URL;
+const pageTitle = title ? (title === siteTitle ? title : `${title} - ${siteTitle}`) : siteTitle;
+
+// Open Graph 元数据：未单独设置时回退到页面标题和描述
+const resolvedOgTitle = ogTitle || pageTitle;
+const resolvedOgDescription = ogDescription || siteDesc;
+const resolvedOgType = ogType || 'website';
+---
+
+<!doctype html>
+<html lang="zh-CN" data-theme={userTheme} data-accent={userAccent || undefined}>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="description" content={siteDesc} />
+		<title>{pageTitle}</title>
+		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
+		<!-- canonical 规范链接，避免重复内容问题 -->
+		{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+		<!-- 禁止搜索引擎索引（用于非公开页面） -->
+		{noindex && <meta name="robots" content="noindex" />}
+		<!-- JSON-LD 结构化数据 -->
+		{jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+		<!-- Open Graph 元标签，用于社交平台分享预览 -->
+		<meta property="og:title" content={resolvedOgTitle} />
+		<meta property="og:description" content={resolvedOgDescription} />
+		<meta property="og:type" content={resolvedOgType} />
+		{canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+		{ogImage && <meta property="og:image" content={ogImage} />}
+		<!-- 主题初始化脚本：在渲染前设置 data-theme 和 data-accent，防止闪烁（FOUC） -->
+		<script is:inline>
+			(function () {
+				var saved = localStorage.getItem('theme');
+				if (saved) {
+					document.documentElement.setAttribute('data-theme', saved);
+				}
+				var savedAccent = localStorage.getItem('accent');
+				if (savedAccent) {
+					document.documentElement.setAttribute('data-accent', savedAccent);
+				}
+			})();
+		</script>
+	</head>
+	<body>
+		<nav class="navbar">
+			<div class="navbar-inner">
+				<a href="/" class="navbar-brand">
+					<img src={siteLogoUrl} alt={siteTitle} class="navbar-logo" />
+					<span>{siteTitle}</span>
+				</a>
+				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单"> ☰ </button>
+				<div class="navbar-links" id="navbar-links">
+					{
+						currentUser && (
+							<button
+								type="button"
+								class="nav-compose-btn"
+								aria-label="发布帖子"
+								onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
+							>
+								✏️ 发布
+							</button>
+						)
+					}
+					<a href="/search" class="nav-search-btn" aria-label="搜索"> 🔍 </a>
+					<ThemeSwitcher client:load />
+					<!-- 移动端导航菜单（hamburger 面板内） -->
+					<div class="mobile-user-area">
+						<a href="/latest" class="mobile-user-link">
+							<span class="mobile-user-icon">⏰</span> 最新
+						</a>
+						<a href="/" class="mobile-user-link">
+							<span class="mobile-user-icon">🔥</span> 热门
+						</a>
+						{
+							currentUser && (
+								<>
+									<a href="/following" class="mobile-user-link">
+										<span class="mobile-user-icon">👀</span> 关注
+									</a>
+									<a href="/followers" class="mobile-user-link">
+										<span class="mobile-user-icon">👥</span> 粉丝
+									</a>
+									<a href="/settings" class="mobile-user-link">
+										<span class="mobile-user-icon">⚙️</span> 设置
+									</a>
+								</>
+							)
+						}
+						{
+							currentUser && (
+								<>
+									<div class="mobile-user-divider" role="separator" />
+									<button type="button" class="mobile-user-link logout-option">
+										<span class="mobile-user-icon">🚪</span> 登出
+									</button>
+								</>
+							)
+						}
+					</div>
+					{
+						currentUser ? (
+							<>
+								<div class="nav-user-dropdown">
+									<button
+										class="nav-user-trigger"
+										aria-haspopup="true"
+										aria-expanded="false"
+										aria-label="用户菜单"
+									>
+										<span class="nav-avatar-wrap">
+											{userAvatarUrl ? (
+												<img
+													src={userAvatarUrl}
+													alt={userDisplayName}
+													class="nav-user-avatar nav-user-avatar-img"
+												/>
+											) : (
+												<span class="nav-user-avatar">
+													{currentUser.username.charAt(0).toUpperCase()}
+												</span>
+											)}
+											{hasUnread && notificationsEnabled && (
+												<span class="notification-badge avatar-badge">
+													{unreadCount}
+												</span>
+											)}
+										</span>
+										<span class="nav-user-name">{userDisplayName}</span>
+										<span class="nav-user-arrow">▾</span>
+									</button>
+									<div class="nav-dropdown-menu" role="menu">
+										<a
+											href={`/${currentUser.username}`}
+											class="nav-dropdown-item"
+											role="menuitem"
+											aria-label="个人主页"
+										>
+											<span class="nav-dropdown-icon">👤</span>
+											<span>个人主页</span>
+										</a>
+										{notificationsEnabled && (
+											<a
+												href="/notifications"
+												class="nav-dropdown-item"
+												role="menuitem"
+												aria-label="通知"
+											>
+												<span class="nav-dropdown-icon">🔔</span>
+												<span>通知</span>
+												{hasUnread && (
+													<span class="notification-badge">
+														{unreadCount}
+													</span>
+												)}
+											</a>
+										)}
+										<a
+											href="/settings"
+											class="nav-dropdown-item"
+											role="menuitem"
+											aria-label="设置"
+										>
+											<span class="nav-dropdown-icon">⚙️</span>
+											<span>设置</span>
+										</a>
+										{currentUser.role === 'admin' && (
+											<a
+												href="/admin"
+												class="nav-dropdown-item"
+												role="menuitem"
+												aria-label="管理后台"
+											>
+												<span class="nav-dropdown-icon">🛡️</span>
+												<span>管理后台</span>
+											</a>
+										)}
+										<div class="nav-dropdown-divider" role="separator" />
+										<button
+											type="button"
+											class="nav-dropdown-item logout-option"
+											role="menuitem"
+											aria-label="登出"
+										>
+											<span class="nav-dropdown-icon">🚪</span>
+											<span>登出</span>
+										</button>
+									</div>
+								</div>
+							</>
+						) : (
+							<div class="mobile-auth-links">
+								<a href="/login">登录</a>
+								<a href="/register">注册</a>
+							</div>
+						)
+					}
+				</div>
+			</div>
+		</nav>
+
+		<main class:list={[layoutMode === 'wide' ? 'layout-wide' : 'container']}>
+			{
+				layoutMode === 'wide' && (
+					<aside class="layout-sidebar">
+						<a
+							href="/"
+							class="sidebar-link"
+							aria-current={currentPath === '/' ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">🏠</span>
+							<span>首页</span>
+						</a>
+						<a
+							href="/latest"
+							class="sidebar-link"
+							aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">⏰</span>
+							<span>最新</span>
+						</a>
+						{currentUser ? (
+							<>
+								<a
+									href="/following"
+									class="sidebar-link"
+									aria-current={
+										currentPath.startsWith('/following') ? 'page' : undefined
+									}
+								>
+									<span class="sidebar-link-icon">👀</span>
+									<span>关注</span>
+								</a>
+								<a
+									href="/followers"
+									class="sidebar-link"
+									aria-current={
+										currentPath.startsWith('/followers') ? 'page' : undefined
+									}
+								>
+									<span class="sidebar-link-icon">👥</span>
+									<span>粉丝</span>
+								</a>
+							</>
+						) : (
+							<>
+								<a
+									href="/login"
+									class="sidebar-link"
+									aria-current={currentPath === '/login' ? 'page' : undefined}
+								>
+									<span class="sidebar-link-icon">🔑</span>
+									<span>登录</span>
+								</a>
+								<a
+									href="/register"
+									class="sidebar-link"
+									aria-current={currentPath === '/register' ? 'page' : undefined}
+								>
+									<span class="sidebar-link-icon">📝</span>
+									<span>注册</span>
+								</a>
+							</>
+						)}
+					</aside>
+				)
+			}
+			<div class:list={[layoutMode === 'wide' ? 'layout-main' : '']}>
+				<slot />
+			</div>
+		</main>
+
+		<footer class="footer">
+			<p>&copy; {new Date().getFullYear()} {siteTitle}</p>
+		</footer>
+
+		<!-- 移动端底部 Tab Bar -->
+		<nav class="tab-bar-mobile">
+			<a
+				href="/"
+				class="tab-bar-item"
+				aria-current={currentPath === '/' ? 'page' : undefined}
+			>
+				<span class="tab-bar-icon">🏠</span>
+				<span>首页</span>
+			</a>
+			<a
+				href="/search"
+				class="tab-bar-item"
+				aria-current={currentPath.startsWith('/search') ? 'page' : undefined}
+			>
+				<span class="tab-bar-icon">🔍</span>
+				<span>搜索</span>
+			</a>
+			{
+				currentUser ? (
+					<button
+						type="button"
+						class="tab-bar-post"
+						aria-label="发布帖子"
+						onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
+					>
+						✏️
+					</button>
+				) : (
+					<a href="/login" class="tab-bar-post" aria-label="登录后发布">
+						✏️
+					</a>
+				)
+			}
+			{
+				notificationsEnabled && (
+					<a
+						href="/notifications"
+						class="tab-bar-item"
+						aria-current={currentPath.startsWith('/notifications') ? 'page' : undefined}
+					>
+						<span class="tab-bar-icon">🔔</span>
+						<span>通知</span>
+						{hasUnread && <span class="tab-bar-badge" />}
+					</a>
+				)
+			}
+			{
+				currentUser ? (
+					<a
+						href={`/${currentUser.username}`}
+						class="tab-bar-item"
+						aria-current={
+							currentPath === `/${currentUser.username}` ? 'page' : undefined
+						}
+					>
+						<span class="tab-bar-icon">👤</span>
+						<span>我的</span>
+					</a>
+				) : (
+					<a
+						href="/login"
+						class="tab-bar-item"
+						aria-current={currentPath === '/login' ? 'page' : undefined}
+					>
+						<span class="tab-bar-icon">🔑</span>
+						<span>登录</span>
+					</a>
+				)
+			}
+		</nav>
+
+		<!-- 全局发帖弹窗（仅已登录用户） -->
+		{currentUser && <ComposeModal client:idle />}
+
+		<!-- 全局 Toast 容器 -->
+		<div class="toast-container" id="toast-container" role="alert" aria-live="assertive"></div>
+
+		<!-- 全局模拟弹窗（替代 alert/confirm） -->
+		<script is:inline>
+			/**
+			 * 模拟弹窗工具
+			 *
+			 * 提供 window.MutanDialog.alert() 和 window.MutanDialog.confirm() 方法，
+			 * 替代原生 alert/confirm，使用自定义 UI 弹窗，不阻塞页面操作。
+			 *
+			 * 用法：
+			 *   MutanDialog.alert('提示内容') — 返回 Promise<void>
+			 *   MutanDialog.confirm('确认内容', { title: '确认', danger: true }) — 返回 Promise<boolean>
+			 */
+			window.MutanDialog = {
+				/**
+				 * 显示提示弹窗（替代 alert）
+				 *
+				 * @param message - 提示消息
+				 * @param options - 可选配置 { title: 标题 }
+				 * @returns Promise<void> - 用户点击确定后 resolve
+				 */
+				alert: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn dialog-btn-primary" data-role="ok">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close() {
+							overlay.remove();
+							resolve();
+						}
+
+						overlay.querySelector('[data-role="ok"]').addEventListener('click', close);
+						overlay.addEventListener('click', function (e) {
+							if (e.target === overlay) close();
+						});
+						overlay.querySelector('[data-role="ok"]').focus();
+					});
+				},
+
+				/**
+				 * 显示确认弹窗（替代 confirm）
+				 *
+				 * @param message - 确认消息
+				 * @param options - 可选配置 { title: 标题, danger: 是否危险操作(红色确认按钮) }
+				 * @returns Promise<boolean> - true 表示用户确认，false 表示取消
+				 */
+				confirm: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						var confirmClass = options.danger
+							? 'dialog-btn dialog-btn-danger'
+							: 'dialog-btn dialog-btn-primary';
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn" data-role="cancel">取消</button>' +
+							'<button class="' +
+							confirmClass +
+							'" data-role="confirm">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close(result) {
+							overlay.remove();
+							resolve(result);
+						}
+
+						overlay
+							.querySelector('[data-role="confirm"]')
+							.addEventListener('click', function () {
+								close(true);
+							});
+						overlay
+							.querySelector('[data-role="cancel"]')
+							.addEventListener('click', function () {
+								close(false);
+							});
+						overlay.addEventListener('click', function (e) {
+							if (e.target === overlay) close(false);
+						});
+						overlay.querySelector('[data-role="cancel"]').focus();
+					});
+				}
+			};
+		</script>
+
+		<!-- 全局键盘快捷键 -->
+		<script>
+			/**
+			 * 全局键盘快捷键
+			 *
+			 * N — 打开发帖弹窗（仅在非输入框时触发）
+			 * / — 聚焦搜索框或跳转搜索页（仅在非输入框时触发）
+			 * Escape — 关闭弹窗
+			 */
+			document.addEventListener('keydown', (e: KeyboardEvent) => {
+				// 输入框内不触发快捷键（INPUT / TEXTAREA / SELECT / 可编辑元素）
+				const tag = (e.target as HTMLElement).tagName;
+				if (
+					tag === 'INPUT' ||
+					tag === 'TEXTAREA' ||
+					tag === 'SELECT' ||
+					(e.target as HTMLElement).isContentEditable
+				)
+					return;
+
+				if (e.key === 'n' || e.key === 'N') {
+					// N 键：打开发帖弹窗
+					e.preventDefault();
+					document.dispatchEvent(new CustomEvent('open-compose-modal'));
+				} else if (e.key === '/') {
+					// / 键：聚焦搜索框，无搜索框则跳转搜索页
+					e.preventDefault();
+					const searchInput = document.querySelector(
+						'.search-input'
+					) as HTMLInputElement | null;
+					if (searchInput) {
+						searchInput.focus();
+					} else {
+						window.location.href = '/search';
+					}
+				} else if (e.key === 'Escape') {
+					// Escape 键：关闭弹窗
+					document.dispatchEvent(new CustomEvent('close-compose-modal'));
+				}
+			});
+		</script>
+
+		<script data-notifications-enabled={String(notificationsEnabled)}>
+			/**
+			 * 用户菜单下拉切换 + 登出 + 移动端导航栏切换 + 未读通知轮询
+			 */
+			// 下拉菜单切换
+			const userTrigger = document.querySelector('.nav-user-trigger');
+			const userMenu = document.querySelector('.nav-dropdown-menu');
+			userTrigger?.addEventListener('click', () => {
+				const expanded = userTrigger.getAttribute('aria-expanded') === 'true';
+				userTrigger.setAttribute('aria-expanded', !expanded);
+				userMenu?.classList.toggle('nav-dropdown-open');
+			});
+			// 点击外部关闭下拉
+			document.addEventListener('click', (e) => {
+				if (!e.composedPath().some((el) => el.classList?.contains('nav-user-dropdown'))) {
+					userTrigger?.setAttribute('aria-expanded', 'false');
+					userMenu?.classList.remove('nav-dropdown-open');
+				}
+			});
+			// 按 Escape 关闭下拉
+			document.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') {
+					userTrigger?.setAttribute('aria-expanded', 'false');
+					userMenu?.classList.remove('nav-dropdown-open');
+				}
+			});
+
+			// 登出（使用点击委托，兼容桌面下拉和移动端扁平菜单两个按钮）
+			document.addEventListener('click', async (e) => {
+				const btn = e.target.closest('.logout-option');
+				if (!btn) return;
+				e.preventDefault();
+				try {
+					await fetch('/api/auth/logout', { method: 'POST' });
+				} catch {
+					// 即使请求失败也继续清理
+				}
+				localStorage.removeItem('token');
+				window.location.href = '/';
+			});
+
+			const toggleBtn = document.getElementById('navbar-toggle');
+			const navLinks = document.getElementById('navbar-links');
+			toggleBtn?.addEventListener('click', () => {
+				navLinks?.classList.toggle('navbar-links-open');
+			});
+
+			/**
+			 * 轮询未读通知计数并更新徽章
+			 * 通知关闭时不轮询
+			 */
+			const notificationsEnabled =
+				document.currentScript?.dataset.notificationsEnabled === 'true';
+			if (notificationsEnabled) {
+				(async function pollUnread() {
+					try {
+						const res = await fetch('/api/notifications/unread-count');
+						if (!res.ok) return;
+						const json = await res.json();
+						if (!json.success) return;
+						const count = json.data.count;
+
+						// 更新下拉菜单通知项徽章
+						const menuBadge = document.querySelector(
+							'.nav-dropdown-item .notification-badge'
+						);
+						if (menuBadge) {
+							menuBadge.textContent = count;
+							menuBadge.style.display = count > 0 ? '' : 'none';
+						} else {
+							// 无徽章元素但 count > 0：在通知项中插入徽章
+							if (count > 0) {
+								const notifItem = document.querySelector(
+									'.nav-dropdown-item[href="/notifications"]'
+								);
+								if (notifItem) {
+									const badge = document.createElement('span');
+									badge.className = 'notification-badge';
+									badge.textContent = count;
+									notifItem.appendChild(badge);
+								}
+							}
+						}
+
+						// 更新头像徽章
+						const avatarBadge = document.querySelector('.avatar-badge');
+						if (avatarBadge) {
+							avatarBadge.textContent = count;
+							avatarBadge.style.display = count > 0 ? '' : 'none';
+						} else if (count > 0) {
+							// 无头像徽章但 count > 0：在头像包裹容器中插入徽章
+							const wrap = document.querySelector('.nav-avatar-wrap');
+							if (wrap) {
+								const badge = document.createElement('span');
+								badge.className = 'notification-badge avatar-badge';
+								badge.textContent = count;
+								wrap.appendChild(badge);
+							}
+						}
+
+						// 更新移动端 Tab Bar 圆点徽章
+						const tabBadge = document.querySelector('.tab-bar-badge');
+						if (tabBadge) {
+							tabBadge.style.display = count > 0 ? '' : 'none';
+						}
+					} catch {
+						// 轮询失败静默处理
+					}
+
+					// 每 30 秒轮询一次
+					setTimeout(pollUnread, 30000);
+				})();
+			}
+		</script>
+	</body>
+</html>

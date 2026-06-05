@@ -1,0 +1,309 @@
+---
+/**
+ * 管理后台 - 评论列表组件
+ *
+ * 服务端渲染评论表格，支持：
+ * - 搜索：URL 参数 ?search=xxx
+ * - 删除：通过 fetch 请求对应 API
+ * - 分页
+ *
+ * @prop comments - 评论列表
+ * @prop total - 总数
+ * @prop page - 当前页码
+ * @prop totalPages - 总页数
+ * @prop hasPrev - 是否有上一页
+ * @prop hasNext - 是否有下一页
+ */
+
+/** 评论数据结构 */
+interface CommentData {
+	id: string;
+	content: string;
+	isDeleted: boolean;
+	createdAt: string;
+	user: {
+		id: string;
+		username: string;
+		displayName: string;
+	};
+	postContent: string;
+}
+
+interface Props {
+	comments: CommentData[];
+	total: number;
+	page: number;
+	totalPages: number;
+	hasPrev: boolean;
+	hasNext: boolean;
+	search: string;
+}
+
+const { comments, total, page, totalPages, hasPrev, hasNext, search } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasComments = comments.length > 0;
+const prevPage = page - 1;
+const nextPage = page + 1;
+const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+---
+
+<!-- 搜索栏 -->
+<form class="admin-search-bar" action="/admin/comments" method="GET">
+	<input
+		type="text"
+		class="admin-search-input"
+		name="search"
+		value={search}
+		placeholder="搜索评论内容..."
+	/>
+	<button type="submit" class="btn btn-primary"> 搜索 </button>
+</form>
+
+<!-- 批量操作栏 -->
+<div class="admin-batch-bar" id="batch-bar" style="display: none;">
+	<span class="admin-batch-count">已选择 <strong id="batch-count">0</strong> 项</span>
+	<div class="admin-batch-actions">
+		<button type="button" class="admin-btn-sm admin-btn-sm-danger" data-batch="delete"
+			>批量删除</button
+		>
+	</div>
+</div>
+
+<!-- 评论表格 -->
+<div class="admin-table-wrapper">
+	<table class="admin-table">
+		<thead>
+			<tr>
+				<th><input type="checkbox" id="select-all-comments" aria-label="全选" /></th>
+				<th>ID</th>
+				<th>作者</th>
+				<th>内容</th>
+				<th>所属帖子</th>
+				<th>状态</th>
+				<th>创建时间</th>
+				<th>操作</th>
+			</tr>
+		</thead>
+		<tbody>
+			{
+				comments.map((comment) => {
+					const shortId = comment.id.slice(0, 8) + '...';
+					const authorName = comment.user.displayName || comment.user.username;
+					const contentPreview =
+						comment.content.length > 60
+							? comment.content.slice(0, 60) + '...'
+							: comment.content;
+					const statusBadgeClass = comment.isDeleted
+						? 'admin-badge-deleted'
+						: 'admin-badge-active';
+					const statusLabel = comment.isDeleted ? '已删除' : '正常';
+					const formattedDate = new Date(comment.createdAt).toLocaleDateString('zh-CN', {
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit'
+					});
+
+					return (
+						<tr>
+							<td>
+								<input
+									type="checkbox"
+									class="batch-checkbox"
+									data-id={comment.id}
+								/>
+							</td>
+							<td class="admin-id-cell">{shortId}</td>
+							<td>
+								<a href={`/${comment.user.username}`}>{authorName}</a>
+							</td>
+							<td>
+								<div class="admin-text-truncate" title={comment.content}>
+									{contentPreview}
+								</div>
+							</td>
+							<td>
+								<div class="admin-text-truncate" title={comment.postContent}>
+									{comment.postContent}
+								</div>
+							</td>
+							<td>
+								<span class={`admin-badge ${statusBadgeClass}`}>{statusLabel}</span>
+							</td>
+							<td>{formattedDate}</td>
+							<td>
+								<div class="admin-actions">
+									{!comment.isDeleted && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-danger"
+											data-action="delete"
+											data-comment-id={comment.id}
+										>
+											删除
+										</button>
+									)}
+								</div>
+							</td>
+						</tr>
+					);
+				})
+			}
+			{
+				!hasComments && (
+					<tr>
+						<td colspan="8" class="admin-empty-cell">
+							暂无评论数据
+						</td>
+					</tr>
+				)
+			}
+		</tbody>
+	</table>
+</div>
+
+<!-- 分页 -->
+<div class="admin-pagination">
+	{
+		hasPrev ? (
+			<a href={`/admin/comments?page=${prevPage}${searchParam}`} class="admin-pagination-btn">
+				上一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">上一页</span>
+		)
+	}
+	<span class="admin-pagination-info">
+		第 {page} / {totalPages} 页，共 {total} 条
+	</span>
+	{
+		hasNext ? (
+			<a href={`/admin/comments?page=${nextPage}${searchParam}`} class="admin-pagination-btn">
+				下一页
+			</a>
+		) : (
+			<span class="admin-pagination-btn admin-pagination-btn-disabled">下一页</span>
+		)
+	}
+</div>
+
+<script>
+	/**
+	 * 评论管理操作交互逻辑
+	 *
+	 * 通过 data-action 属性识别操作类型，
+	 * 使用 fetch 发送 DELETE 请求到对应 API 端点。
+	 * 操作类型与端点映射：
+	 * - delete → DELETE /api/admin/comments/:id/delete
+	 */
+	document.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const commentId = (btn as HTMLElement).dataset.commentId || '';
+			const endpoint = `/api/admin/comments/${commentId}/delete`;
+
+			try {
+				const res = await fetch(endpoint, {
+					method: 'DELETE',
+					headers: { 'Content-Type': 'application/json' }
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+
+	// 批量操作逻辑
+	const batchBar = document.getElementById('batch-bar');
+	const batchCount = document.getElementById('batch-count');
+	const selectAll = document.getElementById('select-all-comments') as HTMLInputElement;
+	const checkboxes = document.querySelectorAll('.batch-checkbox') as NodeListOf<HTMLInputElement>;
+
+	/** 更新批量操作栏状态：选中数量、全选框同步 */
+	function updateBatchBar() {
+		const checked = document.querySelectorAll('.batch-checkbox:checked');
+		const count = checked.length;
+		if (batchCount) batchCount.textContent = String(count);
+		if (batchBar) batchBar.style.display = count > 0 ? 'flex' : 'none';
+		if (selectAll) selectAll.checked = count > 0 && count === checkboxes.length;
+	}
+
+	// 全选/取消全选
+	selectAll?.addEventListener('change', () => {
+		checkboxes.forEach((cb) => {
+			cb.checked = selectAll.checked;
+		});
+		updateBatchBar();
+	});
+
+	// 单个复选框变化时更新批量操作栏
+	checkboxes.forEach((cb) => {
+		cb.addEventListener('change', updateBatchBar);
+	});
+
+	// 批量操作按钮点击处理
+	document.querySelectorAll('[data-batch]').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const action = (btn as HTMLElement).dataset.batch;
+			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
+				.map((cb) => (cb as HTMLInputElement).dataset.id)
+				.filter(Boolean);
+
+			if (checkedIds.length === 0) {
+				await MutanDialog.alert('请先选择项目', { title: '提示' });
+				return;
+			}
+			if (
+				!(await MutanDialog.confirm(`确认要批量删除 ${checkedIds.length} 条评论吗？`, {
+					title: '批量删除',
+					danger: true
+				}))
+			)
+				return;
+
+			try {
+				const res = await fetch('/api/admin/comments/batch', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ action, ids: checkedIds })
+				});
+				const data = await res.json();
+				if (data.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误');
+			}
+		});
+	});
+</script>
+
+<style>
+	.admin-batch-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 1rem;
+		margin-bottom: 0.75rem;
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+	}
+	.admin-batch-count {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+	}
+	.admin-batch-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+</style>

@@ -1,0 +1,310 @@
+---
+/**
+ * 通知列表组件
+ *
+ * 服务端渲染通知列表，支持：
+ * - 单条标记已读：点击通知链接跳转（服务端在页面加载时标记已读）
+ * - 未读通知背景高亮
+ *
+ * 注意：标题栏、全部已读按钮、筛选标签、分页按钮由通知页面负责渲染。
+ *
+ * @prop notifications - 通知列表数据
+ * @prop unreadCount - 未读通知数量
+ */
+import { formatRelativeTime } from '@/lib/utils';
+
+/** 通知中 actor 用户信息 */
+interface ActorInfo {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string | null;
+}
+
+/** 单条通知数据 */
+interface NotificationItem {
+	id: string;
+	type: string;
+	actorId: string;
+	recipientId: string;
+	postId: string | null;
+	commentId: string | null;
+	isRead: boolean;
+	createdAt: string;
+	actor: ActorInfo;
+	/** 帖子作者用户名（用于构建帖子链接） */
+	postAuthorUsername: string | null;
+}
+
+interface Props {
+	notifications: NotificationItem[];
+	unreadCount: number;
+}
+
+const { notifications, unreadCount } = Astro.props;
+
+/**
+ * 获取通知跳转链接
+ *
+ * follow 类型无跳转，其余跳转到对应帖子页。
+ * 帖子链接格式为 /{帖子作者用户名}/{帖子ID}。
+ *
+ * @param type - 通知类型
+ * @param postId - 关联帖子 ID
+ * @param postAuthorUsername - 帖子作者用户名
+ * @returns 跳转链接或 null
+ */
+function getNotificationLink(
+	type: string,
+	postId: string | null,
+	postAuthorUsername: string | null
+): string | null {
+	if (type === 'follow') return null;
+	if (!postId || !postAuthorUsername) return null;
+	return `/${postAuthorUsername}/${postId}`;
+}
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasNotifications = notifications.length > 0;
+---
+
+<div>
+	<!-- 通知列表 -->
+	{
+		!hasNotifications ? (
+			<div class="empty-state">
+				<p>暂无通知</p>
+			</div>
+		) : (
+			<div class="notification-list" aria-live="polite" aria-label="通知列表">
+				{notifications.map((notification) => {
+					// 通知类型对应图标
+					const typeIcon = (() => {
+						switch (notification.type) {
+							case 'like':
+								return '❤️';
+							case 'follow':
+								return '👤';
+							case 'comment':
+								return '💬';
+							case 'mention':
+								return '📢';
+							case 'boost':
+								return '🔄';
+							default:
+								return '📌';
+						}
+					})();
+					// 通知类型对应的 CSS 类
+					const iconClass = (() => {
+						switch (notification.type) {
+							case 'like':
+								return 'notification-icon-like';
+							case 'follow':
+								return 'notification-icon-follow';
+							case 'comment':
+								return 'notification-icon-comment';
+							case 'mention':
+								return 'notification-icon-mention';
+							case 'boost':
+								return 'notification-icon-boost';
+							default:
+								return 'notification-icon-follow';
+						}
+					})();
+					const postLink = getNotificationLink(
+						notification.type,
+						notification.postId,
+						notification.postAuthorUsername
+					);
+					const avatarUrl = notification.actor.avatarUrl;
+					const initial = notification.actor.displayName.charAt(0).toUpperCase();
+					const relativeTime = formatRelativeTime(new Date(notification.createdAt));
+					const isUnread = !notification.isRead;
+					// 操作者主页链接
+					const actorLink = `/${notification.actor.username}`;
+					const actorName = notification.actor.displayName;
+
+					return (
+						<div
+							class:list={['notification-item', { 'notification-unread': isUnread }]}
+							data-notification-id={notification.id}
+							data-unread={isUnread ? 'true' : undefined}
+						>
+							{/* 类型图标 */}
+							<span
+								class:list={['notification-icon-wrap', iconClass]}
+								aria-hidden="true"
+							>
+								{typeIcon}
+							</span>
+
+							{/* 头像 — 链接到操作者主页 */}
+							<a
+								href={actorLink}
+								class="notification-avatar-link"
+								aria-label={`${actorName} 的主页`}
+							>
+								{avatarUrl ? (
+									<img
+										src={avatarUrl}
+										alt={`${actorName} 的头像`}
+										class="notification-avatar"
+										loading="lazy"
+									/>
+								) : (
+									<div
+										class="notification-avatar notification-avatar-placeholder"
+										aria-hidden="true"
+									>
+										{initial}
+									</div>
+								)}
+							</a>
+
+							{/* 内容 — xx 和 yy 各自独立链接 */}
+							<div class="notification-content">
+								<p class="notification-text">
+									<a
+										href={actorLink}
+										class="notification-actor-link"
+										aria-label={`查看 ${actorName} 的主页`}
+									>
+										{actorName}
+									</a>
+									{notification.type === 'follow' && ' 关注了你'}
+									{notification.type === 'comment' && (
+										<>
+											{' 评论了'}
+											{postLink ? (
+												<a href={postLink} class="notification-post-link">
+													你的帖子
+												</a>
+											) : (
+												'你的帖子'
+											)}
+										</>
+									)}
+									{notification.type === 'like' && (
+										<>
+											{' 赞了'}
+											{postLink ? (
+												<a href={postLink} class="notification-post-link">
+													你的帖子
+												</a>
+											) : (
+												'你的帖子'
+											)}
+										</>
+									)}
+									{notification.type === 'mention' && (
+										<>
+											{' 在'}
+											{postLink ? (
+												<a href={postLink} class="notification-post-link">
+													帖子
+												</a>
+											) : (
+												'帖子'
+											)}
+											{'中提到了你'}
+										</>
+									)}
+									{notification.type !== 'follow' &&
+										notification.type !== 'comment' &&
+										notification.type !== 'like' &&
+										notification.type !== 'mention' &&
+										' 与你互动'}
+								</p>
+								<time class="notification-time">{relativeTime}</time>
+							</div>
+
+							{/* 未读指示点 */}
+							{isUnread && <span class="notification-dot" />}
+
+							{/* 删除按钮 */}
+							<button
+								type="button"
+								class="notification-delete"
+								data-action="delete-notification"
+								aria-label="删除此通知"
+								title="删除"
+							>
+								✕
+							</button>
+						</div>
+					);
+				})}
+			</div>
+		)
+	}
+</div>
+
+<script>
+	/**
+	 * 通知列表组件交互逻辑
+	 *
+	 * 功能：
+	 * - 点击未读通知项：标记该条已读，移除未读样式
+	 */
+
+	/** 构建带认证的请求头 */
+	function getAuthHeaders(): HeadersInit {
+		const token = localStorage.getItem('token');
+		return {
+			'Content-Type': 'application/json',
+			...(token ? { Authorization: `Bearer ${token}` } : {})
+		};
+	}
+
+	/**
+	 * 标记指定通知为已读，并移除未读样式
+	 *
+	 * @param notificationId - 通知 ID
+	 * @param itemEl - 通知项 DOM 元素
+	 */
+	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
+		try {
+			await fetch('/api/notifications/read', {
+				method: 'PUT',
+				headers: getAuthHeaders(),
+				body: JSON.stringify({ ids: [notificationId] })
+			});
+			// 移除未读样式和标记
+			itemEl.classList.remove('notification-unread');
+			itemEl.removeAttribute('data-unread');
+			// 移除未读指示点
+			const dot = itemEl.querySelector('.notification-dot');
+			if (dot) dot.remove();
+		} catch {
+			// 标记已读失败不影响操作
+		}
+	}
+
+	// 点击未读通知项时标记已读
+	document.querySelectorAll('.notification-item[data-unread="true"]').forEach((item) => {
+		item.addEventListener('click', (e) => {
+			// 如果点击的是子链接（操作者主页/帖子链接），不拦截，正常跳转
+			const target = e.target as HTMLElement;
+			// 删除按钮点击不触发已读
+			if (target.closest('[data-action="delete-notification"]')) return;
+			if (
+				target.closest('.notification-actor-link') ||
+				target.closest('.notification-post-link') ||
+				target.closest('.notification-avatar-link')
+			) {
+				// 子链接点击：标记已读但不阻止跳转
+				const notificationId = (item as HTMLElement).dataset.notificationId;
+				if (notificationId) {
+					markAsRead(notificationId, item as HTMLElement);
+				}
+				return;
+			}
+			// 点击通知项空白区域：标记已读
+			const notificationId = (item as HTMLElement).dataset.notificationId;
+			if (notificationId) {
+				markAsRead(notificationId, item as HTMLElement);
+			}
+		});
+	});
+</script>

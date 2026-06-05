@@ -1,0 +1,113 @@
+---
+/**
+ * 版本差异对比组件
+ *
+ * 使用 LCS 算法在服务端计算行级 diff，
+ * 渲染差异结果（新增绿色/删除红色/未变正常）。
+ * 完全服务端渲染，无需客户端 JS。
+ *
+ * @prop oldContent - 旧版本内容
+ * @prop newContent - 新版本内容
+ */
+
+/** 单行差异项 */
+interface DiffLine {
+	type: 'added' | 'removed' | 'unchanged';
+	content: string;
+}
+
+/**
+ * 计算两个文本的行级差异
+ *
+ * 使用最长公共子序列（LCS）算法实现行级 diff。
+ * 将文本按行分割后，对比每行的增删改情况。
+ *
+ * @param oldText - 旧版本文本
+ * @param newText - 新版本文本
+ * @returns 差异行数组
+ */
+function computeLineDiff(oldText: string, newText: string): DiffLine[] {
+	const oldLines = oldText.split('\n');
+	const newLines = newText.split('\n');
+
+	// 构建 LCS 表
+	const m = oldLines.length;
+	const n = newLines.length;
+
+	// dp[i][j] 表示 oldLines[0..i-1] 和 newLines[0..j-1] 的 LCS 长度
+	const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+	for (let i = 1; i <= m; i++) {
+		for (let j = 1; j <= n; j++) {
+			if (oldLines[i - 1] === newLines[j - 1]) {
+				dp[i][j] = dp[i - 1][j - 1] + 1;
+			} else {
+				dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+			}
+		}
+	}
+
+	// 回溯 LCS，生成差异行
+	const result: DiffLine[] = [];
+	let i = m;
+	let j = n;
+
+	// 临时存储（回溯是从后往前的，需要反转）
+	const temp: DiffLine[] = [];
+
+	while (i > 0 || j > 0) {
+		if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+			// 相同行
+			temp.push({ type: 'unchanged', content: oldLines[i - 1] });
+			i--;
+			j--;
+		} else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+			// 新增行
+			temp.push({ type: 'added', content: newLines[j - 1] });
+			j--;
+		} else {
+			// 删除行
+			temp.push({ type: 'removed', content: oldLines[i - 1] });
+			i--;
+		}
+	}
+
+	// 反转回溯结果
+	for (let k = temp.length - 1; k >= 0; k--) {
+		result.push(temp[k]);
+	}
+
+	return result;
+}
+
+interface Props {
+	oldContent: string;
+	newContent: string;
+}
+
+const { oldContent, newContent } = Astro.props;
+
+// 服务端计算 diff
+const diffLines = computeLineDiff(oldContent, newContent);
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasChanges = diffLines.some((line) => line.type !== 'unchanged');
+---
+
+<div class="revision-diff">
+	{!hasChanges && <p class="revision-diff-empty">两个版本内容相同</p>}
+	{
+		diffLines.map((line) => {
+			// 提取前缀符号，避免模板表达式中使用三元比较
+			const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' ';
+			const displayContent = line.content || ' ';
+
+			return (
+				<div class={`revision-diff-line revision-diff-line-${line.type}`}>
+					<span class="revision-diff-prefix">{prefix}</span>
+					<span class="revision-diff-content">{displayContent}</span>
+				</div>
+			);
+		})
+	}
+</div>

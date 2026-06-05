@@ -1,0 +1,80 @@
+---
+/**
+ * 管理后台 - 评论管理页面
+ *
+ * 功能：
+ * - 评论列表（表格形式）
+ * - 搜索框：按内容搜索
+ * - 删除按钮
+ * - 分页
+ */
+import AdminLayout from '@/layouts/Admin.astro';
+import { prisma } from '@/lib/db';
+import AdminCommentList from '@/components/admin/AdminCommentList.astro';
+
+// 分页参数
+const page = Math.max(Number(Astro.url.searchParams.get('page')) || 1, 1);
+const limit = 20;
+const search = Astro.url.searchParams.get('search') || '';
+const skip = (page - 1) * limit;
+
+// 构建查询条件
+const where = search ? { content: { contains: search } } : {};
+
+// 并行查询
+const [comments, total] = await Promise.all([
+	prisma.comment.findMany({
+		where,
+		select: {
+			id: true,
+			content: true,
+			isDeleted: true,
+			createdAt: true,
+			user: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true
+				}
+			},
+			post: {
+				select: {
+					id: true,
+					content: true
+				}
+			}
+		},
+		orderBy: { createdAt: 'desc' },
+		skip,
+		take: limit
+	}),
+	prisma.comment.count({ where })
+]);
+
+// 计算分页信息
+const totalPages = Math.ceil(total / limit);
+const hasPrev = page > 1;
+const hasNext = page < totalPages;
+
+// 序列化日期和内容
+const serializedComments = comments.map((c) => ({
+	...c,
+	content: c.content,
+	postContent: c.post.content.length > 50 ? c.post.content.slice(0, 50) + '...' : c.post.content,
+	createdAt: c.createdAt.toISOString()
+}));
+---
+
+<AdminLayout title="评论管理">
+	<h1 class="admin-page-title">💬 评论管理</h1>
+
+	<AdminCommentList
+		comments={serializedComments}
+		total={total}
+		page={page}
+		totalPages={totalPages}
+		hasPrev={hasPrev}
+		hasNext={hasNext}
+		search={search}
+	/>
+</AdminLayout>

@@ -1,0 +1,411 @@
+---
+/**
+ * 注册页面
+ *
+ * 读取 ALLOW_REGISTRATION 环境变量判断是否允许注册。
+ * 如果注册已关闭，显示提示信息；否则显示注册表单。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import {
+	PASSWORD_MIN_LENGTH,
+	ALLOW_REGISTRATION,
+	RESERVED_USERNAMES,
+	SITE_TITLE,
+	SITE_LOGO_URL
+} from '@/lib/config';
+
+// 从环境变量读取是否允许注册
+const allowRegistration = ALLOW_REGISTRATION;
+---
+
+<BaseLayout title="注册" layoutMode="narrow">
+	<div class="auth-page card">
+		<div class="auth-brand">
+			<img src={SITE_LOGO_URL} alt={SITE_TITLE} class="auth-logo" />
+			<h1 class="auth-title">创建账号</h1>
+		</div>
+
+		{
+			allowRegistration ? (
+				<form
+					id="register-form"
+					class="auth-form"
+					data-reserved-usernames={RESERVED_USERNAMES.join(',')}
+				>
+					<div class="form-group">
+						<label for="username" class="form-label">
+							用户名
+						</label>
+						<input
+							type="text"
+							id="username"
+							name="username"
+							class="form-input"
+							placeholder="3-20 位字母、数字、下划线"
+							required
+							minlength="3"
+							maxlength="20"
+							pattern="[a-zA-Z0-9_]{3,20}"
+							autocomplete="off"
+						/>
+						<div id="username-error" class="form-error" />
+						<div id="username-hint" class="form-hint" />
+					</div>
+
+					<div class="form-group">
+						<label for="displayName" class="form-label">
+							显示名称
+						</label>
+						<input
+							type="text"
+							id="displayName"
+							name="displayName"
+							class="form-input"
+							placeholder="你的昵称"
+							required
+							maxlength="50"
+							autocomplete="off"
+						/>
+					</div>
+
+					<div class="form-group">
+						<label for="email" class="form-label">
+							邮箱
+						</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							class="form-input"
+							placeholder="your@email.com"
+							required
+							autocomplete="email"
+						/>
+						<div id="email-error" class="form-error" />
+					</div>
+
+					<div class="form-group">
+						<label for="password" class="form-label">
+							密码
+						</label>
+						<input
+							type="password"
+							id="password"
+							name="password"
+							class="form-input"
+							placeholder={`至少 ${PASSWORD_MIN_LENGTH} 位`}
+							required
+							minlength={PASSWORD_MIN_LENGTH}
+							autocomplete="new-password"
+						/>
+						<div id="password-hint" class="form-hint" />
+					</div>
+
+					<div class="form-group">
+						<label for="confirmPassword" class="form-label">
+							确认密码
+						</label>
+						<input
+							type="password"
+							id="confirmPassword"
+							name="confirmPassword"
+							class="form-input"
+							placeholder="再次输入密码"
+							required
+							autocomplete="new-password"
+						/>
+						<div id="confirm-error" class="form-error" />
+						<div id="confirm-hint" class="form-hint" />
+					</div>
+
+					<div id="form-error" class="form-error" />
+
+					<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
+						注册
+					</button>
+				</form>
+			) : (
+				<div class="registration-closed">
+					<p class="registration-closed-title">注册已关闭</p>
+					<p class="registration-closed-hint">
+						管理员已关闭新用户注册，请联系管理员获取邀请。
+					</p>
+					<a href="/login" class="btn btn-outline">
+						返回登录
+					</a>
+				</div>
+			)
+		}
+
+		{
+			allowRegistration && (
+				<p class="auth-footer">
+					已有账号？<a href="/login">登录</a>
+				</p>
+			)
+		}
+	</div>
+</BaseLayout>
+
+<style>
+	.auth-page {
+		max-width: 440px;
+		margin: var(--spacing-8) auto;
+	}
+
+	.auth-brand {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		margin-bottom: var(--spacing-6);
+	}
+
+	.auth-title {
+		font-size: 1.375rem;
+		font-weight: 700;
+		margin-bottom: var(--spacing-5);
+		text-align: center;
+		letter-spacing: -0.02em;
+	}
+
+	.auth-logo {
+		width: 48px;
+		height: 48px;
+		margin-bottom: var(--spacing-3);
+		border-radius: var(--radius-md);
+	}
+
+	.auth-form {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.auth-submit {
+		margin-top: var(--spacing-1);
+		width: 100%;
+	}
+
+	.auth-footer {
+		text-align: center;
+		margin-top: var(--spacing-4);
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		padding-top: var(--spacing-4);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.auth-footer a {
+		color: var(--color-primary);
+		text-decoration: none;
+		font-weight: 500;
+	}
+
+	.auth-footer a:hover {
+		text-decoration: underline;
+	}
+
+	.form-hint {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+		margin-top: 0.25rem;
+		display: none;
+	}
+	.form-hint-visible {
+		display: block;
+	}
+	.form-hint-ok {
+		color: var(--color-success);
+	}
+	.form-hint-err {
+		color: var(--color-danger);
+	}
+
+	.registration-closed {
+		text-align: center;
+		padding: var(--spacing-6) 0;
+	}
+
+	.registration-closed-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin-bottom: var(--spacing-2);
+	}
+
+	.registration-closed-hint {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		font-weight: 400;
+		margin-bottom: var(--spacing-6);
+	}
+</style>
+
+<script>
+	// 从 data 属性读取保留用户名列表（从服务端注入，包含内置 + .env 追加的保留词）
+	const form = document.getElementById('register-form') as HTMLFormElement;
+	const reservedStr = form?.dataset.reservedUsernames || '';
+	const RESERVED_USERNAMES = reservedStr
+		.split(',')
+		.filter(Boolean)
+		.map((s) => s.toLowerCase());
+
+	// 字段引用
+	const usernameInput = document.getElementById('username') as HTMLInputElement;
+	const displayNameInput = document.getElementById('displayName') as HTMLInputElement;
+	const emailInput = document.getElementById('email') as HTMLInputElement;
+	const passwordInput = document.getElementById('password') as HTMLInputElement;
+	const confirmInput = document.getElementById('confirmPassword') as HTMLInputElement;
+	const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+	const errorEl = document.getElementById('form-error')!;
+	const usernameError = document.getElementById('username-error')!;
+	const emailError = document.getElementById('email-error')!;
+	const confirmError = document.getElementById('confirm-error')!;
+	const usernameHint = document.getElementById('username-hint')!;
+	const passwordHint = document.getElementById('password-hint')!;
+	const confirmHint = document.getElementById('confirm-hint')!;
+
+	/**
+	 * 清除指定字段的错误提示
+	 */
+	function clearFieldError(el: HTMLElement) {
+		el.textContent = '';
+		el.classList.remove('form-hint-ok', 'form-hint-err');
+	}
+
+	/**
+	 * 显示字段提示信息
+	 */
+	function showFieldHint(el: HTMLElement, msg: string, ok: boolean) {
+		el.textContent = msg;
+		el.className = 'form-hint form-hint-visible' + (ok ? ' form-hint-ok' : ' form-hint-err');
+	}
+
+	// 用户名实时校验
+	if (usernameInput) {
+		usernameInput.addEventListener('input', () => {
+			clearFieldError(usernameError);
+			clearFieldError(usernameHint);
+			const v = usernameInput.value.trim();
+			if (!v) return;
+			if (!/^[a-zA-Z0-9_]{3,20}$/.test(v)) {
+				showFieldHint(usernameHint, '需为 3-20 位字母、数字或下划线', false);
+			} else if (RESERVED_USERNAMES.includes(v.toLowerCase())) {
+				showFieldHint(usernameHint, '该用户名为系统保留名', false);
+			} else {
+				showFieldHint(usernameHint, '用户名可用', true);
+			}
+		});
+	}
+
+	// 密码强度即时提示
+	if (passwordInput) {
+		passwordInput.addEventListener('input', () => {
+			const v = passwordInput.value;
+			if (!v) {
+				clearFieldError(passwordHint);
+				return;
+			}
+			if (v.length < Number(passwordInput.getAttribute('minlength') || 6)) {
+				showFieldHint(passwordHint, '密码长度不足', false);
+			} else {
+				showFieldHint(passwordHint, '密码强度足够', true);
+			}
+		});
+	}
+
+	// 确认密码即时校验
+	if (confirmInput) {
+		confirmInput.addEventListener('input', () => {
+			clearFieldError(confirmError);
+			const v = confirmInput.value;
+			if (!v) {
+				clearFieldError(confirmHint);
+				return;
+			}
+			if (v !== passwordInput.value) {
+				showFieldHint(confirmHint, '两次密码不一致', false);
+			} else {
+				showFieldHint(confirmHint, '密码一致', true);
+			}
+		});
+	}
+
+	// 失焦时清除 hint（减少干扰）
+	[usernameInput, confirmInput].forEach((el) => {
+		el?.addEventListener('blur', () => {
+			const hintId = el.id === 'confirmPassword' ? 'confirm-hint' : el.id + '-hint';
+			clearFieldError(document.getElementById(hintId) || el);
+		});
+	});
+	if (passwordInput) {
+		passwordInput.addEventListener('blur', () => clearFieldError(passwordHint));
+	}
+
+	// 聚焦显示名称
+	if (displayNameInput) {
+		displayNameInput.focus();
+	}
+
+	if (form) {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const username = usernameInput.value.trim();
+			const displayName = displayNameInput.value.trim();
+			const email = emailInput.value.trim();
+			const password = passwordInput.value;
+			const confirmPassword = confirmInput.value;
+
+			// 清除之前的错误
+			clearFieldError(errorEl);
+			clearFieldError(usernameError);
+			clearFieldError(emailError);
+			clearFieldError(confirmError);
+
+			// 前端验证：用户名格式
+			if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+				usernameError.textContent = '用户名需为 3-20 位字母、数字或下划线';
+				usernameInput.focus();
+				return;
+			}
+
+			// 前端验证：保留用户名
+			if (RESERVED_USERNAMES.includes(username.toLowerCase())) {
+				usernameError.textContent = '该用户名为系统保留名，不可使用';
+				usernameInput.focus();
+				return;
+			}
+
+			// 前端验证：密码确认
+			if (password !== confirmPassword) {
+				confirmError.textContent = '两次输入的密码不一致';
+				confirmInput.focus();
+				return;
+			}
+
+			// 禁用按钮防重复提交
+			submitBtn.disabled = true;
+			submitBtn.textContent = '注册中...';
+
+			try {
+				const res = await fetch('/api/auth/register', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ username, displayName, email, password })
+				});
+
+				const data = await res.json();
+
+				if (data.success) {
+					window.location.href = '/';
+				} else {
+					errorEl.textContent = data.error?.message || '注册失败，请重试';
+				}
+			} catch {
+				errorEl.textContent = '网络错误，请重试';
+			} finally {
+				submitBtn.disabled = false;
+				submitBtn.textContent = '注册';
+			}
+		});
+	}
+</script>

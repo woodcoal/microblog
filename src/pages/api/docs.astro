@@ -1,0 +1,37 @@
+---
+/**
+ * API 文档页面
+ *
+ * 使用 Scalar API Reference 渲染 OpenAPI 规范文档。
+ * 通过 CDN 加载 Scalar 组件，读取 /api/docs.json 端点提供的 OpenAPI 规范。
+ *
+ * 路由：/api/docs
+ */
+import { SITE_TITLE } from '@/lib/config';
+---
+
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>{SITE_TITLE} API 文档</title>
+	</head>
+	<body>
+		<!-- Scalar API Reference 渲染容器 -->
+		<div id="api-reference"></div>
+
+		<!-- 通过 CDN 加载 Scalar API Reference 脚本 -->
+		<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+
+		<!-- 初始化 Scalar，指向 OpenAPI 规范端点 -->
+		<script>
+			Scalar.createApiReference('#api-reference', {
+				spec: {
+					url: '/api/docs.json'
+				},
+				theme: 'default'
+			});
+		</script>
+	</body>
+</html>

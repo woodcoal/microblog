@@ -1,0 +1,164 @@
+---
+/**
+ * 帖子版本历史页面
+ *
+ * 仅作者可查看。
+ * 按时间倒序展示所有版本，可选择任意两个版本进行 diff 对比。
+ * 使用 Astro 组件服务端渲染，版本选择器通过 URL 参数切换。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import RevisionDiff from '@/components/RevisionDiff.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { formatRelativeTime } from '@/lib/utils';
+
+// 路由参数
+const { username, postId } = Astro.params;
+
+// 查询帖子
+const post = await prisma.post.findUnique({
+	where: { id: postId },
+	include: {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		}
+	}
+});
+
+// 帖子不存在或用户名不匹配则 404
+if (!post || post.user.username !== username) {
+	return Astro.redirect('/404');
+}
+
+// 获取当前登录用户
+const currentUser = await getUserFromRequest(Astro);
+
+// 未登录或非作者，跳转到帖子详情页
+if (!currentUser || currentUser.userId !== post.userId) {
+	return Astro.redirect(`/${username}/${postId}`);
+}
+
+// 查询版本历史，按时间倒序
+const revisions = await prisma.postRevision.findMany({
+	where: { postId: post.id },
+	orderBy: { createdAt: 'desc' }
+});
+
+// 构建版本列表：当前版本 + 历史版本
+const allVersions = [
+	{ id: 'current', content: post.content, createdAt: post.updatedAt, label: '当前版本' },
+	...revisions.map((r) => ({
+		id: r.id,
+		content: r.content,
+		createdAt: r.createdAt,
+		label: formatRelativeTime(r.createdAt)
+	}))
+];
+
+// 解析 URL 参数获取选中的版本索引
+const oldIdx = Math.min(
+	Math.max(Number(Astro.url.searchParams.get('old')) || 1, 0),
+	allVersions.length - 1
+);
+const newIdx = Math.min(
+	Math.max(Number(Astro.url.searchParams.get('new')) || 0, 0),
+	allVersions.length - 1
+);
+
+// 获取选中版本的内容
+const oldContent = allVersions[oldIdx]?.content || '';
+const newContent = allVersions[newIdx]?.content || '';
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasHistory = allVersions.length > 0;
+---
+
+<BaseLayout title="版本历史">
+	<div class="revisions-page">
+		<div class="revisions-header">
+			<h1 class="revisions-title">版本历史</h1>
+			<a href={`/${username}/${postId}`} class="btn btn-outline">返回帖子</a>
+		</div>
+
+		{
+			!hasHistory ? (
+				<div class="empty-state">
+					<p>暂无编辑历史</p>
+				</div>
+			) : (
+				<div class="revisions-content">
+					{/* 版本选择器：通过 URL 参数切换 */}
+					<form class="revisions-selector" method="GET">
+						<div class="form-group">
+							<label class="form-label" for="old-version">
+								旧版本
+							</label>
+							<select id="old-version" name="old" class="form-input revisions-select">
+								{allVersions.map((v, i) => (
+									<option value={i} selected={i === oldIdx}>
+										{v.label} — {v.createdAt.toLocaleString('zh-CN')}
+									</option>
+								))}
+							</select>
+						</div>
+						<div class="form-group">
+							<label class="form-label" for="new-version">
+								新版本
+							</label>
+							<select id="new-version" name="new" class="form-input revisions-select">
+								{allVersions.map((v, i) => (
+									<option value={i} selected={i === newIdx}>
+										{v.label} — {v.createdAt.toLocaleString('zh-CN')}
+									</option>
+								))}
+							</select>
+						</div>
+						<button type="submit" class="btn btn-primary revisions-submit">
+							对比
+						</button>
+					</form>
+
+					{/* diff 对比结果 */}
+					<RevisionDiff oldContent={oldContent} newContent={newContent} />
+				</div>
+			)
+		}
+	</div>
+</BaseLayout>
+
+<style>
+	.revisions-page {
+		padding: 1rem 0;
+	}
+	.revisions-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1.5rem;
+	}
+	.revisions-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+	}
+	.revisions-selector {
+		display: flex;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+		align-items: flex-end;
+	}
+	.revisions-selector .form-group {
+		flex: 1;
+		margin-bottom: 0;
+	}
+	.revisions-select {
+		width: 100%;
+	}
+	.revisions-submit {
+		flex-shrink: 0;
+	}
+</style>

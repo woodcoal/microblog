@@ -1,0 +1,7 @@
+# Prettier 忽略文件
+node_modules/
+dist/
+.prisma/
+src/generated/
+*.min.js
+*.min.css

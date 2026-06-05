@@ -1,0 +1,258 @@
+---
+/**
+ * 关注列表页
+ *
+ * 上半部分：当前用户关注的所有用户列表。
+ * 下半部分：这些用户近 7 天最热门的 10 条帖子。
+ * 需要认证，未登录重定向到登录页。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import PostCard from '@/components/PostCard.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { renderMarkdown } from '@/lib/markdown';
+import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
+
+// 需要认证，未登录重定向
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) {
+	return Astro.redirect('/login');
+}
+
+// 查询当前用户关注的所有用户（最多最新 50 个）
+const follows = await prisma.follow.findMany({
+	where: { followerId: currentUser.userId },
+	orderBy: { createdAt: 'desc' },
+	take: 50,
+	include: {
+		following: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		}
+	}
+});
+const hasFollowing = follows.length > 0;
+const followingIds = follows.map((f) => f.following.id);
+
+// 查询关注当前用户的粉丝列表，用于可见度过滤
+const followerRecords = await prisma.follow.findMany({
+	where: { followingId: currentUser.userId },
+	select: { followerId: true }
+});
+const followerIds = followerRecords.map((f) => f.followerId);
+
+// 构建可见度过滤条件
+const visibilityFilter = getVisibilityFilter(
+	{ userId: currentUser.userId },
+	{ followingIds, followerIds }
+);
+
+// 7 天前的日期，用于热门帖子筛选
+const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+// 查询热门帖子：近 7 天关注用户的帖子，按热度排序取前 10
+const hotPosts = hasFollowing
+	? await prisma.post.findMany({
+			where: {
+				userId: { in: followingIds },
+				isDeleted: false,
+				createdAt: { gte: sevenDaysAgo },
+				...visibilityFilter
+			},
+			orderBy: [
+				{ likes: { _count: 'desc' } },
+				{ comments: { _count: 'desc' } },
+				{ createdAt: 'desc' }
+			],
+			take: 10,
+			include: POST_CARD_INCLUDE
+		})
+	: [];
+
+// 查询当前用户对热门帖子的点赞状态
+const likedPostIds = await getLikedPostIds(
+	currentUser.userId,
+	hotPosts.map((p) => p.id)
+);
+---
+
+<BaseLayout title="我的关注">
+	<h1 class="page-title">我的关注</h1>
+
+	<!-- 关注用户列表 -->
+	<section class="following-section">
+		<h2 class="section-title">已关注用户</h2>
+		{
+			!hasFollowing ? (
+				<div class="empty-state">
+					<p>还没有关注任何人</p>
+				</div>
+			) : (
+				<div class="user-grid">
+					{follows.map((f) => {
+						const avatarUrl = f.following.avatarUrl;
+						const initial = f.following.displayName.charAt(0).toUpperCase();
+						const isSelf = f.following.id === currentUser.userId;
+						return (
+							<a href={`/${f.following.username}`} class="user-grid-item">
+								{avatarUrl ? (
+									<img
+										src={avatarUrl}
+										alt={f.following.displayName}
+										class="user-grid-avatar"
+									/>
+								) : (
+									<div class="user-grid-avatar user-grid-avatar-placeholder">
+										{initial}
+									</div>
+								)}
+								<span class="user-grid-name">{f.following.displayName}</span>
+							</a>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
+
+	<!-- 热门帖子 -->
+	<section class="hot-section">
+		<h2 class="section-title">热门动态</h2>
+		{
+			hotPosts.length === 0 ? (
+				<div class="empty-state">
+					<p>近 7 天暂无热门动态</p>
+				</div>
+			) : (
+				<div class="post-list">
+					{hotPosts.map(async (post) => {
+						const postLiked = likedPostIds.has(post.id);
+						const postLikeCount = post._count.likes;
+						const postCommentCount = post._count.comments;
+						const postTags = post.tags.map((pt) => ({
+							id: pt.tag.id,
+							name: pt.tag.name
+						}));
+						// 检查当前用户是否有权查看帖子内容
+						const isPostRestricted = !(await checkPostVisibility(
+							{
+								visibility: post.visibility,
+								userId: post.userId,
+								passwordHash: post.passwordHash,
+								allowedUserIds: post.allowedUserIds
+							},
+							currentUser ? { userId: currentUser.userId } : null,
+							{
+								isFollower: followingIds.includes(post.userId),
+								isFollowing: followerIds.includes(post.userId)
+							}
+						));
+
+						return (
+							<PostCard
+								post={{
+									id: post.id,
+									content: post.content,
+									createdAt: post.createdAt.toISOString(),
+									isPinned: post.isPinned,
+									isGlobalPinned: post.isGlobalPinned,
+									user: {
+										id: post.user.id,
+										username: post.user.username,
+										displayName: post.user.displayName,
+										avatarUrl: post.user.avatarUrl
+									},
+									media: post.media
+								}}
+								htmlContent={renderMarkdown(post.content)}
+								likeCount={postLikeCount}
+								liked={postLiked}
+								commentCount={postCommentCount}
+								tags={postTags}
+								visibility={post.visibility}
+								isRestricted={isPostRestricted}
+							/>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
+</BaseLayout>
+
+<style>
+	.page-title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+	}
+
+	.section-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin-bottom: 0.75rem;
+		color: var(--color-muted);
+	}
+
+	.following-section {
+		margin-bottom: 2rem;
+	}
+
+	.hot-section {
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.user-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+		gap: 0.75rem;
+	}
+
+	.user-grid-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-decoration: none;
+		color: var(--color-text);
+		gap: 0.375rem;
+		transition: opacity 0.15s;
+	}
+	.user-grid-item:hover {
+		opacity: 0.75;
+	}
+
+	.user-grid-avatar {
+		width: 48px;
+		height: 48px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.user-grid-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1rem;
+		font-weight: 600;
+	}
+
+	.user-grid-name {
+		font-size: 0.75rem;
+		text-align: center;
+		line-height: 1.2;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		max-width: 100%;
+	}
+</style>

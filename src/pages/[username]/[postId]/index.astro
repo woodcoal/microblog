@@ -1,0 +1,1048 @@
+---
+/**
+ * 帖子详情页
+ *
+ * 完整展示帖子内容（Markdown 渲染）、作者信息。
+ * 已删除帖子显示"该内容已删除"。
+ * 作者可见编辑/删除按钮和版本历史链接。
+ * 已编辑帖子显示"已编辑"标记和编辑时间。
+ * 包含点赞按钮和评论区域。
+ * 支持可见度控制：不可见帖子返回 404，密码保护帖子显示密码输入框。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import LikeButton from '@/components/LikeButton';
+import CommentList from '@/components/CommentList.astro';
+import ImageLightbox from '@/components/ImageLightbox.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { renderMarkdown } from '@/lib/markdown';
+import { formatRelativeTime } from '@/lib/utils';
+import { checkPostVisibility } from '@/lib/visibility';
+import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS } from '@/lib/config';
+
+// 路由参数
+const { username, postId } = Astro.params;
+
+// 查询帖子
+const post = await prisma.post.findUnique({
+	where: { id: postId },
+	include: {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		},
+		media: {
+			orderBy: { sortOrder: 'asc' },
+			include: {
+				fileStorage: {
+					select: {
+						id: true,
+						filePath: true,
+						fileSize: true,
+						mimeType: true,
+						fileType: true
+					}
+				}
+			}
+		},
+		tags: {
+			include: {
+				tag: {
+					select: {
+						id: true,
+						name: true
+					}
+				}
+			}
+		},
+		mentions: {
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						displayName: true
+					}
+				}
+			}
+		}
+	}
+});
+
+// 帖子不存在或用户名不匹配则 404
+if (!post || post.user.username !== username) {
+	return Astro.redirect('/404');
+}
+
+// 获取当前登录用户
+const currentUser = await getUserFromRequest(Astro);
+
+// 判断是否是帖子作者
+const isAuthor = currentUser?.userId === post.userId;
+
+// 可见度检查
+// 查询当前用户是否是帖子作者的粉丝
+let isFollower = false;
+if (currentUser && !isAuthor) {
+	const followRecord = await prisma.follow.findUnique({
+		where: {
+			followerId_followingId: {
+				followerId: currentUser.userId,
+				followingId: post.userId
+			}
+		}
+	});
+	isFollower = !!followRecord;
+}
+
+// 查询帖子作者是否关注了当前用户
+let isFollowing = false;
+if (currentUser && !isAuthor) {
+	const followRecord = await prisma.follow.findUnique({
+		where: {
+			followerId_followingId: {
+				followerId: post.userId,
+				followingId: currentUser.userId
+			}
+		}
+	});
+	isFollowing = !!followRecord;
+}
+
+// 检查帖子可见度（密码保护帖子在服务端不做密码验证，由前端处理）
+const isVisible = await checkPostVisibility(
+	{
+		visibility: post.visibility,
+		userId: post.userId,
+		passwordHash: post.passwordHash,
+		allowedUserIds: post.allowedUserIds
+	},
+	currentUser ? { userId: currentUser.userId } : null,
+	{ isFollower, isFollowing }
+);
+
+// 不可见且非密码保护帖子，返回 404
+// 密码保护帖子需要前端交互，不在此处拦截
+const isPasswordProtected = post.visibility === 'password';
+if (!isVisible && !isPasswordProtected) {
+	return Astro.redirect('/404');
+}
+
+// 密码保护帖子且非作者，标记为需要密码验证
+const needPassword = isPasswordProtected && !isAuthor;
+
+// 已删除帖子的处理
+const isDeleted = post.isDeleted;
+const isLocked = post.isLocked;
+const htmlContent = isDeleted ? '<p>该内容已删除</p>' : renderMarkdown(post.content);
+
+// 是否可以置顶（作者且置顶功能开启）
+const canPin = isAuthor && MAX_USER_PINNED_POSTS > 0;
+
+// 分离图片和附件
+const images = post.media.filter((m) => m.fileType === 'image');
+const attachments = post.media.filter((m) => m.fileType === 'attachment');
+const hasImages = images.length > 0;
+const hasAttachments = attachments.length > 0;
+
+// 提取标签列表
+const postTags = post.tags.map((pt) => pt.tag);
+const hasTags = postTags.length > 0;
+
+// 提取提及用户列表
+const mentionedUsers = post.mentions.map((m) => m.user);
+const hasMentions = mentionedUsers.length > 0;
+
+// 查询点赞数和点赞用户列表（朋友圈风格展示）
+const likeRecords = await prisma.like.findMany({
+	where: { postId: post.id },
+	include: {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		}
+	},
+	orderBy: { createdAt: 'desc' }
+});
+const likeCount = likeRecords.length;
+// 点赞用户列表（用于朋友圈风格展示）
+const likeUsers = likeRecords.map((r) => r.user);
+
+// 查询当前用户是否已点赞
+let liked = false;
+if (currentUser) {
+	liked = likeRecords.some((r) => r.userId === currentUser.userId);
+}
+
+// 获取评论排序偏好
+let commentSortOrder: 'asc' | 'desc' = 'asc';
+if (currentUser) {
+	const settings = await prisma.userSettings.findUnique({
+		where: { userId: currentUser.userId }
+	});
+	if (settings?.commentSortOrder === 'desc') {
+		commentSortOrder = 'desc';
+	}
+}
+
+// 查询评论列表（一级评论 + 嵌套二级评论）
+const comments = await prisma.comment.findMany({
+	where: {
+		postId: post.id,
+		parentId: null
+	},
+	orderBy: { createdAt: commentSortOrder },
+	include: {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true
+			}
+		},
+		replies: {
+			orderBy: { createdAt: 'asc' },
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						displayName: true,
+						avatarUrl: true
+					}
+				},
+				likes: true
+			}
+		},
+		likes: true
+	}
+});
+
+// 当前用户 ID，用于判断点赞状态
+const currentUserId = currentUser?.userId;
+
+// 序列化评论数据，附加点赞信息
+const serializedComments = comments.map((comment) => {
+	const likeCount = comment.likes.length;
+	const commentLiked = currentUserId
+		? comment.likes.some((l) => l.userId === currentUserId)
+		: false;
+
+	const replies = comment.replies.map((reply) => ({
+		id: reply.id,
+		postId: reply.postId,
+		userId: reply.userId,
+		parentId: reply.parentId,
+		content: reply.isDeleted ? '该内容已删除' : reply.content,
+		isDeleted: reply.isDeleted,
+		createdAt: reply.createdAt.toISOString(),
+		updatedAt: reply.updatedAt.toISOString(),
+		user: reply.user,
+		likeCount: reply.likes.length,
+		liked: currentUserId ? reply.likes.some((l) => l.userId === currentUserId) : false
+	}));
+
+	return {
+		id: comment.id,
+		postId: comment.postId,
+		userId: comment.userId,
+		parentId: comment.parentId,
+		content: comment.isDeleted ? '该内容已删除' : comment.content,
+		isDeleted: comment.isDeleted,
+		createdAt: comment.createdAt.toISOString(),
+		updatedAt: comment.updatedAt.toISOString(),
+		user: comment.user,
+		likeCount,
+		liked: commentLiked,
+		replies
+	};
+});
+
+// 评论总数（一级 + 二级）
+const commentCount = comments.reduce((sum, c) => sum + 1 + c.replies.length, 0);
+
+// 当前用户信息（传给 React 组件）
+const currentUserForComponent = currentUser
+	? { userId: currentUser.userId, username: currentUser.username }
+	: null;
+
+// ===== SEO 元数据 =====
+// 页面标题：用户名 + 站点名
+const seoTitle = isDeleted ? '该内容已删除' : `${post.user.displayName}的微博`;
+
+// 页面描述：帖子内容前 100 字符，去除 Markdown 标记
+const seoDescription = isDeleted
+	? '该内容已删除'
+	: post.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 100);
+
+// 规范链接
+const canonicalUrl = `${SITE_URL}/${post.user.username}/${post.id}`;
+
+// 是否为非公开帖子（需要 noindex）
+const isNotPublic = post.visibility !== 'public';
+
+// OG 图片：取帖子第一张图片，无图片时不设置
+const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.filePath}` : undefined;
+---
+
+<BaseLayout
+	title={seoTitle}
+	description={seoDescription}
+	ogTitle={`${seoTitle} - ${SITE_TITLE}`}
+	ogDescription={seoDescription}
+	ogType="article"
+	ogImage={ogImageUrl}
+	canonicalUrl={canonicalUrl}
+	noindex={isNotPublic}
+	jsonLd={{
+		'@context': 'https://schema.org',
+		'@type': 'Article',
+		headline: seoTitle,
+		description: seoDescription,
+		url: canonicalUrl,
+		image: ogImageUrl,
+		author: {
+			'@type': 'Person',
+			name: post.user.displayName,
+			url: `${SITE_URL}/${post.user.username}`
+		},
+		datePublished: post.createdAt.toISOString(),
+		dateModified: post.updatedAt.toISOString(),
+		publisher: {
+			'@type': 'Organization',
+			name: SITE_TITLE,
+			url: SITE_URL
+		}
+	}}
+>
+	<article class="post-detail">
+		<div class="post-detail-header">
+			<a href={`/${post.user.username}`} class="post-detail-author">
+				{
+					post.user.avatarUrl ? (
+						<img
+							src={post.user.avatarUrl}
+							alt={post.user.displayName}
+							class="post-detail-avatar"
+							loading="lazy"
+						/>
+					) : (
+						<div class="post-detail-avatar post-detail-avatar-placeholder">
+							{post.user.displayName.charAt(0).toUpperCase()}
+						</div>
+					)
+				}
+				<div class="post-detail-author-info">
+					<span class="post-detail-name">{post.user.displayName}</span>
+					<span class="post-detail-username">@{post.user.username}</span>
+				</div>
+			</a>
+			<div class="post-detail-time-group">
+				<time class="post-detail-time" datetime={post.createdAt.toISOString()}>
+					{formatRelativeTime(post.createdAt)}
+				</time>
+				{
+					post.isEdited && !isDeleted && (
+						<span class="post-detail-edited">
+							已编辑 ·{' '}
+							<time datetime={post.updatedAt.toISOString()}>
+								{formatRelativeTime(post.updatedAt)}
+							</time>
+						</span>
+					)
+				}
+			</div>
+		</div>
+
+		{
+			needPassword && (
+				<div class="post-detail-password-gate" id="password-gate">
+					<p class="post-detail-password-hint">🔑 这条帖子需要密码才能查看</p>
+					<div class="post-detail-password-form">
+						<input
+							type="password"
+							id="post-password-input"
+							class="form-input"
+							placeholder="请输入访问密码"
+						/>
+						<button type="button" id="verify-password-btn" class="btn btn-primary">
+							验证
+						</button>
+					</div>
+					<p
+						class="post-detail-password-error"
+						id="password-error"
+						style="display:none;color:var(--color-danger);font-size:0.8125rem;margin-top:0.5rem;"
+					/>
+				</div>
+			)
+		}
+
+		<!-- 帖子内容（密码保护时默认隐藏，验证后显示） -->
+		<div
+			class="post-detail-content"
+			set:html={htmlContent}
+			id="post-content"
+			style={needPassword ? 'display:none' : undefined}
+		/>
+
+		<!-- 标签列表 -->
+		{
+			hasTags && !isDeleted && !needPassword && (
+				<div class="post-detail-tags">
+					{postTags.map((tag) => (
+						<a href={`/tags/${tag.name}`} class="post-detail-tag">
+							{tag.name}
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		<!-- 提及用户列表 -->
+		{
+			hasMentions && !isDeleted && !needPassword && (
+				<div class="post-detail-mentions">
+					<span class="post-detail-mentions-label">提及：</span>
+					{mentionedUsers.map((user) => (
+						<a href={`/${user.username}`} class="post-detail-mention">
+							@{user.username}
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		{
+			hasImages && !isDeleted && !needPassword && (
+				<div
+					class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
+				>
+					{images.map((media) => (
+						<div class="post-detail-image-item">
+							<img
+								src={`/uploads/${media.fileStorage.filePath}`}
+								alt=""
+								loading="lazy"
+								data-lightbox="true"
+							/>
+						</div>
+					))}
+				</div>
+			)
+		}
+
+		{
+			hasAttachments && !isDeleted && !needPassword && (
+				<div class="post-detail-attachments">
+					{attachments.map((media) => (
+						<a
+							href={`/uploads/${media.fileStorage.filePath}`}
+							class="post-detail-attachment"
+							download
+						>
+							📎 {media.originalName || media.fileStorage.filePath.split('/').pop()}
+							<span class="post-detail-attachment-size">
+								({(media.fileStorage.fileSize / 1024).toFixed(1)} KB)
+							</span>
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		<!-- 点赞区域：单行布局，头像 + 数量 + 用户头像列表 -->
+		{
+			!isDeleted && !needPassword && (
+				<div class="post-detail-like" id="post-like-section">
+					<LikeButton
+						client:load
+						postId={post.id}
+						initialLiked={liked}
+						initialLikeCount={likeCount}
+					/>
+					{likeUsers.length > 0 && (
+						<div class="like-users" id="like-users-list">
+							{likeUsers.slice(0, 10).map((u) => (
+								<a
+									href={`/${u.username}`}
+									class="like-user-avatar"
+									title={u.displayName}
+								>
+									{u.avatarUrl ? (
+										<img src={u.avatarUrl} alt={u.displayName} loading="lazy" />
+									) : (
+										<span class="like-avatar-placeholder">
+											{u.displayName.charAt(0).toUpperCase()}
+										</span>
+									)}
+								</a>
+							))}
+							{likeUsers.length > 10 && (
+								<span
+									class="like-users-more"
+									title={`还有 ${likeUsers.length - 10} 人点赞`}
+								>
+									+{likeUsers.length - 10}
+								</span>
+							)}
+						</div>
+					)}
+				</div>
+			)
+		}
+
+		{
+			isAuthor && !isDeleted && (
+				<div class="post-detail-actions">
+					{!isLocked && (
+						<a href={`/${post.user.username}/${post.id}/edit`} class="btn btn-outline">
+							编辑
+						</a>
+					)}
+					<button
+						class="btn btn-danger"
+						id="delete-btn"
+						data-post-id={post.id}
+						data-username={post.user.username}
+						type="button"
+					>
+						删除
+					</button>
+					{post.isEdited && (
+						<a
+							href={`/${post.user.username}/${post.id}/revisions`}
+							class="btn btn-outline"
+						>
+							版本历史
+						</a>
+					)}
+					{canPin && (
+						<button
+							class="btn btn-outline"
+							id="pin-btn"
+							data-post-id={post.id}
+							data-pinned={post.isPinned ? 'true' : 'false'}
+							type="button"
+						>
+							{post.isPinned ? '取消置顶' : '置顶'}
+						</button>
+					)}
+				</div>
+			)
+		}
+	</article>
+
+	<!-- 评论区域 -->
+	{
+		isLocked && !isDeleted && !needPassword && (
+			<section class="post-detail-comments">
+				<p class="post-detail-locked-hint">🔒 帖子已锁定，评论不可见</p>
+			</section>
+		)
+	}
+	{
+		!isDeleted && !needPassword && !isLocked && (
+			<section class="post-detail-comments">
+				<CommentList
+					postId={post.id}
+					currentUser={currentUserForComponent}
+					initialComments={serializedComments}
+					initialSort={commentSortOrder}
+					commentCount={commentCount}
+				/>
+			</section>
+		)
+	}
+	<ImageLightbox />
+</BaseLayout>
+
+<style>
+	.post-detail {
+		padding: 1rem 0;
+	}
+	.post-detail-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+	}
+	.post-detail-author {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		text-decoration: none;
+		color: var(--color-text);
+	}
+	.post-detail-author:hover .post-detail-name {
+		color: var(--color-primary);
+	}
+	.post-detail-avatar {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+	.post-detail-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 1rem;
+		font-weight: 600;
+	}
+	.post-detail-author-info {
+		display: flex;
+		flex-direction: column;
+	}
+	.post-detail-name {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		line-height: 1.2;
+	}
+	.post-detail-username {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+	.post-detail-time-group {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+	}
+	.post-detail-time {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+	.post-detail-edited {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+	.post-detail-content {
+		font-size: 1rem;
+		line-height: 1.7;
+		word-break: break-word;
+		padding: 0.5rem 0;
+	}
+	.post-detail-content :global(p) {
+		margin-bottom: 0.75rem;
+	}
+	.post-detail-content :global(p:last-child) {
+		margin-bottom: 0;
+	}
+	.post-detail-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-top: 0.5rem;
+	}
+	.post-detail-tag {
+		display: inline-block;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		background: var(--color-surface);
+		border-radius: 1rem;
+		text-decoration: none;
+		transition: background 0.2s;
+	}
+	.post-detail-tag:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+	}
+	.post-detail-mentions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.375rem;
+		margin-top: 0.5rem;
+	}
+	.post-detail-mentions-label {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+	.post-detail-mention {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	.post-detail-mention:hover {
+		text-decoration: underline;
+	}
+	.post-detail-images {
+		display: grid;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.post-detail-images-1 {
+		grid-template-columns: 1fr;
+	}
+	.post-detail-images-1 img {
+		width: 100%;
+		border-radius: 0.375rem;
+	}
+
+	.post-detail-images-2 {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.post-detail-images-3 {
+		grid-template-columns: 2fr 1fr;
+		grid-template-rows: 1fr 1fr;
+	}
+	.post-detail-images-3 .post-detail-image-item:first-child {
+		grid-row: 1 / 3;
+	}
+
+	.post-detail-images-4 {
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: 1fr 1fr;
+	}
+
+	.post-detail-images-grid {
+		grid-template-columns: 1fr 1fr 1fr;
+	}
+
+	.post-detail-image-item {
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		overflow: hidden;
+	}
+	.post-detail-image-item img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		cursor: pointer;
+		transition: transform 0.2s;
+		display: block;
+	}
+	.post-detail-image-item img:hover {
+		transform: scale(1.02);
+	}
+	.post-detail-attachments {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.post-detail-attachment {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.5rem 0.75rem;
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		text-decoration: none;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		transition: background 0.2s;
+	}
+	.post-detail-attachment:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+	}
+	.post-detail-attachment-size {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.post-detail-like {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.post-detail-actions {
+		display: flex;
+		gap: 0.5rem;
+		margin-top: 1rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-comments {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-locked-hint {
+		text-align: center;
+		color: var(--color-muted);
+		font-size: 0.9375rem;
+		padding: 1.5rem 0;
+	}
+	.post-detail-password-gate {
+		padding: 1.5rem;
+		text-align: center;
+		background: var(--color-surface);
+		border-radius: 0.5rem;
+		margin: 0.5rem 0;
+	}
+	.post-detail-password-hint {
+		font-size: 1rem;
+		margin-bottom: 1rem;
+	}
+	.post-detail-password-form {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
+	}
+	.post-detail-password-form .form-input {
+		max-width: 200px;
+	}
+</style>
+
+<script>
+	/**
+	 * 删除按钮交互逻辑
+	 *
+	 * 点击删除按钮后弹出确认对话框，
+	 * 确认后发送 DELETE 请求，成功后跳转到用户主页。
+	 */
+	const deleteBtn = document.getElementById('delete-btn');
+	if (deleteBtn) {
+		deleteBtn.addEventListener('click', async () => {
+			const postId = (deleteBtn as HTMLElement).dataset.postId;
+			const username = (deleteBtn as HTMLElement).dataset.username;
+
+			// 确认删除
+			if (
+				!(await MutanDialog.confirm('确定要删除这条帖子吗？删除后不可恢复。', {
+					title: '删除帖子',
+					danger: true
+				}))
+			) {
+				return;
+			}
+
+			// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
+			const token = localStorage.getItem('token');
+
+			try {
+				const res = await fetch(`/api/posts/${postId}`, {
+					method: 'DELETE',
+					headers: token ? { Authorization: `Bearer ${token}` } : undefined
+				});
+
+				const data = await res.json();
+
+				if (data.success) {
+					// 删除成功，跳转到用户主页
+					window.location.href = `/${username}`;
+				} else if (res.status === 401) {
+					await MutanDialog.alert('请先登录', { title: '提示' });
+				} else {
+					await MutanDialog.alert(data.error?.message || '删除失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误，请稍后重试');
+			}
+		});
+	}
+
+	/**
+	 * 密码保护帖子验证逻辑
+	 *
+	 * 检查 sessionStorage 中是否有有效的密码验证记录，
+	 * 如果有则直接显示帖子内容。
+	 * 点击验证按钮后，发送密码验证请求，
+	 * 成功后将验证记录存入 sessionStorage 并显示帖子内容。
+	 */
+	const passwordGate = document.getElementById('password-gate');
+	const postContent = document.getElementById('post-content');
+	const verifyBtn = document.getElementById('verify-password-btn');
+	const passwordInput = document.getElementById('post-password-input') as HTMLInputElement | null;
+	const passwordError = document.getElementById('password-error');
+
+	if (passwordGate && postContent) {
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+
+		// 检查 sessionStorage 中是否有有效的密码验证记录
+		const storageKey = `post_pwd_${postId}`;
+		const storedExpiry = sessionStorage.getItem(storageKey);
+		if (storedExpiry) {
+			const expiryTime = parseInt(storedExpiry, 10);
+			if (Date.now() < expiryTime) {
+				// 密码验证未过期，直接显示帖子内容
+				passwordGate.style.display = 'none';
+				postContent.style.display = '';
+			} else {
+				// 已过期，清除记录
+				sessionStorage.removeItem(storageKey);
+			}
+		}
+
+		// 验证按钮点击事件
+		if (verifyBtn && passwordInput && passwordError) {
+			verifyBtn.addEventListener('click', async () => {
+				const password = passwordInput.value.trim();
+				if (!password) {
+					passwordError.textContent = '请输入密码';
+					passwordError.style.display = '';
+					return;
+				}
+
+				try {
+					const res = await fetch(`/api/posts/${postId}/verify-password`, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ password })
+					});
+
+					const data = await res.json();
+
+					if (data.success && data.data?.valid) {
+						// 密码正确，记录过期时间到 sessionStorage
+						// 过期时间 = 当前时间 + PASSWORD_PROTECT_EXPIRE_MINUTES 分钟
+						const expireMinutes = 10; // 默认 10 分钟
+						const expiryTime = Date.now() + expireMinutes * 60 * 1000;
+						sessionStorage.setItem(storageKey, expiryTime.toString());
+
+						// 隐藏密码输入区域，显示帖子内容
+						passwordGate.style.display = 'none';
+						postContent.style.display = '';
+					} else {
+						passwordError.textContent = '密码错误，请重试';
+						passwordError.style.display = '';
+					}
+				} catch {
+					passwordError.textContent = '网络错误，请稍后重试';
+					passwordError.style.display = '';
+				}
+			});
+
+			// 回车键触发验证
+			passwordInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					verifyBtn.click();
+				}
+			});
+		}
+	}
+
+	/**
+	 * 监听点赞状态变更，刷新点赞用户列表
+	 *
+	 * 用 createElement 逐个构建 DOM 节点替代 innerHTML 重建，
+	 * 避免闪动和样式丢失。
+	 */
+	window.addEventListener('post-like-changed', async (e) => {
+		const { postId } = (e as CustomEvent).detail;
+		if (!postId) return;
+
+		try {
+			const res = await fetch(`/api/posts/${postId}/likers`);
+			const data = await res.json();
+			if (!data.success) return;
+
+			const users = data.data as Array<{
+				username: string;
+				displayName: string;
+				avatarUrl: string;
+			}>;
+
+			const list = document.getElementById('like-users-list');
+			const section = document.getElementById('post-like-section');
+
+			if (users.length === 0) {
+				if (list) list.remove();
+				return;
+			}
+
+			// 用 createElement 构建新节点，避免 innerHTML 解析闪动
+			const maxShow = 10;
+			const shown = users.slice(0, maxShow);
+			const fragment = document.createDocumentFragment();
+
+			for (const u of shown) {
+				const a = document.createElement('a');
+				a.href = `/${u.username}`;
+				a.className = 'like-user-avatar';
+				a.title = u.displayName;
+
+				if (u.avatarUrl) {
+					const img = document.createElement('img');
+					img.src = u.avatarUrl;
+					img.alt = u.displayName;
+					a.appendChild(img);
+				} else {
+					const span = document.createElement('span');
+					span.className = 'like-avatar-placeholder';
+					span.textContent = u.displayName.charAt(0).toUpperCase();
+					a.appendChild(span);
+				}
+
+				fragment.appendChild(a);
+			}
+
+			if (users.length > maxShow) {
+				const more = document.createElement('span');
+				more.className = 'like-users-more';
+				more.title = `还有 ${users.length - maxShow} 人点赞`;
+				more.textContent = `+${users.length - maxShow}`;
+				fragment.appendChild(more);
+			}
+
+			if (list) {
+				list.replaceChildren(fragment);
+			} else if (section) {
+				const div = document.createElement('div');
+				div.className = 'like-users';
+				div.id = 'like-users-list';
+				div.appendChild(fragment);
+				section.appendChild(div);
+			}
+		} catch {
+			// 静默失败，不影响点赞按钮本身
+		}
+	});
+
+	/**
+	 * 置顶按钮交互逻辑
+	 *
+	 * 点击置顶/取消置顶按钮后，发送 PUT 请求切换状态，
+	 * 成功后更新按钮文字和 data-pinned 属性。
+	 */
+	const pinBtn = document.getElementById('pin-btn');
+	if (pinBtn) {
+		pinBtn.addEventListener('click', async () => {
+			const postId = (pinBtn as HTMLElement).dataset.postId;
+
+			// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
+			const token = localStorage.getItem('token');
+
+			try {
+				const res = await fetch(`/api/posts/${postId}/pin`, {
+					method: 'PUT',
+					headers: token ? { Authorization: `Bearer ${token}` } : undefined
+				});
+
+				const data = await res.json();
+
+				if (data.success) {
+					// 更新按钮文字和状态
+					const isNowPinned = data.data.pinned;
+					(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
+					pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
+				} else if (res.status === 401) {
+					await MutanDialog.alert('请先登录', { title: '提示' });
+				} else {
+					await MutanDialog.alert(data.error?.message || '操作失败');
+				}
+			} catch {
+				await MutanDialog.alert('网络错误，请稍后重试');
+			}
+		});
+	}
+</script>

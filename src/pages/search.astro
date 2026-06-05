@@ -1,0 +1,274 @@
+---
+/**
+ * 全局搜索页面
+ *
+ * 分为"微博"和"用户"两个标签页，
+ * 搜索框输入关键词后提交搜索。
+ * URL 参数：?q=关键词&tab=posts|users&cursor=xxx
+ * 默认显示微博搜索结果，切换标签页时保持搜索关键词。
+ * 使用 SearchBox 和 SearchResults Astro 组件，完全服务端渲染。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import SearchBox from '@/components/SearchBox.astro';
+import SearchResults from '@/components/SearchResults.astro';
+import SearchSuggest from '@/components/SearchSuggest';
+import { prisma } from '@/lib/db';
+
+// 解析 URL 参数
+const q = Astro.url.searchParams.get('q')?.trim() || '';
+const tab = Astro.url.searchParams.get('tab') === 'users' ? 'users' : 'posts';
+const cursor = Astro.url.searchParams.get('cursor') || '';
+// 排序方式：latest=按时间倒序（默认），popular=按点赞数倒序再按时间倒序
+const sort = Astro.url.searchParams.get('sort') === 'popular' ? 'popular' : 'latest';
+
+// 帖子搜索结果
+let posts: any[] = [];
+let nextPostsCursor: string | null = null;
+
+// 用户搜索结果
+let users: any[] = [];
+let nextUsersCursor: string | null = null;
+
+if (q) {
+	if (tab === 'posts') {
+		// 查询帖子搜索结果
+		const where = {
+			visibility: 'public',
+			isDeleted: false,
+			content: { contains: q },
+			// 游标分页：只取创建时间早于游标的帖子
+			...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})
+		};
+
+		// 根据排序方式决定排序规则
+		const orderBy =
+			sort === 'popular'
+				? [{ likes: { _count: 'desc' as const } }, { createdAt: 'desc' as const }]
+				: [{ createdAt: 'desc' as const }];
+
+		const rawPosts = await prisma.post.findMany({
+			where,
+			orderBy,
+			take: 21,
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						displayName: true,
+						avatarUrl: true
+					}
+				},
+				tags: {
+					include: {
+						tag: {
+							select: {
+								id: true,
+								name: true
+							}
+						}
+					}
+				},
+				_count: {
+					select: { likes: true }
+				}
+			}
+		});
+
+		const hasNextPage = rawPosts.length > 20;
+		const items = hasNextPage ? rawPosts.slice(0, 20) : rawPosts;
+		nextPostsCursor = hasNextPage ? items[items.length - 1].createdAt.toISOString() : null;
+
+		posts = items.map((post) => ({
+			id: post.id,
+			content: post.content,
+			createdAt: post.createdAt.toISOString(),
+			isPinned: post.isPinned,
+			isGlobalPinned: post.isGlobalPinned,
+			likeCount: post._count.likes,
+			user: {
+				id: post.user.id,
+				username: post.user.username,
+				displayName: post.user.displayName,
+				avatarUrl: post.user.avatarUrl
+			},
+			tags: post.tags.map((pt: any) => ({
+				id: pt.tag.id,
+				name: pt.tag.name
+			}))
+		}));
+	} else {
+		// 查询用户搜索结果
+		const where = {
+			isDisabled: false,
+			OR: [{ username: { contains: q } }, { displayName: { contains: q } }],
+			// 游标分页：只取创建时间早于游标的用户
+			...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})
+		};
+
+		const rawUsers = await prisma.user.findMany({
+			where,
+			orderBy: [{ createdAt: 'desc' }],
+			take: 21,
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true,
+				bio: true,
+				createdAt: true,
+				_count: {
+					select: {
+						followers: true,
+						following: true,
+						posts: {
+							where: { isDeleted: false, visibility: 'public' }
+						}
+					}
+				}
+			}
+		});
+
+		const hasNextPage = rawUsers.length > 20;
+		const items = hasNextPage ? rawUsers.slice(0, 20) : rawUsers;
+		nextUsersCursor = hasNextPage ? items[items.length - 1].createdAt.toISOString() : null;
+
+		users = items.map((user) => ({
+			id: user.id,
+			username: user.username,
+			displayName: user.displayName,
+			avatarUrl: user.avatarUrl,
+			bio: user.bio,
+			followerCount: user._count.followers,
+			followingCount: user._count.following,
+			postCount: user._count.posts
+		}));
+	}
+}
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isPostsTab = tab === 'posts';
+const isUsersTab = tab === 'users';
+const isSortLatest = sort === 'latest';
+const isSortPopular = sort === 'popular';
+---
+
+<BaseLayout title={q ? `搜索: ${q}` : '搜索'}>
+	<h1 class="page-title">搜索</h1>
+
+	<!-- 搜索框 + 实时建议 -->
+	<div class="search-box-wrapper">
+		<SearchBox initialQuery={q} placeholder="搜索帖子或用户..." tab={tab} />
+		<SearchSuggest client:load initialQuery={q} />
+	</div>
+
+	<!-- 标签页切换 -->
+	<div class="search-tabs">
+		<a
+			href={`/search?q=${encodeURIComponent(q)}&tab=posts&sort=${sort}`}
+			class:list={['search-tab', { 'search-tab-active': isPostsTab }]}
+		>
+			微博
+		</a>
+		<a
+			href={`/search?q=${encodeURIComponent(q)}&tab=users&sort=${sort}`}
+			class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
+		>
+			用户
+		</a>
+	</div>
+
+	<!-- 排序切换：仅在帖子标签页显示 -->
+	{
+		isPostsTab && (
+			<div class="search-sort">
+				<a
+					href={`/search?q=${encodeURIComponent(q)}&tab=posts&sort=latest`}
+					class:list={['search-sort-btn', { 'search-sort-active': isSortLatest }]}
+				>
+					最新
+				</a>
+				<a
+					href={`/search?q=${encodeURIComponent(q)}&tab=posts&sort=popular`}
+					class:list={['search-sort-btn', { 'search-sort-active': isSortPopular }]}
+				>
+					热门
+				</a>
+			</div>
+		)
+	}
+
+	<!-- 搜索结果 -->
+	<SearchResults
+		tab={tab}
+		query={q}
+		sort={sort}
+		posts={posts}
+		nextPostsCursor={nextPostsCursor}
+		users={users}
+		nextUsersCursor={nextUsersCursor}
+	/>
+</BaseLayout>
+
+<style>
+	.page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+	}
+	.search-tabs {
+		display: flex;
+		gap: 0;
+		border-bottom: 2px solid var(--color-border);
+		margin-bottom: 1rem;
+	}
+	.search-tab {
+		padding: 0.5rem 1.25rem;
+		font-size: 0.9375rem;
+		font-weight: 500;
+		color: var(--color-muted);
+		text-decoration: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -2px;
+		transition:
+			color 0.2s,
+			border-color 0.2s;
+	}
+	.search-tab:hover {
+		color: var(--color-text);
+	}
+	.search-tab-active {
+		color: var(--color-primary);
+		border-bottom-color: var(--color-primary);
+	}
+	.search-sort {
+		display: flex;
+		gap: 0.5rem;
+		margin-bottom: 1rem;
+	}
+	.search-sort-btn {
+		padding: 0.25rem 0.75rem;
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		text-decoration: none;
+		border: 1px solid var(--color-border);
+		border-radius: 9999px;
+		transition:
+			color 0.2s,
+			border-color 0.2s,
+			background-color 0.2s;
+	}
+	.search-sort-btn:hover {
+		color: var(--color-text);
+		border-color: var(--color-text);
+	}
+	.search-sort-active {
+		color: #fff;
+		background-color: var(--color-primary);
+		border-color: var(--color-primary);
+	}
+	.search-box-wrapper {
+		position: relative;
+		margin-bottom: 1rem;
+	}
+</style>

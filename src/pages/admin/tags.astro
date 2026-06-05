@@ -1,0 +1,64 @@
+---
+/**
+ * 管理后台 - 标签管理页面
+ *
+ * 功能：
+ * - 标签列表（表格形式）：名称、使用次数、状态、创建时间
+ * - 隐藏/显示按钮
+ * - 分页
+ */
+import AdminLayout from '@/layouts/Admin.astro';
+import { prisma } from '@/lib/db';
+import AdminTagList from '@/components/admin/AdminTagList.astro';
+
+// 分页参数
+const page = Math.max(Number(Astro.url.searchParams.get('page')) || 1, 1);
+const limit = 20;
+const skip = (page - 1) * limit;
+
+// 并行查询
+const [tags, total] = await Promise.all([
+	prisma.tag.findMany({
+		select: {
+			id: true,
+			name: true,
+			isHidden: true,
+			createdAt: true,
+			_count: {
+				select: { posts: true }
+			}
+		},
+		orderBy: { createdAt: 'desc' },
+		skip,
+		take: limit
+	}),
+	prisma.tag.count()
+]);
+
+// 计算分页信息
+const totalPages = Math.ceil(total / limit);
+const hasPrev = page > 1;
+const hasNext = page < totalPages;
+
+// 序列化数据
+const serializedTags = tags.map((t) => ({
+	id: t.id,
+	name: t.name,
+	isHidden: t.isHidden,
+	usageCount: t._count.posts,
+	createdAt: t.createdAt.toISOString()
+}));
+---
+
+<AdminLayout title="标签管理">
+	<h1 class="admin-page-title">🏷️ 标签管理</h1>
+
+	<AdminTagList
+		tags={serializedTags}
+		total={total}
+		page={page}
+		totalPages={totalPages}
+		hasPrev={hasPrev}
+		hasNext={hasNext}
+	/>
+</AdminLayout>

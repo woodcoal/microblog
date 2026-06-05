@@ -1,0 +1,288 @@
+---
+/**
+ * 搜索结果展示组件
+ *
+ * 服务端渲染搜索结果，支持帖子/用户标签页切换和游标分页。
+ * 标签页切换和分页均通过 URL 参数实现，无需客户端 JS。
+ *
+ * @prop tab - 当前标签页（posts 或 users）
+ * @prop query - 搜索关键词
+ * @prop posts - 帖子搜索结果列表
+ * @prop nextPostsCursor - 帖子分页游标（null 表示无更多）
+ * @prop users - 用户搜索结果列表
+ * @prop nextUsersCursor - 用户分页游标（null 表示无更多）
+ * @prop currentCursor - 当前分页游标（用于构建"上一页"链接）
+ */
+import { renderMarkdown } from '@/lib/markdown';
+import { formatRelativeTime } from '@/lib/utils';
+
+/**
+ * 对 HTML 内容中的关键词包裹高亮标记
+ *
+ * 在渲染后的 HTML 中查找纯文本部分的关键词，
+ * 将其包裹在 <mark class="search-highlight"> 中。
+ * 避免替换 HTML 标签内的属性值。
+ *
+ * @param html - 渲染后的 HTML 内容
+ * @param keyword - 搜索关键词
+ * @returns 高亮处理后的 HTML
+ */
+function highlightKeyword(html: string, keyword: string): string {
+	if (!keyword) return html;
+	// 转义正则特殊字符
+	const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	// 仅匹配标签外的文本内容（在 > 和 < 之间）
+	const regex = new RegExp(`(>[^<]*)(${escaped})([^<]*<)`, 'gi');
+	return html.replace(regex, '$1<mark class="search-highlight">$2</mark>$3');
+}
+
+/** 帖子搜索结果数据 */
+interface PostResult {
+	id: string;
+	content: string;
+	createdAt: string;
+	isPinned: boolean;
+	isGlobalPinned: boolean;
+	likeCount: number;
+	user: {
+		id: string;
+		username: string;
+		displayName: string;
+		avatarUrl: string;
+	};
+	tags: { id: string; name: string }[];
+}
+
+/** 用户搜索结果数据 */
+interface UserResult {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+	bio: string;
+	followerCount: number;
+	followingCount: number;
+	postCount: number;
+}
+
+interface Props {
+	tab: 'posts' | 'users';
+	query: string;
+	sort: 'latest' | 'popular';
+	posts: PostResult[];
+	nextPostsCursor: string | null;
+	users: UserResult[];
+	nextUsersCursor: string | null;
+	currentCursor?: string;
+}
+
+const { tab, query, sort, posts, nextPostsCursor, users, nextUsersCursor } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isPostsTab = tab === 'posts';
+const hasNoQuery = !query;
+const hasPosts = posts.length > 0;
+const hasMorePosts = !!nextPostsCursor;
+const hasUsers = users.length > 0;
+const hasMoreUsers = !!nextUsersCursor;
+---
+
+{
+	hasNoQuery ? (
+		<div class="empty-state">
+			<p>请输入搜索关键词</p>
+		</div>
+	) : isPostsTab ? (
+		<div>
+			{!hasPosts ? (
+				<div class="empty-state">
+					<p>没有找到相关帖子</p>
+				</div>
+			) : (
+				<div class="post-list">
+					{posts.map((post) => {
+						// 服务端渲染 Markdown 内容，并对搜索关键词高亮
+						const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
+						const relativeTime = formatRelativeTime(new Date(post.createdAt));
+						const isPinned = post.isPinned || post.isGlobalPinned;
+						const hasTags = post.tags.length > 0;
+						const avatarInitial = post.user.displayName.charAt(0).toUpperCase();
+
+						return (
+							<article
+								class:list={['card post-card', { 'post-card-pinned': isPinned }]}
+							>
+								<div class="post-card-header">
+									<a href={`/${post.user.username}`} class="post-card-author">
+										{post.user.avatarUrl ? (
+											<img
+												src={post.user.avatarUrl}
+												alt={`${post.user.displayName} 的头像`}
+												class="post-card-avatar"
+												loading="lazy"
+											/>
+										) : (
+											<div
+												class="post-card-avatar post-card-avatar-placeholder"
+												aria-hidden="true"
+											>
+												{avatarInitial}
+											</div>
+										)}
+										<div class="post-card-author-info">
+											<span class="post-card-name">
+												{post.user.displayName}
+											</span>
+											<span class="post-card-username">
+												@{post.user.username}
+											</span>
+										</div>
+									</a>
+									<time class="post-card-time" datetime={post.createdAt}>
+										{relativeTime}
+									</time>
+								</div>
+
+								<a
+									href={`/${post.user.username}/${post.id}`}
+									class="post-card-body"
+								>
+									<div class="post-card-content" set:html={htmlContent} />
+								</a>
+
+								{isPinned && <span class="badge badge-pinned">📌 置顶</span>}
+
+								{hasTags && (
+									<div class="post-card-tags">
+										{post.tags.map((tag) => (
+											<a href={`/tags/${tag.name}`} class="post-card-tag">
+												{tag.name}
+											</a>
+										))}
+									</div>
+								)}
+
+								<div class="post-card-footer">
+									<span class="like-count">❤️ {post.likeCount}</span>
+								</div>
+							</article>
+						);
+					})}
+
+					{hasMorePosts && (
+						<a
+							href={`/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&cursor=${nextPostsCursor}`}
+							class="btn btn-outline load-more-btn"
+						>
+							加载更多
+						</a>
+					)}
+				</div>
+			)}
+		</div>
+	) : (
+		<div>
+			{!hasUsers ? (
+				<div class="empty-state">
+					<p>没有找到相关用户</p>
+				</div>
+			) : (
+				<div class="user-list">
+					{users.map((user) => {
+						const avatarInitial = user.displayName.charAt(0).toUpperCase();
+						const hasBio = !!user.bio;
+
+						return (
+							<div class="card user-card">
+								<div class="user-card-main">
+									<a href={`/${user.username}`} class="user-card-info">
+										{user.avatarUrl ? (
+											<img
+												src={user.avatarUrl}
+												alt={user.displayName}
+												class="user-card-avatar"
+												loading="lazy"
+											/>
+										) : (
+											<div class="user-card-avatar user-card-avatar-placeholder">
+												{avatarInitial}
+											</div>
+										)}
+										<div class="user-card-details">
+											<span class="user-card-name">{user.displayName}</span>
+											<span class="user-card-username">@{user.username}</span>
+											{hasBio && (
+												<p
+													class="user-card-bio"
+													set:html={highlightKeyword(user.bio, query)}
+												/>
+											)}
+											<div class="user-card-stats">
+												<span>{user.postCount} 条动态</span>
+												<span>{user.followerCount} 粉丝</span>
+												<span>{user.followingCount} 关注</span>
+											</div>
+										</div>
+									</a>
+								</div>
+								<div class="user-card-action">
+									{/* 关注按钮：使用 fetch API 调用，避免页面跳转到 JSON 端点 */}
+									<button
+										type="button"
+										class="btn btn-outline btn-sm follow-btn"
+										data-username={user.username}
+										aria-label="关注用户"
+									>
+										关注
+									</button>
+								</div>
+							</div>
+						);
+					})}
+
+					{hasMoreUsers && (
+						<a
+							href={`/search?q=${encodeURIComponent(query)}&tab=users&cursor=${nextUsersCursor}`}
+							class="btn btn-outline load-more-btn"
+						>
+							加载更多
+						</a>
+					)}
+				</div>
+			)}
+		</div>
+	)
+}
+
+<script>
+	/**
+	 * 搜索结果页关注按钮交互
+	 *
+	 * 使用 fetch API 调用关注接口，避免表单提交导致页面跳转到 JSON 端点。
+	 */
+	document.querySelectorAll('.follow-btn').forEach((btn) => {
+		btn.addEventListener('click', async () => {
+			const username = (btn as HTMLElement).dataset.username;
+			if (!username) return;
+
+			const token = localStorage.getItem('token');
+			try {
+				const res = await fetch(`/api/users/${username}/follow`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						...(token ? { Authorization: `Bearer ${token}` } : {})
+					}
+				});
+				const data = await res.json();
+				if (data.success) {
+					// 切换按钮状态
+					(btn as HTMLButtonElement).textContent = '已关注';
+					(btn as HTMLButtonElement).disabled = true;
+				}
+			} catch {
+				// 静默失败
+			}
+		});
+	});
+</script>

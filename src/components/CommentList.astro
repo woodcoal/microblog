@@ -1,0 +1,158 @@
+---
+/**
+ * 评论列表组件（Astro 版本）
+ *
+ * 展示帖子下所有评论，支持正序/倒序切换。
+ * 切换排序时持久化偏好到服务端并刷新页面。
+ */
+import CommentItem from '@/components/CommentItem.astro';
+import CommentForm from '@/components/CommentForm.astro';
+
+/** 评论用户信息 */
+interface CommentUser {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+}
+
+/** 子评论数据 */
+interface ReplyData {
+	id: string;
+	postId: string;
+	userId: string;
+	parentId: string | null;
+	content: string;
+	isDeleted: boolean;
+	createdAt: string;
+	updatedAt: string;
+	user: CommentUser;
+	likeCount: number;
+	liked: boolean;
+}
+
+/** 评论数据 */
+interface CommentData {
+	id: string;
+	postId: string;
+	userId: string;
+	parentId: string | null;
+	content: string;
+	isDeleted: boolean;
+	createdAt: string;
+	updatedAt: string;
+	user: CommentUser;
+	likeCount: number;
+	liked: boolean;
+	replies?: ReplyData[];
+}
+
+/** 当前登录用户信息 */
+interface CurrentUser {
+	userId: string;
+	username: string;
+}
+
+/**
+ * 组件属性
+ *
+ * @property postId - 所属帖子 ID
+ * @property currentUser - 当前登录用户，未登录为 null
+ * @property initialComments - 初始评论列表
+ * @property initialSort - 初始排序方式
+ * @property commentCount - 评论总数
+ */
+interface Props {
+	postId: string;
+	currentUser: CurrentUser | null;
+	initialComments: CommentData[];
+	initialSort: 'asc' | 'desc';
+	commentCount: number;
+}
+
+const { postId, currentUser, initialComments, initialSort, commentCount } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isAsc = initialSort === 'asc';
+const isDesc = initialSort === 'desc';
+const hasComments = initialComments.length > 0;
+const isLoggedIn = !!currentUser;
+---
+
+<div class="comment-list">
+	<div class="comment-list-header">
+		<h3 class="comment-list-title">评论 ({commentCount})</h3>
+		<div class="comment-list-sort">
+			<button
+				type="button"
+				class={`comment-sort-btn ${isAsc ? 'comment-sort-btn-active' : ''}`}
+				data-action="sort-comments"
+				data-sort="asc"
+				data-post-id={postId}
+			>
+				正序
+			</button>
+			<button
+				type="button"
+				class={`comment-sort-btn ${isDesc ? 'comment-sort-btn-active' : ''}`}
+				data-action="sort-comments"
+				data-sort="desc"
+				data-post-id={postId}
+			>
+				倒序
+			</button>
+		</div>
+	</div>
+
+	{/* 评论输入框（仅登录用户可见） */}
+	{isLoggedIn && <CommentForm postId={postId} />}
+
+	{/* 评论列表 */}
+	<div class="comment-list-body">
+		{!hasComments && <p class="comment-list-empty">暂无评论，来说点什么吧</p>}
+		{
+			initialComments.map((comment) => (
+				<CommentItem comment={comment} postId={postId} currentUser={currentUser} />
+			))
+		}
+	</div>
+</div>
+
+<script>
+	/**
+	 * 评论排序切换逻辑
+	 *
+	 * 点击排序按钮后：
+	 * 1. 持久化偏好到服务端
+	 * 2. 刷新页面并带上排序参数
+	 */
+	document.addEventListener('DOMContentLoaded', () => {
+		document.querySelectorAll('[data-action="sort-comments"]').forEach((btn) => {
+			btn.addEventListener('click', async () => {
+				const newSort = (btn as HTMLElement).dataset.sort as 'asc' | 'desc';
+				const postId = (btn as HTMLElement).dataset.postId;
+				if (!newSort || !postId) return;
+
+				// 持久化排序偏好到服务端
+				const token = localStorage.getItem('token');
+				if (token) {
+					fetch('/api/settings/comment-sort', {
+						method: 'PUT',
+						headers: {
+							'Content-Type': 'application/json',
+							Authorization: `Bearer ${token}`
+						},
+						body: JSON.stringify({ order: newSort })
+					}).catch(() => {
+						// 持久化失败不影响使用
+					});
+				}
+
+				// 刷新页面，通过 URL 参数传递排序方式
+				const url = new URL(window.location.href);
+				url.searchParams.set('sort', newSort);
+				window.location.href = url.toString();
+			});
+		});
+	});
+</script>
