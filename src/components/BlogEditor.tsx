@@ -123,6 +123,20 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	);
 
 	/**
+	 * 监听发布完成事件，重置 loading 状态
+	 *
+	 * Astro 页面在发布成功或失败后 dispatch 'blog-editor-submit-done' 事件，
+	 * BlogEditor 收到后重置 loading，允许再次提交。
+	 */
+	useEffect(() => {
+		const container = document.getElementById('blog-compose-container');
+		if (!container) return;
+		const handleDone = () => setLoading(false);
+		container.addEventListener('blog-editor-submit-done', handleDone);
+		return () => container.removeEventListener('blog-editor-submit-done', handleDone);
+	}, []);
+
+	/**
 	 * 处理链接插入
 	 *
 	 * 弹出简易输入框获取 URL，在编辑器中插入链接。
@@ -151,6 +165,9 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			onSubmit(markdown);
 			return;
 		}
+
+		// 设置 loading 状态，防止重复提交
+		setLoading(true);
 
 		// 否则通过自定义事件通知父页面
 		const container = document.getElementById('blog-compose-container');

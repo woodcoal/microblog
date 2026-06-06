@@ -284,21 +284,13 @@ function sanitizeFullHtml(html: string): string {
 export function renderFullMarkdown(markdown: string): string {
 	if (!markdown) return '';
 
-	// 1. HTML 转义输入（防 XSS 注入）
-	const escaped = markdown
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#039;');
+	// 1. 全功能 marked 解析（XSS 防护由后续 sanitizeFullHtml 处理）
+	let html = fullMarked.parse(markdown) as string;
 
-	// 2. 全功能 marked 解析
-	let html = fullMarked.parse(escaped) as string;
-
-	// 3. 清理 HTML，确保只有白名单标签
+	// 2. 清理 HTML，确保只有白名单标签
 	html = sanitizeFullHtml(html);
 
-	// 4. 将 @提及 和 #标签# 转为可点击链接
+	// 3. 将 @提及 和 #标签# 转为可点击链接
 	html = linkifyMentionsAndTags(html);
 
 	return html;

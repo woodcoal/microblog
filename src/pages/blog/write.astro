@@ -158,7 +158,7 @@ const hasCategories = categories.length > 0;
 			'#blog-compose-visibility'
 		) as HTMLSelectElement;
 		const formError = container.querySelector('#blog-form-error') as HTMLParagraphElement;
-		const CONTENT_MAX_LENGTH = 1000;
+		const CONTENT_MAX_LENGTH = POST_CONTENT_MAX_LENGTH;
 
 		/**
 		 * 显示错误信息
@@ -184,14 +184,17 @@ const hasCategories = categories.length > 0;
 
 			if (!title) {
 				showError('请输入文章标题');
+				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
 			}
 			if (!content) {
 				showError('请输入文章内容');
+				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
 			}
 			if (content.length > CONTENT_MAX_LENGTH) {
 				showError(`内容不能超过 ${CONTENT_MAX_LENGTH} 个字符`);
+				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
 			}
 
@@ -214,6 +217,7 @@ const hasCategories = categories.length > 0;
 
 				if (result.error) {
 					showError(result.error.message || '发布失败');
+					container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 					return;
 				}
 
@@ -222,6 +226,7 @@ const hasCategories = categories.length > 0;
 				window.location.href = `/${post.user.username}/${post.id}`;
 			} catch {
 				showError('网络错误，请稍后重试');
+				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 			}
 		});
 	}

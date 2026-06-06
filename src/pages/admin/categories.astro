@@ -380,6 +380,8 @@ const hasOrphans = orphanChildren.length > 0;
 					id,
 					name: data.name,
 					slug: data.slug,
+					mode: data.mode,
+					parentId: data.parentId,
 					description: data.description,
 					icon: data.icon,
 					sortOrder: data.sortOrder
@@ -477,14 +479,12 @@ const hasOrphans = orphanChildren.length > 0;
 					});
 				});
 			} else {
-				// 二级分类：同一父分类下的行
-				const parentRow = row.previousElementSibling;
-				// 找到所有相邻的子分类行
-				let el: Element | null = row;
-				while (el?.previousElementSibling?.classList.contains('admin-category-child')) {
-					el = el.previousElementSibling;
+				// 二级分类：向上查找父分类行
+				let parentRow: Element | null = row;
+				while (parentRow && parentRow.dataset.isParent !== 'true') {
+					parentRow = parentRow.previousElementSibling;
 				}
-				// 从父分类行开始收集子分类
+				// 从父分类行开始收集所有后续子分类
 				const childRows: Element[] = [];
 				let sibling: Element | null = parentRow?.nextElementSibling;
 				while (sibling?.classList.contains('admin-category-child')) {
