@@ -14,6 +14,8 @@
 | M2   | 血肉 | 互动 + 内容 + 文件 + 搜索             | 完整的社交功能闭环                     | [M2-血肉.md](plan/M2-血肉.md) |
 | M3   | 骨架 | 管理后台 + 通知 + API Token + Webhook | 运营和开发者工具就绪                   | [M3-骨架.md](plan/M3-骨架.md) |
 | M4   | 上线 | SEO + 主题 + 操作记录 + 部署          | 生产就绪的完整系统                     | [M4-上线.md](plan/M4-上线.md) |
+| M5   | 前端重构 | CSS 样式分离 + UI/UX 改进         | 统一设计语言，改进前端架构             | [M5-前端重构.md](plan/M5-前端重构.md) |
+| M6   | 百变 | 分类系统 + 多模式 + 转发收藏          | 微博/论坛/博客多形态，转发与收藏功能   | [M6-百变.md](plan/M6-百变.md) |
 
 ---
 
@@ -25,6 +27,8 @@
 | M2     | 6      | FileStorage, Media, Comment, Like, Follow, Tag, PostTag, Mention | 4        | 12       |
 | M3     | 6      | Notification, ApiToken, Webhook                                  | 7        | 15       |
 | M4     | 7      | UserSettings, ActivityLog                                        | 3        | 5        |
+| M5     | 1      | —                                                                | —        | —        |
+| M6     | 7      | Category, Bookmark                                                 | 8        | 6        |
 
 ---
 
@@ -58,6 +62,14 @@ M4-T4 个人设置页 ← M3-T5 + M3-T6 + M4-T2
 M4-T5 SEO ← M1-T3
 M4-T6 置顶与锁定完善 ← M3-T2
 M4-T7 API 文档与部署 ← 全部
+
+M6-T1 分类系统
+M6-T2 帖子模式适配 ← T1
+M6-T3 频道页面 ← T1 + T2
+M6-T4 收藏/书签
+M6-T5 Actions 迁移
+M6-T6 文章编辑器 ← T3
+M6-T7 搜索增强 ← T1
 ```
 
 ---
