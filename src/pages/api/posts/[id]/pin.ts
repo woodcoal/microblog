@@ -4,6 +4,7 @@
  * PUT /api/posts/:id/pin — 切换用户置顶状态
  * 已置顶则取消，未置顶则置顶。
  * 需要登录认证，仅帖子作者可操作。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

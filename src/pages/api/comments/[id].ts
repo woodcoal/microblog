@@ -3,6 +3,7 @@
  *
  * DELETE /api/comments/:id — 软删除评论
  * PUT    /api/comments/:id/like — 切换评论点赞
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

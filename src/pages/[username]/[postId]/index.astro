@@ -10,7 +10,7 @@
  * 支持可见度控制：不可见帖子返回 404，密码保护帖子显示密码输入框。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import LikeButton from '@/components/LikeButton';
+import LikeButton from '@/components/LikeButton.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import { prisma } from '@/lib/db';
@@ -465,7 +465,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			!isDeleted && !needPassword && (
 				<div class="post-detail-like" id="post-like-section">
 					<LikeButton
-						client:load
 						postId={post.id}
 						initialLiked={liked}
 						initialLikeCount={likeCount}

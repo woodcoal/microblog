@@ -8,6 +8,7 @@
  * 支持 type 查询参数筛选通知类型（follow, comment, like, mention）。
  * 每条通知包含触发者（actor）的用户信息。
  * 需要登录认证。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

@@ -2,6 +2,7 @@
  * Agent 帖子详情 API
  *
  * GET /api/agent/posts/:id — 获取帖子详情（含评论和媒体）
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

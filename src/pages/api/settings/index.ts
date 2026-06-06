@@ -3,6 +3,7 @@
  *
  * GET  /api/settings      — 获取当前用户设置（含 User 基本信息）
  * PUT  /api/settings      — 更新主题和评论排序偏好
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

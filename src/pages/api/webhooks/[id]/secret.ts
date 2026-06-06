@@ -7,6 +7,7 @@
  * - 必须登录且是 Webhook 所属用户
  * - 返回明文 secret（仅此一次的机会，与创建时一致）
  * - 前端可弹窗展示并提示用户立即复制保存
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -50,10 +51,10 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 3. 返回明文 secret
-		return new Response(
-			JSON.stringify(successResponse({ secret: webhook.secret })),
-			{ status: 200, headers: { 'Content-Type': 'application/json' } }
-		);
+		return new Response(JSON.stringify(successResponse({ secret: webhook.secret })), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	} catch (error) {
 		console.error('获取 Webhook Secret 失败:', error);
 		return jsonErrorResponse('服务器错误', 500);

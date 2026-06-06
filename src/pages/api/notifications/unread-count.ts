@@ -4,6 +4,7 @@
  * GET /api/notifications/unread-count — 获取当前用户的未读通知数量
  * 若用户关闭了通知，返回 0。
  * 需要登录认证。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

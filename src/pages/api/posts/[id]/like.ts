@@ -4,6 +4,7 @@
  * PUT /api/posts/:id/like — 切换点赞状态
  * 已点赞则取消，未点赞则点赞。
  * 需要登录认证。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

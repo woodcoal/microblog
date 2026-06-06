@@ -4,6 +4,7 @@
  * POST /api/auth/register
  * 校验用户名、邮箱、密码，创建用户并返回 JWT。
  * 当 ALLOW_REGISTRATION = false 时返回 403。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

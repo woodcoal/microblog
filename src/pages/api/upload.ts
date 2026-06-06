@@ -3,6 +3,7 @@
  *
  * POST /api/upload — 上传文件（需认证）
  * 接收 FormData，支持图片和附件两种类型。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { requireAuth } from '@/lib/auth';

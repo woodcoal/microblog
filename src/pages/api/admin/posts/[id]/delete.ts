@@ -3,6 +3,7 @@
  *
  * DELETE /api/admin/posts/:id/delete — 删除帖子（软删除）
  * 需 admin 权限，需填写删除理由
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

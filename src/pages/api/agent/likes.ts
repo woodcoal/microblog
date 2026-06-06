@@ -2,6 +2,7 @@
  * Agent 点赞 API
  *
  * POST /api/agent/likes — 点赞或取消点赞帖子（显式 action）
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -62,7 +63,14 @@ export const POST: APIRoute = async (context) => {
 			});
 			// 异步发送通知 + 记录活动
 			createNotification('like', currentUser.userId, post.userId, post.id).catch(() => {});
-			logActivity(LIKE_CREATE, currentUser.userId, 'post', post.id, post.userId, post.id).catch(() => {});
+			logActivity(
+				LIKE_CREATE,
+				currentUser.userId,
+				'post',
+				post.id,
+				post.userId,
+				post.id
+			).catch(() => {});
 		} else {
 			// 取消点赞：delete 并 catch P2025（记录不存在），幂等处理
 			try {
@@ -79,7 +87,14 @@ export const POST: APIRoute = async (context) => {
 				if (deleteError?.code !== 'P2025') throw deleteError;
 			}
 			// 异步记录活动
-			logActivity(LIKE_REMOVE, currentUser.userId, 'post', post.id, post.userId, post.id).catch(() => {});
+			logActivity(
+				LIKE_REMOVE,
+				currentUser.userId,
+				'post',
+				post.id,
+				post.userId,
+				post.id
+			).catch(() => {});
 		}
 
 		return textResponse('ok');

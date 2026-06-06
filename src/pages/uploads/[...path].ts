@@ -47,24 +47,41 @@ export const GET: APIRoute = async (context) => {
 	try {
 		const filePath = context.params.path as string;
 		if (!filePath || filePath.includes('..') || filePath.includes('~')) {
-			return new Response('Forbidden', { status: 403, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' } });
+			return new Response('Forbidden', {
+				status: 403,
+				headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
+			});
 		}
 		const fullPath = join(UPLOAD_DIR, filePath);
 		if (!existsSync(fullPath)) {
-			return new Response('Not Found', { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' } });
+			return new Response('Not Found', {
+				status: 404,
+				headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
+			});
 		}
 		const buffer = await readFile(fullPath);
 		const mimeType = getMimeType(filePath);
 		return new Response(buffer, {
 			status: 200,
-			headers: { ...CORS_HEADERS, 'Content-Type': mimeType, 'Cache-Control': 'public, max-age=31536000, immutable', 'Content-Length': buffer.length.toString() }
+			headers: {
+				...CORS_HEADERS,
+				'Content-Type': mimeType,
+				'Cache-Control': 'public, max-age=31536000, immutable',
+				'Content-Length': buffer.length.toString()
+			}
 		});
 	} catch (error) {
 		console.error('文件服务失败:', error);
-		return new Response('Internal Server Error', { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' } });
+		return new Response('Internal Server Error', {
+			status: 500,
+			headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
+		});
 	}
 };
 
 export const OPTIONS: APIRoute = async () => {
-	return new Response(null, { status: 204, headers: { ...CORS_HEADERS, 'Access-Control-Allow-Headers': '*' } });
+	return new Response(null, {
+		status: 204,
+		headers: { ...CORS_HEADERS, 'Access-Control-Allow-Headers': '*' }
+	});
 };

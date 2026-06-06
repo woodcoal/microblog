@@ -3,6 +3,7 @@
  *
  * PUT /api/admin/posts/:id/global-pin — 切换全局置顶状态
  * 需 admin 权限，检查 MAX_GLOBAL_PINNED_POSTS 限制
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

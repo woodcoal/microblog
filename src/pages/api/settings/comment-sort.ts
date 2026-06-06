@@ -2,6 +2,7 @@
  * 评论排序偏好 API
  *
  * PUT /api/settings/comment-sort — 更新评论排序偏好
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

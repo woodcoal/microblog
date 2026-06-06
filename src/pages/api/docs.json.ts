@@ -6,6 +6,7 @@
  *
  * 路由：GET /api/docs.json
  * 返回：application/json 格式的 OpenAPI 规范对象
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 
 import type { APIRoute } from 'astro';

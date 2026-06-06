@@ -3,10 +3,10 @@
  * 帖子编辑页面
  *
  * 需要认证，仅作者可访问。
- * 预填充当前内容，使用 React Island 编辑表单。
+ * 预填充当前内容，使用 Astro 原生编辑表单。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import PostEditForm from '@/components/PostEditForm';
+import PostEditForm from '@/components/PostEditForm.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 
@@ -78,7 +78,6 @@ const initialMedia = post.media.map((m) => ({
 	<div class="edit-page">
 		<h1 class="edit-page-title">编辑帖子</h1>
 		<PostEditForm
-			client:load
 			postId={post.id}
 			initialContent={post.content}
 			username={post.user.username}

@@ -3,6 +3,7 @@
  *
  * POST /api/admin/posts/batch — 批量删除/锁定/解锁帖子
  * 需 admin 权限，删除和锁定需填写理由
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

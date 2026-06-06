@@ -7,7 +7,7 @@
  * 底部包含点赞按钮（React island）和评论数统计。
  * 支持可见度门控：受限帖子显示提示信息而非内容。
  */
-import LikeButton from '@/components/LikeButton';
+import LikeButton from '@/components/LikeButton.astro';
 import { formatRelativeTime } from '@/lib/utils';
 
 /** 帖子卡片所需的用户信息 */
@@ -196,12 +196,7 @@ const showVisibilityBadge = post.visibility !== 'public' && visibilityBadge;
 	}
 
 	<div class="post-card-footer">
-		<LikeButton
-			client:load
-			postId={post.id}
-			initialLiked={liked}
-			initialLikeCount={likeCount}
-		/>
+		<LikeButton postId={post.id} initialLiked={liked} initialLikeCount={likeCount} />
 		<a
 			href={`/${post.user.username}/${post.id}`}
 			class="post-card-stat"

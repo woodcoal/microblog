@@ -15,6 +15,7 @@ Authorization: Bearer <token>
 ```
 
 支持的过滤参数：
+
 - `keyword` — 搜索内容
 - `tag` — 按标签
 - `user` — 指定用户
@@ -33,6 +34,7 @@ Authorization: Bearer <token>
 `comments` 参数：-1=不返回评论, 0=全部, >0=限制数量
 
 详情格式：
+
 ```
 #POST postId @username [显示名] 时间
 

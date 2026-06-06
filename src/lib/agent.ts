@@ -34,7 +34,10 @@ export function textResponse(text: string, status: number = 200): Response {
  * @returns Response 对象
  */
 export function textErrorResponse(message: string, status: number = 400): Response {
-	return new Response(`error: ${message}`, { status, headers: { 'Content-Type': TEXT_CONTENT_TYPE } });
+	return new Response(`error: ${message}`, {
+		status,
+		headers: { 'Content-Type': TEXT_CONTENT_TYPE }
+	});
 }
 
 // ─── 认证适配 ────────────────────────────────────────
@@ -71,7 +74,10 @@ const MAX_LIMIT = 100;
  */
 export function parsePagination(url: URL): { page: number; limit: number; skip: number } {
 	const page = Math.max(Number(url.searchParams.get('page')) || DEFAULT_PAGE, 1);
-	const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || DEFAULT_LIMIT, 1), MAX_LIMIT);
+	const limit = Math.min(
+		Math.max(Number(url.searchParams.get('limit')) || DEFAULT_LIMIT, 1),
+		MAX_LIMIT
+	);
 	return { page, limit, skip: (page - 1) * limit };
 }
 
@@ -118,9 +124,10 @@ const POST_LIST_CONTENT_MAX = 250;
  * @returns 格式化的文本行
  */
 export function formatPostListItem(post: { id: string; content: string }): string {
-	const truncated = post.content.length > POST_LIST_CONTENT_MAX
-		? post.content.slice(0, POST_LIST_CONTENT_MAX) + '...'
-		: post.content;
+	const truncated =
+		post.content.length > POST_LIST_CONTENT_MAX
+			? post.content.slice(0, POST_LIST_CONTENT_MAX) + '...'
+			: post.content;
 	return `- ${post.id}: ${truncated}`;
 }
 
@@ -174,7 +181,9 @@ export function formatPostDetail(
 
 	// #POST 段
 	const displayName = post.user.displayName || post.user.username;
-	lines.push(`#POST ${post.id} @${post.user.username} [${displayName}] ${post.createdAt.toISOString()}`);
+	lines.push(
+		`#POST ${post.id} @${post.user.username} [${displayName}] ${post.createdAt.toISOString()}`
+	);
 	lines.push('');
 	lines.push(post.content);
 
@@ -185,13 +194,17 @@ export function formatPostDetail(
 		for (const comment of comments) {
 			const cDisplayName = comment.user.displayName || comment.user.username;
 			const cContent = comment.isDeleted ? '该内容已删除' : comment.content;
-			lines.push(`- ${comment.id}: ${comment.createdAt.toISOString()} @${comment.user.username} [${cDisplayName}] ${cContent}`);
+			lines.push(
+				`- ${comment.id}: ${comment.createdAt.toISOString()} @${comment.user.username} [${cDisplayName}] ${cContent}`
+			);
 			// 嵌套回复
 			if (comment.replies && comment.replies.length > 0) {
 				for (const reply of comment.replies) {
 					const rDisplayName = reply.user.displayName || reply.user.username;
 					const rContent = reply.isDeleted ? '该内容已删除' : reply.content;
-					lines.push(`  - ${reply.id} / ${reply.parentId}: ${reply.createdAt.toISOString()} @${reply.user.username} [${rDisplayName}] ${rContent}`);
+					lines.push(
+						`  - ${reply.id} / ${reply.parentId}: ${reply.createdAt.toISOString()} @${reply.user.username} [${rDisplayName}] ${rContent}`
+					);
 				}
 			}
 		}
@@ -266,7 +279,9 @@ export function formatUserDetail(user: {
 	if (user.avatarUrl) {
 		lines.push(`头像：${user.avatarUrl}`);
 	}
-	lines.push(`微博：${user._count.posts}  关注：${user._count.following}  粉丝：${user._count.followers}`);
+	lines.push(
+		`微博：${user._count.posts}  关注：${user._count.following}  粉丝：${user._count.followers}`
+	);
 	lines.push(`注册时间：${user.createdAt.toISOString().slice(0, 10)}`);
 	return lines.join('\n');
 }

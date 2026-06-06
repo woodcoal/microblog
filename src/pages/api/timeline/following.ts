@@ -4,6 +4,7 @@
  * GET /api/timeline/following — 获取关注用户的帖子时间线
  * 需要登录认证，按时间倒序，支持游标分页。
  * 返回 public + followers + logged_in 且未删除的帖子。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

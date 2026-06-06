@@ -3,6 +3,7 @@
  *
  * GET  /api/agent/posts — 帖子列表（多过滤、可见度过滤、hot排序）
  * POST /api/agent/posts — 发帖
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -174,7 +175,9 @@ export const GET: APIRoute = async (context) => {
 		} else {
 			// latest/earliest 排序
 			const orderBy =
-				sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
+				sort === 'earliest'
+					? { createdAt: 'asc' as const }
+					: { createdAt: 'desc' as const };
 
 			posts = await prisma.post.findMany({
 				where,
@@ -357,7 +360,14 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 异步记录活动日志
-		logActivity(POST_CREATE, currentUser.userId, 'post', post.id, currentUser.userId, post.id).catch(() => {});
+		logActivity(
+			POST_CREATE,
+			currentUser.userId,
+			'post',
+			post.id,
+			currentUser.userId,
+			post.id
+		).catch(() => {});
 
 		return textResponse(`ok: ${post.id}`, 201);
 	} catch (error: any) {

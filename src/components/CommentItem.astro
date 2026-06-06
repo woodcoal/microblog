@@ -6,7 +6,7 @@
  * 已删除评论显示"该内容已删除"。
  * 支持展开回复表单和递归渲染子评论。
  */
-import LikeButton from '@/components/LikeButton';
+import LikeButton from '@/components/LikeButton.astro';
 import CommentForm from '@/components/CommentForm.astro';
 import { renderMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
@@ -125,7 +125,6 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 			<div class="comment-item-actions">
 				{/* 点赞按钮（React island） */}
 				<LikeButton
-					client:load
 					commentId={comment.id}
 					initialLiked={comment.liked}
 					initialLikeCount={comment.likeCount}
@@ -219,7 +218,6 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 							{!replyIsDeleted && (
 								<div class="comment-item-actions">
 									<LikeButton
-										client:load
 										commentId={reply.id}
 										initialLiked={reply.liked}
 										initialLikeCount={reply.likeCount}

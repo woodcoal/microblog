@@ -21,6 +21,7 @@ export default defineConfig({
 	},
 	// 部署到 Cloudflare 时切换：
 	// adapter: cloudflare(),
+	// React 集成：当前无 React Island 在用，保留供 T6 BlogEditor（Tiptap）使用
 	integrations: [react()],
 	vite: {
 		resolve: {

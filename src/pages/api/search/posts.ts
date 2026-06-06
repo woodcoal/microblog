@@ -5,6 +5,7 @@
  * 使用 LIKE（Prisma contains）查询搜索帖子内容，
  * 只搜索 public 且未删除的帖子，支持游标分页。
  * 包含用户信息、标签、点赞数。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

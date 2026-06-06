@@ -3,6 +3,7 @@
  *
  * POST /api/agent/upload — 上传文件（需认证）
  * 默认只支持图片上传，返回图片 URL。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';

@@ -2,6 +2,7 @@
  * Agent 通知 API
  *
  * GET /api/agent/notifications — 获取通知列表
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -86,7 +87,8 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 排序
-		const orderBy = sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
+		const orderBy =
+			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
 
 		// 查询通知
 		const notifications = await prisma.notification.findMany({

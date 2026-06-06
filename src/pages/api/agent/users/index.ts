@@ -2,6 +2,7 @@
  * Agent 用户列表 API
  *
  * GET /api/agent/users — 用户列表（多过滤、分页）
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -60,7 +61,8 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 排序
-		const orderBy = sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
+		const orderBy =
+			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
 
 		// 查询
 		const users = await prisma.user.findMany({

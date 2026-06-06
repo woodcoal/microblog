@@ -2,6 +2,7 @@
  * Agent 评论 API
  *
  * POST /api/agent/comments — 发表评论或回复
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -86,8 +87,17 @@ export const POST: APIRoute = async (context) => {
 		});
 
 		// 异步发送通知 + 记录活动
-		createNotification('comment', currentUser.userId, post.userId, post.id, comment.id).catch(() => {});
-		logActivity(COMMENT_CREATE, currentUser.userId, 'comment', comment.id, post.userId, post.id).catch(() => {});
+		createNotification('comment', currentUser.userId, post.userId, post.id, comment.id).catch(
+			() => {}
+		);
+		logActivity(
+			COMMENT_CREATE,
+			currentUser.userId,
+			'comment',
+			comment.id,
+			post.userId,
+			post.id
+		).catch(() => {});
 
 		return textResponse(`ok: ${comment.id}`, 201);
 	} catch (error: any) {

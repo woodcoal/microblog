@@ -8,7 +8,7 @@
  */
 import BaseLayout from '@/layouts/Base.astro';
 import PostCard from '@/components/PostCard.astro';
-import FollowButton from '@/components/FollowButton';
+import FollowButton from '@/components/FollowButton.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
@@ -225,7 +225,6 @@ const likedPostIds = await getLikedPostIds(
 					<h1 class="profile-name">{user.displayName}</h1>
 					<div class="profile-actions">
 						<FollowButton
-							client:load
 							username={user.username}
 							initialFollowing={isFollowing}
 							isSelf={isSelf}

@@ -19,15 +19,15 @@
 
 ## 技术栈
 
-| 组件     | 选型                     |
-| -------- | ------------------------ |
-| 前端框架 | Astro 6.x (SSR)          |
-| 交互组件 | React 19 (Islands)       |
+| 组件     | 选型                      |
+| -------- | ------------------------- |
+| 前端框架 | Astro 6.x (SSR)           |
+| 交互组件 | React 19 (Islands)        |
 | 数据库   | SQLite (本地) / D1 (生产) |
-| ORM      | Prisma 7.x               |
-| 文件存储 | 本地 / Cloudflare R2     |
-| API 文档 | Scalar                   |
-| 部署     | Cloudflare Pages         |
+| ORM      | Prisma 7.x                |
+| 文件存储 | 本地 / Cloudflare R2      |
+| API 文档 | Scalar                    |
+| 部署     | Cloudflare Pages          |
 
 ## 快速开始
 
@@ -61,31 +61,31 @@ npm run dev
 
 ### 常用命令
 
-| 命令                   | 说明                                  |
-| ---------------------- | ------------------------------------- |
-| `npm run dev`          | 启动开发服务器 (localhost:4321)       |
-| `npm run build`        | 生产构建                              |
-| `npm run preview`      | 预览构建产物                          |
-| `npm run start`        | 运行构建后的服务                      |
-| `npm run pm2`          | PM2 进程管理部署                      |
-| `npm run format`       | Prettier 格式化                       |
-| `npm run db:generate`  | 生成 Prisma Client                    |
-| `npm run db:migrate`   | 执行数据库迁移                        |
-| `npm run db:studio`    | 打开 Prisma Studio                    |
-| `npm run db:seed`      | 填充种子数据                          |
-| `npm run db:setup`     | 完整初始化：generate → migrate → seed |
+| 命令                  | 说明                                  |
+| --------------------- | ------------------------------------- |
+| `npm run dev`         | 启动开发服务器 (localhost:4321)       |
+| `npm run build`       | 生产构建                              |
+| `npm run preview`     | 预览构建产物                          |
+| `npm run start`       | 运行构建后的服务                      |
+| `npm run pm2`         | PM2 进程管理部署                      |
+| `npm run format`      | Prettier 格式化                       |
+| `npm run db:generate` | 生成 Prisma Client                    |
+| `npm run db:migrate`  | 执行数据库迁移                        |
+| `npm run db:studio`   | 打开 Prisma Studio                    |
+| `npm run db:seed`     | 填充种子数据                          |
+| `npm run db:setup`    | 完整初始化：generate → migrate → seed |
 
 ## 环境变量
 
 详见 [.env.example](.env.example)，关键配置：
 
-| 变量             | 说明                   | 默认值                         |
-| ---------------- | ---------------------- | ------------------------------ |
-| `DATABASE_URL`   | 数据库连接             | `file:./prisma/dev.db`         |
-| `JWT_SECRET`     | JWT 签名密钥           | ⚠️ 生产环境务必更换            |
-| `SITE_TITLE`     | 站点标题               | `睦谈`                         |
-| `SITE_URL`       | 站点 URL               | `http://localhost:4321`        |
-| `UPLOAD_DIR`     | 上传目录               | `./uploads`                    |
+| 变量           | 说明         | 默认值                  |
+| -------------- | ------------ | ----------------------- |
+| `DATABASE_URL` | 数据库连接   | `file:./prisma/dev.db`  |
+| `JWT_SECRET`   | JWT 签名密钥 | ⚠️ 生产环境务必更换     |
+| `SITE_TITLE`   | 站点标题     | `睦谈`                  |
+| `SITE_URL`     | 站点 URL     | `http://localhost:4321` |
+| `UPLOAD_DIR`   | 上传目录     | `./uploads`             |
 
 ## 项目结构
 

@@ -4,6 +4,7 @@
  * PUT /api/posts/:id/lock — 切换用户帖子锁定状态
  * 已锁定则解锁，未锁定则锁定。
  * 需要登录认证，仅帖子作者可操作。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

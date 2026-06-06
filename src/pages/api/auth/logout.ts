@@ -3,6 +3,7 @@
  *
  * POST /api/auth/logout
  * 清除 token cookie，返回 JSON 成功响应。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { clearTokenCookie } from '@/lib/auth';

@@ -1,0 +1,137 @@
+---
+/**
+ * 关注按钮组件（Astro 版本）
+ *
+ * 显示关注/取关状态，点击切换关注。
+ * 当目标是自己时不渲染任何内容。
+ * 使用 Astro Actions 替代 fetch API，支持渐进增强。
+ */
+import { actions } from 'astro:actions';
+
+/**
+ * 组件属性
+ *
+ * @property username - 目标用户名
+ * @property initialFollowing - 初始是否已关注
+ * @property isSelf - 是否是自己（自己时隐藏按钮）
+ */
+interface Props {
+	username: string;
+	initialFollowing: boolean;
+	isSelf: boolean;
+}
+
+const { username, initialFollowing, isSelf } = Astro.props;
+
+// 自己时不渲染任何内容
+if (isSelf) {
+	// Astro 中提前 return 会跳过模板渲染
+}
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isFollowing = initialFollowing;
+const btnClass = isFollowing ? 'btn btn-outline follow-btn' : 'btn btn-primary follow-btn';
+const btnText = isFollowing ? '已关注' : '关注';
+const btnLabel = isFollowing ? '取消关注' : '关注';
+---
+
+{
+	!isSelf && (
+		<form
+			class="follow-form"
+			action={actions.toggleFollow}
+			data-username={username}
+			data-following={String(isFollowing)}
+		>
+			<input type="hidden" name="username" value={username} />
+			<button
+				type="submit"
+				class={btnClass}
+				aria-label={btnLabel}
+				data-following={String(isFollowing)}
+			>
+				{btnText}
+			</button>
+		</form>
+	)
+}
+
+<script>
+	/**
+	 * 关注按钮交互逻辑
+	 *
+	 * 功能：
+	 * - 拦截表单提交，调用 Astro Action 切换关注状态
+	 * - 乐观更新 UI（切换按钮文字和类名）
+	 * - 失败时回滚到原始状态
+	 * - 未登录时跳转登录页
+	 */
+	import { actions } from 'astro:actions';
+
+	// 为所有关注表单绑定事件
+	document.querySelectorAll<HTMLFormElement>('.follow-form').forEach((form) => {
+		form.addEventListener('submit', async (e) => {
+			// 阻止默认表单提交，使用 Action RPC
+			e.preventDefault();
+
+			const btn = form.querySelector<HTMLButtonElement>('.follow-btn');
+			if (!btn || btn.disabled) return;
+
+			// 读取当前状态
+			const wasFollowing = btn.dataset.following === 'true';
+			const username = form.dataset.username || '';
+
+			// 乐观更新：立即切换 UI
+			const newFollowing = !wasFollowing;
+			btn.dataset.following = String(newFollowing);
+			btn.textContent = newFollowing ? '已关注' : '关注';
+			btn.setAttribute('aria-label', newFollowing ? '取消关注' : '关注');
+			btn.className = newFollowing
+				? 'btn btn-outline follow-btn'
+				: 'btn btn-primary follow-btn';
+			btn.disabled = true;
+
+			try {
+				// 调用 Astro Action
+				const result = await actions.toggleFollow({ username });
+
+				if (result.data) {
+					// 以服务端返回为准
+					const serverFollowing = result.data.following;
+					btn.dataset.following = String(serverFollowing);
+					btn.textContent = serverFollowing ? '已关注' : '关注';
+					btn.setAttribute('aria-label', serverFollowing ? '取消关注' : '关注');
+					btn.className = serverFollowing
+						? 'btn btn-outline follow-btn'
+						: 'btn btn-primary follow-btn';
+				} else {
+					// Action 返回错误，回滚
+					rollback(btn, wasFollowing);
+				}
+			} catch (err: any) {
+				// 未登录错误，跳转登录页
+				if (err?.message?.includes('登录')) {
+					window.location.href = '/login';
+					return;
+				}
+				// 其他错误，回滚
+				rollback(btn, wasFollowing);
+			} finally {
+				btn.disabled = false;
+			}
+		});
+	});
+
+	/**
+	 * 回滚按钮状态到指定值
+	 *
+	 * @param btn - 关注按钮元素
+	 * @param following - 要回滚到的关注状态
+	 */
+	function rollback(btn: HTMLButtonElement, following: boolean) {
+		btn.dataset.following = String(following);
+		btn.textContent = following ? '已关注' : '关注';
+		btn.setAttribute('aria-label', following ? '取消关注' : '关注');
+		btn.className = following ? 'btn btn-outline follow-btn' : 'btn btn-primary follow-btn';
+	}
+</script>

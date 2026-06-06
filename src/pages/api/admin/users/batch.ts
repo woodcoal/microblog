@@ -3,6 +3,7 @@
  *
  * POST /api/admin/users/batch — 批量禁用/启用用户
  * 需 admin 权限，禁用操作会跳过 admin 角色用户
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

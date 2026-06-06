@@ -3,6 +3,7 @@
  *
  * GET /api/posts/:id/likers — 获取点赞该帖子的用户列表
  * 返回用户昵称和用户名，用于朋友圈风格展示。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

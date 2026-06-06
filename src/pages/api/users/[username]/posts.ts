@@ -4,6 +4,7 @@
  * GET /api/users/:username/posts — 获取用户帖子列表
  * 支持 q 参数搜索帖子内容，支持游标分页。
  * 只返回 public 且未删除的帖子（非作者只能看 public）。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

@@ -1,0 +1,178 @@
+---
+/**
+ * 点赞按钮组件（Astro 原生版本）
+ *
+ * 显示点赞数和当前点赞状态，点击切换点赞。
+ * 点赞时心形变红并有缩放动画。
+ * 使用 Astro Actions 替代 fetch API 调用，渐进增强：
+ * - 无 JS 时：form action 提交页面刷新
+ * - 有 JS 时：拦截 submit，调用 actions.toggleLike，乐观更新 + 失败回滚
+ */
+import { actions } from 'astro:actions';
+
+/**
+ * 组件属性
+ *
+ * @property postId - 帖子 ID（帖子点赞时使用）
+ * @property commentId - 评论 ID（评论点赞时使用）
+ * @property initialLiked - 初始是否已点赞
+ * @property initialLikeCount - 初始点赞数
+ */
+interface Props {
+	postId?: string;
+	commentId?: string;
+	initialLiked: boolean;
+	initialLikeCount: number;
+}
+
+const { postId, commentId, initialLiked, initialLikeCount } = Astro.props;
+
+// 确定点赞目标类型和 ID
+const targetType = commentId ? 'comment' : 'post';
+const targetId = commentId || postId || '';
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isLiked = initialLiked;
+---
+
+<form class="like-btn-form" data-target-id={targetId} data-target-type={targetType}>
+	<button
+		type="submit"
+		class:list={['like-btn', { 'like-btn-liked': isLiked }]}
+		aria-label={isLiked ? '取消点赞' : '点赞'}
+	>
+		<svg
+			class="like-icon"
+			viewBox="0 0 24 24"
+			width="18"
+			height="18"
+			fill={isLiked ? 'currentColor' : 'none'}
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path
+				d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+			></path>
+		</svg>
+		<span class="like-count">{initialLikeCount}</span>
+	</button>
+</form>
+
+<script>
+	/**
+	 * 点赞按钮客户端交互逻辑
+	 *
+	 * 拦截 form submit 事件，调用 Astro Actions 的 toggleLike。
+	 * 乐观更新 UI（切换 liked 类名、更新计数、触发动画），失败时回滚。
+	 * 未登录时跳转登录页。
+	 */
+	import { actions } from 'astro:actions';
+
+	// 为所有点赞表单绑定事件
+	document.querySelectorAll<HTMLFormElement>('.like-btn-form').forEach((form) => {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const btn = form.querySelector<HTMLButtonElement>('.like-btn');
+			if (!btn || btn.disabled) return;
+
+			// 从 data 属性获取目标信息
+			const targetId = form.dataset.targetId || '';
+			const targetType = (form.dataset.targetType || 'post') as 'post' | 'comment';
+
+			// 读取当前状态
+			const countEl = btn.querySelector<HTMLSpanElement>('.like-count');
+			const prevLiked = btn.classList.contains('like-btn-liked');
+			const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
+
+			// 乐观更新：切换 liked 类名、更新计数
+			btn.classList.toggle('like-btn-liked', !prevLiked);
+			btn.setAttribute('aria-label', prevLiked ? '点赞' : '取消点赞');
+			if (countEl) {
+				countEl.textContent = String(prevLiked ? prevCount - 1 : prevCount + 1);
+			}
+
+			// 点赞时触发弹跳动画
+			if (!prevLiked) {
+				btn.classList.add('like-btn-animate');
+				setTimeout(() => btn.classList.remove('like-btn-animate'), 400);
+			}
+
+			// 更新 SVG fill 状态
+			const svg = btn.querySelector<SVGElement>('.like-icon');
+			if (svg) {
+				svg.setAttribute('fill', !prevLiked ? 'currentColor' : 'none');
+			}
+
+			// 禁用按钮防止重复点击
+			btn.disabled = true;
+
+			try {
+				const result = await actions.toggleLike({ targetId, type: targetType });
+
+				if (result.data) {
+					// 以服务端返回为准
+					const { liked, likeCount } = result.data;
+					btn.classList.toggle('like-btn-liked', liked);
+					btn.setAttribute('aria-label', liked ? '取消点赞' : '点赞');
+					if (countEl) {
+						countEl.textContent = String(likeCount);
+					}
+					if (svg) {
+						svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+					}
+
+					// 通知页面点赞状态变更，用于刷新点赞用户列表
+					window.dispatchEvent(
+						new CustomEvent('post-like-changed', {
+							detail: { postId: targetType === 'post' ? targetId : undefined, liked }
+						})
+					);
+				} else {
+					// Action 返回错误，回滚
+					rollback(btn, countEl, svg, prevLiked, prevCount);
+				}
+			} catch (err: any) {
+				// 未登录时跳转登录页
+				if (err?.message?.includes('登录') || err?.status === 401) {
+					rollback(btn, countEl, svg, prevLiked, prevCount);
+					window.location.href = '/login';
+					return;
+				}
+				// 其他错误回滚
+				rollback(btn, countEl, svg, prevLiked, prevCount);
+			} finally {
+				btn.disabled = false;
+			}
+		});
+	});
+
+	/**
+	 * 回滚 UI 到之前的状态
+	 *
+	 * @param btn - 点赞按钮元素
+	 * @param countEl - 计数 span 元素
+	 * @param svg - 心形 SVG 元素
+	 * @param prevLiked - 之前的点赞状态
+	 * @param prevCount - 之前的点赞数
+	 */
+	function rollback(
+		btn: HTMLButtonElement,
+		countEl: HTMLSpanElement | null,
+		svg: SVGElement | null,
+		prevLiked: boolean,
+		prevCount: number
+	) {
+		btn.classList.toggle('like-btn-liked', prevLiked);
+		btn.setAttribute('aria-label', prevLiked ? '取消点赞' : '点赞');
+		if (countEl) {
+			countEl.textContent = String(prevCount);
+		}
+		if (svg) {
+			svg.setAttribute('fill', prevLiked ? 'currentColor' : 'none');
+		}
+		btn.classList.remove('like-btn-animate');
+	}
+</script>

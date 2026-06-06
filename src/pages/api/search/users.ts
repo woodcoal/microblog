@@ -5,6 +5,7 @@
  * 使用 LIKE（Prisma contains）查询搜索用户名和显示名，
  * 不搜索被禁用的用户，包含粉丝数、关注数、发帖数。
  * 支持游标分页。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

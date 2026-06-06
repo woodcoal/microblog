@@ -2,6 +2,7 @@
  * Agent 关注 API
  *
  * POST /api/agent/follows — 关注或取消关注用户（显式 action）
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -67,7 +68,13 @@ export const POST: APIRoute = async (context) => {
 			});
 			// 异步发送通知 + 记录活动
 			createNotification('follow', currentUser.userId, targetUser.id).catch(() => {});
-			logActivity(FOLLOW_CREATE, currentUser.userId, 'user', targetUser.id, targetUser.id).catch(() => {});
+			logActivity(
+				FOLLOW_CREATE,
+				currentUser.userId,
+				'user',
+				targetUser.id,
+				targetUser.id
+			).catch(() => {});
 		} else {
 			// 取消关注：delete 并 catch P2025（记录不存在），幂等处理
 			try {
@@ -84,7 +91,13 @@ export const POST: APIRoute = async (context) => {
 				if (deleteError?.code !== 'P2025') throw deleteError;
 			}
 			// 异步记录活动
-			logActivity(FOLLOW_REMOVE, currentUser.userId, 'user', targetUser.id, targetUser.id).catch(() => {});
+			logActivity(
+				FOLLOW_REMOVE,
+				currentUser.userId,
+				'user',
+				targetUser.id,
+				targetUser.id
+			).catch(() => {});
 		}
 
 		return textResponse('ok');

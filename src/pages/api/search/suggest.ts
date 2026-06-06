@@ -4,6 +4,7 @@
  * GET /api/search/suggest?q=xxx — 根据关键词前缀返回匹配的标签和用户
  * 用于搜索框的自动补全功能，返回最多 5 个标签和 5 个用户。
  * 标签按帖子数降序排列，用户按粉丝数降序排列。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

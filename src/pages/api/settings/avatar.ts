@@ -5,6 +5,7 @@
  * 接收 FormData 中的 image 字段，保存文件后更新用户 avatarUrl。
  * 头像限定为图片格式（jpg/jpeg/png/gif/webp），最大 2MB。
  * 需要登录认证。
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';

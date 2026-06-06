@@ -2,6 +2,7 @@
  * Agent 登录 API
  *
  * POST /api/agent/login — 邮箱密码登录，返回 API Token（如存在）
+ * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
@@ -58,11 +59,16 @@ export const POST: APIRoute = async (context) => {
 		});
 
 		if (tokenCount === 0) {
-			return textErrorResponse('该用户无可用 Token，请先通过 /api/agent/register 注册或前往设置创建 API Token', 404);
+			return textErrorResponse(
+				'该用户无可用 Token，请先通过 /api/agent/register 注册或前往设置创建 API Token',
+				404
+			);
 		}
 
 		// 有 Token 但无法返回明文（哈希存储），提示用户
-		return textResponse(`ok: 该用户已有 ${tokenCount} 个 API Token，但 Token 明文仅在创建时返回一次。请使用已保存的 Token，或通过 /api/tokens 创建新 Token`);
+		return textResponse(
+			`ok: 该用户已有 ${tokenCount} 个 API Token，但 Token 明文仅在创建时返回一次。请使用已保存的 Token，或通过 /api/tokens 创建新 Token`
+		);
 	} catch (error: any) {
 		if (error?.status === 400) {
 			return textErrorResponse(error.message, 400);
