@@ -3,12 +3,18 @@
  * 帖子编辑页面
  *
  * 需要认证，仅作者可访问。
- * 预填充当前内容，使用 Astro 原生编辑表单。
+ * 根据 post.mode 使用不同的编辑器：
+ * - weibo：简单 textarea（现有 PostEditForm.astro）
+ * - forum：ForumEditor.astro（Markdown 工具栏 + 预览）
+ * - blog：BlogEditor.tsx（Tiptap 所见即所得编辑器）
  */
 import BaseLayout from '@/layouts/Base.astro';
 import PostEditForm from '@/components/PostEditForm.astro';
+import ForumEditor from '@/components/ForumEditor.astro';
+import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
+import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 
 // 路由参数
 const { username, postId } = Astro.params;
@@ -72,18 +78,137 @@ const initialMedia = post.media.map((m) => ({
 	originalName: m.originalName,
 	url: `/uploads/${m.fileStorage.filePath}`
 }));
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isWeibo = post.mode === 'weibo';
+const isForum = post.mode === 'forum';
+const isBlog = post.mode === 'blog';
 ---
 
 <BaseLayout title="编辑帖子">
 	<div class="edit-page">
 		<h1 class="edit-page-title">编辑帖子</h1>
-		<PostEditForm
-			postId={post.id}
-			initialContent={post.content}
-			username={post.user.username}
-			initialMedia={initialMedia}
-			initialVisibility={post.visibility}
-		/>
+
+		{/* weibo 模式：使用原有 PostEditForm */}
+		{
+			isWeibo && (
+				<PostEditForm
+					postId={post.id}
+					initialContent={post.content}
+					username={post.user.username}
+					initialMedia={initialMedia}
+					initialVisibility={post.visibility}
+				/>
+			)
+		}
+
+		{/* forum 模式：使用 ForumEditor */}
+		{
+			isForum && (
+				<div
+					class="forum-edit-container"
+					id="forum-edit-container"
+					data-post-id={post.id}
+					data-username={post.user.username}
+					data-visibility={post.visibility}
+				>
+					<div class="form-group">
+						<label class="form-label" for="forum-edit-title">
+							标题
+						</label>
+						<input
+							type="text"
+							class="form-input"
+							id="forum-edit-title"
+							value={post.title || ''}
+							maxlength="200"
+						/>
+					</div>
+					<ForumEditor
+						formId="forum-edit-editor"
+						initialContent={post.content}
+						maxLength={POST_CONTENT_MAX_LENGTH}
+						submitLabel="保存修改"
+					/>
+					<div class="form-group">
+						<label class="form-label" for="forum-edit-visibility">
+							可见度
+						</label>
+						<select class="form-input" id="forum-edit-visibility">
+							<option value="public" selected={post.visibility === 'public'}>
+								🌐 公开
+							</option>
+							<option value="logged_in" selected={post.visibility === 'logged_in'}>
+								🔐 登录用户可见
+							</option>
+							<option value="followers" selected={post.visibility === 'followers'}>
+								👥 粉丝可见
+							</option>
+							<option value="following" selected={post.visibility === 'following'}>
+								🤝 我关注的人可见
+							</option>
+							<option value="private" selected={post.visibility === 'private'}>
+								🔒 仅自己可见
+							</option>
+						</select>
+					</div>
+					<p class="form-error" id="forum-edit-error" style="display:none" />
+				</div>
+			)
+		}
+
+		{/* blog 模式：使用 BlogEditor React Island */}
+		{
+			isBlog && (
+				<div
+					class="blog-edit-container"
+					id="blog-edit-container"
+					data-post-id={post.id}
+					data-username={post.user.username}
+					data-visibility={post.visibility}
+				>
+					<div class="form-group">
+						<label class="form-label" for="blog-edit-title">
+							标题
+						</label>
+						<input
+							type="text"
+							class="form-input"
+							id="blog-edit-title"
+							value={post.title || ''}
+							maxlength="200"
+						/>
+					</div>
+					<div class="form-group">
+						<label class="form-label">内容</label>
+						<BlogEditor client:load initialContent={post.content} />
+					</div>
+					<div class="form-group">
+						<label class="form-label" for="blog-edit-visibility">
+							可见度
+						</label>
+						<select class="form-input" id="blog-edit-visibility">
+							<option value="public" selected={post.visibility === 'public'}>
+								🌐 公开
+							</option>
+							<option value="logged_in" selected={post.visibility === 'logged_in'}>
+								🔐 登录用户可见
+							</option>
+							<option value="followers" selected={post.visibility === 'followers'}>
+								👥 粉丝可见
+							</option>
+							<option value="following" selected={post.visibility === 'following'}>
+								🤝 我关注的人可见
+							</option>
+							<option value="private" selected={post.visibility === 'private'}>
+								🔒 仅自己可见
+							</option>
+						</select>
+					</div>
+					<p class="form-error" id="blog-edit-error" style="display:none" />
+				</div>
+			)
+		}
 	</div>
 </BaseLayout>
 
@@ -97,3 +222,141 @@ const initialMedia = post.media.map((m) => ({
 		margin-bottom: 1rem;
 	}
 </style>
+
+<script>
+	/**
+	 * 论坛模式编辑页客户端脚本
+	 *
+	 * 从 ForumEditor 获取内容，调用 actions.updatePost 保存修改。
+	 */
+	import { actions } from 'astro:actions';
+
+	const forumContainer = document.getElementById('forum-edit-container');
+	if (forumContainer) {
+		const postId = forumContainer.dataset.postId || '';
+		const username = forumContainer.dataset.username || '';
+		const editorEl = document.getElementById('forum-edit-editor');
+		const titleInput = document.getElementById('forum-edit-title') as HTMLInputElement;
+		const visibilitySelect = document.getElementById(
+			'forum-edit-visibility'
+		) as HTMLSelectElement;
+		const formError = document.getElementById('forum-edit-error') as HTMLParagraphElement;
+		let loading = false;
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string): void {
+			formError.textContent = msg;
+			formError.style.display = '';
+		}
+
+		// 监听 ForumEditor 的提交按钮
+		const submitBtn = editorEl?.querySelector('.btn-primary') as HTMLButtonElement | null;
+		if (submitBtn) {
+			submitBtn.addEventListener('click', async (e: Event) => {
+				e.preventDefault();
+				if (loading) return;
+
+				const title = titleInput.value.trim();
+				const content = (editorEl as any).getContent?.() || '';
+
+				if (!content) {
+					showError('请输入帖子内容');
+					return;
+				}
+
+				loading = true;
+				formError.style.display = 'none';
+
+				try {
+					const result = await actions.updatePost({
+						postId,
+						content,
+						visibility: visibilitySelect.value,
+						title: title || undefined
+					} as any);
+
+					if (result.data) {
+						window.location.href = `/${username}/${postId}`;
+					} else {
+						showError('保存失败');
+					}
+				} catch {
+					showError('网络错误，请稍后重试');
+				} finally {
+					loading = false;
+				}
+			});
+		}
+	}
+</script>
+
+<script>
+	/**
+	 * 博客模式编辑页客户端脚本
+	 *
+	 * 监听 BlogEditor 的自定义事件，调用 actions.updatePost 保存修改。
+	 */
+	import { actions } from 'astro:actions';
+
+	const blogContainer = document.getElementById('blog-edit-container');
+	if (blogContainer) {
+		const postId = blogContainer.dataset.postId || '';
+		const username = blogContainer.dataset.username || '';
+		const titleInput = document.getElementById('blog-edit-title') as HTMLInputElement;
+		const visibilitySelect = document.getElementById(
+			'blog-edit-visibility'
+		) as HTMLSelectElement;
+		const formError = document.getElementById('blog-edit-error') as HTMLParagraphElement;
+		let loading = false;
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string): void {
+			formError.textContent = msg;
+			formError.style.display = '';
+		}
+
+		// 监听 BlogEditor 的提交事件
+		blogContainer.addEventListener('blog-editor-submit', async (e: Event) => {
+			if (loading) return;
+
+			const customEvent = e as CustomEvent;
+			const content = customEvent.detail as string;
+			const title = titleInput.value.trim();
+
+			if (!content) {
+				showError('请输入文章内容');
+				return;
+			}
+
+			loading = true;
+			formError.style.display = 'none';
+
+			try {
+				const result = await actions.updatePost({
+					postId,
+					content,
+					visibility: visibilitySelect.value,
+					title: title || undefined
+				} as any);
+
+				if (result.data) {
+					window.location.href = `/${username}/${postId}`;
+				} else {
+					showError('保存失败');
+				}
+			} catch {
+				showError('网络错误，请稍后重试');
+			} finally {
+				loading = false;
+			}
+		});
+	}
+</script>

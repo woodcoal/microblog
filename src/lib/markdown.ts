@@ -9,7 +9,7 @@
  * 2. marked 解析（启用 GFM 删除线）
  * 3. 自定义 renderer 限制输出标签
  */
-import { marked } from 'marked';
+import { marked, Marked } from 'marked';
 
 /** 允许的 HTML 标签白名单 */
 const ALLOWED_TAGS = new Set(['strong', 'em', 'del', 'code', 'a', 'p', 'br', 'span']);
@@ -166,7 +166,146 @@ function linkifyMentionsAndTags(html: string): string {
 }
 
 /**
- * 渲染 Markdown 为安全 HTML
+ * 全功能 Markdown 渲染器（独立实例，不受全局受限配置影响）
+ *
+ * 支持：标题、列表、引用、代码块、图片、链接、表格等完整 Markdown 语法。
+ * 用于论坛编辑器预览和博客内容渲染。
+ */
+const fullMarked = new Marked({
+	gfm: true,
+	breaks: true,
+	renderer: {
+		// 链接强制新窗口打开
+		link({ href, title, text }) {
+			const titleAttr = title ? ` title="${title}"` : '';
+			return `<a href="${href}"${titleAttr} target="_blank" rel="noopener noreferrer">${text}</a>`;
+		},
+		// 图片添加样式类
+		image({ href, title, text }) {
+			const titleAttr = title ? ` title="${title}"` : '';
+			return `<img src="${href}" alt="${text}"${titleAttr} />`;
+		}
+	}
+});
+
+/** 全功能渲染允许的标签白名单（比 weibo 版本宽松，支持标题/列表/引用/代码块等） */
+const FULL_ALLOWED_TAGS = new Set([
+	'h1',
+	'h2',
+	'h3',
+	'h4',
+	'h5',
+	'h6',
+	'p',
+	'br',
+	'hr',
+	'strong',
+	'em',
+	'del',
+	'code',
+	'pre',
+	'a',
+	'img',
+	'ul',
+	'ol',
+	'li',
+	'blockquote',
+	'table',
+	'thead',
+	'tbody',
+	'tr',
+	'th',
+	'td',
+	'span',
+	'div'
+]);
+
+/** 全功能渲染允许的属性白名单 */
+const FULL_ALLOWED_ATTRS: Record<string, Set<string>> = {
+	a: new Set(['href', 'title', 'target', 'rel', 'class']),
+	img: new Set(['src', 'alt', 'title', 'class', 'width', 'height']),
+	code: new Set(['class']),
+	pre: new Set(['class']),
+	span: new Set(['class']),
+	td: new Set(['align']),
+	th: new Set(['align'])
+};
+
+/**
+ * 清理 HTML（全功能版），移除白名单之外的标签和属性
+ *
+ * @param html - 待清理的 HTML 字符串
+ * @returns 清理后的安全 HTML
+ */
+function sanitizeFullHtml(html: string): string {
+	return html.replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)[^>]*>/g, (match, tagName) => {
+		const tag = tagName.toLowerCase();
+
+		// 关闭标签直接通过
+		if (match.startsWith('</')) {
+			return FULL_ALLOWED_TAGS.has(tag) ? match : '';
+		}
+
+		// 非白名单标签，移除标签但保留内容
+		if (!FULL_ALLOWED_TAGS.has(tag)) {
+			return '';
+		}
+
+		// 白名单标签，过滤属性
+		const allowedAttrSet = FULL_ALLOWED_ATTRS[tag];
+		if (!allowedAttrSet) {
+			return `<${tag}>`;
+		}
+
+		// 提取并过滤属性
+		const attrRegex = /([a-zA-Z-]+)\s*=\s*("([^"]*)"|'([^']*)')/g;
+		let filteredAttrs = '';
+		let attrMatch;
+		while ((attrMatch = attrRegex.exec(match)) !== null) {
+			const attrName = attrMatch[1].toLowerCase();
+			if (allowedAttrSet.has(attrName)) {
+				filteredAttrs += ` ${attrName}="${attrMatch[3] ?? attrMatch[4]}"`;
+			}
+		}
+
+		return `<${tag}${filteredAttrs}>`;
+	});
+}
+
+/**
+ * 渲染完整 Markdown 为安全 HTML（论坛/博客模式使用）
+ *
+ * 支持标题、列表、引用、代码块、图片、链接、表格等完整 Markdown 语法。
+ * 渲染流程与 renderMarkdown 相同，但使用独立的 marked 实例和更宽松的白名单。
+ *
+ * @param markdown - 原始 Markdown 文本
+ * @returns 渲染后的 HTML 字符串
+ */
+export function renderFullMarkdown(markdown: string): string {
+	if (!markdown) return '';
+
+	// 1. HTML 转义输入（防 XSS 注入）
+	const escaped = markdown
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
+
+	// 2. 全功能 marked 解析
+	let html = fullMarked.parse(escaped) as string;
+
+	// 3. 清理 HTML，确保只有白名单标签
+	html = sanitizeFullHtml(html);
+
+	// 4. 将 @提及 和 #标签# 转为可点击链接
+	html = linkifyMentionsAndTags(html);
+
+	return html;
+}
+
+/**
+ * 渲染 Markdown 为安全 HTML（微博模式，受限白名单）
  *
  * @param markdown - 原始 Markdown 文本
  * @returns 渲染后的 HTML 字符串

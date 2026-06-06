@@ -3,12 +3,13 @@
  * 论坛版块详情页
  *
  * 根据 slug 显示该版块下的帖子列表（forum 模式卡片）。
- * 顶部内嵌结构化发布框（title 必填 + textarea + 版块自动选中 + 发布按钮）。
+ * 顶部内嵌 ForumEditor 编辑器（Markdown 工具栏 + 实时预览）。
  * 发布时 mode 自动设为 'forum'，categoryId 自动设为当前版块。
  * 支持分页浏览。
  */
 import BaseLayout from '@/layouts/Base.astro';
 import PostCard from '@/components/PostCard.astro';
+import ForumEditor from '@/components/ForumEditor.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
@@ -140,52 +141,34 @@ const hasIcon = !!category.icon;
 	{
 		currentUser && (
 			<div class="channel-compose">
-				<form
-					class="channel-compose-form"
-					id="forum-compose-form"
-					data-category-id={category.id}
-				>
-					<input
-						type="text"
-						class="form-input channel-compose-title"
-						id="forum-compose-title"
-						placeholder="帖子标题（必填）"
-						maxlength="200"
-					/>
-					<textarea
-						class="form-input channel-compose-textarea"
-						id="forum-compose-content"
-						placeholder="帖子内容..."
-						maxlength={POST_CONTENT_MAX_LENGTH}
-						rows="4"
-					/>
-					<div class="channel-compose-footer">
-						<div class="channel-compose-options">
-							<select
-								class="form-input channel-compose-visibility"
-								id="forum-compose-visibility"
-							>
-								<option value="public">🌐 公开</option>
-								<option value="logged_in">🔐 登录用户可见</option>
-								<option value="followers">👥 粉丝可见</option>
-								<option value="following">🤝 我关注的人可见</option>
-								<option value="private">🔒 仅自己可见</option>
-							</select>
-							<span class="channel-compose-count" id="forum-char-count">
-								0/{POST_CONTENT_MAX_LENGTH}
-							</span>
-						</div>
-						<button
-							class="btn btn-primary"
-							type="submit"
-							id="forum-submit-btn"
-							disabled
+				<input
+					type="text"
+					class="form-input channel-compose-title"
+					id="forum-compose-title"
+					placeholder="帖子标题（必填）"
+					maxlength="200"
+				/>
+				<ForumEditor
+					formId="forum-compose-editor"
+					maxLength={POST_CONTENT_MAX_LENGTH}
+					categoryId={category.id}
+					submitLabel="发布"
+				/>
+				<div class="channel-compose-footer">
+					<div class="channel-compose-options">
+						<select
+							class="form-input channel-compose-visibility"
+							id="forum-compose-visibility"
 						>
-							发布
-						</button>
+							<option value="public">🌐 公开</option>
+							<option value="logged_in">🔐 登录用户可见</option>
+							<option value="followers">👥 粉丝可见</option>
+							<option value="following">🤝 我关注的人可见</option>
+							<option value="private">🔒 仅自己可见</option>
+						</select>
 					</div>
-					<p class="form-error" id="forum-form-error" style="display:none" />
-				</form>
+				</div>
+				<p class="form-error" id="forum-form-error" style="display:none" />
 			</div>
 		)
 	}
@@ -401,37 +384,24 @@ const hasIcon = !!category.icon;
 	 *
 	 * 处理论坛版块的快速发布功能：
 	 * - 标题必填校验
-	 * - 字数统计实时更新
+	 * - 从 ForumEditor 获取内容
 	 * - 表单提交调用 actions.createPost（mode=forum, categoryId=当前版块）
 	 * - 发布成功后刷新页面
 	 */
 	import { actions } from 'astro:actions';
 
-	const form = document.getElementById('forum-compose-form') as HTMLFormElement | null;
-	if (form) {
-		const titleInput = form.querySelector('#forum-compose-title') as HTMLInputElement;
-		const textarea = form.querySelector('#forum-compose-content') as HTMLTextAreaElement;
-		const visibilitySelect = form.querySelector(
-			'#forum-compose-visibility'
-		) as HTMLSelectElement;
-		const charCount = form.querySelector('#forum-char-count') as HTMLSpanElement;
-		const submitBtn = form.querySelector('#forum-submit-btn') as HTMLButtonElement;
-		const formError = form.querySelector('#forum-form-error') as HTMLParagraphElement;
-		const categoryId = form.dataset.categoryId || '';
-		const CONTENT_MAX_LENGTH = 1000;
-		let loading = false;
+	// 获取 ForumEditor 实例和标题输入
+	const editorEl = document.getElementById('forum-compose-editor');
+	const titleInput = document.getElementById('forum-compose-title') as HTMLInputElement | null;
+	const visibilitySelect = document.getElementById(
+		'forum-compose-visibility'
+	) as HTMLSelectElement | null;
+	const formError = document.getElementById('forum-form-error') as HTMLParagraphElement | null;
 
-		/**
-		 * 更新字数统计和按钮状态
-		 */
-		function updateUI(): void {
-			const len = textarea.value.length;
-			const isNearLimit = len > CONTENT_MAX_LENGTH * 0.9;
-			charCount.textContent = `${len}/${CONTENT_MAX_LENGTH}`;
-			charCount.className = `channel-compose-count${isNearLimit ? ' text-danger' : ''}`;
-			submitBtn.disabled = loading || !textarea.value.trim() || !titleInput.value.trim();
-			submitBtn.textContent = loading ? '发布中...' : '发布';
-		}
+	if (editorEl && titleInput && visibilitySelect && formError) {
+		const categoryId = editorEl.dataset.categoryId || '';
+		const CONTENT_MAX_LENGTH = parseInt(editorEl.dataset.maxLength || '1000', 10);
+		let loading = false;
 
 		/**
 		 * 显示错误信息
@@ -439,21 +409,19 @@ const hasIcon = !!category.icon;
 		 * @param msg - 错误消息
 		 */
 		function showError(msg: string): void {
-			formError.textContent = msg;
-			formError.style.display = '';
+			formError!.textContent = msg;
+			formError!.style.display = '';
 		}
 
-		// 输入事件
-		textarea.addEventListener('input', updateUI);
-		titleInput.addEventListener('input', updateUI);
-
-		// 表单提交
-		form.addEventListener('submit', async (e: Event) => {
-			e.preventDefault();
+		/**
+		 * 从 ForumEditor 获取内容并提交
+		 */
+		async function handleSubmit(): Promise<void> {
 			if (loading) return;
 
-			const title = titleInput.value.trim();
-			const content = textarea.value.trim();
+			const title = titleInput!.value.trim();
+			// 通过 ForumEditor 暴露的 getContent 方法获取内容
+			const content = (editorEl as any).getContent?.() || '';
 
 			if (!title) {
 				showError('请输入帖子标题');
@@ -469,13 +437,12 @@ const hasIcon = !!category.icon;
 			}
 
 			loading = true;
-			updateUI();
-			formError.style.display = 'none';
+			formError!.style.display = 'none';
 
 			try {
 				const result = await actions.createPost({
 					content,
-					visibility: visibilitySelect.value,
+					visibility: visibilitySelect!.value,
 					mode: 'forum',
 					title,
 					categoryId
@@ -492,8 +459,16 @@ const hasIcon = !!category.icon;
 				showError('网络错误，请稍后重试');
 			} finally {
 				loading = false;
-				updateUI();
 			}
-		});
+		}
+
+		// 监听 ForumEditor 的提交按钮点击
+		const submitBtn = editorEl.querySelector('.btn-primary') as HTMLButtonElement | null;
+		if (submitBtn) {
+			submitBtn.addEventListener('click', (e: Event) => {
+				e.preventDefault();
+				handleSubmit();
+			});
+		}
 	}
 </script>

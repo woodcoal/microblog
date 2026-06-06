@@ -2,12 +2,13 @@
 /**
  * 博客写文章页面
  *
- * 简单的博客文章发布页，包含标题输入、内容编辑、分类选择和可见度。
- * 发布时 mode 自动设为 'blog'。
+ * 使用 BlogEditor（Tiptap 富文本编辑器）替代简单 textarea。
+ * BlogEditor 是 React Island，通过 client:load 指令加载。
+ * 提交时从 BlogEditor 获取 Markdown 内容，调用 actions.createPost 发布。
  * 需要登录认证，未登录重定向到登录页。
- * 后续 T6 实现富文本编辑器后会替换此页面。
  */
 import BaseLayout from '@/layouts/Base.astro';
+import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { isModeEnabled, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
@@ -39,7 +40,7 @@ const hasCategories = categories.length > 0;
 		<p class="page-desc">发布一篇博客文章</p>
 	</div>
 
-	<form class="blog-editor" id="blog-compose-form">
+	<div class="blog-compose" id="blog-compose-container">
 		<div class="form-group">
 			<label class="form-label" for="blog-compose-title">标题</label>
 			<input
@@ -72,17 +73,8 @@ const hasCategories = categories.length > 0;
 		}
 
 		<div class="form-group">
-			<label class="form-label" for="blog-compose-content">内容</label>
-			<textarea
-				class="form-input blog-compose-textarea"
-				id="blog-compose-content"
-				placeholder="用 Markdown 写你的文章..."
-				maxlength={POST_CONTENT_MAX_LENGTH}
-				rows="12"
-				required></textarea>
-			<span class="blog-compose-count" id="blog-char-count">
-				0/{POST_CONTENT_MAX_LENGTH}
-			</span>
+			<label class="form-label">内容</label>
+			<BlogEditor client:load />
 		</div>
 
 		<div class="form-group">
@@ -96,14 +88,11 @@ const hasCategories = categories.length > 0;
 			</select>
 		</div>
 
-		<div class="blog-editor-footer">
+		<div class="blog-compose-footer">
 			<a href="/blog" class="btn">取消</a>
-			<button class="btn btn-primary" type="submit" id="blog-submit-btn" disabled>
-				发布文章
-			</button>
 		</div>
 		<p class="form-error" id="blog-form-error" style="display:none"></p>
-	</form>
+	</div>
 </BaseLayout>
 
 <style>
@@ -127,7 +116,7 @@ const hasCategories = categories.length > 0;
 	}
 
 	/* 编辑器 */
-	.blog-editor {
+	.blog-compose {
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-4);
@@ -138,21 +127,7 @@ const hasCategories = categories.length > 0;
 		font-weight: 600;
 	}
 
-	.blog-compose-textarea {
-		min-height: 300px;
-		resize: vertical;
-		font-family: monospace;
-	}
-
-	.blog-compose-count {
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-		margin-top: var(--spacing-1);
-		display: block;
-		text-align: right;
-	}
-
-	.blog-editor-footer {
+	.blog-compose-footer {
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--spacing-3);
@@ -166,40 +141,24 @@ const hasCategories = categories.length > 0;
 	 * 博客写文章页面客户端脚本
 	 *
 	 * 处理博客文章的发布功能：
-	 * - 标题和内容必填校验
-	 * - 字数统计实时更新
+	 * - 从 BlogEditor React Island 获取 Markdown 内容
+	 * - 标题必填校验
 	 * - 表单提交调用 actions.createPost（mode=blog）
 	 * - 发布成功后跳转到文章详情页
 	 */
 	import { actions } from 'astro:actions';
 
-	const form = document.getElementById('blog-compose-form') as HTMLFormElement | null;
-	if (form) {
-		const titleInput = form.querySelector('#blog-compose-title') as HTMLInputElement;
-		const textarea = form.querySelector('#blog-compose-content') as HTMLTextAreaElement;
-		const categorySelect = form.querySelector(
+	const container = document.getElementById('blog-compose-container');
+	if (container) {
+		const titleInput = container.querySelector('#blog-compose-title') as HTMLInputElement;
+		const categorySelect = container.querySelector(
 			'#blog-compose-category'
 		) as HTMLSelectElement | null;
-		const visibilitySelect = form.querySelector(
+		const visibilitySelect = container.querySelector(
 			'#blog-compose-visibility'
 		) as HTMLSelectElement;
-		const charCount = form.querySelector('#blog-char-count') as HTMLSpanElement;
-		const submitBtn = form.querySelector('#blog-submit-btn') as HTMLButtonElement;
-		const formError = form.querySelector('#blog-form-error') as HTMLParagraphElement;
+		const formError = container.querySelector('#blog-form-error') as HTMLParagraphElement;
 		const CONTENT_MAX_LENGTH = 1000;
-		let loading = false;
-
-		/**
-		 * 更新字数统计和按钮状态
-		 */
-		function updateUI(): void {
-			const len = textarea.value.length;
-			const isNearLimit = len > CONTENT_MAX_LENGTH * 0.9;
-			charCount.textContent = `${len}/${CONTENT_MAX_LENGTH}`;
-			charCount.className = `blog-compose-count${isNearLimit ? ' text-danger' : ''}`;
-			submitBtn.disabled = loading || !textarea.value.trim() || !titleInput.value.trim();
-			submitBtn.textContent = loading ? '发布中...' : '发布文章';
-		}
 
 		/**
 		 * 显示错误信息
@@ -211,17 +170,16 @@ const hasCategories = categories.length > 0;
 			formError.style.display = '';
 		}
 
-		// 输入事件
-		textarea.addEventListener('input', updateUI);
-		titleInput.addEventListener('input', updateUI);
-
-		// 表单提交
-		form.addEventListener('submit', async (e: Event) => {
-			e.preventDefault();
-			if (loading) return;
-
+		/**
+		 * 监听 BlogEditor 的提交事件
+		 *
+		 * BlogEditor 的 onSubmit 回调会将 Markdown 内容传给此函数。
+		 * 通过自定义事件 blog-editor-submit 传递内容。
+		 */
+		container.addEventListener('blog-editor-submit', async (e: Event) => {
+			const customEvent = e as CustomEvent;
+			const content = customEvent.detail as string;
 			const title = titleInput.value.trim();
-			const content = textarea.value.trim();
 			const categoryId = categorySelect?.value || '';
 
 			if (!title) {
@@ -237,8 +195,6 @@ const hasCategories = categories.length > 0;
 				return;
 			}
 
-			loading = true;
-			updateUI();
 			formError.style.display = 'none';
 
 			try {
@@ -266,9 +222,6 @@ const hasCategories = categories.length > 0;
 				window.location.href = `/${post.user.username}/${post.id}`;
 			} catch {
 				showError('网络错误，请稍后重试');
-			} finally {
-				loading = false;
-				updateUI();
 			}
 		});
 	}

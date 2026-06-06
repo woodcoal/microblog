@@ -1,0 +1,653 @@
+---
+/**
+ * 论坛编辑器组件（Astro 组件 + <script> 实现交互）
+ *
+ * 提供简易 Markdown 编辑功能：
+ * - 工具栏按钮：标题(H1-H3)、粗体、斜体、删除线、列表(有序/无序)、引用、代码块、链接、图片
+ * - 点击工具栏按钮在 textarea 中插入对应 Markdown 语法
+ * - 实时预览区域（可切换"编辑/预览/分屏"模式）
+ * - 预览使用 renderFullMarkdown 渲染
+ * - 字数统计
+ * - 图片上传按钮
+ *
+ * @property initialContent - 初始内容（编辑时预填充）
+ * @property maxLength - 内容最大长度
+ * @property categoryId - 所属版块 ID（发布时自动填充）
+ * @property formId - 外层表单 ID，用于绑定提交事件
+ * @property submitLabel - 提交按钮文字
+ */
+import { renderFullMarkdown } from '@/lib/markdown';
+import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+
+interface Props {
+	initialContent?: string;
+	maxLength?: number;
+	categoryId?: string;
+	formId?: string;
+	submitLabel?: string;
+}
+
+const {
+	initialContent = '',
+	maxLength = POST_CONTENT_MAX_LENGTH,
+	categoryId = '',
+	formId = 'forum-editor-form',
+	submitLabel = '发布'
+} = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasInitialContent = initialContent.length > 0;
+---
+
+<div class="forum-editor" id={formId} data-max-length={maxLength} data-category-id={categoryId}>
+	{/* 工具栏 */}
+	<div class="forum-editor-toolbar">
+		<div class="forum-editor-toolbar-group">
+			{/* 标题下拉 */}
+			<button type="button" class="forum-editor-btn" data-action="h1" title="一级标题">
+				H1
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="h2" title="二级标题">
+				H2
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="h3" title="三级标题">
+				H3
+			</button>
+		</div>
+		<div class="forum-editor-toolbar-sep"></div>
+		<div class="forum-editor-toolbar-group">
+			<button type="button" class="forum-editor-btn" data-action="bold" title="粗体">
+				<strong>B</strong>
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="italic" title="斜体">
+				<em>I</em>
+			</button>
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="strikethrough"
+				title="删除线"
+			>
+				<s>S</s>
+			</button>
+		</div>
+		<div class="forum-editor-toolbar-sep"></div>
+		<div class="forum-editor-toolbar-group">
+			<button type="button" class="forum-editor-btn" data-action="ul" title="无序列表">
+				• 列表
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="ol" title="有序列表">
+				1. 列表
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="quote" title="引用">
+				❝ 引用
+			</button>
+			<button type="button" class="forum-editor-btn" data-action="code" title="代码块">
+				{'<>'}
+			</button>
+		</div>
+		<div class="forum-editor-toolbar-sep"></div>
+		<div class="forum-editor-toolbar-group">
+			<button type="button" class="forum-editor-btn" data-action="link" title="链接">
+				🔗
+			</button>
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="image-upload"
+				title="上传图片"
+			>
+				📷
+			</button>
+		</div>
+
+		{/* 视图切换 */}
+		<div class="forum-editor-view-toggle">
+			<button
+				type="button"
+				class="forum-editor-btn forum-editor-btn-active"
+				data-view="edit"
+				title="编辑模式"
+			>
+				编辑
+			</button>
+			<button type="button" class="forum-editor-btn" data-view="preview" title="预览模式">
+				预览
+			</button>
+			<button type="button" class="forum-editor-btn" data-view="split" title="分屏模式">
+				分屏
+			</button>
+		</div>
+	</div>
+
+	{/* 编辑区域 */}
+	<div class="forum-editor-body" data-view-mode="edit">
+		<div class="forum-editor-edit">
+			<textarea
+				class="form-input forum-editor-textarea"
+				placeholder="使用 Markdown 编写内容..."
+				maxlength={maxLength}
+				rows="10">{hasInitialContent ? initialContent : ''}</textarea
+			>
+		</div>
+		<div class="forum-editor-preview"></div>
+	</div>
+
+	{/* 底部：字数统计 + 提交按钮 */}
+	<div class="forum-editor-footer">
+		<span class="forum-editor-count" data-count-display>
+			{initialContent.length}/{maxLength}
+		</span>
+		<div class="forum-editor-actions">
+			<input
+				type="file"
+				accept="image/*"
+				class="forum-editor-file-input"
+				data-upload-type="image"
+				style="display:none"
+			/>
+			<button class="btn btn-primary" type="submit" disabled={!hasInitialContent}>
+				{submitLabel}
+			</button>
+		</div>
+	</div>
+	<p class="form-error" data-error-display style="display:none"></p>
+</div>
+
+<style>
+	/* 编辑器容器 */
+	.forum-editor {
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		background: var(--color-card-bg);
+	}
+
+	/* 工具栏 */
+	.forum-editor-toolbar {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.5rem 0.75rem;
+		border-bottom: 1px solid var(--color-border);
+		background: var(--color-surface);
+		flex-wrap: wrap;
+	}
+
+	.forum-editor-toolbar-group {
+		display: flex;
+		align-items: center;
+		gap: 0.125rem;
+	}
+
+	.forum-editor-toolbar-sep {
+		width: 1px;
+		height: 20px;
+		background: var(--color-border);
+		margin: 0 0.25rem;
+	}
+
+	/* 工具栏按钮 */
+	.forum-editor-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		padding: 0.25rem 0.5rem;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		font-size: 0.8125rem;
+		color: var(--color-text);
+		transition:
+			background 0.15s,
+			border-color 0.15s;
+		font-family: inherit;
+		white-space: nowrap;
+		min-width: 28px;
+	}
+
+	.forum-editor-btn:hover {
+		background: var(--color-border);
+	}
+
+	.forum-editor-btn-active {
+		background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+		border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+		color: var(--color-primary);
+	}
+
+	/* 视图切换按钮组 */
+	.forum-editor-view-toggle {
+		display: flex;
+		align-items: center;
+		gap: 0;
+		margin-left: auto;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		overflow: hidden;
+	}
+
+	.forum-editor-view-toggle .forum-editor-btn {
+		border-radius: 0;
+		border: none;
+		font-size: 0.75rem;
+		padding: 0.25rem 0.625rem;
+	}
+
+	.forum-editor-view-toggle .forum-editor-btn:not(:last-child) {
+		border-right: 1px solid var(--color-border);
+	}
+
+	/* 编辑区域 */
+	.forum-editor-body {
+		display: flex;
+		min-height: 200px;
+	}
+
+	/* 编辑模式：仅显示编辑区 */
+	.forum-editor-body[data-view-mode='edit'] .forum-editor-edit {
+		flex: 1;
+	}
+
+	.forum-editor-body[data-view-mode='edit'] .forum-editor-preview {
+		display: none;
+	}
+
+	/* 预览模式：仅显示预览区 */
+	.forum-editor-body[data-view-mode='preview'] .forum-editor-edit {
+		display: none;
+	}
+
+	.forum-editor-body[data-view-mode='preview'] .forum-editor-preview {
+		flex: 1;
+		display: block;
+	}
+
+	/* 分屏模式：左右各占一半 */
+	.forum-editor-body[data-view-mode='split'] .forum-editor-edit {
+		flex: 1;
+		border-right: 1px solid var(--color-border);
+	}
+
+	.forum-editor-body[data-view-mode='split'] .forum-editor-preview {
+		flex: 1;
+		display: block;
+	}
+
+	/* 文本输入区 */
+	.forum-editor-textarea {
+		width: 100%;
+		min-height: 200px;
+		padding: 0.75rem 1rem;
+		border: none !important;
+		border-radius: 0 !important;
+		background: transparent !important;
+		font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+		font-size: 0.875rem;
+		line-height: 1.7;
+		resize: vertical;
+		box-sizing: border-box;
+	}
+
+	.forum-editor-textarea:focus {
+		box-shadow: none !important;
+		outline: none !important;
+	}
+
+	/* 预览区 */
+	.forum-editor-preview {
+		padding: 0.75rem 1rem;
+		font-size: 0.9375rem;
+		line-height: 1.7;
+		overflow-y: auto;
+		display: none;
+	}
+
+	.forum-editor-preview :global(h1) {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(h2) {
+		font-size: 1.25rem;
+		font-weight: 700;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(h3) {
+		font-size: 1.0625rem;
+		font-weight: 600;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(blockquote) {
+		border-left: 3px solid var(--color-primary);
+		padding: 0.25rem 0.75rem;
+		margin: 0.5rem 0;
+		color: var(--color-muted);
+		background: var(--color-surface);
+		border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+	}
+
+	.forum-editor-preview :global(pre) {
+		background: var(--color-surface);
+		padding: 0.75rem;
+		border-radius: var(--radius-sm);
+		overflow-x: auto;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(code) {
+		font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+		font-size: 0.8125rem;
+	}
+
+	.forum-editor-preview :global(p code) {
+		background: var(--color-surface);
+		padding: 0.125rem 0.375rem;
+		border-radius: 3px;
+	}
+
+	.forum-editor-preview :global(img) {
+		max-width: 100%;
+		border-radius: var(--radius-sm);
+	}
+
+	.forum-editor-preview :global(ul),
+	.forum-editor-preview :global(ol) {
+		padding-left: 1.5rem;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(table) {
+		border-collapse: collapse;
+		width: 100%;
+		margin: 0.5rem 0;
+	}
+
+	.forum-editor-preview :global(th),
+	.forum-editor-preview :global(td) {
+		border: 1px solid var(--color-border);
+		padding: 0.375rem 0.75rem;
+		text-align: left;
+	}
+
+	.forum-editor-preview :global(th) {
+		background: var(--color-surface);
+		font-weight: 600;
+	}
+
+	/* 底部 */
+	.forum-editor-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 0.75rem;
+		border-top: 1px solid var(--color-border);
+		gap: 0.5rem;
+	}
+
+	.forum-editor-count {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+
+	.forum-editor-count.text-danger {
+		color: var(--color-danger);
+		font-weight: 500;
+	}
+
+	.forum-editor-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+</style>
+
+<script>
+	/**
+	 * 论坛编辑器客户端交互逻辑
+	 *
+	 * 功能：
+	 * - 工具栏按钮点击插入 Markdown 语法
+	 * - 视图切换（编辑/预览/分屏）
+	 * - 实时预览渲染
+	 * - 字数统计
+	 * - 图片上传
+	 * - 暴露 getContent() 方法供外部表单获取内容
+	 */
+	import { actions } from 'astro:actions';
+
+	// 为所有论坛编辑器绑定事件
+	document.querySelectorAll<HTMLElement>('.forum-editor').forEach((editor) => {
+		const textarea = editor.querySelector<HTMLTextAreaElement>('.forum-editor-textarea');
+		const preview = editor.querySelector<HTMLElement>('.forum-editor-preview');
+		const body = editor.querySelector<HTMLElement>('.forum-editor-body');
+		const countDisplay = editor.querySelector<HTMLSpanElement>('[data-count-display]');
+		const errorDisplay = editor.querySelector<HTMLParagraphElement>('[data-error-display]');
+		const submitBtn = editor.querySelector<HTMLButtonElement>('.btn-primary');
+		const fileInput = editor.querySelector<HTMLInputElement>('.forum-editor-file-input');
+		const maxLength = parseInt(editor.dataset.maxLength || '1000', 10);
+
+		if (!textarea || !preview || !body || !countDisplay) return;
+
+		/**
+		 * 更新字数统计和提交按钮状态
+		 */
+		function updateCount(): void {
+			const len = textarea.value.length;
+			countDisplay.textContent = `${len}/${maxLength}`;
+
+			// 超过 90% 时添加红色样式
+			const threshold = maxLength * 0.9;
+			if (len > threshold) {
+				countDisplay.classList.add('text-danger');
+			} else {
+				countDisplay.classList.remove('text-danger');
+			}
+
+			// 更新提交按钮状态
+			if (submitBtn) {
+				submitBtn.disabled = !textarea.value.trim();
+			}
+		}
+
+		/**
+		 * 渲染预览内容
+		 *
+		 * 调用服务端 API 渲染 Markdown 为 HTML。
+		 * 使用防抖避免频繁请求。
+		 */
+		let previewTimer: ReturnType<typeof setTimeout> | null = null;
+		function renderPreview(): void {
+			if (previewTimer) clearTimeout(previewTimer);
+			previewTimer = setTimeout(async () => {
+				const content = textarea.value;
+				if (!content.trim()) {
+					preview.innerHTML = '<p style="color:var(--color-muted)">暂无内容</p>';
+					return;
+				}
+				try {
+					// 调用服务端渲染 API
+					const resp = await fetch('/api/markdown-preview', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ markdown: content })
+					});
+					if (resp.ok) {
+						const data = await resp.json();
+						preview.innerHTML = data.html || '';
+					} else {
+						preview.innerHTML = '<p style="color:var(--color-danger)">预览渲染失败</p>';
+					}
+				} catch {
+					preview.innerHTML = '<p style="color:var(--color-danger)">预览渲染失败</p>';
+				}
+			}, 300);
+		}
+
+		/**
+		 * 在 textarea 中插入 Markdown 语法
+		 *
+		 * @param before - 选中文字前插入的文本
+		 * @param after - 选中文字后插入的文本
+		 * @param defaultText - 未选中文本时的默认占位文本
+		 */
+		function insertMarkdown(before: string, after: string, defaultText: string): void {
+			const start = textarea.selectionStart;
+			const end = textarea.selectionEnd;
+			const selected = textarea.value.substring(start, end);
+			const text = selected || defaultText;
+			const replacement = before + text + after;
+
+			// 使用 execCommand 保持 undo 历史
+			textarea.focus();
+			document.execCommand('insertText', false, replacement);
+
+			// 如果没有选中文本，选中占位文本方便替换
+			if (!selected) {
+				textarea.setSelectionRange(
+					start + before.length,
+					start + before.length + defaultText.length
+				);
+			}
+
+			updateCount();
+			renderPreview();
+		}
+
+		/**
+		 * 在行首插入 Markdown 语法
+		 *
+		 * @param prefix - 行首前缀
+		 */
+		function insertLinePrefix(prefix: string): void {
+			const start = textarea.selectionStart;
+			const value = textarea.value;
+
+			// 找到当前行的起始位置
+			let lineStart = value.lastIndexOf('\n', start - 1) + 1;
+			const lineEnd = value.indexOf('\n', start);
+			const currentLine = value.substring(lineStart, lineEnd === -1 ? value.length : lineEnd);
+
+			// 如果行首已有该前缀，则移除
+			if (currentLine.startsWith(prefix)) {
+				const newLine = currentLine.substring(prefix.length);
+				textarea.setSelectionRange(lineStart, lineEnd === -1 ? value.length : lineEnd);
+				document.execCommand('insertText', false, newLine);
+			} else {
+				// 在行首插入前缀
+				textarea.setSelectionRange(lineStart, lineStart);
+				document.execCommand('insertText', false, prefix);
+			}
+
+			updateCount();
+			renderPreview();
+		}
+
+		/**
+		 * 工具栏按钮操作映射
+		 *
+		 * key: data-action 值
+		 * value: 执行函数
+		 */
+		const toolbarActions: Record<string, () => void> = {
+			h1: () => insertLinePrefix('# '),
+			h2: () => insertLinePrefix('## '),
+			h3: () => insertLinePrefix('### '),
+			bold: () => insertMarkdown('**', '**', '粗体文本'),
+			italic: () => insertMarkdown('*', '*', '斜体文本'),
+			strikethrough: () => insertMarkdown('~~', '~~', '删除线文本'),
+			ul: () => insertLinePrefix('- '),
+			ol: () => insertLinePrefix('1. '),
+			quote: () => insertLinePrefix('> '),
+			code: () => insertMarkdown('\n```\n', '\n```\n', '代码'),
+			link: () => insertMarkdown('[', '](https://)', '链接文本'),
+			'image-upload': () => fileInput?.click()
+		};
+
+		// 工具栏按钮点击事件
+		editor
+			.querySelectorAll<HTMLButtonElement>('.forum-editor-btn[data-action]')
+			.forEach((btn) => {
+				btn.addEventListener('click', () => {
+					const action = btn.dataset.action;
+					if (action && toolbarActions[action]) {
+						toolbarActions[action]();
+					}
+				});
+			});
+
+		// 视图切换
+		editor
+			.querySelectorAll<HTMLButtonElement>('.forum-editor-btn[data-view]')
+			.forEach((btn) => {
+				btn.addEventListener('click', () => {
+					const view = btn.dataset.view;
+					if (!view) return;
+
+					// 更新按钮状态
+					editor.querySelectorAll('.forum-editor-btn[data-view]').forEach((b) => {
+						b.classList.remove('forum-editor-btn-active');
+					});
+					btn.classList.add('forum-editor-btn-active');
+
+					// 切换视图模式
+					body.dataset.viewMode = view;
+
+					// 切换到预览或分屏时渲染预览
+					if (view === 'preview' || view === 'split') {
+						renderPreview();
+					}
+				});
+			});
+
+		// 文本输入事件
+		textarea.addEventListener('input', () => {
+			updateCount();
+			// 编辑或分屏模式下实时更新预览
+			const mode = body.dataset.viewMode;
+			if (mode === 'split') {
+				renderPreview();
+			}
+		});
+
+		// 图片上传
+		if (fileInput) {
+			fileInput.addEventListener('change', async () => {
+				const files = fileInput.files;
+				if (!files || files.length === 0) return;
+
+				for (const file of Array.from(files)) {
+					try {
+						const result = await actions.uploadMedia({ file, fileType: 'image' });
+						if (result.data) {
+							// 在 textarea 中插入图片 Markdown
+							const imgMd = `![${file.name}](${result.data.url})`;
+							const start = textarea.selectionStart;
+							textarea.setSelectionRange(start, start);
+							document.execCommand('insertText', false, imgMd);
+							updateCount();
+							renderPreview();
+						}
+					} catch {
+						if (errorDisplay) {
+							errorDisplay.textContent = '图片上传失败';
+							errorDisplay.style.display = '';
+						}
+					}
+				}
+				// 清空 file input
+				fileInput.value = '';
+			});
+		}
+
+		// 暴露 getContent 方法供外部表单获取内容
+		(editor as any).getContent = (): string => textarea.value.trim();
+
+		// 初始化
+		updateCount();
+	});
+</script>
