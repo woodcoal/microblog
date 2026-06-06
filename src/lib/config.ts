@@ -204,3 +204,18 @@ export const MAX_GLOBAL_PINNED_POSTS = envNumber('MAX_GLOBAL_PINNED_POSTS', 3);
 
 /** 用户置顶帖上限 */
 export const MAX_USER_PINNED_POSTS = envNumber('MAX_USER_PINNED_POSTS', 1);
+
+/** 解析启用的站点模式 */
+export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo')
+	.split(',')
+	.map((m) => m.trim())
+	.filter((m): m is string => ['weibo', 'forum', 'blog'].includes(m));
+
+/** 是否启用某模式 */
+export const isModeEnabled = (mode: string): boolean => SITE_MODES.includes(mode);
+
+/** 是否为单模式站点 */
+export const isSingleMode = SITE_MODES.length === 1;
+
+/** 单模式时的模式值 */
+export const singleMode = isSingleMode ? SITE_MODES[0] : null;

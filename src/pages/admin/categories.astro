@@ -1,0 +1,528 @@
+---
+/**
+ * 管理后台 - 分类管理页面
+ *
+ * 功能：
+ * - 分类列表（两级树形结构表格）：名称、slug、模式、帖子数、排序、操作
+ * - 创建分类表单（名称、slug、模式、父分类、描述、图标、排序）
+ * - 编辑分类（内联编辑弹窗）
+ * - 删除分类（确认弹窗）
+ * - 排序（上移/下移按钮）
+ */
+import AdminLayout from '@/layouts/Admin.astro';
+import { prisma } from '@/lib/db';
+
+// 查询所有分类，按 sortOrder 排序
+const allCategories = await prisma.category.findMany({
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		_count: {
+			select: { posts: true, children: true }
+		}
+	}
+});
+
+// 构建两级树形结构
+const parentCategories = allCategories.filter((c) => !c.parentId);
+const childCategories = allCategories.filter((c) => c.parentId);
+
+// 为每个父分类挂载子分类
+const categoryTree = parentCategories.map((parent) => ({
+	...parent,
+	children: childCategories.filter((c) => c.parentId === parent.id)
+}));
+
+// 序列化数据供模板使用
+const serializedTree = categoryTree.map((parent) => ({
+	id: parent.id,
+	name: parent.name,
+	slug: parent.slug,
+	mode: parent.mode,
+	parentId: parent.parentId,
+	description: parent.description,
+	icon: parent.icon,
+	sortOrder: parent.sortOrder,
+	postCount: parent._count.posts,
+	childCount: parent._count.children,
+	createdAt: parent.createdAt.toISOString(),
+	children: parent.children.map((child) => ({
+		id: child.id,
+		name: child.name,
+		slug: child.slug,
+		mode: child.mode,
+		parentId: child.parentId,
+		description: child.description,
+		icon: child.icon,
+		sortOrder: child.sortOrder,
+		postCount: child._count.posts,
+		createdAt: child.createdAt.toISOString()
+	}))
+}));
+
+// 独立的子分类（parentId 指向的分类不存在时的容错）
+const orphanChildren = childCategories.filter(
+	(c) => !parentCategories.find((p) => p.id === c.parentId)
+);
+
+// 父分类选项（用于创建子分类时选择）
+const parentOptions = parentCategories.map((p) => ({
+	id: p.id,
+	name: p.name,
+	mode: p.mode
+}));
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasCategories = serializedTree.length > 0;
+const hasOrphans = orphanChildren.length > 0;
+---
+
+<AdminLayout title="分类管理">
+	<h1 class="admin-page-title">📂 分类管理</h1>
+
+	<!-- 创建分类表单 -->
+	<form class="admin-form" id="category-form">
+		<h2 class="admin-section-title" id="form-title">新建分类</h2>
+		<input type="hidden" name="id" id="form-id" value="" />
+		<div class="admin-form-grid">
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-name">名称 *</label>
+				<input
+					type="text"
+					class="admin-form-input"
+					id="form-name"
+					name="name"
+					required
+					placeholder="分类名称"
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-slug">Slug *</label>
+				<input
+					type="text"
+					class="admin-form-input"
+					id="form-slug"
+					name="slug"
+					required
+					placeholder="url-friendly-identifier"
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-mode">模式 *</label>
+				<select class="admin-form-select" id="form-mode" name="mode" required>
+					<option value="weibo">微博</option>
+					<option value="forum">论坛</option>
+					<option value="blog">博客</option>
+				</select>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-parentId">父分类</label>
+				<select class="admin-form-select" id="form-parentId" name="parentId">
+					<option value="">— 无（一级分组）—</option>
+					{
+						parentOptions.map((p) => (
+							<option value={p.id}>
+								{p.icon ? `${p.icon} ` : ''}
+								{p.name} ({p.mode})
+							</option>
+						))
+					}
+				</select>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-icon">图标</label>
+				<input
+					type="text"
+					class="admin-form-input"
+					id="form-icon"
+					name="icon"
+					placeholder="emoji 或图标名"
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="form-sortOrder">排序</label>
+				<input
+					type="number"
+					class="admin-form-input"
+					id="form-sortOrder"
+					name="sortOrder"
+					value="0"
+					min="0"
+				/>
+			</div>
+			<div class="admin-form-group admin-form-group-full">
+				<label class="admin-form-label" for="form-description">描述</label>
+				<textarea
+					class="admin-form-textarea"
+					id="form-description"
+					name="description"
+					placeholder="分类描述（可选）"></textarea>
+			</div>
+		</div>
+		<div class="admin-form-actions">
+			<button type="submit" class="admin-btn admin-btn-primary" id="form-submit">
+				创建分类
+			</button>
+			<button type="button" class="admin-btn" id="form-cancel" style="display:none">
+				取消编辑
+			</button>
+		</div>
+	</form>
+
+	<!-- 分类列表 -->
+	<div class="admin-table-wrapper">
+		<table class="admin-table">
+			<thead>
+				<tr>
+					<th>名称</th>
+					<th>Slug</th>
+					<th>模式</th>
+					<th>帖子数</th>
+					<th>排序</th>
+					<th>操作</th>
+				</tr>
+			</thead>
+			<tbody>
+				{
+					serializedTree.map((parent) => (
+						<Fragment>
+							<tr data-category-id={parent.id} data-is-parent="true">
+								<td>
+									<span class="admin-category-indent">
+										{parent.icon && <span>{parent.icon}</span>}
+										<strong>{parent.name}</strong>
+									</span>
+								</td>
+								<td>
+									<code class="admin-id-cell">{parent.slug}</code>
+								</td>
+								<td>
+									<span
+										class={`admin-category-mode-badge admin-category-mode-${parent.mode}`}
+									>
+										{parent.mode}
+									</span>
+								</td>
+								<td>{parent.postCount}</td>
+								<td>{parent.sortOrder}</td>
+								<td>
+									<div class="admin-actions">
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-primary"
+											data-action="edit"
+											data-id={parent.id}
+											data-name={parent.name}
+											data-slug={parent.slug}
+											data-mode={parent.mode}
+											data-description={parent.description}
+											data-icon={parent.icon}
+											data-sort-order={String(parent.sortOrder)}
+										>
+											编辑
+										</button>
+										<button
+											type="button"
+											class="admin-btn-sm"
+											data-action="move-up"
+											data-id={parent.id}
+										>
+											↑
+										</button>
+										<button
+											type="button"
+											class="admin-btn-sm"
+											data-action="move-down"
+											data-id={parent.id}
+										>
+											↓
+										</button>
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-danger"
+											data-action="delete"
+											data-id={parent.id}
+											data-name={parent.name}
+											data-child-count={String(parent.childCount)}
+											data-post-count={String(parent.postCount)}
+										>
+											删除
+										</button>
+									</div>
+								</td>
+							</tr>
+							{parent.children.map((child) => (
+								<tr class="admin-category-child" data-category-id={child.id}>
+									<td>
+										<span class="admin-category-indent">
+											<span style="color: var(--color-muted)">└</span>
+											{child.icon && <span>{child.icon}</span>}
+											<span>{child.name}</span>
+										</span>
+									</td>
+									<td>
+										<code class="admin-id-cell">{child.slug}</code>
+									</td>
+									<td>
+										<span
+											class={`admin-category-mode-badge admin-category-mode-${child.mode}`}
+										>
+											{child.mode}
+										</span>
+									</td>
+									<td>{child.postCount}</td>
+									<td>{child.sortOrder}</td>
+									<td>
+										<div class="admin-actions">
+											<button
+												type="button"
+												class="admin-btn-sm admin-btn-sm-primary"
+												data-action="edit"
+												data-id={child.id}
+												data-name={child.name}
+												data-slug={child.slug}
+												data-mode={child.mode}
+												data-description={child.description}
+												data-icon={child.icon}
+												data-sort-order={String(child.sortOrder)}
+											>
+												编辑
+											</button>
+											<button
+												type="button"
+												class="admin-btn-sm admin-btn-sm-danger"
+												data-action="delete"
+												data-id={child.id}
+												data-name={child.name}
+												data-child-count="0"
+												data-post-count={String(child.postCount)}
+											>
+												删除
+											</button>
+										</div>
+									</td>
+								</tr>
+							))}
+						</Fragment>
+					))
+				}
+				{
+					!hasCategories && (
+						<tr>
+							<td colspan="6" class="admin-empty-cell">
+								暂无分类，请使用上方表单创建
+							</td>
+						</tr>
+					)
+				}
+			</tbody>
+		</table>
+	</div>
+</AdminLayout>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	/**
+	 * 分类管理页面交互逻辑
+	 *
+	 * 处理：
+	 * - 创建/编辑分类表单提交
+	 * - 删除分类（确认弹窗）
+	 * - 排序（上移/下移）
+	 */
+
+	const form = document.getElementById('category-form') as HTMLFormElement;
+	const formId = document.getElementById('form-id') as HTMLInputElement;
+	const formName = document.getElementById('form-name') as HTMLInputElement;
+	const formSlug = document.getElementById('form-slug') as HTMLInputElement;
+	const formMode = document.getElementById('form-mode') as HTMLSelectElement;
+	const formParentId = document.getElementById('form-parentId') as HTMLSelectElement;
+	const formDescription = document.getElementById('form-description') as HTMLTextAreaElement;
+	const formIcon = document.getElementById('form-icon') as HTMLInputElement;
+	const formSortOrder = document.getElementById('form-sortOrder') as HTMLInputElement;
+	const formTitle = document.getElementById('form-title') as HTMLHeadingElement;
+	const formSubmit = document.getElementById('form-submit') as HTMLButtonElement;
+	const formCancel = document.getElementById('form-cancel') as HTMLButtonElement;
+
+	/**
+	 * 重置表单为创建模式
+	 */
+	function resetForm() {
+		formId.value = '';
+		form.reset();
+		formSortOrder.value = '0';
+		formTitle.textContent = '新建分类';
+		formSubmit.textContent = '创建分类';
+		formCancel.style.display = 'none';
+	}
+
+	/**
+	 * 表单提交处理（创建或更新分类）
+	 */
+	form.addEventListener('submit', async (e) => {
+		e.preventDefault();
+
+		const id = formId.value;
+		const data = {
+			name: formName.value,
+			slug: formSlug.value,
+			mode: formMode.value,
+			parentId: formParentId.value || undefined,
+			description: formDescription.value,
+			icon: formIcon.value,
+			sortOrder: Number(formSortOrder.value)
+		};
+
+		try {
+			if (id) {
+				// 编辑模式：调用 updateCategory
+				await actions.updateCategory({
+					id,
+					name: data.name,
+					slug: data.slug,
+					description: data.description,
+					icon: data.icon,
+					sortOrder: data.sortOrder
+				});
+			} else {
+				// 创建模式：调用 createCategory
+				await actions.createCategory(data);
+			}
+			window.location.reload();
+		} catch (err: any) {
+			await MutanDialog.alert(err?.message || '操作失败');
+		}
+	});
+
+	/**
+	 * 取消编辑
+	 */
+	formCancel.addEventListener('click', resetForm);
+
+	/**
+	 * 操作按钮委托处理（编辑、删除、上移、下移）
+	 */
+	document.addEventListener('click', async (e) => {
+		const target = e.target as HTMLElement;
+		const action = target.dataset.action;
+		if (!action) return;
+
+		const id = target.dataset.id || '';
+
+		if (action === 'edit') {
+			// 填充表单进入编辑模式
+			formId.value = id;
+			formName.value = target.dataset.name || '';
+			formSlug.value = target.dataset.slug || '';
+			formMode.value = target.dataset.mode || 'weibo';
+			formDescription.value = target.dataset.description || '';
+			formIcon.value = target.dataset.icon || '';
+			formSortOrder.value = target.dataset.sortOrder || '0';
+			formTitle.textContent = '编辑分类';
+			formSubmit.textContent = '保存修改';
+			formCancel.style.display = '';
+			// 滚动到表单
+			form.scrollIntoView({ behavior: 'smooth' });
+			return;
+		}
+
+		if (action === 'delete') {
+			const name = target.dataset.name || '';
+			const childCount = Number(target.dataset.childCount || '0');
+			const postCount = Number(target.dataset.postCount || '0');
+
+			// 有关联数据时提示
+			if (childCount > 0 || postCount > 0) {
+				const reasons: string[] = [];
+				if (postCount > 0) reasons.push(`${postCount} 篇帖子`);
+				if (childCount > 0) reasons.push(`${childCount} 个子分类`);
+				await MutanDialog.alert(
+					`无法删除「${name}」：该分类下有${reasons.join('和')}，请先移除后再删除。`
+				);
+				return;
+			}
+
+			// 确认删除
+			const confirmed = await MutanDialog.confirm(
+				`确定要删除分类「${name}」吗？此操作不可撤销。`,
+				{ title: '删除确认', danger: true }
+			);
+			if (!confirmed) return;
+
+			try {
+				await actions.deleteCategory({ id });
+				window.location.reload();
+			} catch (err: any) {
+				await MutanDialog.alert(err?.message || '删除失败');
+			}
+			return;
+		}
+
+		if (action === 'move-up' || action === 'move-down') {
+			// 获取同级分类列表，计算新排序
+			const row = target.closest('tr');
+			if (!row) return;
+			const isParent = row.dataset.isParent === 'true';
+
+			// 收集同级分类的 ID 和当前排序
+			let siblings: { id: string; sortOrder: number }[] = [];
+			if (isParent) {
+				// 一级分组：所有 parentId 为 null 的行
+				document.querySelectorAll('tr[data-is-parent="true"]').forEach((tr) => {
+					const catId = tr.dataset.categoryId || '';
+					const sortEl = tr.querySelector('td:nth-child(5)');
+					siblings.push({
+						id: catId,
+						sortOrder: Number(sortEl?.textContent?.trim() || '0')
+					});
+				});
+			} else {
+				// 二级分类：同一父分类下的行
+				const parentRow = row.previousElementSibling;
+				// 找到所有相邻的子分类行
+				let el: Element | null = row;
+				while (el?.previousElementSibling?.classList.contains('admin-category-child')) {
+					el = el.previousElementSibling;
+				}
+				// 从父分类行开始收集子分类
+				const childRows: Element[] = [];
+				let sibling: Element | null = parentRow?.nextElementSibling;
+				while (sibling?.classList.contains('admin-category-child')) {
+					childRows.push(sibling);
+					sibling = sibling.nextElementSibling;
+				}
+				siblings = childRows.map((tr) => ({
+					id: tr.dataset.categoryId || '',
+					sortOrder: Number(
+						tr.querySelector('td:nth-child(5)')?.textContent?.trim() || '0'
+					)
+				}));
+			}
+
+			// 找到当前项的索引
+			const currentIndex = siblings.findIndex((s) => s.id === id);
+			if (currentIndex === -1) return;
+
+			// 交换排序值
+			const swapIndex = action === 'move-up' ? currentIndex - 1 : currentIndex + 1;
+			if (swapIndex < 0 || swapIndex >= siblings.length) return;
+
+			const items = siblings.map((s, i) => ({
+				id: s.id,
+				sortOrder: i
+			}));
+			// 交换
+			[items[currentIndex].sortOrder, items[swapIndex].sortOrder] = [
+				items[swapIndex].sortOrder,
+				items[currentIndex].sortOrder
+			];
+
+			try {
+				await actions.reorderCategories({ items });
+				window.location.reload();
+			} catch (err: any) {
+				await MutanDialog.alert(err?.message || '排序失败');
+			}
+		}
+	});
+</script>
