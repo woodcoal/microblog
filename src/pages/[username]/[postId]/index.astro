@@ -1251,4 +1251,34 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			}
 		});
 	}
+
+	/**
+	 * 浏览行为追踪（Gorse read feedback）
+	 *
+	 * 用户查看帖子详情页时，异步发送浏览记录到 Gorse 推荐引擎。
+	 * 浏览反馈用于去重：已看过的帖子不再推荐给该用户。
+	 * 仅登录用户触发，失败静默不影响页面。
+	 */
+	(async () => {
+		const token = localStorage.getItem('token');
+		if (!token) return;
+
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+		if (!postId) return;
+
+		try {
+			await fetch('/api/recommend/read', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${token}`
+				},
+				body: JSON.stringify({ postId })
+			});
+		} catch {
+			// 静默失败
+		}
+	})();
 </script>

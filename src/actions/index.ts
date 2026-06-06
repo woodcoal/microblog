@@ -32,6 +32,15 @@ import { VALID_VISIBILITIES, type Visibility } from '@/lib/visibility';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
 import { generateSecret, VALID_WEBHOOK_EVENTS } from '@/lib/webhook';
 import { generateApiToken, hashToken } from '@/lib/token';
+import {
+	insertFeedback,
+	deleteFeedback,
+	upsertItem,
+	hideItem,
+	FEEDBACK_TYPE_LIKE,
+	FEEDBACK_TYPE_BOOKMARK,
+	FEEDBACK_TYPE_COMMENT
+} from '@/lib/gorse';
 
 /** 需要从帖子响应中排除的敏感字段 */
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
@@ -133,6 +142,10 @@ const toggleLike = defineAction({
 						post.userId,
 						targetId
 					).catch(() => {});
+					// 同步删除 Gorse 点赞反馈（异步，不阻塞）
+					deleteFeedback(currentUser.userId, targetId, FEEDBACK_TYPE_LIKE).catch(
+						() => {}
+					);
 				}
 			} else {
 				const comment = await prisma.comment.findUnique({
@@ -181,6 +194,13 @@ const toggleLike = defineAction({
 						targetId,
 						post.userId,
 						targetId
+					).catch(() => {});
+					// 同步插入 Gorse 点赞反馈（异步，不阻塞）
+					insertFeedback(
+						currentUser.userId,
+						targetId,
+						FEEDBACK_TYPE_LIKE,
+						new Date().toISOString()
 					).catch(() => {});
 				}
 			} else {
@@ -637,6 +657,21 @@ const createPost = defineAction({
 			post.id
 		).catch(() => {});
 
+		// 同步帖子到 Gorse 推荐引擎（异步，不阻塞）
+		const gorseCategories: string[] = [];
+		if (fullPost?.category?.slug) gorseCategories.push(fullPost.category.slug);
+		if (fullPost?.tags) fullPost.tags.forEach((pt: any) => gorseCategories.push(pt.tag.name));
+		upsertItem(post.id, {
+			isDeleted: false,
+			categories: gorseCategories,
+			labels: {
+				mode: postMode,
+				tags: fullPost?.tags?.map((pt: any) => pt.tag.name) ?? []
+			},
+			timestamp: post.createdAt.toISOString(),
+			comment: title?.trim() || content.trim().slice(0, 100)
+		}).catch(() => {});
+
 		return sanitizePost(fullPost || post);
 	}
 });
@@ -1020,6 +1055,21 @@ const updatePost = defineAction({
 			() => {}
 		);
 
+		// 同步更新帖子到 Gorse 推荐引擎（异步，不阻塞）
+		const gorseCategories: string[] = [];
+		if (updated.category?.slug) gorseCategories.push(updated.category.slug);
+		if (updated.tags) updated.tags.forEach((pt: any) => gorseCategories.push(pt.tag.name));
+		upsertItem(postId, {
+			isDeleted: false,
+			categories: gorseCategories,
+			labels: {
+				mode: postMode,
+				tags: updated.tags?.map((pt: any) => pt.tag.name) ?? []
+			},
+			timestamp: updated.updatedAt.toISOString(),
+			comment: updated.title || updated.content.slice(0, 100)
+		}).catch(() => {});
+
 		return sanitizePost(updated);
 	}
 });
@@ -1081,6 +1131,9 @@ const deletePost = defineAction({
 		logActivity(POST_DELETE, currentUser.userId, 'post', postId, post.userId, postId).catch(
 			() => {}
 		);
+
+		// 在 Gorse 中隐藏帖子（异步，不阻塞）
+		hideItem(postId).catch(() => {});
 
 		return { id: postId };
 	}
@@ -1189,6 +1242,13 @@ const createComment = defineAction({
 			comment.id,
 			post.userId,
 			postId
+		).catch(() => {});
+		// 同步插入 Gorse 评论反馈（异步，不阻塞）
+		insertFeedback(
+			currentUser.userId,
+			postId,
+			FEEDBACK_TYPE_COMMENT,
+			new Date().toISOString()
 		).catch(() => {});
 
 		return {
@@ -1340,6 +1400,8 @@ const toggleBookmark = defineAction({
 				post.userId,
 				postId
 			).catch(() => {});
+			// 同步删除 Gorse 收藏反馈（异步，不阻塞）
+			deleteFeedback(currentUser.userId, postId, FEEDBACK_TYPE_BOOKMARK).catch(() => {});
 		} else {
 			// 未收藏 → 收藏：使用 upsert 避免竞态，已存在则忽略
 			await prisma.bookmark.upsert({
@@ -1365,6 +1427,13 @@ const toggleBookmark = defineAction({
 				postId,
 				post.userId,
 				postId
+			).catch(() => {});
+			// 同步插入 Gorse 收藏反馈（异步，不阻塞）
+			insertFeedback(
+				currentUser.userId,
+				postId,
+				FEEDBACK_TYPE_BOOKMARK,
+				new Date().toISOString()
 			).catch(() => {});
 		}
 

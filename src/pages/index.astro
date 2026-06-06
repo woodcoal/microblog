@@ -16,6 +16,7 @@ import { calculateTrendingScore } from '@/lib/trending';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isSingleMode, singleMode } from '@/lib/config';
+import { isGorseEnabled } from '@/lib/gorse';
 
 // 单模式时直接重定向到该模式首页
 if (isSingleMode && singleMode) {
@@ -129,6 +130,7 @@ const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
+const gorseEnabled = isGorseEnabled() && !!currentUser;
 ---
 
 <BaseLayout title="首页">
@@ -199,6 +201,16 @@ const hasPagination = totalPages > 1;
 		)
 	}
 
+	{/* 猜你喜欢 - Gorse 个性化推荐 */}
+	{
+		gorseEnabled && (
+			<section class="recommend-section" id="recommend-section" style="display:none">
+				<h2 class="recommend-title">猜你喜欢</h2>
+				<div class="recommend-list" id="recommend-list" />
+			</section>
+		)
+	}
+
 	{/* 分页导航 */}
 	{
 		hasPagination && (
@@ -228,3 +240,153 @@ const hasPagination = totalPages > 1;
 		)
 	}
 </BaseLayout>
+
+<style>
+	/* 猜你喜欢 - 个性化推荐区域样式 */
+	.recommend-section {
+		margin-top: 2rem;
+		padding-top: 1.5rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.recommend-title {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin-bottom: 1rem;
+		color: var(--color-text);
+	}
+	.recommend-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+	.recommend-item {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		padding: 0.75rem;
+		background: var(--color-surface);
+		border-radius: 0.5rem;
+		text-decoration: none;
+		color: var(--color-text);
+		transition: background 0.2s;
+	}
+	.recommend-item:hover {
+		background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+	}
+	.recommend-item-avatar {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.recommend-item-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.75rem;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	.recommend-item-content {
+		flex: 1;
+		min-width: 0;
+	}
+	.recommend-item-title {
+		font-size: 0.875rem;
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.recommend-item-meta {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+		margin-top: 0.125rem;
+	}
+</style>
+
+<script>
+	/**
+	 * 个性化推荐加载逻辑
+	 *
+	 * 页面加载后异步请求 /api/recommend 获取推荐帖子，
+	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
+	 * 仅在推荐区域存在时执行（Gorse 已启用且用户已登录）。
+	 */
+	(async () => {
+		const section = document.getElementById('recommend-section');
+		const list = document.getElementById('recommend-list');
+		if (!section || !list) return;
+
+		const token = localStorage.getItem('token');
+		if (!token) return;
+
+		try {
+			const res = await fetch('/api/recommend?n=5', {
+				headers: token ? { Authorization: `Bearer ${token}` } : undefined
+			});
+			const data = await res.json();
+
+			if (!data.success || !data.data?.items?.length) {
+				// 无推荐结果，不显示区域
+				return;
+			}
+
+			const items = data.data.items;
+			const fragment = document.createDocumentFragment();
+
+			for (const item of items) {
+				const a = document.createElement('a');
+				a.href = `/${item.user.username}/${item.id}`;
+				a.className = 'recommend-item';
+
+				// 头像
+				if (item.user.avatarUrl) {
+					const img = document.createElement('img');
+					img.src = item.user.avatarUrl;
+					img.alt = item.user.displayName;
+					img.className = 'recommend-item-avatar';
+					img.loading = 'lazy';
+					a.appendChild(img);
+				} else {
+					const span = document.createElement('span');
+					span.className = 'recommend-item-avatar-placeholder';
+					span.textContent = item.user.displayName.charAt(0).toUpperCase();
+					a.appendChild(span);
+				}
+
+				// 内容区
+				const contentDiv = document.createElement('div');
+				contentDiv.className = 'recommend-item-content';
+
+				const titleDiv = document.createElement('div');
+				titleDiv.className = 'recommend-item-title';
+				// 有标题用标题，否则用内容前 80 字符
+				titleDiv.textContent =
+					item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
+
+				const metaDiv = document.createElement('div');
+				metaDiv.className = 'recommend-item-meta';
+				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+				metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+				contentDiv.appendChild(titleDiv);
+				contentDiv.appendChild(metaDiv);
+				a.appendChild(contentDiv);
+				fragment.appendChild(a);
+			}
+
+			list.appendChild(fragment);
+			section.style.display = '';
+		} catch {
+			// 静默失败，不显示推荐区域
+		}
+	})();
+</script>

@@ -223,3 +223,9 @@ export const isSingleMode = SITE_MODES.length === 1;
 
 /** 单模式时的模式值 */
 export const singleMode = isSingleMode ? SITE_MODES[0] : null;
+
+/** Gorse 推荐引擎 API 地址（未设置时全局停用推荐功能） */
+export const GORSE_ENDPOINT = getEnv('GORSE_ENDPOINT') ?? '';
+
+/** Gorse 推荐引擎 API 密钥（可选，Gorse 配置了 api_key 时填写） */
+export const GORSE_API_KEY = getEnv('GORSE_API_KEY') ?? '';
