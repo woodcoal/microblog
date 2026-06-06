@@ -169,7 +169,7 @@ export async function saveFile(
 	// 确定文件名：图片用哈希+扩展名，附件用哈希前缀+原始文件名避免冲突
 	const fileName =
 		fileType === 'image' ? `${md5Hash}.${ext}` : `${md5Hash.slice(0, 8)}_${originalName}`;
-	const filePath = join(subDir, fileName);
+	const filePath = join(subDir, fileName).split('\\').join('/');
 
 	// 写入物理文件
 	await writeFile(join(dir, fileName), Buffer.from(arrayBuffer));

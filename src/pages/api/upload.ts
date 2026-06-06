@@ -49,12 +49,12 @@ export const POST: APIRoute = async (context) => {
 		// 3. 调用 saveFile 保存文件
 		const { fileStorage } = await saveFile(file, fileType as 'image' | 'attachment');
 
-		// 4. 返回文件信息
+		// 4. 返回文件信息（filePath 中的反斜杠替换为正斜杠，确保 URL 在所有平台正确）
 		return new Response(
 			JSON.stringify(
 				successResponse({
 					id: fileStorage.id,
-					url: `/uploads/${fileStorage.filePath}`,
+					url: `/uploads/${fileStorage.filePath.split('\\').join('/')}`,
 					fileType: fileStorage.fileType,
 					originalName: file.name,
 					fileSize: fileStorage.fileSize

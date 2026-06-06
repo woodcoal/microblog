@@ -705,8 +705,8 @@ const MAX_IMAGES = 9;
 
 			return new Promise((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
-				// Astro Actions 的 RPC 端点
-				xhr.open('POST', '/_actions/uploadMedia');
+				// 使用 /api/upload 端点（标准 JSON 响应，无 SuperJSON 问题）
+				xhr.open('POST', '/api/upload');
 
 				// 追踪上传进度
 				xhr.upload.onprogress = (e) => {
@@ -718,15 +718,18 @@ const MAX_IMAGES = 9;
 
 				xhr.onload = () => {
 					try {
-						const data = JSON.parse(xhr.responseText);
-						if (data.success) {
-							uploadedFiles.push(data.data);
+						const json = JSON.parse(xhr.responseText);
+						if (json.success && json.data && json.data.url) {
+							uploadedFiles.push(json.data);
 							renderPreviews();
 							updateUploadUI();
 							resolve();
+						} else if (json.error) {
+							showError(json.error?.message || '上传失败');
+							reject(new Error(json.error?.message));
 						} else {
-							showError(data.error?.message || '上传失败');
-							reject(new Error(data.error?.message));
+							showError('上传失败');
+							reject(new Error('上传失败'));
 						}
 					} catch {
 						showError('上传失败');

@@ -70,8 +70,8 @@ interface DraftData {
 /**
  * 上传图片到服务器
  *
- * 使用原生 FormData + fetch 调用 Astro Actions 的 uploadMedia 端点，
- * 避免 RPC 调用无法正确序列化 File 对象的问题。
+ * 使用原生 FormData + fetch 调用 /api/upload 端点，
+ * 返回标准 JSON 格式，无需 SuperJSON 反序列化。
  *
  * @param file - 要上传的图片文件
  * @returns 上传成功后的图片 URL，失败返回 null
@@ -82,13 +82,13 @@ async function uploadImage(file: File): Promise<string | null> {
 	formData.append('fileType', 'image');
 
 	try {
-		const res = await fetch('/_actions/uploadMedia', {
+		const res = await fetch('/api/upload', {
 			method: 'POST',
 			body: formData
 		});
-		const data = await res.json();
-		if (data.success && data.data) {
-			return data.data.url as string;
+		const json = await res.json();
+		if (json.success && json.data && json.data.url) {
+			return json.data.url as string;
 		}
 		return null;
 	} catch {
@@ -371,6 +371,17 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 		container.addEventListener('blog-editor-clear-draft', clearDraft);
 		return () => container.removeEventListener('blog-editor-clear-draft', clearDraft);
 	}, [clearDraft]);
+
+	/**
+	 * 组件卸载时清理草稿自动保存定时器，防止内存泄漏
+	 */
+	useEffect(() => {
+		return () => {
+			if (draftTimerRef.current) {
+				clearTimeout(draftTimerRef.current);
+			}
+		};
+	}, []);
 
 	/**
 	 * 处理文件选择变化时上传图片

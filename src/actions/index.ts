@@ -1473,12 +1473,22 @@ const uploadMedia = defineAction({
 		const { file, fileType = 'image' } = input;
 
 		// 2. 调用 saveFile 保存文件（含去重、大小校验、类型校验）
-		const { fileStorage } = await saveFile(file, fileType);
+		let fileStorage;
+		try {
+			const result = await saveFile(file, fileType);
+			fileStorage = result.fileStorage;
+		} catch (err: any) {
+			// saveFile 抛出的业务错误（文件类型不允许、大小超限等）转为 ActionError
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: err.message || '文件上传失败'
+			});
+		}
 
-		// 3. 返回文件信息
+		// 3. 返回文件信息（filePath 中的反斜杠替换为正斜杠，确保 URL 在所有平台正确）
 		return {
 			id: fileStorage.id,
-			url: `/uploads/${fileStorage.filePath}`,
+			url: `/uploads/${fileStorage.filePath.split('\\').join('/')}`,
 			fileType: fileStorage.fileType,
 			originalName: file.name,
 			fileSize: fileStorage.fileSize

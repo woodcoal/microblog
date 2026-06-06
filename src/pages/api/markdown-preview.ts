@@ -41,7 +41,10 @@ export const POST: APIRoute = async (context) => {
 		// 渲染 Markdown 为 HTML
 		const html = renderFullMarkdown(markdown);
 
-		return successResponse({ html });
+		return new Response(JSON.stringify(successResponse({ html })), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	} catch {
 		return jsonErrorResponse('渲染失败', 500);
 	}

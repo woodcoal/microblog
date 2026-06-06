@@ -423,8 +423,8 @@ const hasInitialContent = initialContent.length > 0;
 	/**
 	 * 上传图片文件到服务器
 	 *
-	 * 使用原生 FormData + fetch 调用 Astro Actions 的 uploadMedia 端点，
-	 * 避免 RPC 调用无法正确序列化 File 对象导致 415 错误。
+	 * 使用原生 FormData + fetch 调用 /api/upload 端点，
+	 * 返回标准 JSON 格式，无需 SuperJSON 反序列化。
 	 *
 	 * @param file - 要上传的图片文件
 	 * @returns 上传成功后的图片 URL，失败返回 null
@@ -434,13 +434,13 @@ const hasInitialContent = initialContent.length > 0;
 		formData.append('file', file);
 		formData.append('fileType', 'image');
 		try {
-			const res = await fetch('/_actions/uploadMedia', {
+			const res = await fetch('/api/upload', {
 				method: 'POST',
 				body: formData
 			});
-			const data = await res.json();
-			if (data.success && data.data) {
-				return data.data.url as string;
+			const json = await res.json();
+			if (json.success && json.data && json.data.url) {
+				return json.data.url as string;
 			}
 			return null;
 		} catch {
@@ -664,11 +664,15 @@ const hasInitialContent = initialContent.length > 0;
 						try {
 							const url = await uploadImageFile(file);
 							if (url) {
-								// 插入 Markdown 图片语法，使用 execCommand 保持 undo 历史
+								// 插入 Markdown 图片语法
 								const imgMd = `![${file.name}](${url})`;
 								const start = textarea.selectionStart;
-								textarea.setSelectionRange(start, start);
-								document.execCommand('insertText', false, imgMd);
+								const end = textarea.selectionEnd;
+								const value = textarea.value;
+								textarea.value = value.slice(0, start) + imgMd + value.slice(end);
+								textarea.selectionStart = start + imgMd.length;
+								textarea.selectionEnd = start + imgMd.length;
+								textarea.focus();
 								updateCount();
 								renderPreview();
 							}
@@ -696,8 +700,12 @@ const hasInitialContent = initialContent.length > 0;
 							// 在 textarea 中插入图片 Markdown
 							const imgMd = `![${file.name}](${url})`;
 							const start = textarea.selectionStart;
-							textarea.setSelectionRange(start, start);
-							document.execCommand('insertText', false, imgMd);
+							const end = textarea.selectionEnd;
+							const value = textarea.value;
+							textarea.value = value.slice(0, start) + imgMd + value.slice(end);
+							textarea.selectionStart = start + imgMd.length;
+							textarea.selectionEnd = start + imgMd.length;
+							textarea.focus();
 							updateCount();
 							renderPreview();
 						}
