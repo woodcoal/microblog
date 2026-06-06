@@ -79,6 +79,7 @@ interface Props {
 	query: string;
 	sort: 'latest' | 'popular';
 	modeFilter?: string;
+	categoryIdFilter?: string;
 	posts: PostResult[];
 	nextPostsCursor: string | null;
 	users: UserResult[];
@@ -91,6 +92,7 @@ const {
 	query,
 	sort,
 	modeFilter = 'all',
+	categoryIdFilter = '',
 	posts,
 	nextPostsCursor,
 	users,
@@ -104,6 +106,9 @@ const hasPosts = posts.length > 0;
 const hasMorePosts = !!nextPostsCursor;
 const hasUsers = users.length > 0;
 const hasMoreUsers = !!nextUsersCursor;
+
+/** 构建帖子分页链接，保持所有筛选参数 */
+const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&mode=${modeFilter}${categoryIdFilter ? `&categoryId=${categoryIdFilter}` : ''}`;
 ---
 
 {
@@ -228,7 +233,7 @@ const hasMoreUsers = !!nextUsersCursor;
 
 					{hasMorePosts && (
 						<a
-							href={`/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&mode=${modeFilter}&cursor=${nextPostsCursor}`}
+							href={`${postsPaginationBase}&cursor=${nextPostsCursor}`}
 							class="btn btn-outline load-more-btn"
 						>
 							加载更多

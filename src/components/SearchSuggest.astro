@@ -2,9 +2,9 @@
 /**
  * 搜索建议下拉组件（Astro 原生版本）
  *
- * 根据用户输入实时展示标签和用户建议。
+ * 根据用户输入实时展示标签、用户和分类建议。
  * 当搜索框输入变化时，防抖 300ms 后调用 searchSuggest Action，
- * 展示匹配的标签和用户列表，支持 Escape 关闭和点击外部关闭。
+ * 展示匹配的标签、用户和分类列表，支持 Escape 关闭和点击外部关闭。
  */
 
 /**
@@ -31,6 +31,12 @@ const { initialQuery = '' } = Astro.props;
 			<div class="search-suggest-tags"></div>
 		</div>
 
+		{/* 分类建议区 */}
+		<div class="search-suggest-section" data-section="categories" style="display:none;">
+			<div class="search-suggest-section-title">分类</div>
+			<div class="search-suggest-categories"></div>
+		</div>
+
 		{/* 用户建议区 */}
 		<div class="search-suggest-section" data-section="users" style="display:none;">
 			<div class="search-suggest-section-title">用户</div>
@@ -44,7 +50,7 @@ const { initialQuery = '' } = Astro.props;
 	 * 搜索建议客户端交互逻辑
 	 *
 	 * 监听搜索框 input 事件，防抖 300ms 后调用 actions.searchSuggest。
-	 * 展示匹配的标签和用户列表，支持 Escape 关闭和点击外部关闭。
+	 * 展示匹配的标签、用户和分类列表，支持 Escape 关闭和点击外部关闭。
 	 */
 	import { actions } from 'astro:actions';
 
@@ -56,16 +62,24 @@ const { initialQuery = '' } = Astro.props;
 		const loadingEl = container.querySelector<HTMLElement>('.search-suggest-loading');
 		const resultsEl = container.querySelector<HTMLElement>('.search-suggest-results');
 		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]');
+		const categoriesSection = container.querySelector<HTMLElement>(
+			'[data-section="categories"]'
+		);
 		const usersSection = container.querySelector<HTMLElement>('[data-section="users"]');
 		const tagsContainer = container.querySelector<HTMLElement>('.search-suggest-tags');
+		const categoriesContainer = container.querySelector<HTMLElement>(
+			'.search-suggest-categories'
+		);
 		const usersContainer = container.querySelector<HTMLElement>('.search-suggest-users');
 
 		if (
 			!loadingEl ||
 			!resultsEl ||
 			!tagsSection ||
+			!categoriesSection ||
 			!usersSection ||
 			!tagsContainer ||
+			!categoriesContainer ||
 			!usersContainer
 		)
 			return;
@@ -110,6 +124,37 @@ const { initialQuery = '' } = Astro.props;
 					(tag) =>
 						`<a href="/tags/${encodeURIComponent(tag.name)}" class="search-suggest-tag">#${tag.name}#</a>`
 				)
+				.join('');
+		}
+
+		/**
+		 * 渲染分类建议列表
+		 *
+		 * @param categories - 分类数组
+		 */
+		function renderCategories(
+			categories: Array<{
+				id: string;
+				name: string;
+				slug: string;
+				mode: string;
+				icon: string;
+				parentId: string | null;
+			}>
+		) {
+			if (categories.length === 0) {
+				categoriesSection.style.display = 'none';
+				return;
+			}
+			categoriesSection.style.display = '';
+			categoriesContainer.innerHTML = categories
+				.map((cat) => {
+					/** 分类模式标签 */
+					const modeLabel =
+						cat.mode === 'forum' ? '论坛' : cat.mode === 'blog' ? '博客' : '微博';
+					const icon = cat.icon ? cat.icon + ' ' : '';
+					return `<a href="/search?q=&tab=posts&mode=${cat.mode}&categoryId=${cat.id}" class="search-suggest-category">${icon}${cat.name} <span class="search-suggest-category-mode">${modeLabel}</span></a>`;
+				})
 				.join('');
 		}
 
@@ -167,20 +212,25 @@ const { initialQuery = '' } = Astro.props;
 				// 防抖 300ms 后发起请求
 				timer = setTimeout(async () => {
 					try {
-						const result = await actions.searchSuggest({ q: query });
+						const result = await actions.searchSuggest({ query });
 
 						if (result.data) {
-							const { tags, users } = result.data;
+							const { tags, users, categories } = result.data;
 							loadingEl.style.display = 'none';
 
 							// 无结果时隐藏
-							if (tags.length === 0 && users.length === 0) {
+							if (
+								tags.length === 0 &&
+								users.length === 0 &&
+								categories.length === 0
+							) {
 								hide();
 								return;
 							}
 
 							resultsEl.style.display = '';
 							renderTags(tags);
+							renderCategories(categories);
 							renderUsers(users);
 							show();
 						} else {

@@ -367,8 +367,8 @@ const createPost = defineAction({
 			input;
 
 		// 校验 mode 合法性：默认 weibo，必须是 weibo/forum/blog 之一
-		const postMode = (mode || 'weibo') as string;
-		if (!VALID_MODES.includes(postMode as any)) {
+		const postMode = (mode || 'weibo') as (typeof VALID_MODES)[number];
+		if (!VALID_MODES.includes(postMode)) {
 			throw new ActionError({
 				code: 'BAD_REQUEST',
 				message: `无效的帖子模式，仅支持: ${VALID_MODES.join(', ')}`
@@ -731,9 +731,9 @@ const updatePost = defineAction({
 		}
 
 		// 校验 mode/title/categoryId（如果传了 mode）
-		const postMode = mode || post.mode;
+		const postMode = (mode || post.mode) as (typeof VALID_MODES)[number];
 		if (mode !== undefined) {
-			if (!VALID_MODES.includes(postMode as any)) {
+			if (!VALID_MODES.includes(postMode)) {
 				throw new ActionError({
 					code: 'BAD_REQUEST',
 					message: `无效的帖子模式，仅支持: ${VALID_MODES.join(', ')}`
@@ -1517,27 +1517,29 @@ const updateTheme = defineAction({
 /**
  * 搜索建议 Action
  *
- * 根据关键词前缀返回匹配的标签和用户，用于搜索框自动补全。
- * 标签按帖子数降序排列，用户按粉丝数降序排列，每类最多 5 条。
+ * 根据关键词前缀返回匹配的标签、用户和分类，用于搜索框自动补全。
+ * 标签按帖子数降序排列，用户按粉丝数降序排列，分类按 mode 分组，每类最多 limit 条。
+ * 不需要认证。
  *
- * @param input - { q: 搜索关键词 }
- * @returns 标签和用户的搜索建议
+ * @param input - { query: 搜索关键词, limit?: 每类最大返回条数（默认 5） }
+ * @returns 标签、用户和分类的搜索建议
  */
 const searchSuggest = defineAction({
 	input: z.object({
-		q: z.string().min(1, '搜索关键词不能为空')
+		query: z.string().min(1, '搜索关键词不能为空'),
+		limit: z.number().int().min(1).max(20).optional()
 	}),
 	handler: async (input) => {
-		const { q } = input;
-		/** 每类返回的最大条数 */
-		const MAX_SUGGESTIONS = 5;
+		const { query, limit } = input;
+		/** 每类返回的最大条数，默认 5 */
+		const MAX_SUGGESTIONS = limit ?? 5;
 
-		// 并行查询标签和用户
-		const [tags, users] = await Promise.all([
-			// 查询标签：名称包含关键词、未隐藏、按帖子数降序、最多 5 条
+		// 并行查询标签、用户和分类
+		const [tags, users, categories] = await Promise.all([
+			// 查询标签：名称包含关键词、未隐藏、按帖子数降序、最多 MAX_SUGGESTIONS 条
 			prisma.tag.findMany({
 				where: {
-					name: { contains: q },
+					name: { contains: query },
 					isHidden: false
 				},
 				orderBy: { posts: { _count: 'desc' } },
@@ -1550,11 +1552,11 @@ const searchSuggest = defineAction({
 					}
 				}
 			}),
-			// 查询用户：用户名或显示名包含关键词、未禁用、按粉丝数降序、最多 5 条
+			// 查询用户：用户名或显示名包含关键词、未禁用、按粉丝数降序、最多 MAX_SUGGESTIONS 条
 			prisma.user.findMany({
 				where: {
 					isDisabled: false,
-					OR: [{ username: { contains: q } }, { displayName: { contains: q } }]
+					OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 				},
 				orderBy: { followers: { _count: 'desc' } },
 				take: MAX_SUGGESTIONS,
@@ -1563,6 +1565,22 @@ const searchSuggest = defineAction({
 					username: true,
 					displayName: true,
 					avatarUrl: true
+				}
+			}),
+			// 查询分类：名称包含关键词、按 mode 分组返回、最多 MAX_SUGGESTIONS 条
+			prisma.category.findMany({
+				where: {
+					name: { contains: query }
+				},
+				orderBy: [{ mode: 'asc' }, { sortOrder: 'asc' }],
+				take: MAX_SUGGESTIONS,
+				select: {
+					id: true,
+					name: true,
+					slug: true,
+					mode: true,
+					icon: true,
+					parentId: true
 				}
 			})
 		]);
@@ -1574,7 +1592,7 @@ const searchSuggest = defineAction({
 			postCount: tag._count.posts
 		}));
 
-		return { tags: formattedTags, users };
+		return { tags: formattedTags, users, categories };
 	}
 });
 
@@ -1996,7 +2014,7 @@ const createCategory = defineAction({
 		const { name, slug, mode, parentId, description, icon, sortOrder } = input;
 
 		// 校验 mode 必须是合法值
-		if (!VALID_MODES.includes(mode as any)) {
+		if (!VALID_MODES.includes(mode as (typeof VALID_MODES)[number])) {
 			throw new ActionError({
 				code: 'BAD_REQUEST',
 				message: `无效的模式，仅支持: ${VALID_MODES.join(', ')}`

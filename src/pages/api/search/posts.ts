@@ -4,7 +4,8 @@
  * GET /api/search/posts — 搜索帖子
  * 使用 LIKE（Prisma contains）查询搜索帖子内容，
  * 只搜索 public 且未删除的帖子，支持游标分页。
- * 包含用户信息、标签、点赞数。
+ * 包含用户信息、标签、分类、点赞数。
+ * 支持 mode 和 categoryId 过滤参数。
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
@@ -14,13 +15,16 @@ import { successResponse, jsonErrorResponse } from '@/lib/utils';
 /** 每页返回条数 */
 const PAGE_SIZE = 20;
 
+/** 合法的 mode 过滤值 */
+const VALID_MODES = ['weibo', 'forum', 'blog'];
+
 /**
  * 搜索帖子
  *
  * 流程：
- * 1. 解析查询参数（q、cursor、limit）
+ * 1. 解析查询参数（q、cursor、limit、sort、mode、categoryId）
  * 2. q 为空时返回空列表
- * 3. 构建查询条件（公开、未删除、内容包含关键词）
+ * 3. 构建查询条件（公开、未删除、内容包含关键词、mode 过滤、分类过滤）
  * 4. 执行查询并返回结果和分页信息
  *
  * @param context - Astro API 上下文
@@ -35,6 +39,11 @@ export const GET: APIRoute = async (context) => {
 		const limit = limitParam ? Math.min(Math.max(Number(limitParam), 1), 50) : PAGE_SIZE;
 		// 排序方式：latest=按时间倒序（默认），popular=按点赞数倒序再按时间倒序
 		const sort = url.searchParams.get('sort') === 'popular' ? 'popular' : 'latest';
+		// mode 过滤：weibo/forum/blog，不传或无效值则不过滤
+		const modeParam = url.searchParams.get('mode')?.trim() || '';
+		const modeFilter = VALID_MODES.includes(modeParam) ? modeParam : '';
+		// 分类过滤：categoryId
+		const categoryIdParam = url.searchParams.get('categoryId')?.trim() || '';
 
 		// q 为空时返回空列表
 		if (!q) {
@@ -53,6 +62,16 @@ export const GET: APIRoute = async (context) => {
 			isDeleted: false,
 			content: { contains: q }
 		};
+
+		// mode 过滤
+		if (modeFilter) {
+			where.mode = modeFilter;
+		}
+
+		// 分类过滤
+		if (categoryIdParam) {
+			where.categoryId = categoryIdParam;
+		}
 
 		// 游标分页条件：按创建时间倒序
 		const cursorFilter = cursor
@@ -91,6 +110,14 @@ export const GET: APIRoute = async (context) => {
 						}
 					}
 				},
+				category: {
+					select: {
+						id: true,
+						name: true,
+						slug: true,
+						mode: true
+					}
+				},
 				_count: {
 					select: { likes: true }
 				}
@@ -112,6 +139,10 @@ export const GET: APIRoute = async (context) => {
 			isPinned: post.isPinned,
 			isGlobalPinned: post.isGlobalPinned,
 			likeCount: post._count.likes,
+			mode: post.mode,
+			title: post.title,
+			categoryId: post.categoryId,
+			category: post.category,
 			user: {
 				id: post.user.id,
 				username: post.user.username,

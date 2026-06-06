@@ -4,23 +4,38 @@
  *
  * 原生 HTML 表单，提交后跳转到搜索页面。
  * 无需客户端 JS，完全服务端渲染。
+ * 支持 mode 和 categoryId 隐藏字段传递。
  *
  * @prop initialQuery - 初始搜索关键词（从 URL 参数恢复）
  * @prop placeholder - 输入框占位文本
  * @prop tab - 当前标签页（搜索时保持）
+ * @prop mode - 当前 mode 过滤（搜索时保持）
+ * @prop categoryId - 当前分类过滤（搜索时保持）
  */
 interface Props {
 	initialQuery?: string;
 	placeholder?: string;
 	tab?: string;
+	mode?: string;
+	categoryId?: string;
 }
 
-const { initialQuery = '', placeholder = '搜索...', tab = 'posts' } = Astro.props;
+const {
+	initialQuery = '',
+	placeholder = '搜索...',
+	tab = 'posts',
+	mode = 'all',
+	categoryId = ''
+} = Astro.props;
 ---
 
 <form class="search-form" action="/search" method="GET">
 	<!-- 保持当前标签页 -->
 	<input type="hidden" name="tab" value={tab} />
+	<!-- 保持当前 mode 过滤 -->
+	<input type="hidden" name="mode" value={mode} />
+	<!-- 保持当前分类过滤 -->
+	{categoryId && <input type="hidden" name="categoryId" value={categoryId} />}
 	<div class="search-input-wrap">
 		<span class="search-input-icon" aria-hidden="true">🔍</span>
 		<input
