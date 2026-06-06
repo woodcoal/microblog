@@ -131,7 +131,12 @@ const hasBookmarks = validItems.length > 0;
 										displayName: post.user.displayName,
 										avatarUrl: post.user.avatarUrl
 									},
-									media: post.media
+									media: post.media,
+									visibility: post.visibility,
+									mode: post.mode,
+									title: post.title,
+									categoryId: post.categoryId,
+									category: post.category
 								}}
 								htmlContent={renderMarkdown(post.content)}
 								likeCount={postLikeCount}

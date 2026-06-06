@@ -83,6 +83,11 @@ const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const validSorts = ['latest', 'popular', 'oldest'];
 const sort = validSorts.includes(sortParam) ? sortParam : 'latest';
 
+// 解析 mode 过滤参数：all（全部，默认）、weibo、forum、blog
+const modeParam = Astro.url.searchParams.get('mode') || 'all';
+const validModes = ['all', 'weibo', 'forum', 'blog'];
+const modeFilter = validModes.includes(modeParam) ? modeParam : 'all';
+
 // 根据排序方式构建 orderBy 条件
 // 置顶帖始终优先，然后按排序方式排列
 const orderBy: Record<string, unknown>[] = [{ isPinned: 'desc' }];
@@ -139,6 +144,11 @@ if (searchQuery) {
 	postWhere.content = { contains: searchQuery };
 }
 
+// mode 过滤条件：按模式筛选帖子
+if (modeFilter !== 'all') {
+	postWhere.mode = modeFilter;
+}
+
 const posts = await prisma.post.findMany({
 	where: postWhere,
 	orderBy,
@@ -172,6 +182,14 @@ const posts = await prisma.post.findMany({
 						fileType: true
 					}
 				}
+			}
+		},
+		category: {
+			select: {
+				id: true,
+				name: true,
+				slug: true,
+				mode: true
 			}
 		},
 		_count: {
@@ -261,25 +279,54 @@ const likedPostIds = await getLikedPostIds(
 			value={Astro.url.searchParams.get('q') || ''}
 		/>
 		<input type="hidden" name="sort" value={sort} />
+		<input type="hidden" name="mode" value={modeFilter} />
 		<button type="submit" class="btn btn-primary search-btn">搜索</button>
 	</form>
+
+	<!-- 模式过滤 tab -->
+	<div class="mode-tabs">
+		<a
+			href={`/${user.username}?mode=all&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'all' }]}
+		>
+			全部
+		</a>
+		<a
+			href={`/${user.username}?mode=weibo&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'weibo' }]}
+		>
+			微博
+		</a>
+		<a
+			href={`/${user.username}?mode=forum&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'forum' }]}
+		>
+			论坛
+		</a>
+		<a
+			href={`/${user.username}?mode=blog&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'blog' }]}
+		>
+			博客
+		</a>
+	</div>
 
 	<!-- 排序选项 -->
 	<div class="sort-tabs">
 		<a
-			href={`/${user.username}?sort=latest${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			href={`/${user.username}?sort=latest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['sort-tab', { 'sort-tab-active': sort === 'latest' }]}
 		>
 			最新
 		</a>
 		<a
-			href={`/${user.username}?sort=popular${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			href={`/${user.username}?sort=popular&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['sort-tab', { 'sort-tab-active': sort === 'popular' }]}
 		>
 			热门
 		</a>
 		<a
-			href={`/${user.username}?sort=oldest${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+			href={`/${user.username}?sort=oldest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['sort-tab', { 'sort-tab-active': sort === 'oldest' }]}
 		>
 			最早
@@ -330,7 +377,11 @@ const likedPostIds = await getLikedPostIds(
 									avatarUrl: post.user.avatarUrl
 								},
 								media: post.media,
-								visibility: post.visibility
+								visibility: post.visibility,
+								mode: post.mode,
+								title: post.title,
+								categoryId: post.categoryId,
+								category: post.category
 							}}
 							htmlContent={renderMarkdown(post.content)}
 							likeCount={postLikeCount}
@@ -458,6 +509,36 @@ const likedPostIds = await getLikedPostIds(
 		gap: 0;
 		margin-bottom: var(--spacing-4);
 		border-bottom: 2px solid var(--color-border);
+	}
+
+	/* 模式过滤 tab */
+	.mode-tabs {
+		display: flex;
+		gap: 0;
+		margin-bottom: var(--spacing-3);
+		border-bottom: 2px solid var(--color-border);
+	}
+
+	.mode-tab {
+		padding: var(--spacing-2) var(--spacing-4);
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		text-decoration: none;
+		border-bottom: 2px solid transparent;
+		margin-bottom: -2px;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+
+	.mode-tab:hover {
+		color: var(--color-text);
+	}
+
+	.mode-tab-active {
+		color: var(--color-primary);
+		border-bottom-color: var(--color-primary);
+		font-weight: 600;
 	}
 
 	.sort-tab {

@@ -70,6 +70,14 @@ const post = await prisma.post.findUnique({
 					}
 				}
 			}
+		},
+		category: {
+			select: {
+				id: true,
+				name: true,
+				slug: true,
+				mode: true
+			}
 		}
 	}
 });
@@ -294,8 +302,20 @@ const currentUserForComponent = currentUser
 	: null;
 
 // ===== SEO 元数据 =====
-// 页面标题：用户名 + 站点名
-const seoTitle = isDeleted ? '该内容已删除' : `${post.user.displayName}的微博`;
+// 帖子模式相关变量
+const postMode = post.mode || 'weibo';
+const isWeibo = postMode === 'weibo';
+const isForum = postMode === 'forum';
+const isBlog = postMode === 'blog';
+const hasTitle = !!post.title;
+const hasCategory = !!post.category;
+
+// 页面标题：根据模式不同显示不同格式
+const seoTitle = isDeleted
+	? '该内容已删除'
+	: isForum || isBlog
+		? post.title || `${post.user.displayName}的帖子`
+		: `${post.user.displayName}的微博`;
 
 // 页面描述：帖子内容前 100 字符，去除 Markdown 标记
 const seoDescription = isDeleted
@@ -343,43 +363,136 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}}
 >
 	<article class="post-detail">
-		<div class="post-detail-header">
-			<a href={`/${post.user.username}`} class="post-detail-author">
-				{
-					post.user.avatarUrl ? (
-						<img
-							src={post.user.avatarUrl}
-							alt={post.user.displayName}
-							class="post-detail-avatar"
-							loading="lazy"
-						/>
-					) : (
-						<div class="post-detail-avatar post-detail-avatar-placeholder">
-							{post.user.displayName.charAt(0).toUpperCase()}
+		{
+			isForum && !isDeleted ? (
+				/* 论坛模式：标题大字 + 版块面包屑 */
+				<div class="post-detail-forum-header">
+					{hasCategory && (
+						<div class="post-detail-breadcrumb">
+							<a href="/" class="post-detail-breadcrumb-link">
+								首页
+							</a>
+							<span class="post-detail-breadcrumb-sep">/</span>
+							<span class="post-detail-breadcrumb-current">{post.category.name}</span>
 						</div>
-					)
-				}
-				<div class="post-detail-author-info">
-					<span class="post-detail-name">{post.user.displayName}</span>
-					<span class="post-detail-username">@{post.user.username}</span>
-				</div>
-			</a>
-			<div class="post-detail-time-group">
-				<time class="post-detail-time" datetime={post.createdAt.toISOString()}>
-					{formatRelativeTime(post.createdAt)}
-				</time>
-				{
-					post.isEdited && !isDeleted && (
-						<span class="post-detail-edited">
-							已编辑 ·{' '}
-							<time datetime={post.updatedAt.toISOString()}>
-								{formatRelativeTime(post.updatedAt)}
+					)}
+					{hasTitle && <h1 class="post-detail-forum-title">{post.title}</h1>}
+					<div class="post-detail-header">
+						<a href={`/${post.user.username}`} class="post-detail-author">
+							{post.user.avatarUrl ? (
+								<img
+									src={post.user.avatarUrl}
+									alt={post.user.displayName}
+									class="post-detail-avatar"
+									loading="lazy"
+								/>
+							) : (
+								<div class="post-detail-avatar post-detail-avatar-placeholder">
+									{post.user.displayName.charAt(0).toUpperCase()}
+								</div>
+							)}
+							<div class="post-detail-author-info">
+								<span class="post-detail-name">{post.user.displayName}</span>
+								<span class="post-detail-username">@{post.user.username}</span>
+							</div>
+						</a>
+						<div class="post-detail-time-group">
+							<time class="post-detail-time" datetime={post.createdAt.toISOString()}>
+								{formatRelativeTime(post.createdAt)}
 							</time>
-						</span>
-					)
-				}
-			</div>
-		</div>
+							{post.isEdited && (
+								<span class="post-detail-edited">
+									已编辑 ·{' '}
+									<time datetime={post.updatedAt.toISOString()}>
+										{formatRelativeTime(post.updatedAt)}
+									</time>
+								</span>
+							)}
+						</div>
+					</div>
+				</div>
+			) : isBlog && !isDeleted ? (
+				/* 博客模式：文章标题 + 分类 + 发布日期 */
+				<div class="post-detail-blog-header">
+					{hasCategory && (
+						<div class="post-detail-blog-category">
+							<span class="post-detail-blog-category-name">{post.category.name}</span>
+						</div>
+					)}
+					{hasTitle && <h1 class="post-detail-blog-title">{post.title}</h1>}
+					<div class="post-detail-blog-meta">
+						<a href={`/${post.user.username}`} class="post-detail-author">
+							{post.user.avatarUrl ? (
+								<img
+									src={post.user.avatarUrl}
+									alt={post.user.displayName}
+									class="post-detail-avatar"
+									loading="lazy"
+								/>
+							) : (
+								<div class="post-detail-avatar post-detail-avatar-placeholder">
+									{post.user.displayName.charAt(0).toUpperCase()}
+								</div>
+							)}
+							<div class="post-detail-author-info">
+								<span class="post-detail-name">{post.user.displayName}</span>
+								<span class="post-detail-username">
+									@{post.user.username} ·{' '}
+									{post.createdAt.toLocaleDateString('zh-CN', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric'
+									})}
+								</span>
+							</div>
+						</a>
+						{post.isEdited && (
+							<span class="post-detail-edited">
+								已编辑 ·{' '}
+								<time datetime={post.updatedAt.toISOString()}>
+									{formatRelativeTime(post.updatedAt)}
+								</time>
+							</span>
+						)}
+					</div>
+				</div>
+			) : (
+				/* 微博模式：现有样式，title 显示在内容上方 */
+				<div class="post-detail-header">
+					<a href={`/${post.user.username}`} class="post-detail-author">
+						{post.user.avatarUrl ? (
+							<img
+								src={post.user.avatarUrl}
+								alt={post.user.displayName}
+								class="post-detail-avatar"
+								loading="lazy"
+							/>
+						) : (
+							<div class="post-detail-avatar post-detail-avatar-placeholder">
+								{post.user.displayName.charAt(0).toUpperCase()}
+							</div>
+						)}
+						<div class="post-detail-author-info">
+							<span class="post-detail-name">{post.user.displayName}</span>
+							<span class="post-detail-username">@{post.user.username}</span>
+						</div>
+					</a>
+					<div class="post-detail-time-group">
+						<time class="post-detail-time" datetime={post.createdAt.toISOString()}>
+							{formatRelativeTime(post.createdAt)}
+						</time>
+						{post.isEdited && !isDeleted && (
+							<span class="post-detail-edited">
+								已编辑 ·{' '}
+								<time datetime={post.updatedAt.toISOString()}>
+									{formatRelativeTime(post.updatedAt)}
+								</time>
+							</span>
+						)}
+					</div>
+				</div>
+			)
+		}
 
 		{
 			needPassword && (
@@ -402,6 +515,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						style="display:none;color:var(--color-danger);font-size:0.8125rem;margin-top:0.5rem;"
 					/>
 				</div>
+			)
+		}
+
+		<!-- 微博模式标题 -->
+		{
+			isWeibo && hasTitle && !isDeleted && !needPassword && (
+				<h2 class="post-detail-subtitle">{post.title}</h2>
 			)
 		}
 
@@ -820,6 +940,70 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 	.post-detail-password-form .form-input {
 		max-width: 200px;
+	}
+	/* 论坛模式详情头部 */
+	.post-detail-forum-header {
+		margin-bottom: 1rem;
+	}
+	.post-detail-forum-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0.5rem 0 1rem;
+		line-height: 1.4;
+	}
+	.post-detail-breadcrumb {
+		display: flex;
+		align-items: center;
+		gap: 0.375rem;
+		font-size: 0.8125rem;
+		margin-bottom: 0.5rem;
+	}
+	.post-detail-breadcrumb-link {
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	.post-detail-breadcrumb-link:hover {
+		text-decoration: underline;
+	}
+	.post-detail-breadcrumb-sep {
+		color: var(--color-muted);
+	}
+	.post-detail-breadcrumb-current {
+		color: var(--color-muted);
+	}
+	/* 博客模式详情头部 */
+	.post-detail-blog-header {
+		margin-bottom: 1rem;
+	}
+	.post-detail-blog-category {
+		margin-bottom: 0.5rem;
+	}
+	.post-detail-blog-category-name {
+		display: inline-block;
+		padding: 0.125rem 0.625rem;
+		font-size: 0.75rem;
+		color: #0891b2;
+		background: color-mix(in srgb, #06b6d4 10%, transparent);
+		border-radius: 1rem;
+	}
+	.post-detail-blog-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin: 0 0 1rem;
+		line-height: 1.35;
+	}
+	.post-detail-blog-meta {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	/* 微博模式副标题 */
+	.post-detail-subtitle {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin: 0 0 0.5rem;
+		color: var(--color-text);
+		opacity: 0.85;
 	}
 </style>
 

@@ -351,7 +351,10 @@ const createPost = defineAction({
 		visibility: z.string().optional(),
 		mediaIds: z.array(z.string()).optional(),
 		password: z.string().optional(),
-		allowedUserIds: z.array(z.string()).optional()
+		allowedUserIds: z.array(z.string()).optional(),
+		mode: z.string().optional(),
+		title: z.string().optional(),
+		categoryId: z.string().optional()
 	}),
 	handler: async (input, context) => {
 		// 1. 验证登录状态
@@ -360,7 +363,47 @@ const createPost = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		let { content, visibility, mediaIds, password, allowedUserIds } = input;
+		let { content, visibility, mediaIds, password, allowedUserIds, mode, title, categoryId } =
+			input;
+
+		// 校验 mode 合法性：默认 weibo，必须是 weibo/forum/blog 之一
+		const postMode = (mode || 'weibo') as string;
+		if (!VALID_MODES.includes(postMode as any)) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `无效的帖子模式，仅支持: ${VALID_MODES.join(', ')}`
+			});
+		}
+
+		// forum 和 blog 模式下 title 必填
+		if ((postMode === 'forum' || postMode === 'blog') && (!title || !title.trim())) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `${postMode === 'forum' ? '论坛' : '博客'}模式下标题必填`
+			});
+		}
+
+		// forum 模式下 categoryId 必填
+		if (postMode === 'forum' && (!categoryId || !categoryId.trim())) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: '论坛模式下必须选择版块'
+			});
+		}
+
+		// 如果指定了 categoryId，验证分类存在且 mode 匹配
+		if (categoryId && categoryId.trim()) {
+			const category = await prisma.category.findUnique({ where: { id: categoryId } });
+			if (!category) {
+				throw new ActionError({ code: 'NOT_FOUND', message: '分类不存在' });
+			}
+			if (category.mode !== postMode) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: '分类模式与帖子模式不匹配'
+				});
+			}
+		}
 
 		// mediaIds 去重，防止重复关联
 		if (mediaIds && mediaIds.length > 0) {
@@ -441,7 +484,10 @@ const createPost = defineAction({
 					content: content.trim(),
 					visibility: vis,
 					passwordHash,
-					allowedUserIds: allowedUserIdsJson
+					allowedUserIds: allowedUserIdsJson,
+					mode: postMode,
+					title: title?.trim() || null,
+					categoryId: categoryId?.trim() || null
 				}
 			});
 
@@ -523,7 +569,7 @@ const createPost = defineAction({
 			}
 		}
 
-		// 重新查询帖子以获取完整的关联数据（tags、mentions）
+		// 重新查询帖子以获取完整的关联数据（tags、mentions、category）
 		const fullPost = await prisma.post.findUnique({
 			where: { id: post.id },
 			include: {
@@ -569,6 +615,14 @@ const createPost = defineAction({
 							}
 						}
 					}
+				},
+				category: {
+					select: {
+						id: true,
+						name: true,
+						slug: true,
+						mode: true
+					}
 				}
 			}
 		});
@@ -613,7 +667,10 @@ const updatePost = defineAction({
 		visibility: z.string().optional(),
 		mediaIds: z.array(z.string()).optional(),
 		password: z.string().optional(),
-		allowedUserIds: z.array(z.string()).optional()
+		allowedUserIds: z.array(z.string()).optional(),
+		mode: z.string().optional(),
+		title: z.string().optional(),
+		categoryId: z.string().optional()
 	}),
 	handler: async (input, context) => {
 		// 1. 验证登录状态
@@ -622,7 +679,8 @@ const updatePost = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { postId, content, visibility, password, allowedUserIds } = input;
+		const { postId, content, visibility, password, allowedUserIds, mode, title, categoryId } =
+			input;
 		let { mediaIds } = input;
 
 		// 查询帖子
@@ -668,6 +726,55 @@ const updatePost = defineAction({
 				throw new ActionError({
 					code: 'BAD_REQUEST',
 					message: '指定用户可见帖子需要选择至少一个用户'
+				});
+			}
+		}
+
+		// 校验 mode/title/categoryId（如果传了 mode）
+		const postMode = mode || post.mode;
+		if (mode !== undefined) {
+			if (!VALID_MODES.includes(postMode as any)) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: `无效的帖子模式，仅支持: ${VALID_MODES.join(', ')}`
+				});
+			}
+		}
+
+		// forum 和 blog 模式下 title 必填
+		if ((postMode === 'forum' || postMode === 'blog') && (!title || !title.trim())) {
+			// 编辑时如果没传 title，检查原帖子是否有 title
+			const effectiveTitle = title ?? post.title;
+			if (!effectiveTitle || !effectiveTitle.trim()) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: `${postMode === 'forum' ? '论坛' : '博客'}模式下标题必填`
+				});
+			}
+		}
+
+		// forum 模式下 categoryId 必填
+		if (postMode === 'forum' && (!categoryId || !categoryId.trim())) {
+			// 编辑时如果没传 categoryId，检查原帖子是否有 categoryId
+			const effectiveCategoryId = categoryId ?? post.categoryId;
+			if (!effectiveCategoryId || !effectiveCategoryId.trim()) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: '论坛模式下必须选择版块'
+				});
+			}
+		}
+
+		// 如果指定了 categoryId，验证分类存在且 mode 匹配
+		if (categoryId && categoryId.trim()) {
+			const category = await prisma.category.findUnique({ where: { id: categoryId } });
+			if (!category) {
+				throw new ActionError({ code: 'NOT_FOUND', message: '分类不存在' });
+			}
+			if (category.mode !== postMode) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: '分类模式与帖子模式不匹配'
 				});
 			}
 		}
@@ -781,6 +888,19 @@ const updatePost = defineAction({
 				}
 			}
 
+			// 如果传了 mode，更新模式相关字段
+			if (mode !== undefined) {
+				updateData.mode = postMode;
+			}
+			// 如果传了 title，更新标题
+			if (title !== undefined) {
+				updateData.title = title.trim() || null;
+			}
+			// 如果传了 categoryId，更新分类
+			if (categoryId !== undefined) {
+				updateData.categoryId = categoryId.trim() || null;
+			}
+
 			const updatedPost = await tx.post.update({
 				where: { id: postId },
 				data: updateData,
@@ -826,6 +946,14 @@ const updatePost = defineAction({
 									displayName: true
 								}
 							}
+						}
+					},
+					category: {
+						select: {
+							id: true,
+							name: true,
+							slug: true,
+							mode: true
 						}
 					}
 				}

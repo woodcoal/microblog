@@ -44,6 +44,15 @@ interface PostResult {
 	isPinned: boolean;
 	isGlobalPinned: boolean;
 	likeCount: number;
+	mode?: string;
+	title?: string;
+	categoryId?: string;
+	category?: {
+		id: string;
+		name: string;
+		slug: string;
+		mode: string;
+	};
 	user: {
 		id: string;
 		username: string;
@@ -69,6 +78,7 @@ interface Props {
 	tab: 'posts' | 'users';
 	query: string;
 	sort: 'latest' | 'popular';
+	modeFilter?: string;
 	posts: PostResult[];
 	nextPostsCursor: string | null;
 	users: UserResult[];
@@ -76,7 +86,16 @@ interface Props {
 	currentCursor?: string;
 }
 
-const { tab, query, sort, posts, nextPostsCursor, users, nextUsersCursor } = Astro.props;
+const {
+	tab,
+	query,
+	sort,
+	modeFilter = 'all',
+	posts,
+	nextPostsCursor,
+	users,
+	nextUsersCursor
+} = Astro.props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const isPostsTab = tab === 'posts';
@@ -107,10 +126,21 @@ const hasMoreUsers = !!nextUsersCursor;
 						const isPinned = post.isPinned || post.isGlobalPinned;
 						const hasTags = post.tags.length > 0;
 						const avatarInitial = post.user.displayName.charAt(0).toUpperCase();
+						// 模式标签
+						const postMode = post.mode || 'weibo';
+						const isForum = postMode === 'forum';
+						const isBlog = postMode === 'blog';
+						const hasTitle = !!post.title;
+						const hasCategory = !!post.category;
+						const modeLabel = isForum ? '论坛' : isBlog ? '博客' : null;
 
 						return (
 							<article
-								class:list={['card post-card', { 'post-card-pinned': isPinned }]}
+								class:list={[
+									'card post-card',
+									`post-card-${postMode}`,
+									{ 'post-card-pinned': isPinned }
+								]}
 							>
 								<div class="post-card-header">
 									<a href={`/${post.user.username}`} class="post-card-author">
@@ -138,16 +168,43 @@ const hasMoreUsers = !!nextUsersCursor;
 											</span>
 										</div>
 									</a>
-									<time class="post-card-time" datetime={post.createdAt}>
-										{relativeTime}
-									</time>
+									<div class="post-card-header-right">
+										{modeLabel && (
+											<span
+												class={`badge ${isForum ? 'badge-forum' : 'badge-blog'} post-card-mode-badge`}
+											>
+												{modeLabel}
+											</span>
+										)}
+										<time class="post-card-time" datetime={post.createdAt}>
+											{relativeTime}
+										</time>
+									</div>
 								</div>
 
 								<a
 									href={`/${post.user.username}/${post.id}`}
 									class="post-card-body"
 								>
-									<div class="post-card-content" set:html={htmlContent} />
+									{hasTitle && <h3 class="post-card-title">{post.title}</h3>}
+									<div
+										class:list={[
+											'post-card-content',
+											isForum
+												? 'post-card-content-forum'
+												: isBlog
+													? 'post-card-content-blog'
+													: ''
+										]}
+										set:html={htmlContent}
+									/>
+									{hasCategory && (
+										<div class="post-card-category">
+											<span class="post-card-category-name">
+												{post.category.name}
+											</span>
+										</div>
+									)}
 								</a>
 
 								{isPinned && <span class="badge badge-pinned">📌 置顶</span>}
@@ -171,7 +228,7 @@ const hasMoreUsers = !!nextUsersCursor;
 
 					{hasMorePosts && (
 						<a
-							href={`/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&cursor=${nextPostsCursor}`}
+							href={`/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&mode=${modeFilter}&cursor=${nextPostsCursor}`}
 							class="btn btn-outline load-more-btn"
 						>
 							加载更多

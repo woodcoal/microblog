@@ -141,7 +141,11 @@ const hasPagination = totalPages > 1;
 									avatarUrl: post.user.avatarUrl
 								},
 								media: post.media,
-								visibility: post.visibility
+								visibility: post.visibility,
+								mode: post.mode,
+								title: post.title,
+								categoryId: post.categoryId,
+								category: post.category
 							}}
 							htmlContent={renderMarkdown(post.content)}
 							likeCount={postLikeCount}

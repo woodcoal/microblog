@@ -6,6 +6,10 @@
  * 点击可跳转到帖子详情页。
  * 底部包含点赞按钮（React island）和评论数统计。
  * 支持可见度门控：受限帖子显示提示信息而非内容。
+ * 根据 post.mode 渲染不同的卡片样式：
+ * - weibo：内容为主，title 作为副标题
+ * - forum：标题为主 + 回复数 + 版块标签
+ * - blog：标题 + 摘要 + 发布日期
  */
 import LikeButton from '@/components/LikeButton.astro';
 import { formatRelativeTime } from '@/lib/utils';
@@ -31,6 +35,14 @@ interface PostMedia {
 	};
 }
 
+/** 分类信息 */
+interface PostCategory {
+	id: string;
+	name: string;
+	slug: string;
+	mode: string;
+}
+
 /** 帖子卡片所需的帖子数据 */
 interface PostData {
 	id: string;
@@ -42,6 +54,14 @@ interface PostData {
 	media?: PostMedia[];
 	/** 可见度类型 */
 	visibility?: string;
+	/** 帖子模式：weibo/forum/blog */
+	mode?: string;
+	/** 帖子标题 */
+	title?: string;
+	/** 分类 ID */
+	categoryId?: string;
+	/** 关联的分类信息 */
+	category?: PostCategory;
 }
 
 /** 帖子标签信息 */
@@ -89,6 +109,26 @@ const isPinned = post.isPinned || post.isGlobalPinned;
 const hasTags = tags.length > 0;
 const relativeTime = formatRelativeTime(new Date(post.createdAt));
 
+// 帖子模式相关变量
+const postMode = post.mode || 'weibo';
+const isWeibo = postMode === 'weibo';
+const isForum = postMode === 'forum';
+const isBlog = postMode === 'blog';
+const hasTitle = !!post.title;
+const hasCategory = !!post.category;
+
+/** 模式标签映射 */
+const modeBadge = (() => {
+	switch (postMode) {
+		case 'forum':
+			return { text: '论坛', cls: 'badge-forum' };
+		case 'blog':
+			return { text: '博客', cls: 'badge-blog' };
+		default:
+			return null;
+	}
+})();
+
 /** 可见度徽章映射：非 public 时显示对应徽章 */
 const visibilityBadge = (() => {
 	switch (post.visibility) {
@@ -111,9 +151,18 @@ const visibilityBadge = (() => {
 
 /** 是否需要显示可见度徽章（非公开帖子才显示） */
 const showVisibilityBadge = post.visibility !== 'public' && visibilityBadge;
+
+// blog 模式下的发布日期格式化
+const blogDate = isBlog
+	? new Date(post.createdAt).toLocaleDateString('zh-CN', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric'
+		})
+	: '';
 ---
 
-<article class:list={['card post-card', { 'post-card-pinned': isPinned }]}>
+<article class:list={['card post-card', `post-card-${postMode}`, { 'post-card-pinned': isPinned }]}>
 	<div class="post-card-header">
 		<a href={`/${post.user.username}`} class="post-card-author">
 			{
@@ -135,9 +184,19 @@ const showVisibilityBadge = post.visibility !== 'public' && visibilityBadge;
 				<span class="post-card-username">@{post.user.username}</span>
 			</div>
 		</a>
-		<time class="post-card-time" datetime={post.createdAt}>
-			{relativeTime}
-		</time>
+		<div class="post-card-header-right">
+			{/* 模式标签角标 */}
+			{
+				modeBadge && (
+					<span class={`badge ${modeBadge.cls} post-card-mode-badge`}>
+						{modeBadge.text}
+					</span>
+				)
+			}
+			<time class="post-card-time" datetime={post.createdAt}>
+				{isBlog ? blogDate : relativeTime}
+			</time>
+		</div>
 	</div>
 
 	{
@@ -152,13 +211,45 @@ const showVisibilityBadge = post.visibility !== 'public' && visibilityBadge;
 					<span>内容受限</span>
 				</div>
 			</a>
-		) : (
-			/* 正常帖子：显示内容和图片 */
+		) : isForum ? (
+			/* 论坛模式：标题为主 + 版块标签 */
 			<a
 				href={`/${post.user.username}/${post.id}`}
 				class="post-card-body"
 				aria-label="查看帖子详情"
 			>
+				{hasTitle && <h3 class="post-card-title">{post.title}</h3>}
+				<div class="post-card-content post-card-content-forum" set:html={htmlContent} />
+				{hasCategory && (
+					<div class="post-card-category">
+						<span class="post-card-category-label">版块：</span>
+						<span class="post-card-category-name">{post.category.name}</span>
+					</div>
+				)}
+			</a>
+		) : isBlog ? (
+			/* 博客模式：标题 + 摘要 */
+			<a
+				href={`/${post.user.username}/${post.id}`}
+				class="post-card-body"
+				aria-label="查看帖子详情"
+			>
+				{hasTitle && <h3 class="post-card-title">{post.title}</h3>}
+				<div class="post-card-content post-card-content-blog" set:html={htmlContent} />
+				{hasCategory && (
+					<div class="post-card-category">
+						<span class="post-card-category-name">{post.category.name}</span>
+					</div>
+				)}
+			</a>
+		) : (
+			/* 微博模式：内容为主，title 作为副标题 */
+			<a
+				href={`/${post.user.username}/${post.id}`}
+				class="post-card-body"
+				aria-label="查看帖子详情"
+			>
+				{hasTitle && <h3 class="post-card-subtitle">{post.title}</h3>}
 				<div class="post-card-content" set:html={htmlContent} />
 				{/* 多图网格展示 */}
 				{hasImages && (

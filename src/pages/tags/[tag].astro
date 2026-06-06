@@ -194,7 +194,12 @@ const hasPosts = posts.length > 0;
 											mimeType: m.fileStorage.mimeType,
 											fileType: m.fileStorage.fileType
 										}
-									}))
+									})),
+									visibility: post.visibility,
+									mode: post.mode,
+									title: post.title,
+									categoryId: post.categoryId,
+									category: post.category
 								}}
 								htmlContent={htmlContent}
 								likeCount={likeCount}

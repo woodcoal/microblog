@@ -9,7 +9,7 @@ import { prisma } from './db';
 /**
  * 帖子卡片列表的 Prisma include 配置
  *
- * 包含用户信息、媒体、标签和计数统计，
+ * 包含用户信息、媒体、标签、分类和计数统计，
  * 用于首页、最新、关注时间线、用户主页等帖子列表查询。
  * 需要额外字段的页面可在此基础上映射扩展。
  */
@@ -43,6 +43,14 @@ export const POST_CARD_INCLUDE = {
 					name: true
 				}
 			}
+		}
+	},
+	category: {
+		select: {
+			id: true,
+			name: true,
+			slug: true,
+			mode: true
 		}
 	},
 	_count: {
