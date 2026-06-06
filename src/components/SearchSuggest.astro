@@ -1,0 +1,211 @@
+---
+/**
+ * 搜索建议下拉组件（Astro 原生版本）
+ *
+ * 根据用户输入实时展示标签和用户建议。
+ * 当搜索框输入变化时，防抖 300ms 后调用 searchSuggest Action，
+ * 展示匹配的标签和用户列表，支持 Escape 关闭和点击外部关闭。
+ */
+
+/**
+ * 组件属性
+ *
+ * @property initialQuery - 从 URL 参数获取的初始搜索关键词
+ */
+interface Props {
+	initialQuery?: string;
+}
+
+const { initialQuery = '' } = Astro.props;
+---
+
+<div class="search-suggest" data-initial-query={initialQuery} style="display:none;">
+	{/* 加载状态提示 */}
+	<div class="search-suggest-loading" style="display:none;">搜索中...</div>
+
+	{/* 建议结果列表 */}
+	<div class="search-suggest-results" style="display:none;">
+		{/* 标签建议区 */}
+		<div class="search-suggest-section" data-section="tags" style="display:none;">
+			<div class="search-suggest-section-title">标签</div>
+			<div class="search-suggest-tags"></div>
+		</div>
+
+		{/* 用户建议区 */}
+		<div class="search-suggest-section" data-section="users" style="display:none;">
+			<div class="search-suggest-section-title">用户</div>
+			<div class="search-suggest-users"></div>
+		</div>
+	</div>
+</div>
+
+<script>
+	/**
+	 * 搜索建议客户端交互逻辑
+	 *
+	 * 监听搜索框 input 事件，防抖 300ms 后调用 actions.searchSuggest。
+	 * 展示匹配的标签和用户列表，支持 Escape 关闭和点击外部关闭。
+	 */
+	import { actions } from 'astro:actions';
+
+	/** 防抖延迟时间（毫秒） */
+	const DEBOUNCE_MS = 300;
+
+	// 为所有搜索建议组件绑定事件
+	document.querySelectorAll<HTMLElement>('.search-suggest').forEach((container) => {
+		const loadingEl = container.querySelector<HTMLElement>('.search-suggest-loading');
+		const resultsEl = container.querySelector<HTMLElement>('.search-suggest-results');
+		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]');
+		const usersSection = container.querySelector<HTMLElement>('[data-section="users"]');
+		const tagsContainer = container.querySelector<HTMLElement>('.search-suggest-tags');
+		const usersContainer = container.querySelector<HTMLElement>('.search-suggest-users');
+
+		if (
+			!loadingEl ||
+			!resultsEl ||
+			!tagsSection ||
+			!usersSection ||
+			!tagsContainer ||
+			!usersContainer
+		)
+			return;
+
+		/** 防抖定时器 */
+		let timer: ReturnType<typeof setTimeout> | undefined;
+
+		/** 当前是否可见 */
+		let visible = false;
+
+		/**
+		 * 隐藏下拉面板
+		 *
+		 * 隐藏下拉但不清除数据，下次输入时可快速恢复
+		 */
+		function hide() {
+			visible = false;
+			container.style.display = 'none';
+		}
+
+		/**
+		 * 显示下拉面板
+		 */
+		function show() {
+			visible = true;
+			container.style.display = '';
+		}
+
+		/**
+		 * 渲染标签建议列表
+		 *
+		 * @param tags - 标签数组
+		 */
+		function renderTags(tags: Array<{ id: string; name: string; postCount: number }>) {
+			if (tags.length === 0) {
+				tagsSection.style.display = 'none';
+				return;
+			}
+			tagsSection.style.display = '';
+			tagsContainer.innerHTML = tags
+				.map(
+					(tag) =>
+						`<a href="/tags/${encodeURIComponent(tag.name)}" class="search-suggest-tag">#${tag.name}#</a>`
+				)
+				.join('');
+		}
+
+		/**
+		 * 渲染用户建议列表
+		 *
+		 * @param users - 用户数组
+		 */
+		function renderUsers(
+			users: Array<{ id: string; username: string; displayName: string; avatarUrl: string }>
+		) {
+			if (users.length === 0) {
+				usersSection.style.display = 'none';
+				return;
+			}
+			usersSection.style.display = '';
+			usersContainer.innerHTML = users
+				.map(
+					(user) =>
+						`<a href="/${user.username}" class="search-suggest-user">` +
+						(user.avatarUrl
+							? `<img src="${user.avatarUrl}" alt="${user.displayName}" class="search-suggest-user-avatar" />`
+							: '') +
+						`<span class="search-suggest-user-info">` +
+						`<span class="search-suggest-user-name">${user.displayName}</span>` +
+						`<span class="search-suggest-user-handle">@${user.username}</span>` +
+						`</span></a>`
+				)
+				.join('');
+		}
+
+		/**
+		 * 监听搜索框的 input 事件，防抖请求建议
+		 */
+		const searchInput = document.querySelector<HTMLInputElement>('.search-input');
+		if (searchInput) {
+			searchInput.addEventListener('input', () => {
+				// 清除上一次的防抖定时器
+				if (timer) {
+					clearTimeout(timer);
+				}
+
+				const query = searchInput.value.trim();
+
+				// 输入为空，隐藏下拉
+				if (!query) {
+					hide();
+					loadingEl.style.display = 'none';
+					resultsEl.style.display = 'none';
+					return;
+				}
+
+				loadingEl.style.display = '';
+
+				// 防抖 300ms 后发起请求
+				timer = setTimeout(async () => {
+					try {
+						const result = await actions.searchSuggest({ q: query });
+
+						if (result.data) {
+							const { tags, users } = result.data;
+							loadingEl.style.display = 'none';
+
+							// 无结果时隐藏
+							if (tags.length === 0 && users.length === 0) {
+								hide();
+								return;
+							}
+
+							resultsEl.style.display = '';
+							renderTags(tags);
+							renderUsers(users);
+							show();
+						} else {
+							hide();
+						}
+					} catch {
+						// 请求失败时静默处理
+						hide();
+					}
+				}, DEBOUNCE_MS);
+			});
+		}
+
+		// Escape 键关闭下拉
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && visible) {
+				hide();
+			}
+		});
+
+		// 点击外部关闭下拉
+		document.addEventListener('mousedown', (e) => {
+			if (visible && !container.contains(e.target as Node)) {
+				hide();
+			}
+		});
+	});
+</script>

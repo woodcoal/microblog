@@ -1,0 +1,275 @@
+---
+/**
+ * 主题切换下拉选择器组件（Astro 原生版本）
+ *
+ * 显示当前主题图标和名称，点击展开下拉菜单选择主题和强调色。
+ * 选择后更新 DOM 属性、localStorage，已登录时通过 Action 同步到服务端。
+ */
+import { THEMES, ACCENTS } from '@/lib/theme';
+
+/** 主题图标映射 */
+const THEME_ICONS: Record<string, string> = {
+	light: '☀️',
+	dark: '🌙',
+	'eye-care': '🍃',
+	'high-contrast': '🔲'
+};
+---
+
+<div class="theme-switcher">
+	<button type="button" class="theme-switcher-btn" aria-label="切换主题" aria-expanded="false">
+		<span class="theme-switcher-icon">☀️</span>
+		<span class="theme-switcher-name">亮色</span>
+	</button>
+
+	<ul class="theme-switcher-dropdown" role="menu" style="display:none;">
+		{
+			THEMES.map((theme) => (
+				<li role="menuitem">
+					<button type="button" class="theme-switcher-option" data-theme-id={theme.id}>
+						<span class="theme-switcher-option-icon">{THEME_ICONS[theme.id]}</span>
+						<span class="theme-switcher-option-name">{theme.name}</span>
+					</button>
+				</li>
+			))
+		}
+		{/* 强调色分隔线 */}
+		<li class="theme-switcher-divider" role="separator"></li>
+		{/* 强调色选择圆点行 */}
+		<li class="theme-switcher-accent-row" role="group" aria-label="强调色">
+			{
+				ACCENTS.map((a) => (
+					<button
+						type="button"
+						class="theme-switcher-accent-dot"
+						data-accent-id={a.id}
+						aria-label={a.name}
+						title={a.name}
+					/>
+				))
+			}
+		</li>
+	</ul>
+</div>
+
+<script>
+	/**
+	 * 主题切换客户端交互逻辑
+	 *
+	 * 初始化时从 localStorage 或 DOM 读取当前主题和强调色，
+	 * 点击按钮展开/收起下拉菜单，选择主题后：
+	 * 1. 更新 html 元素的 data-theme 属性
+	 * 2. 存储到 localStorage
+	 * 3. 已登录时调用 actions.updateTheme 同步到服务端
+	 * 支持键盘导航（Escape/方向键）和点击外部关闭。
+	 */
+	import { actions } from 'astro:actions';
+
+	/** localStorage 中存储主题的键名 */
+	const STORAGE_KEY = 'theme';
+	/** localStorage 中存储强调色的键名 */
+	const ACCENT_STORAGE_KEY = 'accent';
+
+	/** 主题图标映射 */
+	const THEME_ICONS: Record<string, string> = {
+		light: '☀️',
+		dark: '🌙',
+		'eye-care': '🍃',
+		'high-contrast': '🔲'
+	};
+
+	/** 主题名称映射 */
+	const THEME_NAMES: Record<string, string> = {
+		light: '亮色',
+		dark: '暗色',
+		'eye-care': '护眼',
+		'high-contrast': '高对比度'
+	};
+
+	/** 主题 ID 列表（用于方向键循环） */
+	const THEME_IDS = ['light', 'dark', 'eye-care', 'high-contrast'];
+
+	/** 强调色 CSS 颜色映射 */
+	const ACCENT_COLORS: Record<string, string> = {
+		blue: '#4f46e5',
+		green: '#16a34a',
+		orange: '#ea580c',
+		purple: '#9333ea',
+		rose: '#e11d48'
+	};
+
+	// 为所有主题切换器绑定事件
+	document.querySelectorAll<HTMLElement>('.theme-switcher').forEach((container) => {
+		const btn = container.querySelector<HTMLButtonElement>('.theme-switcher-btn');
+		const dropdown = container.querySelector<HTMLUListElement>('.theme-switcher-dropdown');
+		const iconEl = container.querySelector<HTMLSpanElement>('.theme-switcher-icon');
+		const nameEl = container.querySelector<HTMLSpanElement>('.theme-switcher-name');
+
+		if (!btn || !dropdown || !iconEl || !nameEl) return;
+
+		/** 当前是否展开 */
+		let isOpen = false;
+
+		/** 当前主题 ID */
+		let currentTheme =
+			localStorage.getItem(STORAGE_KEY) ||
+			document.documentElement.getAttribute('data-theme') ||
+			'light';
+
+		/** 当前强调色 ID */
+		let currentAccent =
+			localStorage.getItem(ACCENT_STORAGE_KEY) ||
+			document.documentElement.getAttribute('data-accent') ||
+			'';
+
+		/**
+		 * 更新按钮显示（图标 + 名称 + active 状态）
+		 */
+		function updateButtonDisplay() {
+			iconEl.textContent = THEME_ICONS[currentTheme] || '☀️';
+			nameEl.textContent = THEME_NAMES[currentTheme] || '亮色';
+
+			// 更新主题选项的 active 状态
+			dropdown
+				.querySelectorAll<HTMLButtonElement>('.theme-switcher-option')
+				.forEach((opt) => {
+					const isActive = opt.dataset.themeId === currentTheme;
+					opt.classList.toggle('active', isActive);
+				});
+
+			// 更新强调色圆点的 active 状态和背景色
+			dropdown
+				.querySelectorAll<HTMLButtonElement>('.theme-switcher-accent-dot')
+				.forEach((dot) => {
+					const accentId = dot.dataset.accentId || '';
+					const isActive = accentId === currentAccent;
+					dot.classList.toggle('active', isActive);
+					dot.style.backgroundColor = ACCENT_COLORS[accentId] || '';
+				});
+		}
+
+		/**
+		 * 切换下拉菜单展开/收起
+		 *
+		 * @param open - 是否展开
+		 */
+		function toggleDropdown(open: boolean) {
+			isOpen = open;
+			dropdown.style.display = open ? '' : 'none';
+			btn.setAttribute('aria-expanded', String(open));
+		}
+
+		/**
+		 * 切换主题
+		 *
+		 * 更新 DOM、localStorage，已登录时同步到服务端。
+		 *
+		 * @param themeId - 目标主题 ID
+		 */
+		async function handleSelectTheme(themeId: string) {
+			currentTheme = themeId;
+			toggleDropdown(false);
+
+			// 更新 DOM 属性
+			document.documentElement.setAttribute('data-theme', themeId);
+			// 持久化到 localStorage
+			localStorage.setItem(STORAGE_KEY, themeId);
+			// 更新按钮显示
+			updateButtonDisplay();
+
+			// 已登录时同步到服务端
+			const token = localStorage.getItem('token');
+			if (token) {
+				try {
+					await actions.updateTheme({ theme: themeId });
+				} catch {
+					// 网络错误静默处理，本地已生效
+				}
+			}
+		}
+
+		/**
+		 * 切换强调色
+		 *
+		 * 更新 DOM data-accent 属性、localStorage，已登录时同步到服务端。
+		 *
+		 * @param accentId - 目标强调色 ID
+		 */
+		async function handleSelectAccent(accentId: string) {
+			currentAccent = accentId;
+
+			// 更新 DOM 属性
+			document.documentElement.setAttribute('data-accent', accentId);
+			// 持久化到 localStorage
+			localStorage.setItem(ACCENT_STORAGE_KEY, accentId);
+			// 更新按钮显示
+			updateButtonDisplay();
+
+			// 已登录时同步到服务端
+			const token = localStorage.getItem('token');
+			if (token) {
+				try {
+					await actions.updateTheme({ accent: accentId });
+				} catch {
+					// 网络错误静默处理，本地已生效
+				}
+			}
+		}
+
+		// 点击按钮切换下拉
+		btn.addEventListener('click', () => toggleDropdown(!isOpen));
+
+		// 点击主题选项
+		dropdown.querySelectorAll<HTMLButtonElement>('.theme-switcher-option').forEach((opt) => {
+			opt.addEventListener('click', () => {
+				const themeId = opt.dataset.themeId;
+				if (themeId) handleSelectTheme(themeId);
+			});
+		});
+
+		// 点击强调色圆点
+		dropdown
+			.querySelectorAll<HTMLButtonElement>('.theme-switcher-accent-dot')
+			.forEach((dot) => {
+				dot.addEventListener('click', () => {
+					const accentId = dot.dataset.accentId;
+					if (accentId) handleSelectAccent(accentId);
+				});
+			});
+
+		// 点击外部区域关闭下拉菜单
+		document.addEventListener('mousedown', (e) => {
+			if (isOpen && !container.contains(e.target as Node)) {
+				toggleDropdown(false);
+			}
+		});
+
+		// 键盘事件：Escape 关闭，方向键切换主题
+		document.addEventListener('keydown', (e) => {
+			if (!isOpen) return;
+
+			if (e.key === 'Escape') {
+				toggleDropdown(false);
+				return;
+			}
+
+			const currentIndex = THEME_IDS.indexOf(currentTheme);
+
+			if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault();
+				let newIndex: number;
+				if (e.key === 'ArrowDown') {
+					// 向下移动，到底则循环到顶部
+					newIndex = (currentIndex + 1) % THEME_IDS.length;
+				} else {
+					// 向上移动，到顶则循环到底部
+					newIndex = (currentIndex - 1 + THEME_IDS.length) % THEME_IDS.length;
+				}
+				handleSelectTheme(THEME_IDS[newIndex]);
+			}
+		});
+
+		// 初始化按钮显示
+		updateButtonDisplay();
+	});
+</script>

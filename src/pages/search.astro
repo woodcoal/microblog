@@ -11,7 +11,7 @@
 import BaseLayout from '@/layouts/Base.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
-import SearchSuggest from '@/components/SearchSuggest';
+import SearchSuggest from '@/components/SearchSuggest.astro';
 import { prisma } from '@/lib/db';
 
 // 解析 URL 参数
@@ -159,7 +159,7 @@ const isSortPopular = sort === 'popular';
 	<!-- 搜索框 + 实时建议 -->
 	<div class="search-box-wrapper">
 		<SearchBox initialQuery={q} placeholder="搜索帖子或用户..." tab={tab} />
-		<SearchSuggest client:load initialQuery={q} />
+		<SearchSuggest initialQuery={q} />
 	</div>
 
 	<!-- 标签页切换 -->

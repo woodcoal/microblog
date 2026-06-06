@@ -1,0 +1,317 @@
+---
+/**
+ * Token 管理 Astro 组件
+ *
+ * 功能：
+ * - 显示 Token 列表（名称、创建时间、最后使用时间）
+ * - 创建 Token（输入名称 → 调用 createToken Action）
+ * - 创建成功后显示明文 Token 弹窗（强调仅此一次）
+ * - 撤销 Token（确认后调用 revokeToken Action）
+ */
+
+/**
+ * 组件属性
+ *
+ * @property initialTokens - 服务端获取的初始 Token 列表（JSON 序列化）
+ */
+interface Props {
+	initialTokens: string;
+}
+
+const { initialTokens } = Astro.props;
+---
+
+<div class="settings-section" data-token-manager data-tokens={initialTokens}>
+	<h2 class="section-title">API Token</h2>
+	<p class="section-desc">API Token 用于第三方客户端访问你的账号，请妥善保管。</p>
+
+	{/* 创建 Token 表单 */}
+	<div class="create-form">
+		<input
+			type="text"
+			placeholder="Token 名称（如：我的客户端）"
+			maxlength="50"
+			class="input"
+			data-new-token-name
+		/>
+		<button type="button" class="btn btn-primary" data-create-btn> 创建 Token </button>
+	</div>
+
+	{/* 错误提示 */}
+	<p class="error-text" data-error style="display:none;"></p>
+
+	{/* Token 列表容器 */}
+	<div data-token-list></div>
+
+	{/* 明文 Token 弹窗 */}
+	<div class="modal-overlay" data-token-modal style="display:none;">
+		<div class="modal-content">
+			<h3>Token 创建成功</h3>
+			<p class="warning-text">⚠️ 请立即复制保存，此 Token 仅显示一次，关闭后无法再次查看！</p>
+			<div class="token-reveal">
+				<code data-token-modal-code></code>
+				<button type="button" class="btn btn-outline btn-sm" data-token-copy-btn>
+					复制
+				</button>
+			</div>
+			<p class="token-name" data-token-modal-name></p>
+			<button type="button" class="btn btn-primary" data-token-modal-close>
+				我已保存，关闭
+			</button>
+		</div>
+	</div>
+</div>
+
+<script>
+	/**
+	 * Token 管理客户端交互逻辑
+	 *
+	 * 管理 API Token 的创建、列表展示和撤销。
+	 * 创建成功后弹窗显示明文 Token（仅此一次可查看）。
+	 * 使用 Astro Actions 替代 REST API 调用。
+	 */
+	import { actions } from 'astro:actions';
+
+	/**
+	 * 格式化日期
+	 *
+	 * @param dateStr - ISO 日期字符串
+	 * @returns 格式化后的日期字符串
+	 */
+	function formatDate(dateStr: string | null): string {
+		if (!dateStr) return '从未使用';
+		return new Date(dateStr).toLocaleString('zh-CN');
+	}
+
+	/**
+	 * 渲染 Token 列表
+	 *
+	 * @param container - 列表容器元素
+	 * @param tokens - Token 数组
+	 * @param revokingId - 正在确认撤销的 Token ID
+	 */
+	function renderList(
+		container: HTMLElement,
+		tokens: Array<Record<string, any>>,
+		revokingId: string | null
+	) {
+		if (tokens.length === 0) {
+			container.innerHTML = '<div class="empty-state"><p>暂无 Token</p></div>';
+			return;
+		}
+
+		container.innerHTML =
+			'<div class="item-list">' +
+			tokens
+				.map((token) => {
+					const isRevoking = revokingId === token.id;
+
+					return `<div class="item-card" data-token-id="${token.id}">
+				<div class="item-info">
+					<strong>${token.name}</strong>
+					<span class="item-meta">
+						创建于 ${formatDate(token.createdAt)} · 最后使用 ${formatDate(token.lastUsedAt)}
+					</span>
+				</div>
+				<div class="item-actions">
+					${
+						isRevoking
+							? `<span class="confirm-text">确认撤销？</span>
+						   <button type="button" class="btn btn-danger btn-sm" data-confirm-revoke-btn>确认</button>
+						   <button type="button" class="btn btn-outline btn-sm" data-cancel-revoke-btn>取消</button>`
+							: `<button type="button" class="btn btn-outline btn-sm" data-revoke-btn>撤销</button>`
+					}
+				</div>
+			</div>`;
+				})
+				.join('') +
+			'</div>';
+	}
+
+	// 为所有 Token 管理器绑定事件
+	document.querySelectorAll<HTMLElement>('[data-token-manager]').forEach((manager) => {
+		// 从 data 属性解析初始 Token 列表
+		const tokensJson = manager.dataset.tokens || '[]';
+		let tokens: Array<Record<string, any>> = JSON.parse(tokensJson);
+
+		// 交互状态
+		let revokingId: string | null = null;
+		let creating = false;
+		let revoking = false;
+
+		// DOM 引用
+		const errorEl = manager.querySelector<HTMLElement>('[data-error]');
+		const listContainer = manager.querySelector<HTMLElement>('[data-token-list]');
+		const newNameInput = manager.querySelector<HTMLInputElement>('[data-new-token-name]');
+		const createBtn = manager.querySelector<HTMLButtonElement>('[data-create-btn]');
+		const tokenModal = manager.querySelector<HTMLElement>('[data-token-modal]');
+		const tokenModalCode = manager.querySelector<HTMLElement>('[data-token-modal-code]');
+		const tokenModalName = manager.querySelector<HTMLElement>('[data-token-modal-name]');
+		const tokenCopyBtn = manager.querySelector<HTMLButtonElement>('[data-token-copy-btn]');
+		const tokenModalClose = manager.querySelector<HTMLButtonElement>(
+			'[data-token-modal-close]'
+		);
+
+		/** 当前弹窗中显示的 Token */
+		let currentToken = '';
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string) {
+			if (errorEl) {
+				errorEl.textContent = msg;
+				errorEl.style.display = '';
+			}
+		}
+
+		/**
+		 * 隐藏错误信息
+		 */
+		function hideError() {
+			if (errorEl) {
+				errorEl.style.display = 'none';
+			}
+		}
+
+		/**
+		 * 刷新列表渲染
+		 */
+		function refreshList() {
+			if (listContainer) {
+				renderList(listContainer, tokens, revokingId);
+			}
+		}
+
+		/**
+		 * 显示 Token 弹窗
+		 *
+		 * @param name - Token 名称
+		 * @param token - 明文 Token
+		 */
+		function showTokenModal(name: string, token: string) {
+			currentToken = token;
+			if (tokenModalCode) tokenModalCode.textContent = token;
+			if (tokenModalName) tokenModalName.textContent = `名称：${name}`;
+			if (tokenModal) tokenModal.style.display = '';
+		}
+
+		/**
+		 * 隐藏 Token 弹窗
+		 */
+		function hideTokenModal() {
+			if (tokenModal) tokenModal.style.display = 'none';
+		}
+
+		// ===== 创建 Token =====
+		createBtn?.addEventListener('click', async () => {
+			if (creating) return;
+
+			const name = newNameInput?.value.trim() || '';
+			if (!name) {
+				showError('请输入 Token 名称');
+				return;
+			}
+
+			creating = true;
+			hideError();
+			if (createBtn) createBtn.textContent = '创建中...';
+
+			try {
+				const result = await actions.createToken({ name });
+
+				if (result.data) {
+					// 添加到列表
+					tokens.unshift({
+						id: result.data.id,
+						name: result.data.name,
+						lastUsedAt: null,
+						createdAt: result.data.createdAt
+					});
+					// 弹窗显示明文 Token
+					showTokenModal(result.data.name, result.data.token);
+					// 重置表单
+					if (newNameInput) newNameInput.value = '';
+					refreshList();
+				}
+			} catch (err: any) {
+				showError(err?.message || '创建失败');
+			} finally {
+				creating = false;
+				if (createBtn) createBtn.textContent = '创建 Token';
+			}
+		});
+
+		// ===== 列表事件委托 =====
+		listContainer?.addEventListener('click', async (e) => {
+			const target = e.target as HTMLElement;
+			const card = target.closest<HTMLElement>('[data-token-id]');
+			if (!card) return;
+
+			const tokenId = card.dataset.tokenId || '';
+
+			// 撤销按钮
+			if (target.closest('[data-revoke-btn]')) {
+				revokingId = tokenId;
+				hideError();
+				refreshList();
+				return;
+			}
+
+			// 确认撤销
+			if (target.closest('[data-confirm-revoke-btn]')) {
+				if (revoking) return;
+				revoking = true;
+				hideError();
+
+				try {
+					const result = await actions.revokeToken({ id: revokingId! });
+					if (result.data) {
+						tokens = tokens.filter((t) => t.id !== revokingId);
+						revokingId = null;
+						refreshList();
+					}
+				} catch (err: any) {
+					showError(err?.message || '撤销失败');
+				} finally {
+					revoking = false;
+				}
+				return;
+			}
+
+			// 取消撤销
+			if (target.closest('[data-cancel-revoke-btn]')) {
+				revokingId = null;
+				refreshList();
+				return;
+			}
+		});
+
+		// ===== Token 弹窗事件 =====
+		tokenCopyBtn?.addEventListener('click', () => {
+			if (currentToken) {
+				navigator.clipboard.writeText(currentToken);
+			}
+		});
+
+		tokenModalClose?.addEventListener('click', hideTokenModal);
+
+		tokenModal?.addEventListener('click', (e) => {
+			if (e.target === tokenModal) {
+				hideTokenModal();
+			}
+		});
+
+		// Escape 键关闭弹窗
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && tokenModal?.style.display !== 'none') {
+				hideTokenModal();
+			}
+		});
+
+		// 初始渲染列表
+		refreshList();
+	});
+</script>

@@ -27,6 +27,9 @@ import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 import { deleteFileRef, MAX_IMAGE_COUNT, saveFile } from '@/lib/upload';
 import { parseMentions, parseTags } from '@/lib/parser';
 import { VALID_VISIBILITIES, type Visibility } from '@/lib/visibility';
+import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
+import { generateSecret, VALID_WEBHOOK_EVENTS } from '@/lib/webhook';
+import { generateApiToken, hashToken } from '@/lib/token';
 
 /** 需要从帖子响应中排除的敏感字段 */
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
@@ -1218,6 +1221,507 @@ const searchUsers = defineAction({
 	}
 });
 
+/**
+ * 更新主题/强调色偏好 Action
+ *
+ * 已登录用户通过此 Action 同步主题和强调色偏好到服务端。
+ * 使用 upsert：如果 UserSettings 不存在则创建。
+ * 仅更新传入的字段（theme 或 accent）。
+ *
+ * @param input - { theme?: 主题ID, accent?: 强调色ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 更新后的主题和强调色
+ */
+const updateTheme = defineAction({
+	input: z.object({
+		theme: z.string().optional(),
+		accent: z.string().optional()
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { theme, accent } = input;
+
+		// 验证 theme 合法性
+		if (theme !== undefined && !isValidTheme(theme)) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '无效的主题' });
+		}
+
+		// 验证 accent 合法性
+		if (accent !== undefined && !isValidAccent(accent)) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '无效的强调色' });
+		}
+
+		// 构建更新数据
+		const updateData: { theme?: string; accent?: string } = {};
+		if (theme !== undefined) updateData.theme = theme;
+		if (accent !== undefined) updateData.accent = accent;
+
+		// upsert 更新或创建 UserSettings
+		const settings = await prisma.userSettings.upsert({
+			where: { userId: currentUser.userId },
+			update: updateData,
+			create: {
+				userId: currentUser.userId,
+				theme: theme ?? DEFAULT_THEME,
+				accent: accent ?? DEFAULT_ACCENT
+			}
+		});
+
+		return { theme: settings.theme, accent: settings.accent };
+	}
+});
+
+/**
+ * 搜索建议 Action
+ *
+ * 根据关键词前缀返回匹配的标签和用户，用于搜索框自动补全。
+ * 标签按帖子数降序排列，用户按粉丝数降序排列，每类最多 5 条。
+ *
+ * @param input - { q: 搜索关键词 }
+ * @returns 标签和用户的搜索建议
+ */
+const searchSuggest = defineAction({
+	input: z.object({
+		q: z.string().min(1, '搜索关键词不能为空')
+	}),
+	handler: async (input) => {
+		const { q } = input;
+		/** 每类返回的最大条数 */
+		const MAX_SUGGESTIONS = 5;
+
+		// 并行查询标签和用户
+		const [tags, users] = await Promise.all([
+			// 查询标签：名称包含关键词、未隐藏、按帖子数降序、最多 5 条
+			prisma.tag.findMany({
+				where: {
+					name: { contains: q },
+					isHidden: false
+				},
+				orderBy: { posts: { _count: 'desc' } },
+				take: MAX_SUGGESTIONS,
+				select: {
+					id: true,
+					name: true,
+					_count: {
+						select: { posts: true }
+					}
+				}
+			}),
+			// 查询用户：用户名或显示名包含关键词、未禁用、按粉丝数降序、最多 5 条
+			prisma.user.findMany({
+				where: {
+					isDisabled: false,
+					OR: [{ username: { contains: q } }, { displayName: { contains: q } }]
+				},
+				orderBy: { followers: { _count: 'desc' } },
+				take: MAX_SUGGESTIONS,
+				select: {
+					id: true,
+					username: true,
+					displayName: true,
+					avatarUrl: true
+				}
+			})
+		]);
+
+		// 格式化标签数据：将 _count.posts 映射为 postCount
+		const formattedTags = tags.map((tag) => ({
+			id: tag.id,
+			name: tag.name,
+			postCount: tag._count.posts
+		}));
+
+		return { tags: formattedTags, users };
+	}
+});
+
+/** 每个用户最多创建的 Webhook 数量 */
+const MAX_WEBHOOKS_PER_USER = 5;
+
+/** 每个用户最多创建的 Token 数量 */
+const MAX_TOKENS_PER_USER = 10;
+
+/**
+ * 创建 Webhook Action
+ *
+ * 流程：
+ * 1. 验证登录状态
+ * 2. 校验 url 和 events 参数
+ * 3. 检查用户 Webhook 数量上限
+ * 4. 自动生成 secret
+ * 5. 存储到数据库
+ * 6. 返回完整 Webhook 数据（含明文 secret，仅此一次）
+ *
+ * @param input - { url: Webhook URL, events: 事件类型数组 }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 创建的 Webhook 数据（含明文 secret，仅此一次）
+ */
+const createWebhook = defineAction({
+	input: z.object({
+		url: z.string().min(1, 'Webhook URL 不能为空'),
+		events: z.array(z.string()).min(1, '请至少选择一个事件类型')
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { url, events } = input;
+
+		// 2. 校验 URL 格式
+		try {
+			const parsedUrl = new URL(url.trim());
+			if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+				throw new Error('仅支持 http/https 协议');
+			}
+		} catch {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: 'URL 格式无效，仅支持 http/https'
+			});
+		}
+
+		// 校验事件类型合法性
+		const invalidEvents = events.filter((e) => !VALID_WEBHOOK_EVENTS.includes(e as any));
+		if (invalidEvents.length > 0) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `不合法的事件类型: ${invalidEvents.join(', ')}`
+			});
+		}
+
+		// 3. 检查用户 Webhook 数量上限
+		const webhookCount = await prisma.webhook.count({
+			where: { userId: currentUser.userId }
+		});
+		if (webhookCount >= MAX_WEBHOOKS_PER_USER) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `每个用户最多创建 ${MAX_WEBHOOKS_PER_USER} 个 Webhook`
+			});
+		}
+
+		// 4. 自动生成 secret
+		const secret = generateSecret();
+
+		// 5. 存储到数据库
+		const webhook = await prisma.webhook.create({
+			data: {
+				userId: currentUser.userId,
+				url: url.trim(),
+				secret,
+				events: JSON.stringify(events)
+			}
+		});
+
+		// 6. 返回完整数据（含明文 secret，仅此一次）
+		return {
+			webhook: {
+				...webhook,
+				createdAt: webhook.createdAt.toISOString(),
+				updatedAt: webhook.updatedAt.toISOString()
+			}
+		};
+	}
+});
+
+/**
+ * 更新 Webhook Action
+ *
+ * 流程：
+ * 1. 验证登录状态
+ * 2. 查询 Webhook 是否存在并验证所属用户
+ * 3. 校验并更新字段（url / events / isActive）
+ * 4. 返回更新后的数据
+ *
+ * @param input - { id: Webhook ID, url?: URL, events?: 事件数组, isActive?: 启用状态 }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 更新后的 Webhook 数据（secret 脱敏）
+ */
+const updateWebhook = defineAction({
+	input: z.object({
+		id: z.string().min(1, 'Webhook ID 不能为空'),
+		url: z.string().optional(),
+		events: z.array(z.string()).optional(),
+		isActive: z.boolean().optional()
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { id, url, events, isActive } = input;
+
+		// 2. 查询 Webhook 是否存在
+		const webhook = await prisma.webhook.findUnique({ where: { id } });
+		if (!webhook) {
+			throw new ActionError({ code: 'NOT_FOUND', message: 'Webhook 不存在' });
+		}
+
+		// 验证是 Webhook 所属用户
+		if (webhook.userId !== currentUser.userId) {
+			throw new ActionError({ code: 'FORBIDDEN', message: '无权修改此 Webhook' });
+		}
+
+		// 3. 校验并构建更新数据
+		const updateData: Record<string, unknown> = {};
+
+		// 校验 url
+		if (url !== undefined) {
+			if (!url.trim()) {
+				throw new ActionError({ code: 'BAD_REQUEST', message: 'Webhook URL 不能为空' });
+			}
+			try {
+				const parsedUrl = new URL(url.trim());
+				if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+					throw new Error('仅支持 http/https 协议');
+				}
+			} catch {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: 'URL 格式无效，仅支持 http/https'
+				});
+			}
+			updateData.url = url.trim();
+		}
+
+		// 校验 events
+		if (events !== undefined) {
+			if (events.length === 0) {
+				throw new ActionError({ code: 'BAD_REQUEST', message: 'events 必须是非空数组' });
+			}
+			const invalidEvents = events.filter((e) => !VALID_WEBHOOK_EVENTS.includes(e as any));
+			if (invalidEvents.length > 0) {
+				throw new ActionError({
+					code: 'BAD_REQUEST',
+					message: `不合法的事件类型: ${invalidEvents.join(', ')}`
+				});
+			}
+			updateData.events = JSON.stringify(events);
+		}
+
+		// 校验 isActive
+		if (isActive !== undefined) {
+			updateData.isActive = isActive;
+		}
+
+		// 没有需要更新的字段
+		if (Object.keys(updateData).length === 0) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '没有需要更新的字段' });
+		}
+
+		// 执行更新
+		const updatedWebhook = await prisma.webhook.update({
+			where: { id },
+			data: updateData
+		});
+
+		// 返回更新后的数据（secret 脱敏）
+		return {
+			webhook: {
+				...updatedWebhook,
+				secret: updatedWebhook.secret.slice(0, 8) + '***',
+				createdAt: updatedWebhook.createdAt.toISOString(),
+				updatedAt: updatedWebhook.updatedAt.toISOString()
+			}
+		};
+	}
+});
+
+/**
+ * 删除 Webhook Action
+ *
+ * 流程：
+ * 1. 验证登录状态
+ * 2. 查询 Webhook 是否存在并验证所属用户
+ * 3. 删除 Webhook 记录
+ *
+ * @param input - { id: Webhook ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 被删除的 Webhook ID
+ */
+const deleteWebhook = defineAction({
+	input: z.object({
+		id: z.string().min(1, 'Webhook ID 不能为空')
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { id } = input;
+
+		// 2. 查询 Webhook 是否存在
+		const webhook = await prisma.webhook.findUnique({ where: { id } });
+		if (!webhook) {
+			throw new ActionError({ code: 'NOT_FOUND', message: 'Webhook 不存在' });
+		}
+
+		// 验证是 Webhook 所属用户
+		if (webhook.userId !== currentUser.userId) {
+			throw new ActionError({ code: 'FORBIDDEN', message: '无权删除此 Webhook' });
+		}
+
+		// 3. 删除 Webhook 记录
+		await prisma.webhook.delete({ where: { id } });
+
+		return { id };
+	}
+});
+
+/**
+ * 查看 Webhook 明文 Secret Action
+ *
+ * 调用后返回 Webhook 的明文密钥，需验证登录和所属用户。
+ *
+ * @param input - { id: Webhook ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 明文 secret
+ */
+const revealWebhookSecret = defineAction({
+	input: z.object({
+		id: z.string().min(1, 'Webhook ID 不能为空')
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { id } = input;
+
+		// 查询 Webhook 是否存在
+		const webhook = await prisma.webhook.findUnique({ where: { id } });
+		if (!webhook) {
+			throw new ActionError({ code: 'NOT_FOUND', message: 'Webhook 不存在' });
+		}
+
+		// 验证是 Webhook 所属用户
+		if (webhook.userId !== currentUser.userId) {
+			throw new ActionError({ code: 'FORBIDDEN', message: '无权查看此 Webhook' });
+		}
+
+		return { secret: webhook.secret };
+	}
+});
+
+/**
+ * 创建 API Token Action
+ *
+ * 流程：
+ * 1. 验证登录状态
+ * 2. 校验 name 参数（必填，1-50 字符）
+ * 3. 检查用户 Token 数量上限
+ * 4. 生成 Token 明文 → 计算 SHA-256 哈希
+ * 5. 存储 tokenHash 到数据库
+ * 6. 返回 Token 元信息 + 明文（仅此一次返回）
+ *
+ * @param input - { name: Token 名称 }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 创建的 Token 数据（含明文 token，仅此一次）
+ */
+const createToken = defineAction({
+	input: z.object({
+		name: z.string().min(1, 'Token 名称不能为空').max(50, 'Token 名称不能超过 50 个字符')
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { name } = input;
+
+		// 3. 检查用户 Token 数量上限
+		const tokenCount = await prisma.apiToken.count({
+			where: { userId: currentUser.userId }
+		});
+		if (tokenCount >= MAX_TOKENS_PER_USER) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `每个用户最多创建 ${MAX_TOKENS_PER_USER} 个 Token`
+			});
+		}
+
+		// 4. 生成 Token 明文并计算哈希
+		const token = generateApiToken();
+		const tokenHash = await hashToken(token);
+
+		// 5. 存储到数据库
+		const apiToken = await prisma.apiToken.create({
+			data: {
+				userId: currentUser.userId,
+				name: name.trim(),
+				tokenHash
+			}
+		});
+
+		// 6. 返回 Token 元信息 + 明文（仅此一次返回）
+		return {
+			id: apiToken.id,
+			name: apiToken.name,
+			token,
+			createdAt: apiToken.createdAt.toISOString()
+		};
+	}
+});
+
+/**
+ * 撤销 API Token Action
+ *
+ * 流程：
+ * 1. 验证登录状态
+ * 2. 查询 Token 是否存在并验证所属用户
+ * 3. 删除 Token 记录
+ *
+ * @param input - { id: Token ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 被撤销的 Token ID
+ */
+const revokeToken = defineAction({
+	input: z.object({
+		id: z.string().min(1, 'Token ID 不能为空')
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { id } = input;
+
+		// 2. 查询 Token 是否存在
+		const apiToken = await prisma.apiToken.findUnique({ where: { id } });
+		if (!apiToken) {
+			throw new ActionError({ code: 'NOT_FOUND', message: 'Token 不存在' });
+		}
+
+		// 验证是 Token 所属用户
+		if (apiToken.userId !== currentUser.userId) {
+			throw new ActionError({ code: 'FORBIDDEN', message: '无权撤销此 Token' });
+		}
+
+		// 3. 删除 Token 记录
+		await prisma.apiToken.delete({ where: { id } });
+
+		return { id };
+	}
+});
+
 /** 导出所有服务端 Actions */
 export const server = {
 	toggleLike,
@@ -1228,5 +1732,13 @@ export const server = {
 	createComment,
 	deleteComment,
 	uploadMedia,
-	searchUsers
+	searchUsers,
+	updateTheme,
+	searchSuggest,
+	createWebhook,
+	updateWebhook,
+	deleteWebhook,
+	revealWebhookSecret,
+	createToken,
+	revokeToken
 };

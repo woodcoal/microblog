@@ -1,0 +1,540 @@
+---
+/**
+ * Webhook 管理 Astro 组件
+ *
+ * 功能：
+ * - 显示 Webhook 列表（URL、事件、状态、Secret）
+ * - 创建 Webhook（输入 URL + 选择事件）
+ * - 编辑 Webhook（修改 URL/事件/启用状态）
+ * - 删除 Webhook（确认后调用 deleteWebhook Action）
+ * - 创建成功后显示 Secret（仅此一次）
+ * - 查看 Webhook 明文 Secret
+ */
+
+/**
+ * 组件属性
+ *
+ * @property initialWebhooks - 服务端获取的初始 Webhook 列表（JSON 序列化）
+ */
+interface Props {
+	initialWebhooks: string;
+}
+
+const { initialWebhooks } = Astro.props;
+
+/** 允许的 Webhook 事件选项 */
+const EVENT_OPTIONS = [
+	{ value: 'notification.follow', label: '关注通知' },
+	{ value: 'notification.comment', label: '评论通知' },
+	{ value: 'notification.like', label: '点赞通知' },
+	{ value: 'notification.mention', label: '提及通知' }
+];
+---
+
+<div class="settings-section" data-webhook-manager data-webhooks={initialWebhooks}>
+	<h2 class="section-title">Webhook</h2>
+	<p class="section-desc">当收到通知时，Webhook 会向指定 URL 发送 HTTP POST 请求。</p>
+
+	{/* 创建 Webhook 表单 */}
+	<div class="create-form">
+		<input
+			type="url"
+			placeholder="Webhook URL（如 https://example.com/webhook）"
+			class="input"
+			data-new-url
+		/>
+		<div class="event-checkboxes">
+			{
+				EVENT_OPTIONS.map((option) => (
+					<label class="checkbox-label">
+						<input
+							type="checkbox"
+							value={option.value}
+							checked={option.value === 'notification.follow'}
+							data-new-event
+						/>
+						{option.label}
+					</label>
+				))
+			}
+		</div>
+		<button type="button" class="btn btn-primary" data-create-btn> 创建 Webhook </button>
+	</div>
+
+	{/* 错误提示 */}
+	<p class="error-text" data-error style="display:none;"></p>
+
+	{/* Webhook 列表容器 */}
+	<div data-webhook-list></div>
+
+	{/* 明文 Secret 弹窗 */}
+	<div class="modal-overlay" data-secret-modal style="display:none;">
+		<div class="modal-content">
+			<h3 data-secret-modal-title>Webhook 创建成功</h3>
+			<p class="warning-text" data-secret-modal-warning>
+				⚠️ 请立即复制保存 Secret，此 Secret 仅显示一次，关闭后无法再次查看！
+			</p>
+			<div class="token-reveal">
+				<code data-secret-modal-code></code>
+				<button type="button" class="btn btn-outline btn-sm" data-secret-copy-btn>
+					复制
+				</button>
+			</div>
+			<p class="token-name" data-secret-modal-url></p>
+			<button type="button" class="btn btn-primary" data-secret-modal-close> 关闭 </button>
+		</div>
+	</div>
+</div>
+
+<script>
+	/**
+	 * Webhook 管理客户端交互逻辑
+	 *
+	 * 管理 Webhook 的创建、编辑、删除和启用/禁用。
+	 * 创建成功后弹窗显示明文 Secret（仅此一次可查看）。
+	 * 使用 Astro Actions 替代 REST API 调用。
+	 */
+	import { actions } from 'astro:actions';
+
+	/** 允许的 Webhook 事件选项 */
+	const EVENT_OPTIONS = [
+		{ value: 'notification.follow', label: '关注通知' },
+		{ value: 'notification.comment', label: '评论通知' },
+		{ value: 'notification.like', label: '点赞通知' },
+		{ value: 'notification.mention', label: '提及通知' }
+	];
+
+	/**
+	 * 解析事件 JSON 为可读标签
+	 *
+	 * @param eventsJson - JSON 格式的事件数组字符串
+	 * @returns 事件标签数组
+	 */
+	function parseEvents(eventsJson: string): string[] {
+		try {
+			const events: string[] = JSON.parse(eventsJson);
+			return events.map((e) => {
+				const option = EVENT_OPTIONS.find((o) => o.value === e);
+				return option ? option.label : e;
+			});
+		} catch {
+			return [];
+		}
+	}
+
+	/**
+	 * 渲染 Webhook 列表
+	 *
+	 * @param container - 列表容器元素
+	 * @param webhooks - Webhook 数组
+	 * @param state - 当前交互状态
+	 */
+	function renderList(
+		container: HTMLElement,
+		webhooks: Array<Record<string, any>>,
+		state: { editingId: string | null; deletingId: string | null }
+	) {
+		if (webhooks.length === 0) {
+			container.innerHTML = '<div class="empty-state"><p>暂无 Webhook</p></div>';
+			return;
+		}
+
+		container.innerHTML =
+			'<div class="item-list">' +
+			webhooks
+				.map((webhook) => {
+					const isEditing = state.editingId === webhook.id;
+					const isDeleting = state.deletingId === webhook.id;
+
+					if (isEditing) {
+						// 编辑模式
+						const currentEvents: string[] = (() => {
+							try {
+								return JSON.parse(webhook.events);
+							} catch {
+								return [];
+							}
+						})();
+						return `<div class="item-card" data-webhook-id="${webhook.id}">
+					<div class="edit-form">
+						<input type="url" value="${webhook.url}" class="input" placeholder="Webhook URL" data-edit-url />
+						<div class="event-checkboxes">
+							${EVENT_OPTIONS.map((option) => {
+								const checked = currentEvents.includes(option.value);
+								return `<label class="checkbox-label">
+									<input type="checkbox" value="${option.value}" ${checked ? 'checked' : ''} data-edit-event />
+									${option.label}
+								</label>`;
+							}).join('')}
+						</div>
+						<div class="edit-actions">
+							<button type="button" class="btn btn-primary btn-sm" data-save-btn>保存</button>
+							<button type="button" class="btn btn-outline btn-sm" data-cancel-btn>取消</button>
+						</div>
+					</div>
+				</div>`;
+					}
+
+					// 展示模式
+					const eventLabels = parseEvents(webhook.events).join('、');
+					const statusText = webhook.isActive ? '启用' : '禁用';
+					const toggleBtnClass = webhook.isActive
+						? 'btn btn-outline btn-sm'
+						: 'btn btn-primary btn-sm';
+					const toggleBtnText = webhook.isActive ? '禁用' : '启用';
+
+					return `<div class="item-card" data-webhook-id="${webhook.id}">
+				<div class="item-info">
+					<strong class="webhook-url">${webhook.url}</strong>
+					<span class="item-meta">
+						事件：${eventLabels} · Secret：${webhook.secret} · 状态：${statusText}
+					</span>
+				</div>
+				<div class="item-actions">
+					<button type="button" class="${toggleBtnClass}" data-toggle-btn>${toggleBtnText}</button>
+					<button type="button" class="btn btn-outline btn-sm" data-edit-btn>编辑</button>
+					<button type="button" class="btn btn-outline btn-sm" data-reveal-btn>查看密钥</button>
+					${
+						isDeleting
+							? `<span class="confirm-text">确认删除？</span>
+						   <button type="button" class="btn btn-danger btn-sm" data-confirm-delete-btn>确认</button>
+						   <button type="button" class="btn btn-outline btn-sm" data-cancel-delete-btn>取消</button>`
+							: `<button type="button" class="btn btn-danger btn-sm" data-delete-btn>删除</button>`
+					}
+				</div>
+			</div>`;
+				})
+				.join('') +
+			'</div>';
+	}
+
+	// 为所有 Webhook 管理器绑定事件
+	document.querySelectorAll<HTMLElement>('[data-webhook-manager]').forEach((manager) => {
+		// 从 data 属性解析初始 Webhook 列表
+		const webhooksJson = manager.dataset.webhooks || '[]';
+		let webhooks: Array<Record<string, any>> = JSON.parse(webhooksJson);
+
+		// 交互状态
+		let editingId: string | null = null;
+		let deletingId: string | null = null;
+		let creating = false;
+		let saving = false;
+		let deleting = false;
+		let revealingId: string | null = null;
+
+		// DOM 引用
+		const errorEl = manager.querySelector<HTMLElement>('[data-error]');
+		const listContainer = manager.querySelector<HTMLElement>('[data-webhook-list]');
+		const newUrlInput = manager.querySelector<HTMLInputElement>('[data-new-url]');
+		const createBtn = manager.querySelector<HTMLButtonElement>('[data-create-btn]');
+		const secretModal = manager.querySelector<HTMLElement>('[data-secret-modal]');
+		const secretModalTitle = manager.querySelector<HTMLElement>('[data-secret-modal-title]');
+		const secretModalWarning = manager.querySelector<HTMLElement>(
+			'[data-secret-modal-warning]'
+		);
+		const secretModalCode = manager.querySelector<HTMLElement>('[data-secret-modal-code]');
+		const secretModalUrl = manager.querySelector<HTMLElement>('[data-secret-modal-url]');
+		const secretCopyBtn = manager.querySelector<HTMLButtonElement>('[data-secret-copy-btn]');
+		const secretModalClose = manager.querySelector<HTMLButtonElement>(
+			'[data-secret-modal-close]'
+		);
+
+		/** 当前弹窗中显示的 Secret */
+		let currentSecret = '';
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string) {
+			if (errorEl) {
+				errorEl.textContent = msg;
+				errorEl.style.display = '';
+			}
+		}
+
+		/**
+		 * 隐藏错误信息
+		 */
+		function hideError() {
+			if (errorEl) {
+				errorEl.style.display = 'none';
+			}
+		}
+
+		/**
+		 * 刷新列表渲染
+		 */
+		function refreshList() {
+			if (listContainer) {
+				renderList(listContainer, webhooks, { editingId, deletingId });
+			}
+		}
+
+		/**
+		 * 显示 Secret 弹窗
+		 *
+		 * @param url - Webhook URL
+		 * @param secret - 明文 Secret
+		 * @param isNew - 是否为新创建
+		 */
+		function showSecretModal(url: string, secret: string, isNew: boolean) {
+			currentSecret = secret;
+			if (secretModalTitle) {
+				secretModalTitle.textContent = isNew ? 'Webhook 创建成功' : 'Webhook 签名密钥';
+			}
+			if (secretModalWarning) {
+				secretModalWarning.textContent = isNew
+					? '⚠️ 请立即复制保存 Secret，此 Secret 仅显示一次，关闭后无法再次查看！'
+					: '⚠️ 关闭后如需再次查看可点击「查看密钥」按钮。请勿泄露给他人！';
+			}
+			if (secretModalCode) {
+				secretModalCode.textContent = secret;
+			}
+			if (secretModalUrl) {
+				secretModalUrl.textContent = `URL：${url}`;
+			}
+			if (secretModal) {
+				secretModal.style.display = '';
+			}
+		}
+
+		/**
+		 * 隐藏 Secret 弹窗
+		 */
+		function hideSecretModal() {
+			if (secretModal) {
+				secretModal.style.display = 'none';
+			}
+		}
+
+		// ===== 创建 Webhook =====
+		createBtn?.addEventListener('click', async () => {
+			if (creating) return;
+
+			const url = newUrlInput?.value.trim() || '';
+			const eventCheckboxes = manager.querySelectorAll<HTMLInputElement>('[data-new-event]');
+			const events = Array.from(eventCheckboxes)
+				.filter((cb) => cb.checked)
+				.map((cb) => cb.value);
+
+			if (!url) {
+				showError('请输入 Webhook URL');
+				return;
+			}
+			if (events.length === 0) {
+				showError('请至少选择一个事件类型');
+				return;
+			}
+
+			creating = true;
+			hideError();
+			if (createBtn) createBtn.textContent = '创建中...';
+
+			try {
+				const result = await actions.createWebhook({ url, events });
+
+				if (result.data) {
+					const webhook = result.data.webhook;
+					// 添加到列表（secret 脱敏）
+					webhooks.unshift({
+						...webhook,
+						secret: webhook.secret.slice(0, 8) + '***'
+					});
+					// 弹窗显示明文 Secret
+					showSecretModal(webhook.url, webhook.secret, true);
+					// 重置表单
+					if (newUrlInput) newUrlInput.value = '';
+					eventCheckboxes.forEach((cb) => {
+						cb.checked = cb.value === 'notification.follow';
+					});
+					refreshList();
+				}
+			} catch (err: any) {
+				showError(err?.message || '创建失败');
+			} finally {
+				creating = false;
+				if (createBtn) createBtn.textContent = '创建 Webhook';
+			}
+		});
+
+		// ===== 列表事件委托 =====
+		listContainer?.addEventListener('click', async (e) => {
+			const target = e.target as HTMLElement;
+			const card = target.closest<HTMLElement>('[data-webhook-id]');
+			if (!card) return;
+
+			const webhookId = card.dataset.webhookId || '';
+			const webhook = webhooks.find((w) => w.id === webhookId);
+			if (!webhook) return;
+
+			// 切换启用/禁用
+			if (target.closest('[data-toggle-btn]')) {
+				try {
+					const result = await actions.updateWebhook({
+						id: webhookId,
+						isActive: !webhook.isActive
+					});
+					if (result.data) {
+						webhook.isActive = !webhook.isActive;
+						refreshList();
+					}
+				} catch {
+					showError('切换状态失败');
+				}
+				return;
+			}
+
+			// 进入编辑模式
+			if (target.closest('[data-edit-btn]')) {
+				editingId = webhookId;
+				deletingId = null;
+				hideError();
+				refreshList();
+				return;
+			}
+
+			// 查看密钥
+			if (target.closest('[data-reveal-btn]')) {
+				if (revealingId) return;
+				revealingId = webhookId;
+				hideError();
+
+				try {
+					const result = await actions.revealWebhookSecret({ id: webhookId });
+					if (result.data) {
+						showSecretModal(webhook.url, result.data.secret, false);
+					}
+				} catch (err: any) {
+					showError(err?.message || '获取密钥失败');
+				} finally {
+					revealingId = null;
+				}
+				return;
+			}
+
+			// 删除按钮
+			if (target.closest('[data-delete-btn]')) {
+				deletingId = webhookId;
+				hideError();
+				refreshList();
+				return;
+			}
+
+			// 确认删除
+			if (target.closest('[data-confirm-delete-btn]')) {
+				if (deleting) return;
+				deleting = true;
+				hideError();
+
+				try {
+					const result = await actions.deleteWebhook({ id: deletingId });
+					if (result.data) {
+						webhooks = webhooks.filter((w) => w.id !== deletingId);
+						deletingId = null;
+						refreshList();
+					}
+				} catch (err: any) {
+					showError(err?.message || '删除失败');
+				} finally {
+					deleting = false;
+				}
+				return;
+			}
+
+			// 取消删除
+			if (target.closest('[data-cancel-delete-btn]')) {
+				deletingId = null;
+				refreshList();
+				return;
+			}
+
+			// 保存编辑
+			if (target.closest('[data-save-btn]')) {
+				if (saving) return;
+
+				const editUrlInput = card.querySelector<HTMLInputElement>('[data-edit-url]');
+				const editEventCheckboxes =
+					card.querySelectorAll<HTMLInputElement>('[data-edit-event]');
+
+				const editUrl = editUrlInput?.value.trim() || '';
+				const editEvents = Array.from(editEventCheckboxes)
+					.filter((cb) => cb.checked)
+					.map((cb) => cb.value);
+
+				if (!editUrl) {
+					showError('URL 不能为空');
+					return;
+				}
+				if (editEvents.length === 0) {
+					showError('请至少选择一个事件类型');
+					return;
+				}
+
+				saving = true;
+				hideError();
+
+				try {
+					const result = await actions.updateWebhook({
+						id: editingId!,
+						url: editUrl,
+						events: editEvents
+					});
+					if (result.data) {
+						// 更新列表中的数据
+						const idx = webhooks.findIndex((w) => w.id === editingId);
+						if (idx !== -1) {
+							webhooks[idx] = {
+								...webhooks[idx],
+								url: editUrl,
+								events: JSON.stringify(editEvents),
+								updatedAt: new Date().toISOString()
+							};
+						}
+						editingId = null;
+						refreshList();
+					}
+				} catch (err: any) {
+					showError(err?.message || '更新失败');
+				} finally {
+					saving = false;
+				}
+				return;
+			}
+
+			// 取消编辑
+			if (target.closest('[data-cancel-btn]')) {
+				editingId = null;
+				hideError();
+				refreshList();
+				return;
+			}
+		});
+
+		// ===== Secret 弹窗事件 =====
+		secretCopyBtn?.addEventListener('click', () => {
+			if (currentSecret) {
+				navigator.clipboard.writeText(currentSecret);
+			}
+		});
+
+		secretModalClose?.addEventListener('click', hideSecretModal);
+
+		secretModal?.addEventListener('click', (e) => {
+			if (e.target === secretModal) {
+				hideSecretModal();
+			}
+		});
+
+		// Escape 键关闭弹窗
+		document.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape' && secretModal?.style.display !== 'none') {
+				hideSecretModal();
+			}
+		});
+
+		// 初始渲染列表
+		refreshList();
+	});
+</script>

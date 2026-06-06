@@ -13,7 +13,7 @@ import { getUnreadCount } from '@/lib/notification';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_LOGO_URL, SITE_FAVICON_URL } from '@/lib/config';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
-import ThemeSwitcher from '@/components/ThemeSwitcher';
+import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 
 // 导入设计令牌、全局样式和组件样式
@@ -164,7 +164,7 @@ const resolvedOgType = ogType || 'website';
 						)
 					}
 					<a href="/search" class="nav-search-btn" aria-label="搜索"> 🔍 </a>
-					<ThemeSwitcher client:load />
+					<ThemeSwitcher />
 					<!-- 移动端导航菜单（hamburger 面板内） -->
 					<div class="mobile-user-area">
 						<a href="/latest" class="mobile-user-link">
