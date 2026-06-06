@@ -14,7 +14,7 @@ import { SITE_TITLE, SITE_DESCRIPTION, SITE_LOGO_URL, SITE_FAVICON_URL } from '@
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
-import ComposeModal from '@/components/ComposeModal';
+import ComposeModal from '@/components/ComposeModal.astro';
 
 // 导入设计令牌、全局样式和组件样式
 import '@/styles/tokens.css';
@@ -448,7 +448,7 @@ const resolvedOgType = ogType || 'website';
 		</nav>
 
 		<!-- 全局发帖弹窗（仅已登录用户） -->
-		{currentUser && <ComposeModal client:idle />}
+		{currentUser && <ComposeModal />}
 
 		<!-- 全局 Toast 容器 -->
 		<div class="toast-container" id="toast-container" role="alert" aria-live="assertive"></div>

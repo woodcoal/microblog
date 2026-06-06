@@ -1,0 +1,1095 @@
+---
+/**
+ * 发帖表单组件（Astro 原生）
+ *
+ * 功能：
+ * - textarea 输入框，带字数统计
+ * - 可见度选择（7 级）
+ * - 图片上传（点击、拖拽、粘贴，最多 9 张）
+ * - 上传进度条（XMLHttpRequest 追踪上传进度）
+ * - Emoji 选择器（分类浏览，点击插入光标位置）
+ * - 草稿自动保存/恢复（localStorage，1 秒防抖）
+ * - 通过 Astro Actions 创建帖子和搜索用户
+ */
+import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+
+interface Props {
+	/** 是否在挂载时恢复草稿（仅弹窗模式需要） */
+	restoreDraft?: boolean;
+}
+
+const { restoreDraft = false } = Astro.props;
+
+/** 图片最大数量 */
+const MAX_IMAGES = 9;
+---
+
+<form class="post-editor" id="post-editor-form" data-restore-draft={String(restoreDraft)}>
+	{/* 草稿恢复提示 */}
+	<div class="post-editor-draft-hint" id="draft-hint" style="display:none">
+		📝 已恢复上次未发布的草稿
+	</div>
+
+	<div class="form-group">
+		<textarea
+			class="form-input post-editor-textarea"
+			id="post-content"
+			placeholder="分享你的想法..."
+			maxlength={POST_CONTENT_MAX_LENGTH}
+			rows="4"></textarea>
+
+		{/* 可见度选择器 */}
+		<div class="post-editor-visibility">
+			<select class="form-input post-editor-visibility-select" id="post-visibility">
+				<option value="public">🌐 公开</option>
+				<option value="logged_in">🔐 登录用户可见</option>
+				<option value="followers">👥 粉丝可见</option>
+				<option value="following">🤝 我关注的人可见</option>
+				<option value="private">🔒 仅自己可见</option>
+				<option value="password">🔑 密码保护</option>
+				<option value="users">👤 指定用户可见</option>
+			</select>
+		</div>
+
+		{/* 密码输入框（visibility=password 时显示） */}
+		<div class="post-editor-password" id="password-field" style="display:none">
+			<input
+				type="password"
+				class="form-input"
+				id="post-password"
+				placeholder="设置访问密码..."
+			/>
+		</div>
+
+		{/* 用户名输入框（visibility=users 时显示） */}
+		<div class="post-editor-users" id="users-field" style="display:none">
+			<input
+				type="text"
+				class="form-input"
+				id="post-allowed-usernames"
+				placeholder="输入用户名，逗号分隔（如：alice,bob）"
+			/>
+		</div>
+
+		{/* 工具栏：图片上传 + Emoji */}
+		<div class="post-editor-toolbar">
+			<div class="post-editor-toolbar-actions">
+				<div
+					class="post-editor-upload"
+					id="upload-area"
+					role="button"
+					tabindex="0"
+					aria-label="点击或拖拽上传图片"
+				>
+					<label class="post-editor-upload-btn" id="upload-label">
+						<input
+							type="file"
+							accept="image/*"
+							multiple
+							id="file-input"
+							style="display:none"
+						/>
+						📷 图片
+					</label>
+				</div>
+				<button
+					type="button"
+					class="post-editor-emoji-btn"
+					id="emoji-toggle"
+					aria-label="选择表情"
+					aria-expanded="false"
+				>
+					😊
+				</button>
+			</div>
+			<span class="post-editor-upload-count" id="upload-count">
+				0/{MAX_IMAGES}
+			</span>
+		</div>
+
+		{/* 上传进度条 */}
+		<div class="post-editor-progress" id="upload-progress" style="display:none">
+			<div class="post-editor-progress-bar" id="progress-bar" style="width:0%"></div>
+		</div>
+
+		{/* Emoji 选择器（原生 dialog） */}
+		<dialog class="emoji-picker-dialog" id="emoji-dialog">
+			<div class="emoji-picker">
+				{/* 分类标签栏 */}
+				<div class="emoji-picker-categories" id="emoji-categories"></div>
+				{/* Emoji 网格 */}
+				<div class="emoji-picker-grid">
+					<div class="emoji-picker-group">
+						<div class="emoji-picker-group-label" id="emoji-group-label"></div>
+						<div class="emoji-picker-items" id="emoji-items"></div>
+					</div>
+				</div>
+			</div>
+		</dialog>
+
+		{/* 图片预览 */}
+		<div class="post-editor-previews" id="image-previews" style="display:none"></div>
+
+		<div class="post-editor-footer">
+			<span class="post-editor-count" id="char-count">
+				0/{POST_CONTENT_MAX_LENGTH}
+			</span>
+			<button class="btn btn-primary" type="submit" id="submit-btn" disabled> 发布 </button>
+		</div>
+	</div>
+	<p class="form-error" id="form-error" style="display:none"></p>
+</form>
+
+<script>
+	/**
+	 * PostEditor 客户端脚本
+	 *
+	 * 处理表单交互逻辑：
+	 * - 表单提交 → 调用 actions.createPost
+	 * - 图片上传 → 调用 actions.uploadMedia（XMLHttpRequest 带进度追踪）
+	 * - 可见度切换 → 显示/隐藏密码和用户输入框
+	 * - 字数统计 → 实时更新
+	 * - 草稿自动保存 → localStorage 防抖
+	 * - Emoji 选择器 → 原生 dialog + 分类浏览
+	 */
+	import { actions } from 'astro:actions';
+
+	/** Emoji 分类数据（约 200 个常用 emoji） */
+	const EMOJI_CATEGORIES = [
+		{
+			name: '表情',
+			icon: '😀',
+			emojis: [
+				'😀',
+				'😃',
+				'😄',
+				'😁',
+				'😆',
+				'😅',
+				'🤣',
+				'😂',
+				'🙂',
+				'😊',
+				'😇',
+				'🥰',
+				'😍',
+				'🤩',
+				'😘',
+				'😋',
+				'😛',
+				'😜',
+				'🤪',
+				'😝',
+				'🤗',
+				'🤭',
+				'🤫',
+				'🤔',
+				'😐',
+				'😑',
+				'😶',
+				'😏',
+				'😒',
+				'🙄',
+				'😬',
+				'😌',
+				'😔',
+				'😪',
+				'😴',
+				'😷',
+				'🤒',
+				'🤕',
+				'🤢',
+				'🤮',
+				'🥵',
+				'🥶',
+				'😵',
+				'🤯',
+				'🤠',
+				'🥳',
+				'😎',
+				'🤓',
+				'🧐'
+			]
+		},
+		{
+			name: '手势',
+			icon: '👋',
+			emojis: [
+				'👍',
+				'👎',
+				'👊',
+				'✊',
+				'👏',
+				'🙌',
+				'🤝',
+				'🙏',
+				'✌️',
+				'🤞',
+				'🤟',
+				'🤘',
+				'👌',
+				'👈',
+				'👉',
+				'👆',
+				'👇',
+				'☝️',
+				'✋',
+				'🤚',
+				'👋',
+				'🤙',
+				'💪',
+				'✍️'
+			]
+		},
+		{
+			name: '爱心',
+			icon: '❤️',
+			emojis: [
+				'❤️',
+				'🧡',
+				'💛',
+				'💚',
+				'💙',
+				'💜',
+				'🖤',
+				'🤍',
+				'💔',
+				'❤️‍🔥',
+				'❣️',
+				'💕',
+				'💞',
+				'💓',
+				'💗',
+				'💖',
+				'💘',
+				'💝'
+			]
+		},
+		{
+			name: '动物',
+			icon: '🐱',
+			emojis: [
+				'🐶',
+				'🐱',
+				'🐭',
+				'🐹',
+				'🐰',
+				'🦊',
+				'🐻',
+				'🐼',
+				'🐨',
+				'🐯',
+				'🦁',
+				'🐮',
+				'🐷',
+				'🐸',
+				'🐵',
+				'🐔',
+				'🐧',
+				'🐦',
+				'🐝',
+				'🦋',
+				'🐌',
+				'🐙',
+				'🦀',
+				'🐬',
+				'🐳',
+				'🦈'
+			]
+		},
+		{
+			name: '食物',
+			icon: '🍎',
+			emojis: [
+				'🍎',
+				'🍐',
+				'🍊',
+				'🍋',
+				'🍌',
+				'🍉',
+				'🍇',
+				'🍓',
+				'🍑',
+				'🥭',
+				'🍍',
+				'🥥',
+				'🍅',
+				'🥑',
+				'🌶️',
+				'🌽',
+				'🥕',
+				'🍞',
+				'🧀',
+				'🍳',
+				'🍔',
+				'🍟',
+				'🍕',
+				'🌭',
+				'🥪',
+				'🌮',
+				'🍜',
+				'🍣',
+				'🍦',
+				'🍩',
+				'🍪',
+				'🎂',
+				'🍰',
+				'🍫',
+				'🍭',
+				'☕',
+				'🍵',
+				'🍺',
+				'🍷',
+				'🥂'
+			]
+		},
+		{
+			name: '活动',
+			icon: '⚽',
+			emojis: [
+				'⚽',
+				'🏀',
+				'🏈',
+				'⚾',
+				'🎾',
+				'🏐',
+				'🎱',
+				'🏓',
+				'🏸',
+				'🥊',
+				'🤺',
+				'🏊',
+				'🚴',
+				'🏋️',
+				'🎯',
+				'🎮',
+				'🎲',
+				'🎭',
+				'🎨',
+				'🎬',
+				'🎤',
+				'🎧',
+				'🎸',
+				'🎹',
+				'🥁',
+				'🎺'
+			]
+		},
+		{
+			name: '自然',
+			icon: '🌸',
+			emojis: [
+				'🌸',
+				'🌹',
+				'🌺',
+				'🌻',
+				'🌼',
+				'🌷',
+				'🌱',
+				'🌲',
+				'🌳',
+				'🌴',
+				'🌵',
+				'🍀',
+				'🍁',
+				'🍂',
+				'🍃',
+				'🌊',
+				'❄️',
+				'☃️',
+				'🔥',
+				'🌈',
+				'☀️',
+				'☁️',
+				'🌙',
+				'⭐',
+				'✨',
+				'💫'
+			]
+		},
+		{
+			name: '物品',
+			icon: '💻',
+			emojis: [
+				'💻',
+				'📱',
+				'⌨️',
+				'💡',
+				'📷',
+				'📺',
+				'📚',
+				'📖',
+				'📝',
+				'✏️',
+				'📌',
+				'✂️',
+				'🔑',
+				'🔒',
+				'💰',
+				'💎',
+				'🎈',
+				'🎉',
+				'🎊',
+				'🎁',
+				'🏆',
+				'🥇',
+				'🎖️'
+			]
+		},
+		{
+			name: '符号',
+			icon: '✅',
+			emojis: [
+				'✅',
+				'❌',
+				'❓',
+				'❗',
+				'‼️',
+				'⭕',
+				'🔴',
+				'🟠',
+				'🟡',
+				'🟢',
+				'🔵',
+				'🟣',
+				'⚫',
+				'⚪',
+				'🔊',
+				'🔇',
+				'🔔',
+				'🔕',
+				'♾️',
+				'⚠️',
+				'♻️',
+				'💯',
+				'🔰'
+			]
+		}
+	];
+
+	/** 草稿存储键 */
+	const DRAFT_KEY = 'post-draft';
+	/** 草稿自动保存间隔（毫秒） */
+	const DRAFT_SAVE_DELAY = 1000;
+	/** 图片最大数量 */
+	const MAX_IMAGES = 9;
+	/** 帖子内容最大长度 */
+	const CONTENT_MAX_LENGTH = 1000;
+
+	/** 已上传文件的信息 */
+	interface UploadedFile {
+		/** FileStorage 记录 ID */
+		id: string;
+		/** 文件访问 URL */
+		url: string;
+		/** 文件类型 */
+		fileType: string;
+		/** 原始文件名 */
+		originalName: string;
+	}
+
+	/**
+	 * 初始化 PostEditor 实例
+	 *
+	 * 为每个 post-editor 表单绑定交互事件，
+	 * 支持同一页面多个实例（如弹窗和页面内嵌）。
+	 *
+	 * @param form - 表单 DOM 元素
+	 */
+	function initPostEditor(form: HTMLFormElement) {
+		// ===== DOM 元素引用 =====
+		const textarea = form.querySelector('#post-content') as HTMLTextAreaElement;
+		const visibilitySelect = form.querySelector('#post-visibility') as HTMLSelectElement;
+		const passwordField = form.querySelector('#password-field') as HTMLDivElement;
+		const usersField = form.querySelector('#users-field') as HTMLDivElement;
+		const passwordInput = form.querySelector('#post-password') as HTMLInputElement;
+		const usernamesInput = form.querySelector('#post-allowed-usernames') as HTMLInputElement;
+		const uploadArea = form.querySelector('#upload-area') as HTMLDivElement;
+		const fileInput = form.querySelector('#file-input') as HTMLInputElement;
+		const uploadCount = form.querySelector('#upload-count') as HTMLSpanElement;
+		const progressWrap = form.querySelector('#upload-progress') as HTMLDivElement;
+		const progressBar = form.querySelector('#progress-bar') as HTMLDivElement;
+		const emojiToggle = form.querySelector('#emoji-toggle') as HTMLButtonElement;
+		const emojiDialog = form.querySelector('#emoji-dialog') as HTMLDialogElement;
+		const emojiCategories = form.querySelector('#emoji-categories') as HTMLDivElement;
+		const emojiGroupLabel = form.querySelector('#emoji-group-label') as HTMLDivElement;
+		const emojiItems = form.querySelector('#emoji-items') as HTMLDivElement;
+		const imagePreviews = form.querySelector('#image-previews') as HTMLDivElement;
+		const charCount = form.querySelector('#char-count') as HTMLSpanElement;
+		const submitBtn = form.querySelector('#submit-btn') as HTMLButtonElement;
+		const formError = form.querySelector('#form-error') as HTMLParagraphElement;
+		const draftHint = form.querySelector('#draft-hint') as HTMLDivElement;
+
+		// ===== 状态 =====
+		/** 已上传文件列表 */
+		let uploadedFiles: UploadedFile[] = [];
+		/** 是否正在上传 */
+		let uploading = false;
+		/** 上传进度百分比 */
+		let uploadProgress = 0;
+		/** 是否正在提交 */
+		let loading = false;
+		/** 当前 Emoji 分类索引 */
+		let activeCategory = 0;
+		/** 草稿自动保存定时器 */
+		let draftTimer: ReturnType<typeof setTimeout> | null = null;
+		/** beforeunload 处理器引用 */
+		let beforeUnloadHandler: (() => void) | null = null;
+
+		// ===== 工具函数 =====
+
+		/**
+		 * 获取当前已上传图片数量
+		 *
+		 * @returns 图片类型的文件数量
+		 */
+		function getImageCount(): number {
+			return uploadedFiles.filter((f) => f.fileType === 'image').length;
+		}
+
+		/**
+		 * 更新字数统计显示
+		 *
+		 * 超过 90% 最大长度时显示危险色。
+		 */
+		function updateCharCount(): void {
+			const len = textarea.value.length;
+			const isNearLimit = len > CONTENT_MAX_LENGTH * 0.9;
+			charCount.textContent = `${len}/${CONTENT_MAX_LENGTH}`;
+			charCount.className = `post-editor-count${isNearLimit ? ' text-danger' : ''}`;
+		}
+
+		/**
+		 * 更新发布按钮状态
+		 *
+		 * 内容为空或正在提交时禁用按钮。
+		 */
+		function updateSubmitBtn(): void {
+			submitBtn.disabled = loading || !textarea.value.trim();
+			submitBtn.textContent = loading ? '发布中...' : '发布';
+		}
+
+		/**
+		 * 更新图片计数和上传区域可见性
+		 */
+		function updateUploadUI(): void {
+			const imageCount = getImageCount();
+			uploadCount.textContent = `${imageCount}/${MAX_IMAGES}`;
+			// 达到上限时隐藏上传按钮
+			const uploadLabel = form.querySelector('#upload-label') as HTMLLabelElement;
+			uploadLabel.style.display = imageCount >= MAX_IMAGES ? 'none' : '';
+		}
+
+		/**
+		 * 渲染图片预览区域
+		 */
+		function renderPreviews(): void {
+			if (uploadedFiles.length === 0) {
+				imagePreviews.style.display = 'none';
+				imagePreviews.innerHTML = '';
+				return;
+			}
+			imagePreviews.style.display = '';
+			imagePreviews.innerHTML = uploadedFiles
+				.map(
+					(file) =>
+						`<div class="post-editor-preview-item">
+						<img src="${file.url}" alt="${file.originalName}" />
+						<button type="button" class="post-editor-preview-remove" data-file-id="${file.id}">×</button>
+					</div>`
+				)
+				.join('');
+		}
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string): void {
+			formError.textContent = msg;
+			formError.style.display = '';
+		}
+
+		/**
+		 * 隐藏错误信息
+		 */
+		function hideError(): void {
+			formError.style.display = 'none';
+		}
+
+		// ===== 草稿功能 =====
+
+		/**
+		 * 保存草稿到 localStorage
+		 */
+		function saveDraft(): void {
+			const draft = { content: textarea.value, visibility: visibilitySelect.value };
+			if (draft.content.trim()) {
+				localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+			} else {
+				localStorage.removeItem(DRAFT_KEY);
+			}
+		}
+
+		/**
+		 * 清除草稿
+		 */
+		function clearDraft(): void {
+			localStorage.removeItem(DRAFT_KEY);
+		}
+
+		/**
+		 * 恢复草稿内容
+		 */
+		function restoreDraft(): void {
+			try {
+				const saved = localStorage.getItem(DRAFT_KEY);
+				if (saved) {
+					const draft = JSON.parse(saved);
+					if (draft.content) {
+						textarea.value = draft.content;
+						if (draft.visibility) visibilitySelect.value = draft.visibility;
+						// 触发可见度切换逻辑
+						handleVisibilityChange();
+						updateCharCount();
+						updateSubmitBtn();
+						// 显示草稿恢复提示
+						draftHint.style.display = '';
+						setTimeout(() => {
+							draftHint.style.display = 'none';
+						}, 3000);
+					}
+				}
+			} catch {
+				// 草稿解析失败，忽略
+			}
+		}
+
+		/**
+		 * 自动保存草稿（防抖）
+		 */
+		function scheduleDraftSave(): void {
+			if (draftTimer) clearTimeout(draftTimer);
+			draftTimer = setTimeout(saveDraft, DRAFT_SAVE_DELAY);
+		}
+
+		// ===== 可见度切换 =====
+
+		/**
+		 * 处理可见度切换
+		 *
+		 * 根据选中的可见度值，显示/隐藏密码和用户输入框。
+		 */
+		function handleVisibilityChange(): void {
+			const vis = visibilitySelect.value;
+			passwordField.style.display = vis === 'password' ? '' : 'none';
+			usersField.style.display = vis === 'users' ? '' : 'none';
+		}
+
+		// ===== 图片上传 =====
+
+		/**
+		 * 上传单个文件到服务器（带进度追踪）
+		 *
+		 * 使用 XMLHttpRequest 替代 fetch，以支持 upload.progress 事件。
+		 * 通过 Astro Action 的 RPC 端点发送 FormData。
+		 *
+		 * @param file - 要上传的 File 对象
+		 * @returns Promise<void>
+		 */
+		function uploadFile(file: File): Promise<void> {
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('fileType', 'image');
+
+			return new Promise((resolve, reject) => {
+				const xhr = new XMLHttpRequest();
+				// Astro Actions 的 RPC 端点
+				xhr.open('POST', '/_actions/uploadMedia');
+
+				// 追踪上传进度
+				xhr.upload.onprogress = (e) => {
+					if (e.lengthComputable) {
+						uploadProgress = Math.round((e.loaded / e.total) * 100);
+						progressBar.style.width = `${uploadProgress}%`;
+					}
+				};
+
+				xhr.onload = () => {
+					try {
+						const data = JSON.parse(xhr.responseText);
+						if (data.success) {
+							uploadedFiles.push(data.data);
+							renderPreviews();
+							updateUploadUI();
+							resolve();
+						} else {
+							showError(data.error?.message || '上传失败');
+							reject(new Error(data.error?.message));
+						}
+					} catch {
+						showError('上传失败');
+						reject(new Error('解析响应失败'));
+					}
+				};
+
+				xhr.onerror = () => {
+					showError('上传失败，请稍后重试');
+					reject(new Error('网络错误'));
+				};
+
+				xhr.send(formData);
+			});
+		}
+
+		/**
+		 * 批量上传图片
+		 *
+		 * @param files - 待上传的图片文件列表
+		 */
+		async function uploadImages(files: File[]): Promise<void> {
+			const remaining = MAX_IMAGES - getImageCount();
+			const imageFiles = files.slice(0, remaining);
+			if (imageFiles.length === 0) {
+				showError(`图片最多 ${MAX_IMAGES} 张`);
+				return;
+			}
+			hideError();
+			uploading = true;
+			uploadProgress = 0;
+			progressWrap.style.display = '';
+			progressBar.style.width = '0%';
+
+			try {
+				await Promise.all(imageFiles.map((f) => uploadFile(f)));
+			} finally {
+				uploading = false;
+				uploadProgress = 0;
+				progressWrap.style.display = 'none';
+				progressBar.style.width = '0%';
+			}
+		}
+
+		// ===== Emoji 选择器 =====
+
+		/**
+		 * 渲染 Emoji 分类标签栏
+		 */
+		function renderEmojiCategories(): void {
+			emojiCategories.innerHTML = EMOJI_CATEGORIES.map(
+				(cat, i) =>
+					`<button type="button" class="emoji-picker-category-btn${i === activeCategory ? ' active' : ''}" data-cat-index="${i}" title="${cat.name}">${cat.icon}</button>`
+			).join('');
+		}
+
+		/**
+		 * 渲染当前分类的 Emoji 网格
+		 */
+		function renderEmojiGrid(): void {
+			const cat = EMOJI_CATEGORIES[activeCategory];
+			emojiGroupLabel.textContent = cat.name;
+			emojiItems.innerHTML = cat.emojis
+				.map(
+					(emoji, i) =>
+						`<button type="button" class="emoji-picker-item" data-emoji="${emoji}" title="${emoji}">${emoji}</button>`
+				)
+				.join('');
+		}
+
+		/**
+		 * 打开 Emoji 选择器
+		 */
+		function openEmojiPicker(): void {
+			activeCategory = 0;
+			renderEmojiCategories();
+			renderEmojiGrid();
+			emojiDialog.showModal();
+			emojiToggle.setAttribute('aria-expanded', 'true');
+		}
+
+		/**
+		 * 关闭 Emoji 选择器
+		 */
+		function closeEmojiPicker(): void {
+			emojiDialog.close();
+			emojiToggle.setAttribute('aria-expanded', 'false');
+		}
+
+		/**
+		 * 插入 emoji 到 textarea 光标位置
+		 *
+		 * 保持光标在 emoji 之后，并重新聚焦 textarea。
+		 *
+		 * @param emoji - 要插入的 emoji 字符
+		 */
+		function insertEmoji(emoji: string): void {
+			const start = textarea.selectionStart;
+			const end = textarea.selectionEnd;
+			const value = textarea.value;
+			textarea.value = value.slice(0, start) + emoji + value.slice(end);
+			// 恢复光标位置到 emoji 之后
+			requestAnimationFrame(() => {
+				textarea.selectionStart = start + emoji.length;
+				textarea.selectionEnd = start + emoji.length;
+				textarea.focus();
+			});
+			updateCharCount();
+			updateSubmitBtn();
+			scheduleDraftSave();
+		}
+
+		// ===== 表单提交 =====
+
+		/**
+		 * 处理表单提交
+		 *
+		 * 流程：
+		 * 1. 前端基础校验（内容非空、长度限制、可见度相关字段）
+		 * 2. visibility=users 时，调用 actions.searchUsers 查询用户 ID
+		 * 3. 调用 actions.createPost 创建帖子
+		 * 4. 成功后清除草稿并跳转
+		 *
+		 * @param e - 表单提交事件
+		 */
+		async function handleSubmit(e: Event): Promise<void> {
+			e.preventDefault();
+			hideError();
+
+			const content = textarea.value.trim();
+			const visibility = visibilitySelect.value;
+			const postPassword = passwordInput.value.trim();
+			const allowedUsernames = usernamesInput.value.trim();
+
+			// 前端基础校验
+			if (!content) {
+				showError('请输入帖子内容');
+				return;
+			}
+			if (content.length > CONTENT_MAX_LENGTH) {
+				showError(`内容不能超过 ${CONTENT_MAX_LENGTH} 个字符`);
+				return;
+			}
+			if (visibility === 'password' && !postPassword) {
+				showError('请设置帖子访问密码');
+				return;
+			}
+			if (visibility === 'users' && !allowedUsernames) {
+				showError('请输入允许查看的用户名');
+				return;
+			}
+
+			loading = true;
+			updateSubmitBtn();
+
+			try {
+				// 构建 action 输入
+				const mediaIds = uploadedFiles.map((f) => f.id);
+				const actionInput: Record<string, unknown> = {
+					content,
+					visibility,
+					mediaIds
+				};
+
+				// visibility=password 时，添加密码
+				if (visibility === 'password') {
+					actionInput.password = postPassword;
+				}
+
+				// visibility=users 时，查询用户名对应的用户 ID
+				if (visibility === 'users') {
+					const usernames = allowedUsernames
+						.split(',')
+						.map((s) => s.trim())
+						.filter(Boolean);
+					const searchResult = await actions.searchUsers({ usernames });
+					if (searchResult.data && searchResult.data.items.length > 0) {
+						actionInput.allowedUserIds = searchResult.data.items.map(
+							(u: { id: string }) => u.id
+						);
+					} else {
+						showError('未找到指定用户');
+						loading = false;
+						updateSubmitBtn();
+						return;
+					}
+				}
+
+				// 调用 createPost Action
+				const result = await actions.createPost(actionInput as any);
+
+				if (result.error) {
+					showError(result.error.message || '发布失败');
+					return;
+				}
+
+				// 发布成功，清除草稿
+				// 先移除 beforeunload 监听器，防止页面跳转时触发自动保存重新写入草稿
+				if (beforeUnloadHandler) {
+					window.removeEventListener('beforeunload', beforeUnloadHandler);
+				}
+				clearDraft();
+
+				// 跳转到帖子详情页
+				const post = result.data;
+				window.location.href = `/${post.user.username}/${post.id}`;
+			} catch {
+				showError('网络错误，请稍后重试');
+			} finally {
+				loading = false;
+				updateSubmitBtn();
+			}
+		}
+
+		// ===== 事件绑定 =====
+
+		// textarea 输入事件
+		textarea.addEventListener('input', () => {
+			updateCharCount();
+			updateSubmitBtn();
+			scheduleDraftSave();
+		});
+
+		// textarea 粘贴事件（支持粘贴图片上传）
+		textarea.addEventListener('paste', (e: ClipboardEvent) => {
+			const items = e.clipboardData?.items;
+			if (!items) return;
+			const imageFiles: File[] = [];
+			for (let i = 0; i < items.length; i++) {
+				if (items[i].type.startsWith('image/')) {
+					const file = items[i].getAsFile();
+					if (file) imageFiles.push(file);
+				}
+			}
+			if (imageFiles.length > 0) {
+				uploadImages(imageFiles);
+			}
+		});
+
+		// 可见度切换
+		visibilitySelect.addEventListener('change', () => {
+			handleVisibilityChange();
+			scheduleDraftSave();
+		});
+
+		// 文件选择
+		fileInput.addEventListener('change', () => {
+			const files = fileInput.files;
+			if (!files) return;
+			uploadImages(Array.from(files));
+			// 重置 input 以允许重复选择同一文件
+			fileInput.value = '';
+		});
+
+		// 上传区域点击
+		uploadArea.addEventListener('click', (e: MouseEvent) => {
+			// 避免点击 label 内的 input 时重复触发
+			if ((e.target as HTMLElement).tagName === 'INPUT') return;
+			if (getImageCount() < MAX_IMAGES) {
+				fileInput.click();
+			}
+		});
+
+		// 上传区域键盘可达性
+		uploadArea.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Enter' || e.key === ' ') {
+				e.preventDefault();
+				if (getImageCount() < MAX_IMAGES) {
+					fileInput.click();
+				}
+			}
+		});
+
+		// 拖拽上传
+		uploadArea.addEventListener('drop', (e: DragEvent) => {
+			e.preventDefault();
+			const files = e.dataTransfer?.files;
+			if (!files) return;
+			const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+			uploadImages(imageFiles);
+		});
+
+		uploadArea.addEventListener('dragover', (e: DragEvent) => {
+			e.preventDefault();
+		});
+
+		// 图片预览删除按钮（事件委托）
+		imagePreviews.addEventListener('click', (e: MouseEvent) => {
+			const btn = (e.target as HTMLElement).closest(
+				'.post-editor-preview-remove'
+			) as HTMLButtonElement | null;
+			if (!btn) return;
+			const fileId = btn.dataset.fileId;
+			if (fileId) {
+				uploadedFiles = uploadedFiles.filter((f) => f.id !== fileId);
+				renderPreviews();
+				updateUploadUI();
+			}
+		});
+
+		// Emoji 切换按钮
+		emojiToggle.addEventListener('click', () => {
+			if (emojiDialog.open) {
+				closeEmojiPicker();
+			} else {
+				openEmojiPicker();
+			}
+		});
+
+		// Emoji 分类切换（事件委托）
+		emojiCategories.addEventListener('click', (e: MouseEvent) => {
+			const btn = (e.target as HTMLElement).closest(
+				'.emoji-picker-category-btn'
+			) as HTMLButtonElement | null;
+			if (!btn) return;
+			const index = Number(btn.dataset.catIndex);
+			if (!isNaN(index)) {
+				activeCategory = index;
+				renderEmojiCategories();
+				renderEmojiGrid();
+			}
+		});
+
+		// Emoji 选择（事件委托）
+		emojiItems.addEventListener('click', (e: MouseEvent) => {
+			const btn = (e.target as HTMLElement).closest(
+				'.emoji-picker-item'
+			) as HTMLButtonElement | null;
+			if (!btn) return;
+			const emoji = btn.dataset.emoji;
+			if (emoji) {
+				insertEmoji(emoji);
+				closeEmojiPicker();
+			}
+		});
+
+		// Emoji dialog 关闭事件
+		emojiDialog.addEventListener('close', () => {
+			emojiToggle.setAttribute('aria-expanded', 'false');
+		});
+
+		// Emoji dialog 点击遮罩关闭
+		emojiDialog.addEventListener('click', (e: MouseEvent) => {
+			if (e.target === emojiDialog) {
+				closeEmojiPicker();
+			}
+		});
+
+		// 表单提交
+		form.addEventListener('submit', handleSubmit);
+
+		// 页面关闭前保存草稿
+		beforeUnloadHandler = () => saveDraft();
+		window.addEventListener('beforeunload', beforeUnloadHandler);
+
+		// 挂载时恢复草稿（仅弹窗模式）
+		if (form.dataset.restoreDraft === 'true') {
+			restoreDraft();
+		}
+	}
+
+	// 初始化页面上所有 PostEditor 实例
+	document.querySelectorAll('#post-editor-form').forEach((el) => {
+		initPostEditor(el as HTMLFormElement);
+	});
+</script>

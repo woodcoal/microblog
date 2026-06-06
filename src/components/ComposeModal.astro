@@ -1,0 +1,79 @@
+---
+/**
+ * 全局发帖弹窗组件（Astro 原生）
+ *
+ * 在 Base.astro 中挂载，监听 `open-compose-modal` 自定义事件。
+ * 收到事件后显示发帖弹窗，发布成功后页面自动跳转，
+ * 点击遮罩层或按 ESC 可关闭弹窗。
+ */
+import PostEditor from '@/components/PostEditor.astro';
+---
+
+<div class="modal-overlay compose-modal-overlay" id="compose-modal" style="display:none">
+	<div class="modal compose-modal">
+		<div class="compose-modal-header">
+			<h2 class="compose-modal-title">发布新帖</h2>
+			<button
+				type="button"
+				class="compose-modal-close"
+				id="compose-modal-close"
+				aria-label="关闭"
+			>
+				×
+			</button>
+		</div>
+		<PostEditor restoreDraft />
+	</div>
+</div>
+
+<script>
+	/**
+	 * ComposeModal 客户端脚本
+	 *
+	 * 监听 open-compose-modal 自定义事件打开弹窗，
+	 * 支持 ESC 键关闭、点击遮罩关闭、打开时禁止背景滚动。
+	 */
+	const modal = document.getElementById('compose-modal');
+	const closeBtn = document.getElementById('compose-modal-close');
+
+	if (modal && closeBtn) {
+		/**
+		 * 打开弹窗
+		 */
+		function openModal(): void {
+			(modal as HTMLElement).style.display = '';
+			document.body.style.overflow = 'hidden';
+		}
+
+		/**
+		 * 关闭弹窗
+		 */
+		function closeModal(): void {
+			(modal as HTMLElement).style.display = 'none';
+			document.body.style.overflow = '';
+		}
+
+		// 监听打开弹窗的自定义事件
+		document.addEventListener('open-compose-modal', openModal);
+
+		// 监听关闭弹窗的自定义事件（Escape 快捷键触发）
+		document.addEventListener('close-compose-modal', closeModal);
+
+		// ESC 键关闭弹窗
+		document.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && (modal as HTMLElement).style.display !== 'none') {
+				closeModal();
+			}
+		});
+
+		// 点击遮罩层关闭弹窗（仅点击遮罩本身，不点击内容区）
+		modal.addEventListener('click', (e: MouseEvent) => {
+			if (e.target === modal) {
+				closeModal();
+			}
+		});
+
+		// 关闭按钮
+		closeBtn.addEventListener('click', closeModal);
+	}
+</script>
