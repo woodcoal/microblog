@@ -1,10 +1,14 @@
 ---
 /**
- * 博客写文章页面
+ * 博客写文章页面（Word 文档风格）
  *
- * 使用 BlogEditor（Tiptap 富文本编辑器）替代简单 textarea。
- * BlogEditor 是 React Island，通过 client:load 指令加载。
- * 提交时从 BlogEditor 获取 Markdown 内容，调用 actions.createPost 发布。
+ * 整个页面模拟 Word/Google Docs 的文档编辑体验：
+ * - 白色文档页居中，有轻微阴影
+ * - 第一行是标题输入区（大号字体，融入文档页）
+ * - 下方是 Tiptap 富文本编辑器
+ * - 分类和可见度选择放在顶部轻量工具栏
+ * - BlogEditor 通过自定义事件 blog-editor-submit 传出 markdown 内容
+ *
  * 需要登录认证，未登录重定向到登录页。
  */
 import BaseLayout from '@/layouts/Base.astro';
@@ -34,105 +38,158 @@ const categories = await prisma.category.findMany({
 const hasCategories = categories.length > 0;
 ---
 
-<BaseLayout title="写文章 - 博客" layoutMode="narrow">
-	<div class="page-header">
-		<h1 class="page-title">✏️ 写文章</h1>
-		<p class="page-desc">发布一篇博客文章</p>
-	</div>
-
-	<div class="blog-compose" id="blog-compose-container">
-		<div class="form-group">
-			<label class="form-label" for="blog-compose-title">标题</label>
-			<input
-				type="text"
-				class="form-input blog-compose-title"
-				id="blog-compose-title"
-				placeholder="文章标题（必填）"
-				maxlength="200"
-				required
-			/>
+<BaseLayout title="写文章 - 博客" layoutMode="wide">
+	<div class="blog-write-page" id="blog-compose-container">
+		{/* 顶部轻量工具栏：分类 + 可见度 + 操作按钮 */}
+		<div class="blog-write-toolbar">
+			<div class="blog-write-toolbar-left">
+				{
+					hasCategories && (
+						<select class="form-input blog-write-select" id="blog-compose-category">
+							<option value="">选择分类（可选）</option>
+							{categories.map((cat) => (
+								<option value={cat.id}>
+									{cat.icon && `${cat.icon} `}
+									{cat.name}
+								</option>
+							))}
+						</select>
+					)
+				}
+				<select class="form-input blog-write-select" id="blog-compose-visibility">
+					<option value="public">🌐 公开</option>
+					<option value="logged_in">🔐 登录用户可见</option>
+					<option value="followers">👥 粉丝可见</option>
+					<option value="following">🤝 我关注的人可见</option>
+					<option value="private">🔒 仅自己可见</option>
+				</select>
+			</div>
+			<div class="blog-write-toolbar-right">
+				<a href="/blog" class="btn blog-write-cancel-btn">取消</a>
+				<button class="btn btn-primary blog-write-publish-btn" id="blog-compose-publish">
+					发布文章
+				</button>
+			</div>
 		</div>
 
-		{
-			hasCategories && (
-				<div class="form-group">
-					<label class="form-label" for="blog-compose-category">
-						分类
-					</label>
-					<select class="form-input" id="blog-compose-category">
-						<option value="">选择分类（可选）</option>
-						{categories.map((cat) => (
-							<option value={cat.id}>
-								{cat.icon && `${cat.icon} `}
-								{cat.name}
-							</option>
-						))}
-					</select>
-				</div>
-			)
-		}
-
-		<div class="form-group">
-			<label class="form-label">内容</label>
+		{/* 文档页：白色背景，居中，有阴影 */}
+		<div class="blog-write-doc" data-max-length={POST_CONTENT_MAX_LENGTH}>
+			{/* 标题输入区：大号字体，融入文档页 */}
+			<input
+				type="text"
+				class="blog-write-title"
+				id="blog-compose-title"
+				placeholder="文章标题"
+				maxlength="200"
+			/>
+			{/* 内容编辑区 */}
 			<BlogEditor client:load />
 		</div>
 
-		<div class="form-group">
-			<label class="form-label" for="blog-compose-visibility">可见度</label>
-			<select class="form-input" id="blog-compose-visibility">
-				<option value="public">🌐 公开</option>
-				<option value="logged_in">🔐 登录用户可见</option>
-				<option value="followers">👥 粉丝可见</option>
-				<option value="following">🤝 我关注的人可见</option>
-				<option value="private">🔒 仅自己可见</option>
-			</select>
-		</div>
-
-		<div class="blog-compose-footer">
-			<a href="/blog" class="btn">取消</a>
-		</div>
 		<p class="form-error" id="blog-form-error" style="display:none"></p>
 	</div>
 </BaseLayout>
 
 <style>
-	/* 页面头部 */
-	.page-header {
-		margin-bottom: var(--spacing-6);
-		padding-bottom: var(--spacing-4);
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.page-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		margin: 0 0 0.25rem;
-	}
-
-	.page-desc {
-		font-size: 0.875rem;
-		color: var(--color-muted);
-		margin: 0;
-	}
-
-	/* 编辑器 */
-	.blog-compose {
+	/* 写文章页面容器 */
+	.blog-write-page {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-4);
+		min-height: calc(100vh - 4rem);
+		background: var(--color-surface, #f5f5f5);
 	}
 
-	.blog-compose-title {
-		font-size: 1.25rem;
-		font-weight: 600;
-	}
-
-	.blog-compose-footer {
+	/* 顶部轻量工具栏 */
+	.blog-write-toolbar {
 		display: flex;
-		justify-content: flex-end;
-		gap: var(--spacing-3);
-		padding-top: var(--spacing-4);
-		border-top: 1px solid var(--color-border);
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.5rem 2rem;
+		background: var(--color-card-bg, #fff);
+		border-bottom: 1px solid var(--color-border);
+		position: sticky;
+		top: 0;
+		z-index: 10;
+	}
+
+	.blog-write-toolbar-left {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.blog-write-toolbar-right {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	/* 工具栏下拉选择框 */
+	.blog-write-select {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.8125rem;
+		min-width: auto;
+	}
+
+	/* 取消按钮 */
+	.blog-write-cancel-btn {
+		font-size: 0.8125rem;
+		padding: 0.3rem 0.75rem;
+	}
+
+	/* 发布按钮 */
+	.blog-write-publish-btn {
+		font-size: 0.8125rem;
+		padding: 0.3rem 1rem;
+	}
+
+	/* 文档页样式：白色背景、居中、阴影 */
+	.blog-write-doc {
+		flex: 1;
+		max-width: 800px;
+		width: 100%;
+		margin: 2rem auto;
+		padding: 2rem 3rem;
+		background: var(--color-card-bg, #fff);
+		box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+		border-radius: var(--radius-lg);
+	}
+
+	/* 标题输入区：大号字体，无边框，融入文档页 */
+	.blog-write-title {
+		display: block;
+		width: 100%;
+		border: none;
+		outline: none;
+		background: transparent;
+		font-size: 2rem;
+		font-weight: 700;
+		line-height: 1.3;
+		color: var(--color-text);
+		padding: 0;
+		margin-bottom: 1rem;
+		font-family: inherit;
+	}
+
+	.blog-write-title::placeholder {
+		color: var(--color-muted);
+		opacity: 0.4;
+	}
+
+	/* 让编辑器在文档页内无边框融入 */
+	.blog-write-doc :global(.blog-editor) {
+		border: none;
+		background: transparent;
+	}
+
+	.blog-write-doc :global(.blog-editor-content) {
+		min-height: 500px;
+	}
+
+	/* 错误信息 */
+	.form-error {
+		text-align: center;
+		padding: 0.5rem;
 	}
 </style>
 
@@ -141,12 +198,16 @@ const hasCategories = categories.length > 0;
 	 * 博客写文章页面客户端脚本
 	 *
 	 * 处理博客文章的发布功能：
-	 * - 从 BlogEditor React Island 获取 Markdown 内容
-	 * - 标题必填校验
+	 * - 标题从独立 input 获取
+	 * - 内容从 BlogEditor 的 blog-editor-submit 事件获取
 	 * - 表单提交调用 actions.createPost（mode=blog）
 	 * - 发布成功后跳转到文章详情页
+	 * - 草稿自动保存/恢复（localStorage，1 秒防抖）
 	 */
 	import { actions } from 'astro:actions';
+
+	/** 草稿存储键 */
+	const BLOG_DRAFT_KEY = 'blog-draft';
 
 	const container = document.getElementById('blog-compose-container');
 	if (container) {
@@ -158,7 +219,14 @@ const hasCategories = categories.length > 0;
 			'#blog-compose-visibility'
 		) as HTMLSelectElement;
 		const formError = container.querySelector('#blog-form-error') as HTMLParagraphElement;
-		const CONTENT_MAX_LENGTH = POST_CONTENT_MAX_LENGTH;
+		const publishBtn = container.querySelector('#blog-compose-publish') as HTMLButtonElement;
+		const CONTENT_MAX_LENGTH = parseInt(
+			document.querySelector('.blog-write-doc')?.getAttribute('data-max-length') || '50000',
+			10
+		);
+
+		/** 草稿自动保存定时器 */
+		let draftTimer: ReturnType<typeof setTimeout> | null = null;
 
 		/**
 		 * 显示错误信息
@@ -170,11 +238,85 @@ const hasCategories = categories.length > 0;
 			formError.style.display = '';
 		}
 
+		// ===== 草稿功能 =====
+
+		/**
+		 * 保存草稿到 localStorage
+		 *
+		 * 保存标题、分类、可见度等信息
+		 * （内容由 BlogEditor 管理，不在草稿中保存）
+		 */
+		function saveBlogDraft(): void {
+			const data = {
+				title: titleInput?.value || '',
+				categoryId: categorySelect?.value || '',
+				visibility: visibilitySelect?.value || 'public',
+				savedAt: new Date().toISOString()
+			};
+			// 有标题时保存，否则清除
+			if (data.title.trim()) {
+				localStorage.setItem(BLOG_DRAFT_KEY, JSON.stringify(data));
+			} else {
+				localStorage.removeItem(BLOG_DRAFT_KEY);
+			}
+		}
+
+		/**
+		 * 防抖保存草稿
+		 *
+		 * 1 秒后执行保存，期间有新输入则重置计时器
+		 */
+		function saveBlogDraftDebounced(): void {
+			if (draftTimer) clearTimeout(draftTimer);
+			draftTimer = setTimeout(saveBlogDraft, 1000);
+		}
+
+		/**
+		 * 恢复草稿内容
+		 *
+		 * 从 localStorage 读取草稿并填充到表单中
+		 */
+		function restoreBlogDraft(): void {
+			try {
+				const saved = localStorage.getItem(BLOG_DRAFT_KEY);
+				if (!saved) return;
+				const data = JSON.parse(saved);
+				if (data.title && titleInput) titleInput.value = data.title;
+				if (data.categoryId && categorySelect) categorySelect.value = data.categoryId;
+				if (data.visibility && visibilitySelect) visibilitySelect.value = data.visibility;
+			} catch {
+				// 草稿解析失败，静默处理
+			}
+		}
+
+		/**
+		 * 清除博客草稿
+		 */
+		function clearBlogDraft(): void {
+			localStorage.removeItem(BLOG_DRAFT_KEY);
+		}
+
+		// 标题输入时保存草稿
+		if (titleInput) {
+			titleInput.addEventListener('input', saveBlogDraftDebounced);
+		}
+		// 分类选择时保存草稿
+		if (categorySelect) {
+			categorySelect.addEventListener('change', saveBlogDraftDebounced);
+		}
+		// 可见度选择时保存草稿
+		if (visibilitySelect) {
+			visibilitySelect.addEventListener('change', saveBlogDraftDebounced);
+		}
+
+		// 挂载时恢复草稿
+		restoreBlogDraft();
+
 		/**
 		 * 监听 BlogEditor 的提交事件
 		 *
-		 * BlogEditor 的 onSubmit 回调会将 Markdown 内容传给此函数。
-		 * 通过自定义事件 blog-editor-submit 传递内容。
+		 * BlogEditor 通过自定义事件 blog-editor-submit 传出 markdown 字符串。
+		 * 标题从独立 input 获取。
 		 */
 		container.addEventListener('blog-editor-submit', async (e: Event) => {
 			const customEvent = e as CustomEvent;
@@ -184,10 +326,11 @@ const hasCategories = categories.length > 0;
 
 			if (!title) {
 				showError('请输入文章标题');
+				titleInput.focus();
 				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
 			}
-			if (!content) {
+			if (!content || !content.trim()) {
 				showError('请输入文章内容');
 				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
@@ -199,6 +342,12 @@ const hasCategories = categories.length > 0;
 			}
 
 			formError.style.display = 'none';
+
+			// 禁用发布按钮防止重复提交
+			if (publishBtn) {
+				publishBtn.disabled = true;
+				publishBtn.textContent = '发布中...';
+			}
 
 			try {
 				const actionInput: Record<string, unknown> = {
@@ -218,16 +367,37 @@ const hasCategories = categories.length > 0;
 				if (result.error) {
 					showError(result.error.message || '发布失败');
 					container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
+					if (publishBtn) {
+						publishBtn.disabled = false;
+						publishBtn.textContent = '发布文章';
+					}
 					return;
 				}
 
-				// 发布成功，跳转到文章详情页
+				// 发布成功，清除草稿
+				clearBlogDraft();
+
+				// 跳转到文章详情页
 				const post = result.data;
 				window.location.href = `/${post.user.username}/${post.id}`;
 			} catch {
 				showError('网络错误，请稍后重试');
 				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
+				if (publishBtn) {
+					publishBtn.disabled = false;
+					publishBtn.textContent = '发布文章';
+				}
 			}
 		});
+
+		/**
+		 * 点击顶部发布按钮时，通知编辑器触发提交
+		 */
+		if (publishBtn) {
+			publishBtn.addEventListener('click', () => {
+				// 通知 BlogEditor 触发提交
+				container.dispatchEvent(new CustomEvent('blog-editor-do-submit'));
+			});
+		}
 	}
 </script>

@@ -3,19 +3,18 @@
  * 论坛版块详情页
  *
  * 根据 slug 显示该版块下的帖子列表（forum 模式卡片）。
- * 顶部内嵌 ForumEditor 编辑器（Markdown 工具栏 + 实时预览）。
+ * 顶部"发帖"按钮打开论坛编辑器弹窗（预设当前版块分类）。
  * 发布时 mode 自动设为 'forum'，categoryId 自动设为当前版块。
  * 支持分页浏览。
  */
 import BaseLayout from '@/layouts/Base.astro';
 import PostCard from '@/components/PostCard.astro';
-import ForumEditor from '@/components/ForumEditor.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { isModeEnabled, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { isModeEnabled } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -137,38 +136,13 @@ const hasIcon = !!category.icon;
 		{category.description && <p class="page-desc">{category.description}</p>}
 	</div>
 
-	{/* 内嵌发布框（仅已登录用户显示） */}
+	{/* 发帖按钮（仅已登录用户显示） */}
 	{
 		currentUser && (
-			<div class="channel-compose">
-				<input
-					type="text"
-					class="form-input channel-compose-title"
-					id="forum-compose-title"
-					placeholder="帖子标题（必填）"
-					maxlength="200"
-				/>
-				<ForumEditor
-					formId="forum-compose-editor"
-					maxLength={POST_CONTENT_MAX_LENGTH}
-					categoryId={category.id}
-					submitLabel="发布"
-				/>
-				<div class="channel-compose-footer">
-					<div class="channel-compose-options">
-						<select
-							class="form-input channel-compose-visibility"
-							id="forum-compose-visibility"
-						>
-							<option value="public">🌐 公开</option>
-							<option value="logged_in">🔐 登录用户可见</option>
-							<option value="followers">👥 粉丝可见</option>
-							<option value="following">🤝 我关注的人可见</option>
-							<option value="private">🔒 仅自己可见</option>
-						</select>
-					</div>
-				</div>
-				<p class="form-error" id="forum-form-error" style="display:none" />
+			<div style="margin-bottom: var(--spacing-6)">
+				<button type="button" class="btn btn-primary" data-forum-post-btn={category.id}>
+					✏️ 发帖
+				</button>
 			</div>
 		)
 	}
@@ -332,143 +306,24 @@ const hasIcon = !!category.icon;
 		color: var(--color-text);
 		font-weight: 500;
 	}
-
-	/* 频道内嵌发布框 */
-	.channel-compose {
-		margin-bottom: var(--spacing-6);
-		padding: var(--spacing-4);
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-	}
-
-	.channel-compose-title {
-		margin-bottom: var(--spacing-3);
-		font-weight: 500;
-	}
-
-	.channel-compose-textarea {
-		min-height: 100px;
-		resize: vertical;
-	}
-
-	.channel-compose-footer {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-top: var(--spacing-3);
-		gap: var(--spacing-3);
-	}
-
-	.channel-compose-options {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-3);
-	}
-
-	.channel-compose-visibility {
-		width: auto;
-		font-size: 0.8125rem;
-		padding: 0.375rem 0.75rem;
-	}
-
-	.channel-compose-count {
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-	}
 </style>
 
 <script>
 	/**
-	 * 论坛版块内嵌发布框客户端脚本
+	 * 论坛版块详情页客户端脚本
 	 *
-	 * 处理论坛版块的快速发布功能：
-	 * - 标题必填校验
-	 * - 从 ForumEditor 获取内容
-	 * - 表单提交调用 actions.createPost（mode=forum, categoryId=当前版块）
-	 * - 发布成功后刷新页面
+	 * 处理发帖按钮点击：打开论坛编辑器弹窗并预设当前版块分类。
 	 */
-	import { actions } from 'astro:actions';
-
-	// 获取 ForumEditor 实例和标题输入
-	const editorEl = document.getElementById('forum-compose-editor');
-	const titleInput = document.getElementById('forum-compose-title') as HTMLInputElement | null;
-	const visibilitySelect = document.getElementById(
-		'forum-compose-visibility'
-	) as HTMLSelectElement | null;
-	const formError = document.getElementById('forum-form-error') as HTMLParagraphElement | null;
-
-	if (editorEl && titleInput && visibilitySelect && formError) {
-		const categoryId = editorEl.dataset.categoryId || '';
-		const CONTENT_MAX_LENGTH = parseInt(editorEl.dataset.maxLength || '1000', 10);
-		let loading = false;
-
-		/**
-		 * 显示错误信息
-		 *
-		 * @param msg - 错误消息
-		 */
-		function showError(msg: string): void {
-			formError!.textContent = msg;
-			formError!.style.display = '';
-		}
-
-		/**
-		 * 从 ForumEditor 获取内容并提交
-		 */
-		async function handleSubmit(): Promise<void> {
-			if (loading) return;
-
-			const title = titleInput!.value.trim();
-			// 通过 ForumEditor 暴露的 getContent 方法获取内容
-			const content = (editorEl as any).getContent?.() || '';
-
-			if (!title) {
-				showError('请输入帖子标题');
-				return;
-			}
-			if (!content) {
-				showError('请输入帖子内容');
-				return;
-			}
-			if (content.length > CONTENT_MAX_LENGTH) {
-				showError(`内容不能超过 ${CONTENT_MAX_LENGTH} 个字符`);
-				return;
-			}
-
-			loading = true;
-			formError!.style.display = 'none';
-
-			try {
-				const result = await actions.createPost({
-					content,
-					visibility: visibilitySelect!.value,
-					mode: 'forum',
-					title,
-					categoryId
-				});
-
-				if (result.error) {
-					showError(result.error.message || '发布失败');
-					return;
-				}
-
-				// 发布成功，刷新页面
-				window.location.reload();
-			} catch {
-				showError('网络错误，请稍后重试');
-			} finally {
-				loading = false;
-			}
-		}
-
-		// 监听 ForumEditor 的提交按钮点击
-		const submitBtn = editorEl.querySelector('.btn-primary') as HTMLButtonElement | null;
-		if (submitBtn) {
-			submitBtn.addEventListener('click', (e: Event) => {
-				e.preventDefault();
-				handleSubmit();
-			});
-		}
-	}
+	// 发帖按钮：打开论坛弹窗并预设分类
+	document.querySelectorAll('[data-forum-post-btn]').forEach((btn) => {
+		btn.addEventListener('click', () => {
+			const categoryId = (btn as HTMLElement).dataset.forumPostBtn || '';
+			// 派发打开论坛弹窗事件，携带预设分类 ID
+			document.dispatchEvent(
+				new CustomEvent('open-forum-compose-modal', {
+					detail: { categoryId }
+				})
+			);
+		});
+	});
 </script>

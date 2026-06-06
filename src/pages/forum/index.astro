@@ -5,15 +5,20 @@
  * 仅在 SITE_MODES 包含 forum 时可访问，否则返回 404。
  * 展示版块列表（一级分组 + 二级分类），每个分类显示：
  * 名称、描述、图标、帖子数。点击分类进入版块详情页。
+ * 已登录用户可在页面标题区域点击"发帖"按钮。
  */
 import BaseLayout from '@/layouts/Base.astro';
 import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
 import { isModeEnabled } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
 	return Astro.redirect('/404');
 }
+
+// 获取当前登录用户（用于判断是否显示发帖按钮）
+const currentUser = await getUserFromRequest(Astro);
 
 // 查询论坛模式的一级分组（parentId 为 null）
 const groups = await prisma.category.findMany({
@@ -58,8 +63,23 @@ const hasGroups = groups.length > 0;
 
 <BaseLayout title="论坛">
 	<div class="page-header">
-		<h1 class="page-title">📋 论坛</h1>
-		<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
+		<div class="page-header-row">
+			<div>
+				<h1 class="page-title">📋 论坛</h1>
+				<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
+			</div>
+			{
+				currentUser && (
+					<button
+						type="button"
+						class="btn btn-primary"
+						onclick="document.dispatchEvent(new CustomEvent('open-forum-compose-modal'))"
+					>
+						✏️ 发帖
+					</button>
+				)
+			}
+		</div>
 	</div>
 
 	{
@@ -135,6 +155,13 @@ const hasGroups = groups.length > 0;
 		margin-bottom: var(--spacing-6);
 		padding-bottom: var(--spacing-4);
 		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-4);
 	}
 
 	.page-title {

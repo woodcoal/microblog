@@ -1,79 +1,444 @@
 ---
 /**
- * 全局发帖弹窗组件（Astro 原生）
+ * 发帖弹窗组件（Astro 原生）
  *
- * 在 Base.astro 中挂载，监听 `open-compose-modal` 自定义事件。
- * 收到事件后显示发帖弹窗，发布成功后页面自动跳转，
- * 点击遮罩层或按 ESC 可关闭弹窗。
+ * 根据模式显示不同的编辑器弹窗：
+ * - weibo: PostEditor（纯文本 + 图片上传 + Emoji）
+ * - forum: ForumEditor（Markdown 编辑器 + 预览 + 标题/分类/可见度）
+ * - blog: 不在此弹窗中处理，跳转到 /blog/write
+ *
+ * 通过自定义事件控制打开/关闭：
+ * - open-compose-modal: 打开微博编辑器弹窗
+ * - open-forum-compose-modal: 打开论坛编辑器弹窗
+ * - close-compose-modal: 关闭所有弹窗
  */
 import PostEditor from '@/components/PostEditor.astro';
+import ForumEditor from '@/components/ForumEditor.astro';
+import { isModeEnabled } from '@/lib/config';
+import { prisma } from '@/lib/db';
+
+// 查询论坛分类列表（弹窗中的分类选择器需要）
+const forumCategories = isModeEnabled('forum')
+	? await prisma.category.findMany({
+			where: { mode: 'forum' },
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
+		})
+	: [];
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const showWeiboModal = isModeEnabled('weibo');
+const showForumModal = isModeEnabled('forum');
+const hasForumCategories = forumCategories.length > 0;
 ---
 
-<div class="modal-overlay compose-modal-overlay" id="compose-modal" style="display:none">
-	<div class="modal compose-modal">
-		<div class="compose-modal-header">
-			<h2 class="compose-modal-title">发布新帖</h2>
-			<button
-				type="button"
-				class="compose-modal-close"
-				id="compose-modal-close"
-				aria-label="关闭"
-			>
-				×
-			</button>
+{/* 微博编辑器弹窗 */}
+{
+	showWeiboModal && (
+		<div class="modal-overlay compose-modal-overlay" id="compose-modal" style="display:none">
+			<div class="modal compose-modal">
+				<div class="compose-modal-header">
+					<h2 class="compose-modal-title">发布微博</h2>
+					<button
+						type="button"
+						class="compose-modal-close"
+						data-close="compose-modal"
+						aria-label="关闭"
+					>
+						×
+					</button>
+				</div>
+				<PostEditor restoreDraft />
+			</div>
 		</div>
-		<PostEditor restoreDraft />
-	</div>
-</div>
+	)
+}
+
+{/* 论坛编辑器弹窗 */}
+{
+	showForumModal && (
+		<div
+			class="modal-overlay compose-modal-overlay"
+			id="forum-compose-modal"
+			style="display:none"
+		>
+			<div class="modal compose-modal compose-modal-lg">
+				<div class="compose-modal-header">
+					<h2 class="compose-modal-title">发布帖子</h2>
+					<button
+						type="button"
+						class="compose-modal-close"
+						data-close="forum-compose-modal"
+						aria-label="关闭"
+					>
+						×
+					</button>
+				</div>
+				<div class="compose-modal-body">
+					{/* 草稿恢复提示 */}
+					<div class="forum-editor-draft-hint" style="display:none">
+						📝 已恢复上次未发布的草稿
+					</div>
+
+					{/* 标题输入 */}
+					<input
+						type="text"
+						class="form-input forum-editor-title"
+						id="forum-modal-title"
+						placeholder="帖子标题（必填）"
+						maxlength="200"
+					/>
+
+					{/* 分类选择 */}
+					{hasForumCategories && (
+						<select class="form-input forum-editor-category" id="forum-modal-category">
+							<option value="">选择版块（可选）</option>
+							{forumCategories.map((cat) => (
+								<option value={cat.id}>
+									{cat.icon && `${cat.icon} `}
+									{cat.name}
+								</option>
+							))}
+						</select>
+					)}
+
+					{/* 可见度选择 */}
+					<select class="form-input forum-editor-visibility" id="forum-modal-visibility">
+						<option value="public">🌐 公开</option>
+						<option value="logged_in">🔐 登录用户可见</option>
+						<option value="followers">👥 粉丝可见</option>
+						<option value="following">🤝 我关注的人可见</option>
+						<option value="private">🔒 仅自己可见</option>
+					</select>
+
+					{/* 论坛编辑器 */}
+					<ForumEditor formId="forum-modal-editor" submitLabel="发布帖子" />
+				</div>
+				<p
+					class="form-error forum-modal-error"
+					id="forum-modal-error"
+					style="display:none"
+				/>
+			</div>
+		</div>
+	)
+}
 
 <script>
 	/**
 	 * ComposeModal 客户端脚本
 	 *
-	 * 监听 open-compose-modal 自定义事件打开弹窗，
-	 * 支持 ESC 键关闭、点击遮罩关闭、打开时禁止背景滚动。
+	 * 管理微博和论坛两个编辑器弹窗的打开/关闭：
+	 * - 监听 open-compose-modal / open-forum-compose-modal 自定义事件
+	 * - 支持 ESC 键关闭、点击遮罩关闭、关闭按钮关闭
+	 * - 打开时禁止背景滚动
+	 * - 论坛弹窗包含标题/分类/可见度/草稿功能
 	 */
-	const modal = document.getElementById('compose-modal');
-	const closeBtn = document.getElementById('compose-modal-close');
+	import { actions } from 'astro:actions';
 
-	if (modal && closeBtn) {
-		/**
-		 * 打开弹窗
-		 */
-		function openModal(): void {
-			(modal as HTMLElement).style.display = '';
-			document.body.style.overflow = 'hidden';
-		}
+	/**
+	 * 打开弹窗
+	 *
+	 * 显示弹窗并禁止背景滚动
+	 *
+	 * @param modal - 弹窗 DOM 元素
+	 */
+	function openModal(modal: HTMLElement): void {
+		modal.style.display = '';
+		document.body.style.overflow = 'hidden';
+	}
 
-		/**
-		 * 关闭弹窗
-		 */
-		function closeModal(): void {
-			(modal as HTMLElement).style.display = 'none';
-			document.body.style.overflow = '';
-		}
+	/**
+	 * 关闭弹窗
+	 *
+	 * 隐藏弹窗并恢复背景滚动
+	 *
+	 * @param modal - 弹窗 DOM 元素
+	 */
+	function closeModal(modal: HTMLElement): void {
+		modal.style.display = 'none';
+		document.body.style.overflow = '';
+	}
 
+	// ===== 微博编辑器弹窗 =====
+	const composeModal = document.getElementById('compose-modal');
+	if (composeModal) {
 		// 监听打开弹窗的自定义事件
-		document.addEventListener('open-compose-modal', openModal);
-
-		// 监听关闭弹窗的自定义事件（Escape 快捷键触发）
-		document.addEventListener('close-compose-modal', closeModal);
-
+		document.addEventListener('open-compose-modal', () => openModal(composeModal));
+		// 监听关闭弹窗的自定义事件
+		document.addEventListener('close-compose-modal', () => closeModal(composeModal));
 		// ESC 键关闭弹窗
 		document.addEventListener('keydown', (e: KeyboardEvent) => {
-			if (e.key === 'Escape' && (modal as HTMLElement).style.display !== 'none') {
-				closeModal();
+			if (e.key === 'Escape' && composeModal.style.display !== 'none') {
+				closeModal(composeModal);
 			}
 		});
-
-		// 点击遮罩层关闭弹窗（仅点击遮罩本身，不点击内容区）
-		modal.addEventListener('click', (e: MouseEvent) => {
-			if (e.target === modal) {
-				closeModal();
-			}
+		// 点击遮罩层关闭弹窗
+		composeModal.addEventListener('click', (e: MouseEvent) => {
+			if (e.target === composeModal) closeModal(composeModal);
 		});
-
 		// 关闭按钮
-		closeBtn.addEventListener('click', closeModal);
+		const closeBtn = composeModal.querySelector('[data-close="compose-modal"]');
+		closeBtn?.addEventListener('click', () => closeModal(composeModal));
+	}
+
+	// ===== 论坛编辑器弹窗 =====
+	const forumModal = document.getElementById('forum-compose-modal');
+	if (forumModal) {
+		// 监听打开论坛弹窗的自定义事件（支持预设分类 ID）
+		document.addEventListener('open-forum-compose-modal', ((e: CustomEvent) => {
+			openModal(forumModal);
+			// 如果事件携带了 categoryId，预设分类选择器
+			const categoryId = e.detail?.categoryId;
+			if (categoryId) {
+				const catSelect = document.getElementById(
+					'forum-modal-category'
+				) as HTMLSelectElement | null;
+				if (catSelect) catSelect.value = categoryId;
+			}
+		}) as EventListener);
+		// 监听关闭论坛弹窗的自定义事件
+		document.addEventListener('close-forum-compose-modal', () => closeModal(forumModal));
+		// ESC 键关闭弹窗
+		document.addEventListener('keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Escape' && forumModal.style.display !== 'none') {
+				closeModal(forumModal);
+			}
+		});
+		// 点击遮罩层关闭弹窗
+		forumModal.addEventListener('click', (e: MouseEvent) => {
+			if (e.target === forumModal) closeModal(forumModal);
+		});
+		// 关闭按钮
+		const closeBtn = forumModal.querySelector('[data-close="forum-compose-modal"]');
+		closeBtn?.addEventListener('click', () => closeModal(forumModal));
+	}
+
+	// ===== 论坛弹窗：标题/分类/可见度/草稿/提交 =====
+	const forumEditorEl = document.getElementById('forum-modal-editor');
+	const forumTitleInput = document.getElementById('forum-modal-title') as HTMLInputElement | null;
+	const forumCategorySelect = document.getElementById(
+		'forum-modal-category'
+	) as HTMLSelectElement | null;
+	const forumVisibilitySelect = document.getElementById(
+		'forum-modal-visibility'
+	) as HTMLSelectElement | null;
+	const forumErrorDisplay = document.getElementById(
+		'forum-modal-error'
+	) as HTMLParagraphElement | null;
+
+	if (forumEditorEl && forumTitleInput && forumVisibilitySelect && forumErrorDisplay) {
+		/** 草稿存储键 */
+		const DRAFT_KEY = 'forum-draft';
+		/** 草稿自动保存定时器 */
+		let draftTimer: ReturnType<typeof setTimeout> | null = null;
+		/** 是否正在提交 */
+		let loading = false;
+		/** 内容最大长度 */
+		const CONTENT_MAX_LENGTH = parseInt(forumEditorEl.dataset.maxLength || '1000', 10);
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string): void {
+			forumErrorDisplay!.textContent = msg;
+			forumErrorDisplay!.style.display = '';
+		}
+
+		/**
+		 * 隐藏错误信息
+		 */
+		function hideError(): void {
+			forumErrorDisplay!.style.display = 'none';
+		}
+
+		// ===== 草稿功能 =====
+
+		/**
+		 * 保存草稿到 localStorage
+		 *
+		 * 保存标题、内容、分类、可见度等信息
+		 */
+		function saveDraft(): void {
+			const textarea = forumEditorEl!.querySelector(
+				'.forum-editor-textarea'
+			) as HTMLTextAreaElement | null;
+			const data = {
+				title: forumTitleInput!.value || '',
+				content: textarea?.value || '',
+				categoryId: forumCategorySelect?.value || '',
+				visibility: forumVisibilitySelect!.value || 'public',
+				savedAt: new Date().toISOString()
+			};
+			// 有内容时保存，否则清除
+			if (data.title.trim() || data.content.trim()) {
+				localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+			} else {
+				localStorage.removeItem(DRAFT_KEY);
+			}
+		}
+
+		/**
+		 * 防抖保存草稿
+		 *
+		 * 1 秒后执行保存，期间有新输入则重置计时器
+		 */
+		function saveDraftDebounced(): void {
+			if (draftTimer) clearTimeout(draftTimer);
+			draftTimer = setTimeout(saveDraft, 1000);
+		}
+
+		/**
+		 * 恢复草稿内容
+		 *
+		 * 从 localStorage 读取草稿并填充到表单中
+		 */
+		function restoreDraft(): void {
+			try {
+				const saved = localStorage.getItem(DRAFT_KEY);
+				if (!saved) return;
+				const data = JSON.parse(saved);
+				if (data.title && forumTitleInput) forumTitleInput.value = data.title;
+				if (data.content) {
+					const textarea = forumEditorEl!.querySelector(
+						'.forum-editor-textarea'
+					) as HTMLTextAreaElement | null;
+					if (textarea) {
+						textarea.value = data.content;
+						// 触发字数统计更新
+						textarea.dispatchEvent(new Event('input'));
+					}
+				}
+				if (data.categoryId && forumCategorySelect) {
+					forumCategorySelect.value = data.categoryId;
+				}
+				if (data.visibility && forumVisibilitySelect) {
+					forumVisibilitySelect.value = data.visibility;
+				}
+				// 显示草稿恢复提示
+				const hint = forumModal?.querySelector('.forum-editor-draft-hint');
+				if (hint) {
+					hint.style.display = '';
+					setTimeout(() => {
+						hint.style.display = 'none';
+					}, 3000);
+				}
+			} catch {
+				// 草稿解析失败，静默处理
+			}
+		}
+
+		/**
+		 * 清除草稿
+		 */
+		function clearDraft(): void {
+			localStorage.removeItem(DRAFT_KEY);
+		}
+
+		// 标题输入时保存草稿
+		forumTitleInput.addEventListener('input', saveDraftDebounced);
+
+		// 分类选择时保存草稿
+		if (forumCategorySelect) {
+			forumCategorySelect.addEventListener('change', saveDraftDebounced);
+		}
+
+		// 可见度选择时保存草稿
+		forumVisibilitySelect.addEventListener('change', saveDraftDebounced);
+
+		// textarea 内容变化时保存草稿（通过 MutationObserver 或事件委托）
+		const forumTextarea = forumEditorEl.querySelector(
+			'.forum-editor-textarea'
+		) as HTMLTextAreaElement | null;
+		if (forumTextarea) {
+			forumTextarea.addEventListener('input', saveDraftDebounced);
+		}
+
+		/**
+		 * 处理论坛帖子提交
+		 *
+		 * 流程：
+		 * 1. 校验标题和内容
+		 * 2. 通过 ForumEditor 的 getContent() 获取内容
+		 * 3. 调用 actions.createPost 创建帖子
+		 * 4. 成功后清除草稿并跳转
+		 */
+		async function handleForumSubmit(): Promise<void> {
+			if (loading) return;
+
+			const title = forumTitleInput!.value.trim();
+			const content = (forumEditorEl as any).getContent?.() || '';
+			const categoryId = forumCategorySelect?.value || '';
+			const visibility = forumVisibilitySelect!.value;
+
+			// 校验标题
+			if (!title) {
+				showError('请输入帖子标题');
+				return;
+			}
+			// 校验内容
+			if (!content) {
+				showError('请输入帖子内容');
+				return;
+			}
+			// 校验内容长度
+			if (content.length > CONTENT_MAX_LENGTH) {
+				showError(`内容不能超过 ${CONTENT_MAX_LENGTH} 个字符`);
+				return;
+			}
+
+			loading = true;
+			hideError();
+
+			try {
+				const actionInput: Record<string, unknown> = {
+					content,
+					visibility,
+					mode: 'forum',
+					title
+				};
+
+				// 有分类时传入 categoryId
+				if (categoryId) {
+					actionInput.categoryId = categoryId;
+				}
+
+				const result = await actions.createPost(actionInput as any);
+
+				if (result.error) {
+					showError(result.error.message || '发布失败');
+					return;
+				}
+
+				// 发布成功，清除草稿
+				clearDraft();
+
+				// 关闭弹窗
+				if (forumModal) closeModal(forumModal);
+
+				// 跳转到帖子详情页
+				const post = result.data;
+				window.location.href = `/${post.user.username}/${post.id}`;
+			} catch {
+				showError('网络错误，请稍后重试');
+			} finally {
+				loading = false;
+			}
+		}
+
+		// 监听 ForumEditor 的提交按钮点击
+		const submitBtn = forumEditorEl.querySelector('.btn-primary') as HTMLButtonElement | null;
+		if (submitBtn) {
+			submitBtn.addEventListener('click', (e: Event) => {
+				e.preventDefault();
+				handleForumSubmit();
+			});
+		}
+
+		// 弹窗打开时恢复草稿
+		document.addEventListener('open-forum-compose-modal', () => {
+			restoreDraft();
+		});
 	}
 </script>

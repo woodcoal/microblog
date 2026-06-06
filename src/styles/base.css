@@ -98,6 +98,36 @@ img {
 	gap: var(--spacing-1);
 }
 
+/* 频道导航链接容器 */
+.nav-mode-links {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+/* 频道导航链接项 */
+.nav-mode-link {
+	padding: 0.3rem 0.6rem;
+	font-size: 0.8125rem;
+	border-radius: var(--radius-md);
+	text-decoration: none;
+	color: var(--color-muted);
+	transition: all 0.15s;
+	white-space: nowrap;
+}
+
+.nav-mode-link:hover {
+	color: var(--color-text);
+	background: var(--color-bg);
+}
+
+/* 当前频道高亮 */
+.nav-mode-active {
+	color: var(--color-primary);
+	background: var(--color-primary-alpha, rgba(59, 130, 246, 0.1));
+	font-weight: 600;
+}
+
 .navbar-links a {
 	color: var(--color-text);
 	text-decoration: none;
@@ -1163,6 +1193,11 @@ mark.search-highlight {
 	.nav-compose-btn,
 	.nav-search-btn {
 		display: none !important;
+	}
+
+	/* 移动端隐藏顶部频道导航（hamburger 面板内已有频道链接） */
+	.nav-mode-links {
+		display: none;
 	}
 
 	/* 移动端隐藏主题切换（hamburger 面板只保留导航菜单） */

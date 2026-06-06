@@ -3,15 +3,13 @@
  * 博客频道首页
  *
  * 仅在 SITE_MODES 包含 blog 时可访问，否则返回 404。
- * 文章卡片列表（标题 + 摘要 + 日期 + 分类），按分类筛选。
- * 顶部"写文章"按钮（暂时跳转到简单发布页）。
+ * 杂志风格文章卡片列表（标题 + 摘要 + 作者 + 日期 + 分类），按分类筛选。
+ * 顶部"写文章"按钮，已登录用户可见。
  * 支持分页浏览。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled } from '@/lib/config';
@@ -47,7 +45,7 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followerIds
 });
 
-// 查询博客分类列表（用于侧栏筛选）
+// 查询博客分类列表（用于筛选标签）
 const categories = await prisma.category.findMany({
 	where: { mode: 'blog' },
 	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -82,12 +80,14 @@ const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
-// 查询当前页的博客帖子
+// 查询当前页的博客帖子（需要 likes 和 comments 计数）
 const posts = await prisma.post.findMany({
 	where: whereCondition,
 	orderBy: [{ createdAt: 'desc' }],
 	include: {
-		...POST_CARD_INCLUDE
+		...POST_CARD_INCLUDE,
+		likes: { select: { id: true } },
+		comments: { select: { id: true } }
 	},
 	skip,
 	take: PAGE_SIZE
@@ -98,6 +98,40 @@ const likedPostIds = await getLikedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((p) => p.id)
 );
+
+/**
+ * 从 Markdown 内容中提取纯文本摘要
+ *
+ * @param content - Markdown 原始内容
+ * @param maxLength - 摘要最大长度，默认 150 字符
+ * @returns 纯文本摘要字符串
+ */
+function extractExcerpt(content: string, maxLength = 150): string {
+	// 移除 Markdown 标记：标题、链接、图片、代码块、粗体斜体等
+	const plain = content
+		.replace(/```[\s\S]*?```/g, '') // 代码块
+		.replace(/!\[.*?\]\(.*?\)/g, '') // 图片
+		.replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // 链接保留文字
+		.replace(/#{1,6}\s/g, '') // 标题标记
+		.replace(/(\*{1,3}|_{1,3})(.*?)\1/g, '$2') // 粗体斜体
+		.replace(/`([^`]+)`/g, '$1') // 行内代码
+		.replace(/>\s/g, '') // 引用
+		.replace(/[-*+]\s/g, '') // 无序列表
+		.replace(/\d+\.\s/g, '') // 有序列表
+		.replace(/\n+/g, ' ') // 换行转空格
+		.trim();
+	return plain.length > maxLength ? plain.slice(0, maxLength) + '...' : plain;
+}
+
+/**
+ * 格式化日期为中文友好格式
+ *
+ * @param date - Date 对象
+ * @returns 格式化后的日期字符串，如 "2025年1月15日"
+ */
+function formatDate(date: Date): string {
+	return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+}
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -125,7 +159,7 @@ const hasFilter = !!filterCategoryId;
 		</div>
 	</div>
 
-	{/* 分类筛选 */}
+	{/* 分类筛选标签 */}
 	{
 		hasCategories && (
 			<div class="blog-categories">
@@ -159,16 +193,8 @@ const hasFilter = !!filterCategoryId;
 				<p>暂无博客文章，来写第一篇吧！</p>
 			</div>
 		) : (
-			<div class="post-list">
+			<div class="blog-articles">
 				{posts.map(async (post) => {
-					const postTags = post.tags.map((pt) => ({
-						id: pt.tag.id,
-						name: pt.tag.name
-					}));
-					const postLikeCount = post._count.likes;
-					const postCommentCount = post._count.comments;
-					const postLiked = likedPostIds.has(post.id);
-
 					// 检查当前用户是否有权查看帖子内容
 					const isPostRestricted = !(await checkPostVisibility(
 						{
@@ -184,34 +210,42 @@ const hasFilter = !!filterCategoryId;
 						}
 					));
 
+					// 受限帖子不显示摘要
+					const excerpt = isPostRestricted
+						? '内容受限，无法查看'
+						: extractExcerpt(post.content);
+					const postLikeCount = post.likes.length;
+					const postCommentCount = post.comments.length;
+					const postHasCategory = !!post.category;
+
 					return (
-						<PostCard
-							post={{
-								id: post.id,
-								content: post.content,
-								createdAt: post.createdAt.toISOString(),
-								isPinned: post.isPinned,
-								isGlobalPinned: post.isGlobalPinned,
-								user: {
-									id: post.user.id,
-									username: post.user.username,
-									displayName: post.user.displayName,
-									avatarUrl: post.user.avatarUrl
-								},
-								media: post.media,
-								visibility: post.visibility,
-								mode: post.mode,
-								title: post.title,
-								categoryId: post.categoryId,
-								category: post.category
-							}}
-							htmlContent={renderMarkdown(post.content)}
-							likeCount={postLikeCount}
-							liked={postLiked}
-							commentCount={postCommentCount}
-							tags={postTags}
-							isRestricted={isPostRestricted}
-						/>
+						<article class="blog-article-card">
+							<div class="blog-article-meta">
+								{postHasCategory && (
+									<span class="blog-article-category">
+										{post.category.icon} {post.category.name}
+									</span>
+								)}
+								<time>{formatDate(post.createdAt)}</time>
+							</div>
+							<h2 class="blog-article-title">
+								<a href={`/${post.user.username}/${post.id}`}>
+									{post.title || '无标题'}
+								</a>
+							</h2>
+							<p class="blog-article-excerpt">{excerpt}</p>
+							<div class="blog-article-footer">
+								<img
+									src={post.user.avatarUrl}
+									class="blog-article-avatar"
+									alt={post.user.displayName}
+								/>
+								<span class="blog-article-author">{post.user.displayName}</span>
+								<span class="blog-article-stats">
+									♥ {postLikeCount} · 💬 {postCommentCount}
+								</span>
+							</div>
+						</article>
 					);
 				})}
 			</div>
@@ -322,5 +356,105 @@ const hasFilter = !!filterCategoryId;
 	.blog-category-count {
 		font-size: 0.6875rem;
 		opacity: 0.7;
+	}
+
+	/* 博客文章网格布局 */
+	.blog-articles {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+		gap: var(--spacing-6);
+	}
+
+	/* 文章卡片 */
+	.blog-article-card {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		padding: var(--spacing-5);
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-2);
+		transition: box-shadow 0.2s;
+	}
+
+	.blog-article-card:hover {
+		box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	}
+
+	/* 文章元信息（分类 + 日期） */
+	.blog-article-meta {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+
+	/* 分类标签 */
+	.blog-article-category {
+		background: var(--color-primary-alpha, rgba(59, 130, 246, 0.1));
+		color: var(--color-primary);
+		padding: 0.125rem 0.5rem;
+		border-radius: var(--radius-full);
+		font-size: 0.6875rem;
+		font-weight: 500;
+	}
+
+	/* 文章标题 */
+	.blog-article-title {
+		font-size: 1.125rem;
+		font-weight: 700;
+		margin: 0;
+		line-height: 1.4;
+	}
+
+	.blog-article-title a {
+		text-decoration: none;
+		color: var(--color-text);
+	}
+
+	.blog-article-title a:hover {
+		color: var(--color-primary);
+	}
+
+	/* 文章摘要 */
+	.blog-article-excerpt {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+		line-height: 1.6;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+
+	/* 文章底部（作者 + 统计） */
+	.blog-article-footer {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		margin-top: auto;
+		font-size: 0.8125rem;
+	}
+
+	/* 作者头像 */
+	.blog-article-avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	/* 作者名 */
+	.blog-article-author {
+		font-weight: 500;
+	}
+
+	/* 统计信息 */
+	.blog-article-stats {
+		color: var(--color-muted);
+		margin-left: auto;
+		font-size: 0.75rem;
 	}
 </style>

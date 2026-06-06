@@ -1,12 +1,20 @@
 /**
- * 博客编辑器组件（React Island — Tiptap 富文本编辑器）
+ * 博客编辑器组件（React Island — 简化版 Tiptap 富文本编辑器）
  *
- * 使用 Tiptap 实现所见即所得编辑体验：
- * - 完整工具栏：标题(H1-H3)、粗体、斜体、删除线、列表(有序/无序)、
- *   引用、代码块、链接、图片、分割线、撤销/重做
- * - 图片上传：点击图片按钮触发文件选择，上传后插入编辑器
- * - Markdown 双向转换：使用 tiptap-markdown 扩展
- * - 提交时通过 tiptap-markdown 将编辑器内容转为 Markdown 字符串
+ * 核心特性：
+ * - 顶部固定工具栏：标题/格式/列表/块级/插入 分组按钮
+ * - Tiptap 富文本编辑器核心（所见即所得）
+ * - 图片上传：点击按钮 + 粘贴图片
+ * - Markdown 双向转换
+ * - 代码块语法高亮（lowlight）
+ * - 草稿自动保存（localStorage，1 秒防抖）
+ *
+ * 通信方式：
+ * - 监听 blog-editor-do-submit 事件 → 触发提交
+ * - 派发 blog-editor-submit 事件 → 传出 markdown 内容
+ * - 监听 blog-editor-submit-done 事件 → 重置 loading
+ * - 派发 blog-editor-draft-restored 事件 → 通知页面有草稿恢复
+ * - 监听 blog-editor-clear-draft 事件 → 清除草稿
  *
  * @property initialContent - 初始 Markdown 内容（编辑时预填充）
  * @property onSubmit - 提交回调，接收 Markdown 字符串
@@ -17,12 +25,19 @@ import TiptapImage from '@tiptap/extension-image';
 import TiptapLink from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
+import Underline from '@tiptap/extension-underline';
 import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Editor } from '@tiptap/core';
 
 /** lowlight 实例，用于代码块语法高亮 */
 const lowlight = createLowlight(common);
+
+/** 草稿存储键名 */
+const DRAFT_KEY = 'blog-draft';
 
 /**
  * 博客编辑器组件属性
@@ -36,28 +51,76 @@ interface BlogEditorProps {
 }
 
 /**
+ * 草稿数据结构
+ *
+ * @property title - 文章标题
+ * @property content - Markdown 内容
+ * @property categoryId - 分类 ID
+ * @property visibility - 可见度
+ * @property savedAt - 保存时间
+ */
+interface DraftData {
+	title: string;
+	content: string;
+	categoryId: string;
+	visibility: string;
+	savedAt: string;
+}
+
+/**
+ * 上传图片到服务器
+ *
+ * 使用原生 FormData + fetch 调用 Astro Actions 的 uploadMedia 端点，
+ * 避免 RPC 调用无法正确序列化 File 对象的问题。
+ *
+ * @param file - 要上传的图片文件
+ * @returns 上传成功后的图片 URL，失败返回 null
+ */
+async function uploadImage(file: File): Promise<string | null> {
+	const formData = new FormData();
+	formData.append('file', file);
+	formData.append('fileType', 'image');
+
+	try {
+		const res = await fetch('/_actions/uploadMedia', {
+			method: 'POST',
+			body: formData
+		});
+		const data = await res.json();
+		if (data.success && data.data) {
+			return data.data.url as string;
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+/**
  * 博客编辑器组件
  *
- * 基于 Tiptap 的所见即所得富文本编辑器。
- * 支持完整 Markdown 语法编辑，提交时输出 Markdown 字符串。
+ * 简化版 Tiptap 富文本编辑器，顶部固定工具栏，支持草稿自动保存。
+ * 只负责内容区域（标题由页面独立 input 处理）。
  *
  * @param props - 组件属性
  * @returns 编辑器 JSX
  */
 export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditorProps) {
-	/** 图片上传文件输入引用 */
-	const fileInputRef = useRef<HTMLInputElement>(null);
 	/** 加载状态 */
 	const [loading, setLoading] = useState(false);
+	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
+	const editorRef = useRef<Editor | null>(null);
+	/** 图片上传文件输入引用 */
+	const fileInputRef = useRef<HTMLInputElement>(null);
+	/** 草稿防抖定时器引用 */
+	const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	/** Tiptap 编辑器实例 */
 	const editor = useEditor({
 		extensions: [
 			StarterKit.configure({
-				codeBlock: false, // 使用 CodeBlockLowlight 替代
-				heading: {
-					levels: [1, 2, 3]
-				}
+				codeBlock: false,
+				heading: { levels: [1, 2, 3] }
 			}),
 			TiptapImage.configure({
 				inline: false,
@@ -68,11 +131,12 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 				autolink: true
 			}),
 			Placeholder.configure({
-				placeholder: '开始写你的文章...'
+				placeholder: '开始写作...'
 			}),
-			CodeBlockLowlight.configure({
-				lowlight
-			}),
+			CodeBlockLowlight.configure({ lowlight }),
+			TaskList,
+			TaskItem.configure({ nested: true }),
+			Underline,
 			Markdown.configure({
 				html: true,
 				transformPastedText: true,
@@ -83,50 +147,178 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 		editorProps: {
 			attributes: {
 				class: 'blog-editor-content'
+			},
+			/**
+			 * 处理粘贴事件，检测剪贴板中的图片并上传
+			 *
+			 * 修复：使用 editorRef.current 而非闭包中的 editor，
+			 * 避免闭包引用过期导致粘贴图片不工作。
+			 *
+			 * @param view - ProseMirror EditorView
+			 * @param event - 剪贴板事件
+			 * @returns true 表示已处理该事件
+			 */
+			handlePaste: (view, event: ClipboardEvent) => {
+				const items = event.clipboardData?.items;
+				if (!items) return false;
+
+				// 收集剪贴板中的图片文件
+				const imageFiles: File[] = [];
+				for (let i = 0; i < items.length; i++) {
+					if (items[i].type.startsWith('image/')) {
+						const file = items[i].getAsFile();
+						if (file) imageFiles.push(file);
+					}
+				}
+
+				// 有图片时上传并插入
+				if (imageFiles.length > 0) {
+					event.preventDefault();
+					// 关键修复：使用 editorRef.current 获取最新编辑器实例
+					const currentEditor = editorRef.current;
+					if (!currentEditor) return true;
+
+					(async () => {
+						for (const file of imageFiles) {
+							try {
+								const url = await uploadImage(file);
+								if (url) {
+									currentEditor.chain().focus().setImage({ src: url }).run();
+								}
+							} catch {
+								// 上传失败静默处理
+							}
+						}
+					})();
+					return true;
+				}
+				return false;
 			}
+		},
+		/** 编辑器内容更新时防抖保存草稿 */
+		onUpdate: ({ editor }) => {
+			saveDraftDebounced(editor);
 		}
 	});
 
+	// 同步编辑器引用，供 handlePaste 闭包使用
+	useEffect(() => {
+		editorRef.current = editor ?? null;
+	}, [editor]);
+
 	/**
-	 * 处理图片上传
+	 * 防抖保存草稿
 	 *
-	 * 点击图片按钮触发文件选择，上传后插入编辑器。
+	 * 内容变化后 1 秒内无新变化时保存草稿到 localStorage。
+	 *
+	 * @param ed - Tiptap 编辑器实例
 	 */
-	const handleImageUpload = useCallback(() => {
-		fileInputRef.current?.click();
+	const saveDraftDebounced = useCallback((ed: Editor) => {
+		if (draftTimerRef.current) {
+			clearTimeout(draftTimerRef.current);
+		}
+		draftTimerRef.current = setTimeout(() => {
+			saveDraft(ed);
+		}, 1000);
 	}, []);
 
 	/**
-	 * 文件选择变化时上传图片
+	 * 保存草稿到 localStorage
+	 *
+	 * 将当前编辑器内容（Markdown）和页面上的标题、分类、可见度等信息
+	 * 序列化为 JSON 存入 localStorage。
+	 *
+	 * @param ed - Tiptap 编辑器实例
 	 */
-	const handleFileChange = useCallback(
-		async (e: React.ChangeEvent<HTMLInputElement>) => {
-			const files = e.target.files;
-			if (!files || !editor) return;
+	const saveDraft = useCallback((ed: Editor) => {
+		try {
+			const markdown = ed.storage.markdown.getMarkdown();
+			// 从页面 DOM 获取标题、分类、可见度等字段
+			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');
+			const categorySelect =
+				document.querySelector<HTMLSelectElement>('#blog-category-select');
+			const visibilitySelect =
+				document.querySelector<HTMLSelectElement>('#blog-visibility-select');
 
-			for (const file of Array.from(files)) {
-				try {
-					// 调用 Astro Actions 上传图片
-					const { actions } = await import('astro:actions');
-					const result = await actions.uploadMedia({ file, fileType: 'image' });
-					if (result.data) {
-						editor.chain().focus().setImage({ src: result.data.url }).run();
-					}
-				} catch {
-					// 上传失败静默处理
-				}
+			const draft: DraftData = {
+				title: titleInput?.value || '',
+				content: markdown,
+				categoryId: categorySelect?.value || '',
+				visibility: visibilitySelect?.value || 'public',
+				savedAt: new Date().toISOString()
+			};
+			localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+		} catch {
+			// 草稿保存失败静默处理
+		}
+	}, []);
+
+	/**
+	 * 恢复草稿
+	 *
+	 * 组件挂载时检查 localStorage 中是否有草稿，
+	 * 如果有且编辑器内容为空，则恢复草稿内容并通知页面。
+	 */
+	const restoreDraft = useCallback(() => {
+		if (!editor) return;
+		try {
+			const raw = localStorage.getItem(DRAFT_KEY);
+			if (!raw) return;
+
+			const draft: DraftData = JSON.parse(raw);
+			// 仅在编辑器内容为空时恢复草稿（避免覆盖已有内容）
+			const currentMarkdown = editor.storage.markdown.getMarkdown();
+			if (currentMarkdown.trim()) return;
+
+			// 恢复编辑器内容
+			editor.commands.setContent(draft.content);
+
+			// 恢复页面表单字段
+			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');
+			const categorySelect =
+				document.querySelector<HTMLSelectElement>('#blog-category-select');
+			const visibilitySelect =
+				document.querySelector<HTMLSelectElement>('#blog-visibility-select');
+
+			if (titleInput && draft.title) titleInput.value = draft.title;
+			if (categorySelect && draft.categoryId) categorySelect.value = draft.categoryId;
+			if (visibilitySelect && draft.visibility) visibilitySelect.value = draft.visibility;
+
+			// 通知页面有草稿恢复
+			const container = document.getElementById('blog-compose-container');
+			if (container) {
+				container.dispatchEvent(
+					new CustomEvent('blog-editor-draft-restored', {
+						detail: draft,
+						bubbles: true
+					})
+				);
 			}
-			// 清空 file input，允许重复选择
-			e.target.value = '';
-		},
-		[editor]
-	);
+		} catch {
+			// 草稿恢复失败静默处理
+		}
+	}, [editor]);
+
+	/**
+	 * 清除草稿
+	 *
+	 * 从 localStorage 中删除草稿数据。
+	 */
+	const clearDraft = useCallback(() => {
+		try {
+			localStorage.removeItem(DRAFT_KEY);
+		} catch {
+			// 清除失败静默处理
+		}
+	}, []);
+
+	// 挂载时恢复草稿
+	useEffect(() => {
+		restoreDraft();
+	}, [restoreDraft]);
 
 	/**
 	 * 监听发布完成事件，重置 loading 状态
-	 *
-	 * Astro 页面在发布成功或失败后 dispatch 'blog-editor-submit-done' 事件，
-	 * BlogEditor 收到后重置 loading，允许再次提交。
 	 */
 	useEffect(() => {
 		const container = document.getElementById('blog-compose-container');
@@ -137,210 +329,235 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	}, []);
 
 	/**
-	 * 处理链接插入
+	 * 监听页面顶部的发布按钮事件
 	 *
-	 * 弹出简易输入框获取 URL，在编辑器中插入链接。
+	 * 页面点击"发布文章"按钮时派发 blog-editor-do-submit 事件，
+	 * 编辑器收到后提取 markdown 内容并派发 blog-editor-submit 事件。
 	 */
-	const handleLinkInsert = useCallback(() => {
-		if (!editor) return;
-		const url = window.prompt('输入链接 URL:', 'https://');
-		if (url) {
-			editor.chain().focus().setLink({ href: url }).run();
-		}
-	}, [editor]);
-
-	/**
-	 * 提交编辑器内容
-	 *
-	 * 将 Tiptap 内容转为 Markdown 字符串，通过自定义事件通知父页面。
-	 * 使用 CustomEvent 'blog-editor-submit' 传递内容，方便 Astro 页面监听。
-	 */
-	const handleSubmit = useCallback(() => {
-		if (!editor) return;
-		// 通过 tiptap-markdown 获取 Markdown 内容
-		const markdown = editor.storage.markdown.getMarkdown();
-
-		// 如果有 onSubmit 回调，直接调用
-		if (onSubmit) {
-			onSubmit(markdown);
-			return;
-		}
-
-		// 设置 loading 状态，防止重复提交
-		setLoading(true);
-
-		// 否则通过自定义事件通知父页面
+	useEffect(() => {
 		const container = document.getElementById('blog-compose-container');
-		if (container) {
+		if (!container || !editor) return;
+
+		const handleDoSubmit = () => {
+			if (loading) return;
+			const markdown = editor.storage.markdown.getMarkdown();
+
+			if (onSubmit) {
+				onSubmit(markdown);
+				return;
+			}
+
+			setLoading(true);
 			container.dispatchEvent(
 				new CustomEvent('blog-editor-submit', {
 					detail: markdown,
 					bubbles: true
 				})
 			);
+			// 发布成功后清除草稿
+			clearDraft();
+		};
+
+		container.addEventListener('blog-editor-do-submit', handleDoSubmit);
+		return () => container.removeEventListener('blog-editor-do-submit', handleDoSubmit);
+	}, [editor, loading, onSubmit, clearDraft]);
+
+	/**
+	 * 监听清除草稿事件
+	 */
+	useEffect(() => {
+		const container = document.getElementById('blog-compose-container');
+		if (!container) return;
+		container.addEventListener('blog-editor-clear-draft', clearDraft);
+		return () => container.removeEventListener('blog-editor-clear-draft', clearDraft);
+	}, [clearDraft]);
+
+	/**
+	 * 处理文件选择变化时上传图片
+	 *
+	 * @param e - 文件输入变化事件
+	 */
+	const handleFileChange = useCallback(
+		async (e: React.ChangeEvent<HTMLInputElement>) => {
+			const files = e.target.files;
+			if (!files || !editor) return;
+
+			for (const file of Array.from(files)) {
+				try {
+					const url = await uploadImage(file);
+					if (url) {
+						editor.chain().focus().setImage({ src: url }).run();
+					}
+				} catch {
+					// 上传失败静默处理
+				}
+			}
+			e.target.value = '';
+		},
+		[editor]
+	);
+
+	/**
+	 * 处理链接插入
+	 *
+	 * 如果当前光标在链接中，则取消链接；
+	 * 否则弹出输入框让用户输入 URL 并设置链接。
+	 */
+	const handleLinkInsert = useCallback(() => {
+		if (!editor) return;
+		if (editor.isActive('link')) {
+			editor.chain().focus().unsetLink().run();
+			return;
 		}
-	}, [editor, onSubmit]);
+		const url = window.prompt('输入链接 URL:', 'https://');
+		if (url) {
+			editor.chain().focus().setLink({ href: url }).run();
+		}
+	}, [editor]);
 
 	// 编辑器未就绪时不渲染
 	if (!editor) return null;
 
-	/** 当前是否为标题 */
-	const isH1 = editor.isActive('heading', { level: 1 });
-	const isH2 = editor.isActive('heading', { level: 2 });
-	const isH3 = editor.isActive('heading', { level: 3 });
-
 	return (
 		<div className="blog-editor">
-			{/* 工具栏 */}
+			{/* 固定工具栏 */}
 			<div className="blog-editor-toolbar">
-				<div className="blog-editor-toolbar-group">
-					<button
-						type="button"
-						className={`blog-editor-btn ${isH1 ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-						title="一级标题"
-					>
-						H1
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${isH2 ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-						title="二级标题"
-					>
-						H2
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${isH3 ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-						title="三级标题"
-					>
-						H3
-					</button>
-				</div>
-
-				<div className="blog-editor-toolbar-sep" />
-
-				<div className="blog-editor-toolbar-group">
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('bold') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleBold().run()}
-						title="粗体"
-					>
-						<strong>B</strong>
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('italic') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleItalic().run()}
-						title="斜体"
-					>
-						<em>I</em>
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('strike') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleStrike().run()}
-						title="删除线"
-					>
-						<s>S</s>
-					</button>
-				</div>
-
-				<div className="blog-editor-toolbar-sep" />
-
-				<div className="blog-editor-toolbar-group">
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('bulletList') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleBulletList().run()}
-						title="无序列表"
-					>
-						• 列表
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('orderedList') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleOrderedList().run()}
-						title="有序列表"
-					>
-						1. 列表
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('blockquote') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleBlockquote().run()}
-						title="引用"
-					>
-						❝ 引用
-					</button>
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('codeBlock') ? 'blog-editor-btn-active' : ''}`}
-						onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-						title="代码块"
-					>
-						{'<>'}
-					</button>
-				</div>
-
-				<div className="blog-editor-toolbar-sep" />
-
-				<div className="blog-editor-toolbar-group">
-					<button
-						type="button"
-						className={`blog-editor-btn ${editor.isActive('link') ? 'blog-editor-btn-active' : ''}`}
-						onClick={handleLinkInsert}
-						title="链接"
-					>
-						🔗
-					</button>
-					<button
-						type="button"
-						className="blog-editor-btn"
-						onClick={handleImageUpload}
-						title="上传图片"
-					>
-						📷
-					</button>
-					<button
-						type="button"
-						className="blog-editor-btn"
-						onClick={() => editor.chain().focus().setHorizontalRule().run()}
-						title="分割线"
-					>
-						—
-					</button>
-				</div>
-
-				<div className="blog-editor-toolbar-sep" />
-
-				<div className="blog-editor-toolbar-group">
-					<button
-						type="button"
-						className="blog-editor-btn"
-						onClick={() => editor.chain().focus().undo().run()}
-						disabled={!editor.can().undo()}
-						title="撤销"
-					>
-						↩
-					</button>
-					<button
-						type="button"
-						className="blog-editor-btn"
-						onClick={() => editor.chain().focus().redo().run()}
-						disabled={!editor.can().redo()}
-						title="重做"
-					>
-						↪
-					</button>
-				</div>
+				{/* 标题组 */}
+				<button
+					type="button"
+					className={editor.isActive('heading', { level: 2 }) ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+					title="二级标题"
+				>
+					H2
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('heading', { level: 3 }) ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+					title="三级标题"
+				>
+					H3
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('paragraph') ? 'active' : ''}
+					onClick={() => editor.chain().focus().setParagraph().run()}
+					title="正文"
+				>
+					P
+				</button>
+				<span className="blog-editor-toolbar-sep" />
+				{/* 格式组 */}
+				<button
+					type="button"
+					className={editor.isActive('bold') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleBold().run()}
+					title="粗体"
+				>
+					<strong>B</strong>
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('italic') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleItalic().run()}
+					title="斜体"
+				>
+					<em>I</em>
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('underline') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleUnderline().run()}
+					title="下划线"
+				>
+					<u>U</u>
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('strike') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleStrike().run()}
+					title="删除线"
+				>
+					<s>S</s>
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('code') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleCode().run()}
+					title="行内代码"
+				>
+					{'<>'}
+				</button>
+				<span className="blog-editor-toolbar-sep" />
+				{/* 列表组 */}
+				<button
+					type="button"
+					className={editor.isActive('bulletList') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleBulletList().run()}
+					title="无序列表"
+				>
+					• 列表
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('orderedList') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleOrderedList().run()}
+					title="有序列表"
+				>
+					1. 列表
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('taskList') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleTaskList().run()}
+					title="任务列表"
+				>
+					☑ 任务
+				</button>
+				<span className="blog-editor-toolbar-sep" />
+				{/* 块级组 */}
+				<button
+					type="button"
+					className={editor.isActive('blockquote') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleBlockquote().run()}
+					title="引用"
+				>
+					❝ 引用
+				</button>
+				<button
+					type="button"
+					className={editor.isActive('codeBlock') ? 'active' : ''}
+					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+					title="代码块"
+				>
+					代码块
+				</button>
+				<button
+					type="button"
+					onClick={() => editor.chain().focus().setHorizontalRule().run()}
+					title="分割线"
+				>
+					—
+				</button>
+				<span className="blog-editor-toolbar-sep" />
+				{/* 插入组 */}
+				<button type="button" onClick={handleLinkInsert} title="链接">
+					🔗
+				</button>
+				<button
+					type="button"
+					onClick={() => fileInputRef.current?.click()}
+					title="上传图片"
+				>
+					📷
+				</button>
 			</div>
 
-			{/* 编辑区域 */}
-			<EditorContent editor={editor} />
+			{/* 编辑区 */}
+			<div className="blog-editor-body">
+				<EditorContent editor={editor} />
+			</div>
 
 			{/* 隐藏的文件输入 */}
 			<input
@@ -350,18 +567,6 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 				style={{ display: 'none' }}
 				onChange={handleFileChange}
 			/>
-
-			{/* 底部提交按钮 */}
-			<div className="blog-editor-footer">
-				<button
-					type="button"
-					className="btn btn-primary"
-					onClick={handleSubmit}
-					disabled={loading}
-				>
-					{loading ? '发布中...' : '发布文章'}
-				</button>
-			</div>
 		</div>
 	);
 }

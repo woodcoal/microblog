@@ -167,14 +167,27 @@ const resolvedOgType = ogType || 'website';
 				</a>
 				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单"> ☰ </button>
 				<div class="navbar-links" id="navbar-links">
+					{/* 频道导航（仅多模式时显示） */}
+					{
+						showModeNav && (
+							<div class="nav-mode-links">
+								{enabledModes.map((mode) => (
+									<a
+										href={mode.path}
+										class:list={[
+											'nav-mode-link',
+											{ 'nav-mode-active': currentPath.startsWith(mode.path) }
+										]}
+									>
+										{mode.icon} {mode.label}
+									</a>
+								))}
+							</div>
+						)
+					}
 					{
 						currentUser && (
-							<button
-								type="button"
-								class="nav-compose-btn"
-								aria-label="发布帖子"
-								onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
-							>
+							<button type="button" class="nav-compose-btn" aria-label="发布帖子">
 								✏️ 发布
 							</button>
 						)
@@ -349,19 +362,6 @@ const resolvedOgType = ogType || 'website';
 							<span class="sidebar-link-icon">🏠</span>
 							<span>首页</span>
 						</a>
-						{showModeNav &&
-							enabledModes.map((mode) => (
-								<a
-									href={mode.path}
-									class="sidebar-link"
-									aria-current={
-										currentPath.startsWith(mode.path) ? 'page' : undefined
-									}
-								>
-									<span class="sidebar-link-icon">{mode.icon}</span>
-									<span>{mode.label}</span>
-								</a>
-							))}
 						<a
 							href="/latest"
 							class="sidebar-link"
@@ -455,12 +455,7 @@ const resolvedOgType = ogType || 'website';
 			</a>
 			{
 				currentUser ? (
-					<button
-						type="button"
-						class="tab-bar-post"
-						aria-label="发布帖子"
-						onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
-					>
+					<button type="button" class="tab-bar-post" aria-label="发布帖子">
 						✏️
 					</button>
 				) : (
@@ -619,14 +614,55 @@ const resolvedOgType = ogType || 'website';
 			};
 		</script>
 
-		<!-- 全局键盘快捷键 -->
+		<!-- 全局键盘快捷键 + 发布按钮路由 -->
 		<script>
+			/**
+			 * 根据当前页面路径决定打开哪个编辑器
+			 *
+			 * - /forum 路径下：打开论坛编辑器弹窗
+			 * - /blog 路径下：跳转到写文章页面
+			 * - 其他路径：打开微博编辑器弹窗
+			 */
+			function openComposeByPath(): void {
+				const path = window.location.pathname;
+				if (path.startsWith('/forum')) {
+					document.dispatchEvent(new CustomEvent('open-forum-compose-modal'));
+				} else if (path.startsWith('/blog')) {
+					window.location.href = '/blog/write';
+				} else {
+					document.dispatchEvent(new CustomEvent('open-compose-modal'));
+				}
+			}
+
+			/**
+			 * 根据当前页面路径关闭对应的编辑器弹窗
+			 */
+			function closeComposeByPath(): void {
+				const path = window.location.pathname;
+				if (path.startsWith('/forum')) {
+					document.dispatchEvent(new CustomEvent('close-forum-compose-modal'));
+				} else {
+					document.dispatchEvent(new CustomEvent('close-compose-modal'));
+				}
+			}
+
+			// 发布按钮点击事件：根据当前页面路径决定打开哪个编辑器
+			document.querySelectorAll('.nav-compose-btn').forEach((btn) => {
+				btn.addEventListener('click', openComposeByPath);
+			});
+			document.querySelectorAll('.tab-bar-post').forEach((btn) => {
+				// 仅绑定 button 类型（a 标签的跳转由 href 处理）
+				if (btn.tagName === 'BUTTON') {
+					btn.addEventListener('click', openComposeByPath);
+				}
+			});
+
 			/**
 			 * 全局键盘快捷键
 			 *
-			 * N — 打开发帖弹窗（仅在非输入框时触发）
+			 * N — 打开发帖弹窗（仅在非输入框时触发，根据路径选择编辑器）
 			 * / — 聚焦搜索框或跳转搜索页（仅在非输入框时触发）
-			 * Escape — 关闭弹窗
+			 * Escape — 关闭弹窗（根据路径关闭对应弹窗）
 			 */
 			document.addEventListener('keydown', (e: KeyboardEvent) => {
 				// 输入框内不触发快捷键（INPUT / TEXTAREA / SELECT / 可编辑元素）
@@ -640,9 +676,9 @@ const resolvedOgType = ogType || 'website';
 					return;
 
 				if (e.key === 'n' || e.key === 'N') {
-					// N 键：打开发帖弹窗
+					// N 键：根据当前路径打开对应编辑器
 					e.preventDefault();
-					document.dispatchEvent(new CustomEvent('open-compose-modal'));
+					openComposeByPath();
 				} else if (e.key === '/') {
 					// / 键：聚焦搜索框，无搜索框则跳转搜索页
 					e.preventDefault();
@@ -655,8 +691,8 @@ const resolvedOgType = ogType || 'website';
 						window.location.href = '/search';
 					}
 				} else if (e.key === 'Escape') {
-					// Escape 键：关闭弹窗
-					document.dispatchEvent(new CustomEvent('close-compose-modal'));
+					// Escape 键：关闭对应弹窗
+					closeComposeByPath();
 				}
 			});
 		</script>

@@ -420,6 +420,34 @@ const hasInitialContent = initialContent.length > 0;
 	 */
 	import { actions } from 'astro:actions';
 
+	/**
+	 * 上传图片文件到服务器
+	 *
+	 * 使用原生 FormData + fetch 调用 Astro Actions 的 uploadMedia 端点，
+	 * 避免 RPC 调用无法正确序列化 File 对象导致 415 错误。
+	 *
+	 * @param file - 要上传的图片文件
+	 * @returns 上传成功后的图片 URL，失败返回 null
+	 */
+	async function uploadImageFile(file: File): Promise<string | null> {
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('fileType', 'image');
+		try {
+			const res = await fetch('/_actions/uploadMedia', {
+				method: 'POST',
+				body: formData
+			});
+			const data = await res.json();
+			if (data.success && data.data) {
+				return data.data.url as string;
+			}
+			return null;
+		} catch {
+			return null;
+		}
+	}
+
 	// 为所有论坛编辑器绑定事件
 	document.querySelectorAll<HTMLElement>('.forum-editor').forEach((editor) => {
 		const textarea = editor.querySelector<HTMLTextAreaElement>('.forum-editor-textarea');
@@ -614,6 +642,47 @@ const hasInitialContent = initialContent.length > 0;
 			}
 		});
 
+		// 粘贴事件：检测剪贴板图片并上传
+		textarea.addEventListener('paste', (e: ClipboardEvent) => {
+			const items = e.clipboardData?.items;
+			if (!items) return;
+
+			// 收集剪贴板中的图片文件
+			const imageFiles: File[] = [];
+			for (let i = 0; i < items.length; i++) {
+				if (items[i].type.startsWith('image/')) {
+					const file = items[i].getAsFile();
+					if (file) imageFiles.push(file);
+				}
+			}
+
+			// 有图片时上传并插入 Markdown 图片语法
+			if (imageFiles.length > 0) {
+				e.preventDefault();
+				(async () => {
+					for (const file of imageFiles) {
+						try {
+							const url = await uploadImageFile(file);
+							if (url) {
+								// 插入 Markdown 图片语法，使用 execCommand 保持 undo 历史
+								const imgMd = `![${file.name}](${url})`;
+								const start = textarea.selectionStart;
+								textarea.setSelectionRange(start, start);
+								document.execCommand('insertText', false, imgMd);
+								updateCount();
+								renderPreview();
+							}
+						} catch {
+							if (errorDisplay) {
+								errorDisplay.textContent = '图片上传失败';
+								errorDisplay.style.display = '';
+							}
+						}
+					}
+				})();
+			}
+		});
+
 		// 图片上传
 		if (fileInput) {
 			fileInput.addEventListener('change', async () => {
@@ -622,10 +691,10 @@ const hasInitialContent = initialContent.length > 0;
 
 				for (const file of Array.from(files)) {
 					try {
-						const result = await actions.uploadMedia({ file, fileType: 'image' });
-						if (result.data) {
+						const url = await uploadImageFile(file);
+						if (url) {
 							// 在 textarea 中插入图片 Markdown
-							const imgMd = `![${file.name}](${result.data.url})`;
+							const imgMd = `![${file.name}](${url})`;
 							const start = textarea.selectionStart;
 							textarea.setSelectionRange(start, start);
 							document.execCommand('insertText', false, imgMd);
