@@ -20,7 +20,9 @@ import {
 	POST_UPDATE,
 	POST_DELETE,
 	COMMENT_CREATE,
-	COMMENT_DELETE
+	COMMENT_DELETE,
+	BOOKMARK_CREATE,
+	BOOKMARK_REMOVE
 } from '@/lib/activity';
 import { generateShortId } from '@/lib/shortid';
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
@@ -1140,6 +1142,114 @@ const deleteComment = defineAction({
 });
 
 /**
+ * 切换收藏 Action
+ *
+ * 对帖子进行收藏/取消收藏切换操作。
+ * 已收藏则取消，未收藏则收藏。
+ * 需要登录认证。
+ * 使用 upsert + delete catch P2025 处理竞态条件。
+ *
+ * @param input - { postId: 帖子ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns { bookmarked: boolean, bookmarkCount: number } 当前收藏状态和收藏数
+ */
+const toggleBookmark = defineAction({
+	input: z.object({
+		postId: z.string().min(1, '帖子 ID 不能为空')
+	}),
+	handler: async (input, context) => {
+		// 1. 验证登录状态
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+
+		const { postId } = input;
+
+		// 2. 检查帖子存在且未删除
+		const post = await prisma.post.findUnique({ where: { id: postId } });
+		if (!post) {
+			throw new ActionError({ code: 'NOT_FOUND', message: '帖子不存在' });
+		}
+		if (post.isDeleted) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '帖子已删除' });
+		}
+
+		// 3. 查询当前收藏状态（仅用于确定操作意图）
+		const existingBookmark = await prisma.bookmark.findUnique({
+			where: {
+				userId_postId: {
+					userId: currentUser.userId,
+					postId
+				}
+			}
+		});
+
+		let bookmarked: boolean;
+		if (existingBookmark) {
+			// 已收藏 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
+			try {
+				await prisma.bookmark.delete({
+					where: {
+						userId_postId: {
+							userId: currentUser.userId,
+							postId
+						}
+					}
+				});
+			} catch (deleteError: any) {
+				// P2025 = 记录不存在，说明已被其他请求删除，忽略
+				if (deleteError?.code !== 'P2025') throw deleteError;
+			}
+			bookmarked = false;
+
+			// 记录取消收藏活动（异步，不阻塞主流程）
+			logActivity(
+				BOOKMARK_REMOVE,
+				currentUser.userId,
+				'post',
+				postId,
+				post.userId,
+				postId
+			).catch(() => {});
+		} else {
+			// 未收藏 → 收藏：使用 upsert 避免竞态，已存在则忽略
+			await prisma.bookmark.upsert({
+				where: {
+					userId_postId: {
+						userId: currentUser.userId,
+						postId
+					}
+				},
+				update: {},
+				create: {
+					userId: currentUser.userId,
+					postId
+				}
+			});
+			bookmarked = true;
+
+			// 记录收藏活动（异步，不阻塞主流程）
+			logActivity(
+				BOOKMARK_CREATE,
+				currentUser.userId,
+				'post',
+				postId,
+				post.userId,
+				postId
+			).catch(() => {});
+		}
+
+		// 4. 统计当前收藏数
+		const bookmarkCount = await prisma.bookmark.count({
+			where: { postId }
+		});
+
+		return { bookmarked, bookmarkCount };
+	}
+});
+
+/**
  * 上传媒体文件 Action
  *
  * 接收 FormData 形式的文件上传，支持图片和附件。
@@ -1722,10 +1832,280 @@ const revokeToken = defineAction({
 	}
 });
 
+/** 合法的分类模式列表 */
+const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
+
+/**
+ * 创建分类 Action
+ *
+ * 管理员创建新的分类（一级分组或二级分类）。
+ * 校验 mode 合法性、slug 唯一性、父分类存在性。
+ *
+ * @param input - { name: 分类名称, slug: URL标识, mode: 模式, parentId?: 父分类ID, description?: 描述, icon?: 图标, sortOrder?: 排序 }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 创建的分类数据
+ */
+const createCategory = defineAction({
+	input: z.object({
+		name: z.string().min(1, '分类名称不能为空'),
+		slug: z.string().min(1, 'slug 不能为空'),
+		mode: z.string().min(1, '模式不能为空'),
+		parentId: z.string().optional(),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		sortOrder: z.number().optional()
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态和管理员权限
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+		if (currentUser.role !== 'admin') {
+			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+		}
+
+		const { name, slug, mode, parentId, description, icon, sortOrder } = input;
+
+		// 校验 mode 必须是合法值
+		if (!VALID_MODES.includes(mode as any)) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `无效的模式，仅支持: ${VALID_MODES.join(', ')}`
+			});
+		}
+
+		// 校验 slug 唯一
+		const existing = await prisma.category.findUnique({ where: { slug } });
+		if (existing) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: 'slug 已存在' });
+		}
+
+		// 如果有 parentId，校验父分类存在
+		if (parentId) {
+			const parent = await prisma.category.findUnique({ where: { id: parentId } });
+			if (!parent) {
+				throw new ActionError({ code: 'NOT_FOUND', message: '父分类不存在' });
+			}
+			// 父分类必须是一级分组（没有自己的 parentId）
+			if (parent.parentId) {
+				throw new ActionError({ code: 'BAD_REQUEST', message: '不支持三级分类' });
+			}
+		}
+
+		// 创建分类
+		const category = await prisma.category.create({
+			data: {
+				name: name.trim(),
+				slug: slug.trim(),
+				mode,
+				parentId: parentId || null,
+				description: description || '',
+				icon: icon || '',
+				sortOrder: sortOrder ?? 0
+			}
+		});
+
+		return {
+			id: category.id,
+			name: category.name,
+			slug: category.slug,
+			mode: category.mode,
+			parentId: category.parentId,
+			description: category.description,
+			icon: category.icon,
+			sortOrder: category.sortOrder,
+			createdAt: category.createdAt.toISOString(),
+			updatedAt: category.updatedAt.toISOString()
+		};
+	}
+});
+
+/**
+ * 更新分类 Action
+ *
+ * 管理员更新分类的指定字段（名称、slug、描述、图标、排序）。
+ *
+ * @param input - { id: 分类ID, name?: 名称, slug?: URL标识, description?: 描述, icon?: 图标, sortOrder?: 排序 }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 更新后的分类数据
+ */
+const updateCategory = defineAction({
+	input: z.object({
+		id: z.string().min(1, '分类 ID 不能为空'),
+		name: z.string().optional(),
+		slug: z.string().optional(),
+		description: z.string().optional(),
+		icon: z.string().optional(),
+		sortOrder: z.number().optional()
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态和管理员权限
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+		if (currentUser.role !== 'admin') {
+			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+		}
+
+		const { id, name, slug, description, icon, sortOrder } = input;
+
+		// 查询分类是否存在
+		const category = await prisma.category.findUnique({ where: { id } });
+		if (!category) {
+			throw new ActionError({ code: 'NOT_FOUND', message: '分类不存在' });
+		}
+
+		// 如果更新 slug，校验唯一性
+		if (slug && slug !== category.slug) {
+			const existing = await prisma.category.findUnique({ where: { slug } });
+			if (existing) {
+				throw new ActionError({ code: 'BAD_REQUEST', message: 'slug 已存在' });
+			}
+		}
+
+		// 构建更新数据
+		const updateData: Record<string, unknown> = {};
+		if (name !== undefined) updateData.name = name.trim();
+		if (slug !== undefined) updateData.slug = slug.trim();
+		if (description !== undefined) updateData.description = description;
+		if (icon !== undefined) updateData.icon = icon;
+		if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+		// 没有需要更新的字段
+		if (Object.keys(updateData).length === 0) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '没有需要更新的字段' });
+		}
+
+		// 执行更新
+		const updated = await prisma.category.update({
+			where: { id },
+			data: updateData
+		});
+
+		return {
+			id: updated.id,
+			name: updated.name,
+			slug: updated.slug,
+			mode: updated.mode,
+			parentId: updated.parentId,
+			description: updated.description,
+			icon: updated.icon,
+			sortOrder: updated.sortOrder,
+			createdAt: updated.createdAt.toISOString(),
+			updatedAt: updated.updatedAt.toISOString()
+		};
+	}
+});
+
+/**
+ * 删除分类 Action
+ *
+ * 管理员删除分类。有关联帖子或子分类时拒绝删除。
+ *
+ * @param input - { id: 分类ID }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 被删除的分类 ID
+ */
+const deleteCategory = defineAction({
+	input: z.object({
+		id: z.string().min(1, '分类 ID 不能为空')
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态和管理员权限
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+		if (currentUser.role !== 'admin') {
+			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+		}
+
+		const { id } = input;
+
+		// 查询分类是否存在
+		const category = await prisma.category.findUnique({ where: { id } });
+		if (!category) {
+			throw new ActionError({ code: 'NOT_FOUND', message: '分类不存在' });
+		}
+
+		// 检查是否有关联帖子
+		const postCount = await prisma.post.count({ where: { categoryId: id } });
+		if (postCount > 0) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `该分类下有 ${postCount} 篇帖子，无法删除`
+			});
+		}
+
+		// 检查是否有子分类
+		const childCount = await prisma.category.count({ where: { parentId: id } });
+		if (childCount > 0) {
+			throw new ActionError({
+				code: 'BAD_REQUEST',
+				message: `该分类下有 ${childCount} 个子分类，无法删除`
+			});
+		}
+
+		// 删除分类
+		await prisma.category.delete({ where: { id } });
+
+		return { id };
+	}
+});
+
+/**
+ * 批量重排分类排序 Action
+ *
+ * 管理员批量更新分类的排序权重。
+ *
+ * @param input - { items: [{ id: 分类ID, sortOrder: 排序权重 }] }
+ * @param context - Astro APIContext，用于提取认证信息
+ * @returns 更新结果
+ */
+const reorderCategories = defineAction({
+	input: z.object({
+		items: z
+			.array(
+				z.object({
+					id: z.string().min(1),
+					sortOrder: z.number()
+				})
+			)
+			.min(1, '至少需要一个排序项')
+	}),
+	handler: async (input, context) => {
+		// 验证登录状态和管理员权限
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+		if (currentUser.role !== 'admin') {
+			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+		}
+
+		const { items } = input;
+
+		// 批量更新排序
+		await prisma.$transaction(
+			items.map((item) =>
+				prisma.category.update({
+					where: { id: item.id },
+					data: { sortOrder: item.sortOrder }
+				})
+			)
+		);
+
+		return { updated: items.length };
+	}
+});
+
 /** 导出所有服务端 Actions */
 export const server = {
 	toggleLike,
 	toggleFollow,
+	toggleBookmark,
 	createPost,
 	updatePost,
 	deletePost,
@@ -1740,5 +2120,9 @@ export const server = {
 	deleteWebhook,
 	revealWebhookSecret,
 	createToken,
-	revokeToken
+	revokeToken,
+	createCategory,
+	updateCategory,
+	deleteCategory,
+	reorderCategories
 };

@@ -10,7 +10,14 @@
  */
 import { getUserFromRequest } from '@/lib/auth';
 import { getUnreadCount } from '@/lib/notification';
-import { SITE_TITLE, SITE_DESCRIPTION, SITE_LOGO_URL, SITE_FAVICON_URL } from '@/lib/config';
+import {
+	SITE_TITLE,
+	SITE_DESCRIPTION,
+	SITE_LOGO_URL,
+	SITE_FAVICON_URL,
+	SITE_MODES,
+	isSingleMode
+} from '@/lib/config';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
@@ -96,6 +103,15 @@ const hasUnread = unreadCount > 0;
 // 当前路径，用于侧栏高亮
 const currentPath = Astro.url.pathname;
 
+// 多模式频道配置
+const showModeNav = !isSingleMode;
+const modeConfig: Record<string, { label: string; icon: string; path: string }> = {
+	weibo: { label: '微博', icon: '💬', path: '/' },
+	forum: { label: '论坛', icon: '📋', path: '/forum' },
+	blog: { label: '博客', icon: '📝', path: '/blog' }
+};
+const enabledModes = SITE_MODES.map((m) => ({ ...modeConfig[m], key: m }));
+
 // 从环境变量读取站点设置
 const siteTitle = SITE_TITLE;
 const siteDesc = description || SITE_DESCRIPTION;
@@ -179,6 +195,9 @@ const resolvedOgType = ogType || 'website';
 									<a href="/following" class="mobile-user-link">
 										<span class="mobile-user-icon">👀</span> 关注
 									</a>
+									<a href="/bookmarks" class="mobile-user-link">
+										<span class="mobile-user-icon">🔖</span> 收藏
+									</a>
 									<a href="/followers" class="mobile-user-link">
 										<span class="mobile-user-icon">👥</span> 粉丝
 									</a>
@@ -239,6 +258,15 @@ const resolvedOgType = ogType || 'website';
 										>
 											<span class="nav-dropdown-icon">👤</span>
 											<span>个人主页</span>
+										</a>
+										<a
+											href="/bookmarks"
+											class="nav-dropdown-item"
+											role="menuitem"
+											aria-label="收藏"
+										>
+											<span class="nav-dropdown-icon">🔖</span>
+											<span>收藏</span>
 										</a>
 										{notificationsEnabled && (
 											<a
@@ -312,6 +340,19 @@ const resolvedOgType = ogType || 'website';
 							<span class="sidebar-link-icon">🏠</span>
 							<span>首页</span>
 						</a>
+						{showModeNav &&
+							enabledModes.map((mode) => (
+								<a
+									href={mode.path}
+									class="sidebar-link"
+									aria-current={
+										currentPath.startsWith(mode.path) ? 'page' : undefined
+									}
+								>
+									<span class="sidebar-link-icon">{mode.icon}</span>
+									<span>{mode.label}</span>
+								</a>
+							))}
 						<a
 							href="/latest"
 							class="sidebar-link"
@@ -331,6 +372,16 @@ const resolvedOgType = ogType || 'website';
 								>
 									<span class="sidebar-link-icon">👀</span>
 									<span>关注</span>
+								</a>
+								<a
+									href="/bookmarks"
+									class="sidebar-link"
+									aria-current={
+										currentPath.startsWith('/bookmarks') ? 'page' : undefined
+									}
+								>
+									<span class="sidebar-link-icon">🔖</span>
+									<span>收藏</span>
 								</a>
 								<a
 									href="/followers"

@@ -1,7 +1,7 @@
 /**
  * 共享查询工具模块
  *
- * 提取帖子列表页面中重复的 Prisma include 配置和点赞状态查询逻辑，
+ * 提取帖子列表页面中重复的 Prisma include 配置和点赞/收藏状态查询逻辑，
  * 减少代码重复，统一维护查询结构。
  */
 import { prisma } from './db';
@@ -77,4 +77,33 @@ export async function getLikedPostIds(
 	});
 
 	return new Set(likes.map((l) => l.postId).filter((id): id is string => id !== null));
+}
+
+/**
+ * 查询用户对指定帖子的收藏状态
+ *
+ * 根据用户 ID 和帖子 ID 列表，查询该用户已收藏的帖子 ID 集合。
+ * 未登录时返回空 Set。
+ *
+ * @param userId - 当前用户 ID，未登录时为 null
+ * @param postIds - 需要查询的帖子 ID 列表
+ * @returns 已收藏的帖子 ID 集合
+ */
+export async function getBookmarkedPostIds(
+	userId: string | null,
+	postIds: string[]
+): Promise<Set<string>> {
+	if (!userId || postIds.length === 0) {
+		return new Set();
+	}
+
+	const bookmarks = await prisma.bookmark.findMany({
+		where: {
+			userId,
+			postId: { in: postIds }
+		},
+		select: { postId: true }
+	});
+
+	return new Set(bookmarks.map((b) => b.postId));
 }

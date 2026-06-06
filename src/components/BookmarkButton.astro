@@ -1,0 +1,161 @@
+---
+/**
+ * 收藏按钮组件（Astro 原生版本）
+ *
+ * 显示收藏数和当前收藏状态，点击切换收藏。
+ * 收藏时书签图标变实心并有缩放动画。
+ * 使用 Astro Actions 替代 fetch API 调用，渐进增强：
+ * - 无 JS 时：form action 提交页面刷新
+ * - 有 JS 时：拦截 submit，调用 actions.toggleBookmark，乐观更新 + 失败回滚
+ */
+
+/**
+ * 组件属性
+ *
+ * @property postId - 帖子 ID
+ * @property initialBookmarked - 初始是否已收藏
+ * @property initialBookmarkCount - 初始收藏数
+ */
+interface Props {
+	postId: string;
+	initialBookmarked: boolean;
+	initialBookmarkCount: number;
+}
+
+const { postId, initialBookmarked, initialBookmarkCount } = Astro.props;
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isBookmarked = initialBookmarked;
+---
+
+<form class="bookmark-btn-form" data-post-id={postId}>
+	<button
+		type="submit"
+		class:list={['bookmark-btn', { 'bookmark-btn-bookmarked': isBookmarked }]}
+		aria-label={isBookmarked ? '取消收藏' : '收藏'}
+	>
+		<svg
+			class="bookmark-icon"
+			viewBox="0 0 24 24"
+			width="18"
+			height="18"
+			fill={isBookmarked ? 'currentColor' : 'none'}
+			stroke="currentColor"
+			stroke-width="2"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+		</svg>
+		<span class="bookmark-count">{initialBookmarkCount}</span>
+	</button>
+</form>
+
+<script>
+	/**
+	 * 收藏按钮客户端交互逻辑
+	 *
+	 * 拦截 form submit 事件，调用 Astro Actions 的 toggleBookmark。
+	 * 乐观更新 UI（切换 bookmarked 类名、更新计数、触发动画），失败时回滚。
+	 * 未登录时跳转登录页。
+	 */
+	import { actions } from 'astro:actions';
+
+	// 为所有收藏表单绑定事件
+	document.querySelectorAll<HTMLFormElement>('.bookmark-btn-form').forEach((form) => {
+		form.addEventListener('submit', async (e) => {
+			e.preventDefault();
+
+			const btn = form.querySelector<HTMLButtonElement>('.bookmark-btn');
+			if (!btn || btn.disabled) return;
+
+			// 从 data 属性获取帖子 ID
+			const postId = form.dataset.postId || '';
+
+			// 读取当前状态
+			const countEl = btn.querySelector<HTMLSpanElement>('.bookmark-count');
+			const prevBookmarked = btn.classList.contains('bookmark-btn-bookmarked');
+			const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
+
+			// 乐观更新：切换 bookmarked 类名、更新计数
+			btn.classList.toggle('bookmark-btn-bookmarked', !prevBookmarked);
+			btn.setAttribute('aria-label', prevBookmarked ? '收藏' : '取消收藏');
+			if (countEl) {
+				countEl.textContent = String(prevBookmarked ? prevCount - 1 : prevCount + 1);
+			}
+
+			// 收藏时触发弹跳动画
+			if (!prevBookmarked) {
+				btn.classList.add('bookmark-btn-animate');
+				setTimeout(() => btn.classList.remove('bookmark-btn-animate'), 400);
+			}
+
+			// 更新 SVG fill 状态
+			const svg = btn.querySelector<SVGElement>('.bookmark-icon');
+			if (svg) {
+				svg.setAttribute('fill', !prevBookmarked ? 'currentColor' : 'none');
+			}
+
+			// 禁用按钮防止重复点击
+			btn.disabled = true;
+
+			try {
+				const result = await actions.toggleBookmark({ postId });
+
+				if (result.data) {
+					// 以服务端返回为准
+					const { bookmarked, bookmarkCount } = result.data;
+					btn.classList.toggle('bookmark-btn-bookmarked', bookmarked);
+					btn.setAttribute('aria-label', bookmarked ? '取消收藏' : '收藏');
+					if (countEl) {
+						countEl.textContent = String(bookmarkCount);
+					}
+					if (svg) {
+						svg.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
+					}
+				} else {
+					// Action 返回错误，回滚
+					rollback(btn, countEl, svg, prevBookmarked, prevCount);
+				}
+			} catch (err: any) {
+				// 未登录时跳转登录页
+				if (err?.message?.includes('登录') || err?.status === 401) {
+					rollback(btn, countEl, svg, prevBookmarked, prevCount);
+					window.location.href = '/login';
+					return;
+				}
+				// 其他错误回滚
+				rollback(btn, countEl, svg, prevBookmarked, prevCount);
+			} finally {
+				btn.disabled = false;
+			}
+		});
+	});
+
+	/**
+	 * 回滚 UI 到之前的状态
+	 *
+	 * @param btn - 收藏按钮元素
+	 * @param countEl - 计数 span 元素
+	 * @param svg - 书签 SVG 元素
+	 * @param prevBookmarked - 之前的收藏状态
+	 * @param prevCount - 之前的收藏数
+	 */
+	function rollback(
+		btn: HTMLButtonElement,
+		countEl: HTMLSpanElement | null,
+		svg: SVGElement | null,
+		prevBookmarked: boolean,
+		prevCount: number
+	) {
+		btn.classList.toggle('bookmark-btn-bookmarked', prevBookmarked);
+		btn.setAttribute('aria-label', prevBookmarked ? '取消收藏' : '收藏');
+		if (countEl) {
+			countEl.textContent = String(prevCount);
+		}
+		if (svg) {
+			svg.setAttribute('fill', prevBookmarked ? 'currentColor' : 'none');
+		}
+		btn.classList.remove('bookmark-btn-animate');
+	}
+</script>

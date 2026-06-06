@@ -670,6 +670,45 @@ select.form-input {
 	}
 }
 
+/* ===== 收藏按钮 ===== */
+.bookmark-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--radius-sm);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+	transition:
+		color var(--transition-fast),
+		background var(--transition-fast);
+}
+.bookmark-btn:hover {
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+.bookmark-btn-bookmarked {
+	color: var(--color-primary);
+}
+.bookmark-btn-bookmarked:hover {
+	color: var(--color-primary);
+}
+.bookmark-btn-animate .bookmark-icon {
+	animation: like-bounce 0.4s ease;
+}
+
+/* 收藏图标 SVG */
+.bookmark-icon {
+	width: 16px;
+	height: 16px;
+}
+
+.bookmark-count {
+	font-variant-numeric: tabular-nums;
+}
+
 /* ===== 分页导航 ===== */
 .pagination {
 	margin-top: var(--spacing-8);

@@ -24,6 +24,10 @@ const LIKE_REMOVE = 'like.remove';
 const FOLLOW_CREATE = 'follow.create';
 const FOLLOW_REMOVE = 'follow.remove';
 
+/** 操作类型：收藏相关 */
+const BOOKMARK_CREATE = 'bookmark.create';
+const BOOKMARK_REMOVE = 'bookmark.remove';
+
 /** 目标类型 */
 type TargetType = 'post' | 'comment' | 'user';
 
@@ -74,5 +78,7 @@ export {
 	LIKE_CREATE,
 	LIKE_REMOVE,
 	FOLLOW_CREATE,
-	FOLLOW_REMOVE
+	FOLLOW_REMOVE,
+	BOOKMARK_CREATE,
+	BOOKMARK_REMOVE
 };

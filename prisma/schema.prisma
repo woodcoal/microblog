@@ -32,6 +32,7 @@ model User {
   mentions             Mention[]
   sentNotifications    Notification[] @relation("NotificationActor")
   receivedNotifications Notification[] @relation("NotificationRecipient")
+  bookmarks            Bookmark[]
   apiTokens            ApiToken[]
   webhooks             Webhook[]
   activityLogs         ActivityLog[]
@@ -56,15 +57,20 @@ model Post {
   restoreReason  String?   // 恢复理由（管理员恢复时填写）
   restoredBy     String?   // 恢复者 ID
   isEdited       Boolean   @default(false)   // 是否已编辑
+  mode           String    @default("weibo")  // weibo | forum | blog — 帖子模式
+  title          String?   // weibo=可选摘要, forum/blog=标题
+  categoryId     String?   // 外键 → Category
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
   // 关联关系
   user       User           @relation(fields: [userId], references: [id])
+  category   Category?      @relation(fields: [categoryId], references: [id])
   revisions  PostRevision[]
   media      Media[]
   comments   Comment[]
   likes      Like[]
+  bookmarks  Bookmark[]
   tags       PostTag[]
   mentions   Mention[]
 }
@@ -255,4 +261,36 @@ model Webhook {
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id])
+}
+
+/// 分类表 — 两级结构，一级为分组，二级为分类
+model Category {
+  id          String     @id @default(cuid())
+  name        String     // 分类名称
+  slug        String     @unique  // URL 友好标识
+  mode        String     // weibo | forum | blog — 分类所属模式
+  parentId    String?    // 父分类 ID（null = 一级分组）
+  description String     @default("")  // 分类描述
+  icon        String     @default("")  // 图标（emoji 或图标名）
+  sortOrder   Int        @default(0)   // 排序权重
+  postCount   Int        @default(0)   // 帖子数缓存
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  posts       Post[]
+}
+
+/// 收藏表 — 用户收藏/书签帖子
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String   // 收藏者
+  postId    String   // 被收藏的帖子
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])  // 每人每帖只能收藏一次
 }

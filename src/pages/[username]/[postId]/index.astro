@@ -11,6 +11,7 @@
  */
 import BaseLayout from '@/layouts/Base.astro';
 import LikeButton from '@/components/LikeButton.astro';
+import BookmarkButton from '@/components/BookmarkButton.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import { prisma } from '@/lib/db';
@@ -180,6 +181,23 @@ const likeUsers = likeRecords.map((r) => r.user);
 let liked = false;
 if (currentUser) {
 	liked = likeRecords.some((r) => r.userId === currentUser.userId);
+}
+
+// 查询收藏数和当前用户是否已收藏
+const bookmarkCount = await prisma.bookmark.count({
+	where: { postId: post.id }
+});
+let bookmarked = false;
+if (currentUser) {
+	const bookmarkRecord = await prisma.bookmark.findUnique({
+		where: {
+			userId_postId: {
+				userId: currentUser.userId,
+				postId: post.id
+			}
+		}
+	});
+	bookmarked = !!bookmarkRecord;
 }
 
 // 获取评论排序偏好
@@ -468,6 +486,11 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						postId={post.id}
 						initialLiked={liked}
 						initialLikeCount={likeCount}
+					/>
+					<BookmarkButton
+						postId={post.id}
+						initialBookmarked={bookmarked}
+						initialBookmarkCount={bookmarkCount}
 					/>
 					{likeUsers.length > 0 && (
 						<div class="like-users" id="like-users-list">
