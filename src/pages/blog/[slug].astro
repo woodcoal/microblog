@@ -1,34 +1,44 @@
 ---
 /**
- * 首页（大杂烩时间线）
+ * 博客分类详情页
  *
- * 多模式时：显示混合时间线，三种模式帖子混排，卡片按 mode 渲染。
- * 单模式时：直接重定向到该模式首页（/weibo、/forum、/blog）。
- * 全局置顶帖始终排在最前面，其余帖子按热门分数倒序。
- * 支持页码分页（?page=N），每页20条。
+ * 根据 slug 显示该分类下的文章列表。
+ * 支持分页浏览，保留分类筛选上下文。
  */
 import BaseLayout from '@/layouts/Base.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
-import { calculateTrendingScore } from '@/lib/trending';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { isSingleMode, singleMode } from '@/lib/config';
+import { isModeEnabled } from '@/lib/config';
 
-// 单模式时直接重定向到该模式首页
-if (isSingleMode && singleMode) {
-	const redirectMap: Record<string, string> = {
-		weibo: '/weibo',
-		forum: '/forum',
-		blog: '/blog'
-	};
-	return Astro.redirect(redirectMap[singleMode] || '/');
+// 模式未启用时返回 404
+if (!isModeEnabled('blog')) {
+	return Astro.redirect('/404');
 }
 
 /** 每页显示帖子数量 */
 const PAGE_SIZE = 20;
+
+// 从 URL 获取分类 slug
+const { slug } = Astro.params;
+
+// 查询当前分类
+const category = await prisma.category.findUnique({
+	where: { slug },
+	include: {
+		parent: {
+			select: { id: true, name: true, slug: true }
+		}
+	}
+});
+
+// 分类不存在或不是 blog 模式时返回 404
+if (!category || category.mode !== 'blog') {
+	return Astro.redirect('/404');
+}
 
 // 获取当前登录用户
 const currentUser = await getUserFromRequest(Astro);
@@ -53,70 +63,39 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followerIds
 });
 
-// 从 URL 查询参数获取当前页码，默认第 1 页
+// 从 URL 查询参数获取当前页码
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 
-// 查询全局置顶帖（始终在最前面，不受分页影响）
-const pinnedPosts = await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: true,
-		...visibilityFilter
-	},
-	orderBy: [{ createdAt: 'desc' }],
-	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } }
-	}
-});
-
-// 查询非置顶公开帖子总数，用于计算总页数
+// 查询该分类下的文章总数
 const totalPosts = await prisma.post.count({
 	where: {
 		isDeleted: false,
-		isGlobalPinned: false,
+		mode: 'blog',
+		categoryId: category.id,
 		...visibilityFilter
 	}
 });
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
-
-// 确保当前页不超过总页数
 const safePage = Math.min(currentPage, totalPages);
+const skip = (safePage - 1) * PAGE_SIZE;
 
-// 查询所有非置顶公开帖子（需要全部加载以计算热门分数后排序）
-const allNonPinnedPosts = await prisma.post.findMany({
+// 查询当前页的文章
+const posts = await prisma.post.findMany({
 	where: {
 		isDeleted: false,
-		isGlobalPinned: false,
+		mode: 'blog',
+		categoryId: category.id,
 		...visibilityFilter
 	},
+	orderBy: [{ createdAt: 'desc' }],
 	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } }
-	}
+		...POST_CARD_INCLUDE
+	},
+	skip,
+	take: PAGE_SIZE
 });
-
-// 为每个非置顶帖子计算热门分数，按分数倒序排列
-const sortedNonPinnedPosts = allNonPinnedPosts
-	.map((post) => ({
-		post,
-		score: calculateTrendingScore(post.likes.length, post.comments.length, post.createdAt)
-	}))
-	.sort((a, b) => b.score - a.score);
-
-// 按页码截取当前页的非置顶帖子
-const skip = (safePage - 1) * PAGE_SIZE;
-const pagedNonPinnedPosts = sortedNonPinnedPosts.slice(skip, skip + PAGE_SIZE);
-
-// 合并置顶帖和当前页非置顶帖（仅第一页显示置顶帖）
-const posts =
-	safePage === 1
-		? [...pinnedPosts, ...pagedNonPinnedPosts.map((item) => item.post)]
-		: pagedNonPinnedPosts.map((item) => item.post);
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(
@@ -129,23 +108,35 @@ const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
+const hasIcon = !!category.icon;
 ---
 
-<BaseLayout title="首页">
+<BaseLayout title={`${category.name} - 博客`}>
+	<div class="page-header">
+		<nav class="breadcrumb" aria-label="面包屑导航">
+			<a href="/blog" class="breadcrumb-link">博客</a>
+			<span class="breadcrumb-sep">/</span>
+			<span class="breadcrumb-current">{category.name}</span>
+		</nav>
+		<h1 class="page-title">
+			{hasIcon && <span class="page-title-icon">{category.icon}</span>}
+			{category.name}
+		</h1>
+		{category.description && <p class="page-desc">{category.description}</p>}
+	</div>
+
 	{
 		!hasPosts ? (
 			<div class="empty-state">
-				<p>还没有任何动态，注册后发第一条吧！</p>
+				<p>该分类暂无文章</p>
 			</div>
 		) : (
 			<div class="post-list">
 				{posts.map(async (post) => {
-					// 提取标签列表
 					const postTags = post.tags.map((pt) => ({
 						id: pt.tag.id,
 						name: pt.tag.name
 					}));
-					// 点赞数和评论数
 					const postLikeCount = post._count.likes;
 					const postCommentCount = post._count.comments;
 					const postLiked = likedPostIds.has(post.id);
@@ -205,7 +196,10 @@ const hasPagination = totalPages > 1;
 			<nav class="pagination" aria-label="分页导航">
 				<div class="pagination-inner">
 					{hasPrevPage ? (
-						<a href={`/?page=${safePage - 1}`} class="pagination-btn pagination-prev">
+						<a
+							href={`/blog/${slug}?page=${safePage - 1}`}
+							class="pagination-btn pagination-prev"
+						>
 							← 上一页
 						</a>
 					) : (
@@ -217,7 +211,10 @@ const hasPagination = totalPages > 1;
 					</span>
 
 					{hasNextPage ? (
-						<a href={`/?page=${safePage + 1}`} class="pagination-btn pagination-next">
+						<a
+							href={`/blog/${slug}?page=${safePage + 1}`}
+							class="pagination-btn pagination-next"
+						>
 							下一页 →
 						</a>
 					) : (
@@ -228,3 +225,59 @@ const hasPagination = totalPages > 1;
 		)
 	}
 </BaseLayout>
+
+<style>
+	/* 页面头部 */
+	.page-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0 0 0.25rem;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+	}
+
+	.page-title-icon {
+		font-size: 1.25rem;
+	}
+
+	.page-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
+	/* 面包屑导航 */
+	.breadcrumb {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-1);
+		font-size: 0.8125rem;
+		margin-bottom: var(--spacing-2);
+		color: var(--color-muted);
+	}
+
+	.breadcrumb-link {
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+
+	.breadcrumb-link:hover {
+		text-decoration: underline;
+	}
+
+	.breadcrumb-sep {
+		color: var(--color-muted);
+	}
+
+	.breadcrumb-current {
+		color: var(--color-text);
+		font-weight: 500;
+	}
+</style>

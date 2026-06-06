@@ -1,0 +1,261 @@
+---
+/**
+ * 论坛频道首页
+ *
+ * 仅在 SITE_MODES 包含 forum 时可访问，否则返回 404。
+ * 展示版块列表（一级分组 + 二级分类），每个分类显示：
+ * 名称、描述、图标、帖子数。点击分类进入版块详情页。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import { prisma } from '@/lib/db';
+import { isModeEnabled } from '@/lib/config';
+
+// 模式未启用时返回 404
+if (!isModeEnabled('forum')) {
+	return Astro.redirect('/404');
+}
+
+// 查询论坛模式的一级分组（parentId 为 null）
+const groups = await prisma.category.findMany({
+	where: {
+		mode: 'forum',
+		parentId: null
+	},
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		children: {
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			include: {
+				_count: {
+					select: { posts: true }
+				}
+			}
+		},
+		_count: {
+			select: { posts: true }
+		}
+	}
+});
+
+// 查询没有父分组的二级分类（直接挂在根级的分类）
+const rootCategories = await prisma.category.findMany({
+	where: {
+		mode: 'forum',
+		parentId: null,
+		children: { none: {} }
+	},
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		_count: {
+			select: { posts: true }
+		}
+	}
+});
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasGroups = groups.length > 0;
+---
+
+<BaseLayout title="论坛">
+	<div class="page-header">
+		<h1 class="page-title">📋 论坛</h1>
+		<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
+	</div>
+
+	{
+		!hasGroups ? (
+			<div class="empty-state">
+				<p>暂无版块，管理员可在后台创建分类</p>
+			</div>
+		) : (
+			<div class="forum-groups">
+				{groups.map((group) => {
+					// 一级分组下的帖子总数 = 自身帖子 + 子分类帖子
+					const groupPostCount =
+						group._count.posts +
+						group.children.reduce((sum, child) => sum + child._count.posts, 0);
+					const hasChildren = group.children.length > 0;
+					const hasIcon = !!group.icon;
+
+					return (
+						<div class="forum-group">
+							<div class="forum-group-header">
+								{hasIcon && <span class="forum-group-icon">{group.icon}</span>}
+								<h2 class="forum-group-name">{group.name}</h2>
+								<span class="forum-group-count">{groupPostCount} 帖</span>
+							</div>
+							{group.description && (
+								<p class="forum-group-desc">{group.description}</p>
+							)}
+							{hasChildren && (
+								<div class="forum-category-list">
+									{group.children.map((cat) => {
+										const catHasIcon = !!cat.icon;
+										return (
+											<a
+												href={`/forum/${cat.slug}`}
+												class="forum-category-item"
+											>
+												<div class="forum-category-info">
+													{catHasIcon && (
+														<span class="forum-category-icon">
+															{cat.icon}
+														</span>
+													)}
+													<div class="forum-category-text">
+														<span class="forum-category-name">
+															{cat.name}
+														</span>
+														{cat.description && (
+															<span class="forum-category-desc">
+																{cat.description}
+															</span>
+														)}
+													</div>
+												</div>
+												<span class="forum-category-count">
+													{cat._count.posts}
+												</span>
+											</a>
+										);
+									})}
+								</div>
+							)}
+						</div>
+					);
+				})}
+			</div>
+		)
+	}
+</BaseLayout>
+
+<style>
+	/* 页面头部 */
+	.page-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0 0 0.25rem;
+	}
+
+	.page-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
+	/* 版块分组 */
+	.forum-groups {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.forum-group {
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+	}
+
+	.forum-group-header {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		padding: var(--spacing-3) var(--spacing-4);
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.forum-group-icon {
+		font-size: 1.25rem;
+	}
+
+	.forum-group-name {
+		font-size: 1rem;
+		font-weight: 600;
+		margin: 0;
+		flex: 1;
+	}
+
+	.forum-group-count {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+
+	.forum-group-desc {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		margin: 0;
+		padding: var(--spacing-2) var(--spacing-4);
+	}
+
+	/* 分类列表 */
+	.forum-category-list {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.forum-category-item {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: var(--spacing-3) var(--spacing-4);
+		text-decoration: none;
+		color: var(--color-text);
+		transition: background 0.15s;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.forum-category-item:last-child {
+		border-bottom: none;
+	}
+
+	.forum-category-item:hover {
+		background: var(--color-bg);
+	}
+
+	.forum-category-info {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		flex: 1;
+		min-width: 0;
+	}
+
+	.forum-category-icon {
+		font-size: 1.25rem;
+		flex-shrink: 0;
+	}
+
+	.forum-category-text {
+		display: flex;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.forum-category-name {
+		font-weight: 500;
+		font-size: 0.9375rem;
+	}
+
+	.forum-category-desc {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.forum-category-count {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		flex-shrink: 0;
+		margin-left: var(--spacing-3);
+	}
+</style>

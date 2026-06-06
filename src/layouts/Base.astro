@@ -106,7 +106,7 @@ const currentPath = Astro.url.pathname;
 // 多模式频道配置
 const showModeNav = !isSingleMode;
 const modeConfig: Record<string, { label: string; icon: string; path: string }> = {
-	weibo: { label: '微博', icon: '💬', path: '/' },
+	weibo: { label: '微博', icon: '💬', path: '/weibo' },
 	forum: { label: '论坛', icon: '📋', path: '/forum' },
 	blog: { label: '博客', icon: '📝', path: '/blog' }
 };
@@ -183,11 +183,20 @@ const resolvedOgType = ogType || 'website';
 					<ThemeSwitcher />
 					<!-- 移动端导航菜单（hamburger 面板内） -->
 					<div class="mobile-user-area">
+						<a href="/" class="mobile-user-link">
+							<span class="mobile-user-icon">🏠</span> 首页
+						</a>
+						{
+							showModeNav &&
+								enabledModes.map((mode) => (
+									<a href={mode.path} class="mobile-user-link">
+										<span class="mobile-user-icon">{mode.icon}</span>{' '}
+										{mode.label}
+									</a>
+								))
+						}
 						<a href="/latest" class="mobile-user-link">
 							<span class="mobile-user-icon">⏰</span> 最新
-						</a>
-						<a href="/" class="mobile-user-link">
-							<span class="mobile-user-icon">🔥</span> 热门
 						</a>
 						{
 							currentUser && (

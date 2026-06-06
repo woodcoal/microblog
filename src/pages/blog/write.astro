@@ -1,0 +1,275 @@
+---
+/**
+ * 博客写文章页面
+ *
+ * 简单的博客文章发布页，包含标题输入、内容编辑、分类选择和可见度。
+ * 发布时 mode 自动设为 'blog'。
+ * 需要登录认证，未登录重定向到登录页。
+ * 后续 T6 实现富文本编辑器后会替换此页面。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { isModeEnabled, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+
+// 模式未启用时返回 404
+if (!isModeEnabled('blog')) {
+	return Astro.redirect('/404');
+}
+
+// 需要认证，未登录重定向
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) {
+	return Astro.redirect('/login');
+}
+
+// 查询博客分类列表
+const categories = await prisma.category.findMany({
+	where: { mode: 'blog' },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
+});
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasCategories = categories.length > 0;
+---
+
+<BaseLayout title="写文章 - 博客" layoutMode="narrow">
+	<div class="page-header">
+		<h1 class="page-title">✏️ 写文章</h1>
+		<p class="page-desc">发布一篇博客文章</p>
+	</div>
+
+	<form class="blog-editor" id="blog-compose-form">
+		<div class="form-group">
+			<label class="form-label" for="blog-compose-title">标题</label>
+			<input
+				type="text"
+				class="form-input blog-compose-title"
+				id="blog-compose-title"
+				placeholder="文章标题（必填）"
+				maxlength="200"
+				required
+			/>
+		</div>
+
+		{
+			hasCategories && (
+				<div class="form-group">
+					<label class="form-label" for="blog-compose-category">
+						分类
+					</label>
+					<select class="form-input" id="blog-compose-category">
+						<option value="">选择分类（可选）</option>
+						{categories.map((cat) => (
+							<option value={cat.id}>
+								{cat.icon && `${cat.icon} `}
+								{cat.name}
+							</option>
+						))}
+					</select>
+				</div>
+			)
+		}
+
+		<div class="form-group">
+			<label class="form-label" for="blog-compose-content">内容</label>
+			<textarea
+				class="form-input blog-compose-textarea"
+				id="blog-compose-content"
+				placeholder="用 Markdown 写你的文章..."
+				maxlength={POST_CONTENT_MAX_LENGTH}
+				rows="12"
+				required></textarea>
+			<span class="blog-compose-count" id="blog-char-count">
+				0/{POST_CONTENT_MAX_LENGTH}
+			</span>
+		</div>
+
+		<div class="form-group">
+			<label class="form-label" for="blog-compose-visibility">可见度</label>
+			<select class="form-input" id="blog-compose-visibility">
+				<option value="public">🌐 公开</option>
+				<option value="logged_in">🔐 登录用户可见</option>
+				<option value="followers">👥 粉丝可见</option>
+				<option value="following">🤝 我关注的人可见</option>
+				<option value="private">🔒 仅自己可见</option>
+			</select>
+		</div>
+
+		<div class="blog-editor-footer">
+			<a href="/blog" class="btn">取消</a>
+			<button class="btn btn-primary" type="submit" id="blog-submit-btn" disabled>
+				发布文章
+			</button>
+		</div>
+		<p class="form-error" id="blog-form-error" style="display:none"></p>
+	</form>
+</BaseLayout>
+
+<style>
+	/* 页面头部 */
+	.page-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0 0 0.25rem;
+	}
+
+	.page-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
+	/* 编辑器 */
+	.blog-editor {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.blog-compose-title {
+		font-size: 1.25rem;
+		font-weight: 600;
+	}
+
+	.blog-compose-textarea {
+		min-height: 300px;
+		resize: vertical;
+		font-family: monospace;
+	}
+
+	.blog-compose-count {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+		margin-top: var(--spacing-1);
+		display: block;
+		text-align: right;
+	}
+
+	.blog-editor-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: var(--spacing-3);
+		padding-top: var(--spacing-4);
+		border-top: 1px solid var(--color-border);
+	}
+</style>
+
+<script>
+	/**
+	 * 博客写文章页面客户端脚本
+	 *
+	 * 处理博客文章的发布功能：
+	 * - 标题和内容必填校验
+	 * - 字数统计实时更新
+	 * - 表单提交调用 actions.createPost（mode=blog）
+	 * - 发布成功后跳转到文章详情页
+	 */
+	import { actions } from 'astro:actions';
+
+	const form = document.getElementById('blog-compose-form') as HTMLFormElement | null;
+	if (form) {
+		const titleInput = form.querySelector('#blog-compose-title') as HTMLInputElement;
+		const textarea = form.querySelector('#blog-compose-content') as HTMLTextAreaElement;
+		const categorySelect = form.querySelector(
+			'#blog-compose-category'
+		) as HTMLSelectElement | null;
+		const visibilitySelect = form.querySelector(
+			'#blog-compose-visibility'
+		) as HTMLSelectElement;
+		const charCount = form.querySelector('#blog-char-count') as HTMLSpanElement;
+		const submitBtn = form.querySelector('#blog-submit-btn') as HTMLButtonElement;
+		const formError = form.querySelector('#blog-form-error') as HTMLParagraphElement;
+		const CONTENT_MAX_LENGTH = 1000;
+		let loading = false;
+
+		/**
+		 * 更新字数统计和按钮状态
+		 */
+		function updateUI(): void {
+			const len = textarea.value.length;
+			const isNearLimit = len > CONTENT_MAX_LENGTH * 0.9;
+			charCount.textContent = `${len}/${CONTENT_MAX_LENGTH}`;
+			charCount.className = `blog-compose-count${isNearLimit ? ' text-danger' : ''}`;
+			submitBtn.disabled = loading || !textarea.value.trim() || !titleInput.value.trim();
+			submitBtn.textContent = loading ? '发布中...' : '发布文章';
+		}
+
+		/**
+		 * 显示错误信息
+		 *
+		 * @param msg - 错误消息
+		 */
+		function showError(msg: string): void {
+			formError.textContent = msg;
+			formError.style.display = '';
+		}
+
+		// 输入事件
+		textarea.addEventListener('input', updateUI);
+		titleInput.addEventListener('input', updateUI);
+
+		// 表单提交
+		form.addEventListener('submit', async (e: Event) => {
+			e.preventDefault();
+			if (loading) return;
+
+			const title = titleInput.value.trim();
+			const content = textarea.value.trim();
+			const categoryId = categorySelect?.value || '';
+
+			if (!title) {
+				showError('请输入文章标题');
+				return;
+			}
+			if (!content) {
+				showError('请输入文章内容');
+				return;
+			}
+			if (content.length > CONTENT_MAX_LENGTH) {
+				showError(`内容不能超过 ${CONTENT_MAX_LENGTH} 个字符`);
+				return;
+			}
+
+			loading = true;
+			updateUI();
+			formError.style.display = 'none';
+
+			try {
+				const actionInput: Record<string, unknown> = {
+					content,
+					visibility: visibilitySelect.value,
+					mode: 'blog',
+					title
+				};
+
+				// 有分类时传入 categoryId
+				if (categoryId) {
+					actionInput.categoryId = categoryId;
+				}
+
+				const result = await actions.createPost(actionInput as any);
+
+				if (result.error) {
+					showError(result.error.message || '发布失败');
+					return;
+				}
+
+				// 发布成功，跳转到文章详情页
+				const post = result.data;
+				window.location.href = `/${post.user.username}/${post.id}`;
+			} catch {
+				showError('网络错误，请稍后重试');
+			} finally {
+				loading = false;
+				updateUI();
+			}
+		});
+	}
+</script>

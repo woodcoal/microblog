@@ -153,7 +153,11 @@ const BUILTIN_RESERVED_USERNAMES = [
 	'bio',
 	'theme',
 	'dark',
-	'light'
+	'light',
+	// 频道路由保留词，防止与频道页路由冲突
+	'weibo',
+	'forum',
+	'blog'
 ] as const;
 
 /**

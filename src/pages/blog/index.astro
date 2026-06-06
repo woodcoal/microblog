@@ -1,0 +1,326 @@
+---
+/**
+ * 博客频道首页
+ *
+ * 仅在 SITE_MODES 包含 blog 时可访问，否则返回 404。
+ * 文章卡片列表（标题 + 摘要 + 日期 + 分类），按分类筛选。
+ * 顶部"写文章"按钮（暂时跳转到简单发布页）。
+ * 支持分页浏览。
+ */
+import BaseLayout from '@/layouts/Base.astro';
+import PostCard from '@/components/PostCard.astro';
+import { prisma } from '@/lib/db';
+import { getUserFromRequest } from '@/lib/auth';
+import { renderMarkdown } from '@/lib/markdown';
+import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
+import { isModeEnabled } from '@/lib/config';
+
+// 模式未启用时返回 404
+if (!isModeEnabled('blog')) {
+	return Astro.redirect('/404');
+}
+
+/** 每页显示帖子数量 */
+const PAGE_SIZE = 20;
+
+// 获取当前登录用户
+const currentUser = await getUserFromRequest(Astro);
+
+// 查询当前用户的关注关系，用于可见度过滤
+const followingIds: string[] = [];
+const followerIds: string[] = [];
+if (currentUser) {
+	const follows = await prisma.follow.findMany({
+		where: { followerId: currentUser.userId },
+		select: { followingId: true }
+	});
+	followingIds.push(...follows.map((f) => f.followingId));
+	const followers = await prisma.follow.findMany({
+		where: { followingId: currentUser.userId },
+		select: { followerId: true }
+	});
+	followerIds.push(...followers.map((f) => f.followerId));
+}
+const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, {
+	followingIds,
+	followerIds
+});
+
+// 查询博客分类列表（用于侧栏筛选）
+const categories = await prisma.category.findMany({
+	where: { mode: 'blog' },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		_count: {
+			select: { posts: true }
+		}
+	}
+});
+
+// 从 URL 查询参数获取分类筛选
+const filterCategoryId = Astro.url.searchParams.get('category') || '';
+
+// 从 URL 查询参数获取当前页码
+const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
+
+// 构建查询条件
+const whereCondition: Record<string, unknown> = {
+	isDeleted: false,
+	mode: 'blog',
+	...visibilityFilter
+};
+if (filterCategoryId) {
+	whereCondition.categoryId = filterCategoryId;
+}
+
+// 查询博客帖子总数
+const totalPosts = await prisma.post.count({ where: whereCondition });
+
+// 计算总页数
+const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
+const safePage = Math.min(currentPage, totalPages);
+const skip = (safePage - 1) * PAGE_SIZE;
+
+// 查询当前页的博客帖子
+const posts = await prisma.post.findMany({
+	where: whereCondition,
+	orderBy: [{ createdAt: 'desc' }],
+	include: {
+		...POST_CARD_INCLUDE
+	},
+	skip,
+	take: PAGE_SIZE
+});
+
+// 查询当前用户对帖子的点赞状态
+const likedPostIds = await getLikedPostIds(
+	currentUser?.userId ?? null,
+	posts.map((p) => p.id)
+);
+
+// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const hasPosts = posts.length > 0;
+const hasCategories = categories.length > 0;
+const hasPrevPage = safePage > 1;
+const hasNextPage = safePage < totalPages;
+const hasPagination = totalPages > 1;
+const hasFilter = !!filterCategoryId;
+---
+
+<BaseLayout title="博客">
+	<div class="page-header">
+		<div class="page-header-row">
+			<div>
+				<h1 class="page-title">📝 博客</h1>
+				<p class="page-desc">长文写作，深度思考</p>
+			</div>
+			{
+				currentUser && (
+					<a href="/blog/write" class="btn btn-primary">
+						✏️ 写文章
+					</a>
+				)
+			}
+		</div>
+	</div>
+
+	{/* 分类筛选 */}
+	{
+		hasCategories && (
+			<div class="blog-categories">
+				<a
+					href="/blog"
+					class:list={['blog-category-tag', { 'blog-category-active': !hasFilter }]}
+				>
+					全部
+				</a>
+				{categories.map((cat) => {
+					const isActive = filterCategoryId === cat.id;
+					const catHasIcon = !!cat.icon;
+					return (
+						<a
+							href={`/blog?category=${cat.id}`}
+							class:list={['blog-category-tag', { 'blog-category-active': isActive }]}
+						>
+							{catHasIcon && <span>{cat.icon}</span>}
+							{cat.name}
+							<span class="blog-category-count">{cat._count.posts}</span>
+						</a>
+					);
+				})}
+			</div>
+		)
+	}
+
+	{
+		!hasPosts ? (
+			<div class="empty-state">
+				<p>暂无博客文章，来写第一篇吧！</p>
+			</div>
+		) : (
+			<div class="post-list">
+				{posts.map(async (post) => {
+					const postTags = post.tags.map((pt) => ({
+						id: pt.tag.id,
+						name: pt.tag.name
+					}));
+					const postLikeCount = post._count.likes;
+					const postCommentCount = post._count.comments;
+					const postLiked = likedPostIds.has(post.id);
+
+					// 检查当前用户是否有权查看帖子内容
+					const isPostRestricted = !(await checkPostVisibility(
+						{
+							visibility: post.visibility,
+							userId: post.userId,
+							passwordHash: post.passwordHash,
+							allowedUserIds: post.allowedUserIds
+						},
+						currentUser ? { userId: currentUser.userId } : null,
+						{
+							isFollower: followingIds.includes(post.userId),
+							isFollowing: followerIds.includes(post.userId)
+						}
+					));
+
+					return (
+						<PostCard
+							post={{
+								id: post.id,
+								content: post.content,
+								createdAt: post.createdAt.toISOString(),
+								isPinned: post.isPinned,
+								isGlobalPinned: post.isGlobalPinned,
+								user: {
+									id: post.user.id,
+									username: post.user.username,
+									displayName: post.user.displayName,
+									avatarUrl: post.user.avatarUrl
+								},
+								media: post.media,
+								visibility: post.visibility,
+								mode: post.mode,
+								title: post.title,
+								categoryId: post.categoryId,
+								category: post.category
+							}}
+							htmlContent={renderMarkdown(post.content)}
+							likeCount={postLikeCount}
+							liked={postLiked}
+							commentCount={postCommentCount}
+							tags={postTags}
+							isRestricted={isPostRestricted}
+						/>
+					);
+				})}
+			</div>
+		)
+	}
+
+	{/* 分页导航 */}
+	{
+		hasPagination && (
+			<nav class="pagination" aria-label="分页导航">
+				<div class="pagination-inner">
+					{hasPrevPage ? (
+						<a
+							href={`/blog?page=${safePage - 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+							class="pagination-btn pagination-prev"
+						>
+							← 上一页
+						</a>
+					) : (
+						<span class="pagination-btn pagination-disabled">← 上一页</span>
+					)}
+
+					<span class="pagination-info">
+						第 {safePage} / {totalPages} 页
+					</span>
+
+					{hasNextPage ? (
+						<a
+							href={`/blog?page=${safePage + 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+							class="pagination-btn pagination-next"
+						>
+							下一页 →
+						</a>
+					) : (
+						<span class="pagination-btn pagination-disabled">下一页 →</span>
+					)}
+				</div>
+			</nav>
+		)
+	}
+</BaseLayout>
+
+<style>
+	/* 页面头部 */
+	.page-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.page-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0 0 0.25rem;
+	}
+
+	.page-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
+	/* 分类筛选标签 */
+	.blog-categories {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.blog-category-tag {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-1);
+		padding: 0.375rem 0.75rem;
+		font-size: 0.8125rem;
+		border-radius: var(--radius-full);
+		border: 1px solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text);
+		text-decoration: none;
+		transition: all 0.15s;
+	}
+
+	.blog-category-tag:hover {
+		border-color: var(--color-primary);
+		color: var(--color-primary);
+	}
+
+	.blog-category-active {
+		background: var(--color-primary);
+		color: #fff;
+		border-color: var(--color-primary);
+	}
+
+	.blog-category-active:hover {
+		background: var(--color-primary);
+		color: #fff;
+	}
+
+	.blog-category-count {
+		font-size: 0.6875rem;
+		opacity: 0.7;
+	}
+</style>
