@@ -15,6 +15,7 @@
  */
 import { renderMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
+import { getModeLabel } from '@/lib/config';
 
 /**
  * 对 HTML 内容中的关键词包裹高亮标记
@@ -137,7 +138,7 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 						const isBlog = postMode === 'blog';
 						const hasTitle = !!post.title;
 						const hasCategory = !!post.category;
-						const modeLabel = isForum ? '论坛' : isBlog ? '博客' : null;
+						const modeLabel = isForum ? getModeLabel('forum') : isBlog ? getModeLabel('blog') : null;
 
 						return (
 							<article

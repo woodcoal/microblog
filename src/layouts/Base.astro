@@ -19,7 +19,8 @@ import {
 	SITE_LOGO_URL,
 	SITE_FAVICON_URL,
 	SITE_MODES,
-	isSingleMode
+	isSingleMode,
+	getModeLabel
 } from '@/lib/config';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
@@ -109,9 +110,9 @@ const currentPath = Astro.url.pathname;
 // 多模式频道配置
 const showModeNav = !isSingleMode;
 const modeConfig: Record<string, { label: string; icon: string; path: string }> = {
-	weibo: { label: '微博', icon: '💬', path: '/weibo' },
-	forum: { label: '论坛', icon: '📋', path: '/forum' },
-	blog: { label: '博客', icon: '📝', path: '/blog' }
+	weibo: { label: getModeLabel('weibo'), icon: '💬', path: '/weibo' },
+	forum: { label: getModeLabel('forum'), icon: '📋', path: '/forum' },
+	blog: { label: getModeLabel('blog'), icon: '📝', path: '/blog' }
 };
 const enabledModes = SITE_MODES.map((m) => ({ ...modeConfig[m], key: m }));
 

@@ -14,7 +14,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { isModeEnabled } from '@/lib/config';
+import { isModeEnabled, getModeLabel } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -114,10 +114,10 @@ const hasParent = !!category.parent;
 const hasIcon = !!category.icon;
 ---
 
-<ForumLayout title={`${category.name} - 论坛`}>
+<ForumLayout title={`${category.name} - ${getModeLabel('forum')}`}>
 	<div class="page-header">
 		<nav class="breadcrumb" aria-label="面包屑导航">
-			<a href="/forum" class="breadcrumb-link">论坛</a>
+			<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>
 			{
 				hasParent && (
 					<>

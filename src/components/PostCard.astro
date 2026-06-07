@@ -13,6 +13,7 @@
  */
 import LikeButton from '@/components/LikeButton.astro';
 import { formatRelativeTime } from '@/lib/utils';
+import { getModeLabel } from '@/lib/config';
 
 /** 帖子卡片所需的用户信息 */
 interface PostUser {
@@ -121,9 +122,9 @@ const hasCategory = !!post.category;
 const modeBadge = (() => {
 	switch (postMode) {
 		case 'forum':
-			return { text: '论坛', cls: 'badge-forum' };
+			return { text: getModeLabel('forum'), cls: 'badge-forum' };
 		case 'blog':
-			return { text: '博客', cls: 'badge-blog' };
+			return { text: getModeLabel('blog'), cls: 'badge-blog' };
 		default:
 			return null;
 	}

@@ -14,7 +14,7 @@
  */
 import PostEditor from '@/components/PostEditor.astro';
 import ForumEditor from '@/components/ForumEditor.astro';
-import { isModeEnabled } from '@/lib/config';
+import { isModeEnabled, getModeLabel } from '@/lib/config';
 import { prisma } from '@/lib/db';
 
 // 查询论坛分类列表（弹窗中的分类选择器需要）
@@ -37,7 +37,7 @@ const hasForumCategories = forumCategories.length > 0;
 		<div class="modal-overlay compose-modal-overlay" id="compose-modal" style="display:none">
 			<div class="modal compose-modal">
 				<div class="compose-modal-header">
-					<h2 class="compose-modal-title">发布微博</h2>
+					<h2 class="compose-modal-title">发布{getModeLabel('weibo')}</h2>
 					<button
 						type="button"
 						class="compose-modal-close"

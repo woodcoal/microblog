@@ -15,7 +15,7 @@ import BlogLayout from '@/layouts/BlogLayout.astro';
 import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { isModeEnabled, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { isModeEnabled, POST_CONTENT_MAX_LENGTH, getModeLabel } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -38,7 +38,7 @@ const categories = await prisma.category.findMany({
 const hasCategories = categories.length > 0;
 ---
 
-<BlogLayout title="写文章 - 博客">
+<BlogLayout title={`写文章 - ${getModeLabel('blog')}`}>
 	<div class="blog-write-page" id="blog-compose-container">
 		{/* 顶部轻量工具栏：分类 + 可见度 + 操作按钮 */}
 		<div class="blog-write-toolbar">

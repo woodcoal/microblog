@@ -10,7 +10,7 @@
 import ForumLayout from '@/layouts/ForumLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { isModeEnabled } from '@/lib/config';
+import { isModeEnabled, getModeLabel } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -61,11 +61,11 @@ const rootCategories = await prisma.category.findMany({
 const hasGroups = groups.length > 0;
 ---
 
-<ForumLayout title="论坛">
+<ForumLayout title={getModeLabel('forum')}>
 	<div class="page-header">
 		<div class="page-header-row">
 			<div>
-				<h1 class="page-title">📋 论坛</h1>
+				<h1 class="page-title">📋 {getModeLabel('forum')}</h1>
 				<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
 			</div>
 			{

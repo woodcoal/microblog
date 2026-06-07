@@ -14,7 +14,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getLikedPostIds } from '@/lib/queries';
-import { SITE_URL, SITE_TITLE } from '@/lib/config';
+import { SITE_URL, SITE_TITLE, getModeLabel } from '@/lib/config';
 
 // 路由参数
 const { username } = Astro.params;
@@ -209,7 +209,7 @@ const likedPostIds = await getLikedPostIds(
 <UserLayout
 	title={user.displayName}
 	ogTitle={`${user.displayName} (@${user.username}) - ${SITE_TITLE}`}
-	ogDescription={user.bio || `${user.displayName} 的微博主页`}
+	ogDescription={user.bio || `${user.displayName} 的${getModeLabel('weibo')}主页`}
 	ogImage={user.avatarUrl || undefined}
 	canonicalUrl={`${SITE_URL}/${user.username}`}
 	jsonLd={{
@@ -295,19 +295,19 @@ const likedPostIds = await getLikedPostIds(
 			href={`/${user.username}?mode=weibo&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'weibo' }]}
 		>
-			微博
+			{getModeLabel('weibo')}
 		</a>
 		<a
 			href={`/${user.username}?mode=forum&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'forum' }]}
 		>
-			论坛
+			{getModeLabel('forum')}
 		</a>
 		<a
 			href={`/${user.username}?mode=blog&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
 			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'blog' }]}
 		>
-			博客
+			{getModeLabel('blog')}
 		</a>
 	</div>
 

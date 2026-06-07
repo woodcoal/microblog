@@ -14,6 +14,7 @@ import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
 import SearchSuggest from '@/components/SearchSuggest.astro';
 import { prisma } from '@/lib/db';
+import { getModeLabel } from '@/lib/config';
 
 // 解析 URL 参数
 const q = Astro.url.searchParams.get('q')?.trim() || '';
@@ -256,7 +257,7 @@ function buildSearchUrl(params: {
 			href={buildSearchUrl({ tab: 'posts' })}
 			class:list={['search-tab', { 'search-tab-active': isPostsTab }]}
 		>
-			微博
+			{getModeLabel('weibo')}
 		</a>
 		<a
 			href={buildSearchUrl({ tab: 'users' })}
@@ -295,19 +296,19 @@ function buildSearchUrl(params: {
 						href={buildSearchUrl({ mode: 'weibo', categoryId: '' })}
 						class:list={['search-mode-btn', { 'search-mode-active': isModeWeibo }]}
 					>
-						微博
+						{getModeLabel('weibo')}
 					</a>
 					<a
 						href={buildSearchUrl({ mode: 'forum', categoryId: '' })}
 						class:list={['search-mode-btn', { 'search-mode-active': isModeForum }]}
 					>
-						论坛
+						{getModeLabel('forum')}
 					</a>
 					<a
 						href={buildSearchUrl({ mode: 'blog', categoryId: '' })}
 						class:list={['search-mode-btn', { 'search-mode-active': isModeBlog }]}
 					>
-						博客
+						{getModeLabel('blog')}
 					</a>
 				</div>
 			</div>
@@ -332,8 +333,7 @@ function buildSearchUrl(params: {
 					{categoryList.map((cat) => {
 						const isSelected = cat.id === categoryIdFilter;
 						/** 分类模式标签 */
-						const modeLabel =
-							cat.mode === 'forum' ? '论坛' : cat.mode === 'blog' ? '博客' : '微博';
+						const modeLabel = getModeLabel(cat.mode);
 						return (
 							<option value={cat.id} selected={isSelected}>
 								[{modeLabel}] {cat.icon ? cat.icon + ' ' : ''}

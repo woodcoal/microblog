@@ -11,6 +11,7 @@
  */
 import AdminLayout from '@/layouts/Admin.astro';
 import { prisma } from '@/lib/db';
+import { getModeLabel } from '@/lib/config';
 
 // 查询所有分类，按 sortOrder 排序
 const allCategories = await prisma.category.findMany({
@@ -109,9 +110,9 @@ const hasOrphans = orphanChildren.length > 0;
 			<div class="admin-form-group">
 				<label class="admin-form-label" for="form-mode">模式 *</label>
 				<select class="admin-form-select" id="form-mode" name="mode" required>
-					<option value="weibo">微博</option>
-					<option value="forum">论坛</option>
-					<option value="blog">博客</option>
+					<option value="weibo">{getModeLabel('weibo')}</option>
+					<option value="forum">{getModeLabel('forum')}</option>
+					<option value="blog">{getModeLabel('blog')}</option>
 				</select>
 			</div>
 			<div class="admin-form-group">

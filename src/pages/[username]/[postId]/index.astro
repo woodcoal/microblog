@@ -19,7 +19,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
 import { checkPostVisibility } from '@/lib/visibility';
-import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS } from '@/lib/config';
+import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS, getModeLabel } from '@/lib/config';
 
 // 路由参数
 const { username, postId } = Astro.params;
@@ -321,7 +321,7 @@ const seoTitle = isDeleted
 	? '该内容已删除'
 	: isForum || isBlog
 		? post.title || `${post.user.displayName}的帖子`
-		: `${post.user.displayName}的微博`;
+		: `${post.user.displayName}的${getModeLabel('weibo')}`;
 
 // 页面描述：帖子内容前 100 字符，去除 Markdown 标记
 const seoDescription = isDeleted

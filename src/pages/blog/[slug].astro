@@ -12,7 +12,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { isModeEnabled } from '@/lib/config';
+import { isModeEnabled, getModeLabel } from '@/lib/config';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -111,10 +111,10 @@ const hasPagination = totalPages > 1;
 const hasIcon = !!category.icon;
 ---
 
-<BlogLayout title={`${category.name} - 博客`}>
+<BlogLayout title={`${category.name} - ${getModeLabel('blog')}`}>
 	<div class="page-header">
 		<nav class="breadcrumb" aria-label="面包屑导航">
-			<a href="/blog" class="breadcrumb-link">博客</a>
+			<a href="/blog" class="breadcrumb-link">{getModeLabel('blog')}</a>
 			<span class="breadcrumb-sep">/</span>
 			<span class="breadcrumb-current">{category.name}</span>
 		</nav>

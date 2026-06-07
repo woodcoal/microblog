@@ -215,6 +215,30 @@ export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo')
 	.map((m) => m.trim())
 	.filter((m): m is string => ['weibo', 'forum', 'blog'].includes(m));
 
+/**
+ * 模式别名配置
+ *
+ * 通过环境变量 SITE_MODE_WEIBO / SITE_MODE_FORUM / SITE_MODE_BLOG
+ * 自定义各模式的显示名称。未设置时使用默认名称。
+ *
+ * 示例：SITE_MODE_BLOG=知识库 → 博客模块全站显示为"知识库"
+ */
+const MODE_LABELS: Record<string, string> = {
+	weibo: getEnv('SITE_MODE_WEIBO') || '微博',
+	forum: getEnv('SITE_MODE_FORUM') || '论坛',
+	blog: getEnv('SITE_MODE_BLOG') || '博客'
+};
+
+/**
+ * 获取模式的显示别名
+ *
+ * @param mode - 模式标识（weibo / forum / blog）
+ * @returns 显示名称，未配置时回退到默认名称
+ */
+export function getModeLabel(mode: string): string {
+	return MODE_LABELS[mode] || mode;
+}
+
 /** 是否启用某模式 */
 export const isModeEnabled = (mode: string): boolean => SITE_MODES.includes(mode);
 
