@@ -31,6 +31,12 @@ const { initialQuery = '' } = Astro.props;
 			<div class="search-suggest-tags"></div>
 		</div>
 
+		{/* 帖子建议区 */}
+		<div class="search-suggest-section" data-section="posts" style="display:none;">
+			<div class="search-suggest-section-title">帖子</div>
+			<div class="search-suggest-posts"></div>
+		</div>
+
 		{/* 分类建议区 */}
 		<div class="search-suggest-section" data-section="categories" style="display:none;">
 			<div class="search-suggest-section-title">分类</div>
@@ -62,11 +68,13 @@ const { initialQuery = '' } = Astro.props;
 		const loadingEl = container.querySelector<HTMLElement>('.search-suggest-loading');
 		const resultsEl = container.querySelector<HTMLElement>('.search-suggest-results');
 		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]');
+		const postsSection = container.querySelector<HTMLElement>('[data-section="posts"]');
 		const categoriesSection = container.querySelector<HTMLElement>(
 			'[data-section="categories"]'
 		);
 		const usersSection = container.querySelector<HTMLElement>('[data-section="users"]');
 		const tagsContainer = container.querySelector<HTMLElement>('.search-suggest-tags');
+		const postsContainer = container.querySelector<HTMLElement>('.search-suggest-posts');
 		const categoriesContainer = container.querySelector<HTMLElement>(
 			'.search-suggest-categories'
 		);
@@ -76,9 +84,11 @@ const { initialQuery = '' } = Astro.props;
 			!loadingEl ||
 			!resultsEl ||
 			!tagsSection ||
+			!postsSection ||
 			!categoriesSection ||
 			!usersSection ||
 			!tagsContainer ||
+			!postsContainer ||
 			!categoriesContainer ||
 			!usersContainer
 		)
@@ -124,6 +134,48 @@ const { initialQuery = '' } = Astro.props;
 					(tag) =>
 						`<a href="/tags/${encodeURIComponent(tag.name)}" class="search-suggest-tag">#${tag.name}#</a>`
 				)
+				.join('');
+		}
+
+		/**
+		 * 渲染帖子建议列表
+		 *
+		 * 显示帖子标题（有标题用标题，无标题用内容前 50 字符）、作者和模式标签。
+		 * 链接格式：/{username}/{postId}
+		 *
+		 * @param posts - 帖子数组
+		 */
+		function renderPosts(
+			posts: Array<{
+				id: string;
+				title: string;
+				content: string;
+				mode: string;
+				createdAt: string;
+				user: { id: string; username: string; displayName: string; avatarUrl: string | null };
+			}>
+		) {
+			if (posts.length === 0) {
+				postsSection.style.display = 'none';
+				return;
+			}
+			postsSection.style.display = '';
+			postsContainer.innerHTML = posts
+				.map((post) => {
+					/** 显示标题：有标题用标题，无标题截取内容前 50 字符 */
+					const displayTitle = post.title || post.content.slice(0, 50);
+					/** 模式标签文本 */
+					const modeLabel =
+						post.mode === 'forum' ? '论坛' : post.mode === 'blog' ? '博客' : '微博';
+					return (
+						`<a href="/${post.user.username}/${post.id}" class="search-suggest-post">` +
+						`<span class="search-suggest-post-title">${displayTitle}</span>` +
+						`<span class="search-suggest-post-meta">` +
+						`<span class="search-suggest-post-author">@${post.user.username}</span>` +
+						`<span class="search-suggest-post-mode">${modeLabel}</span>` +
+						`</span></a>`
+					);
+				})
 				.join('');
 		}
 
@@ -215,12 +267,13 @@ const { initialQuery = '' } = Astro.props;
 						const result = await actions.searchSuggest({ query });
 
 						if (result.data) {
-							const { tags, users, categories } = result.data;
+							const { tags, posts, users, categories } = result.data;
 							loadingEl.style.display = 'none';
 
 							// 无结果时隐藏
 							if (
 								tags.length === 0 &&
+								posts.length === 0 &&
 								users.length === 0 &&
 								categories.length === 0
 							) {
@@ -230,6 +283,7 @@ const { initialQuery = '' } = Astro.props;
 
 							resultsEl.style.display = '';
 							renderTags(tags);
+							renderPosts(posts);
 							renderCategories(categories);
 							renderUsers(users);
 							show();

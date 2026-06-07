@@ -33,6 +33,19 @@ export interface SearchSuggestResult {
 		name: string;
 		postCount: number;
 	}>;
+	posts: Array<{
+		id: string;
+		title: string;
+		content: string;
+		mode: string;
+		createdAt: string;
+		user: {
+			id: string;
+			username: string;
+			displayName: string;
+			avatarUrl: string | null;
+		};
+	}>;
 	users: Array<{
 		id: string;
 		username: string;
@@ -84,19 +97,19 @@ export async function searchUsers(input: SearchUsersInput): Promise<SearchUsersR
 /**
  * 搜索建议
  *
- * 根据关键词前缀返回匹配的标签、用户和分类，用于搜索框自动补全。
- * 标签按帖子数降序排列，用户按粉丝数降序排列，分类按 mode 分组，每类最多 limit 条。
+ * 根据关键词前缀返回匹配的标签、帖子、用户和分类，用于搜索框自动补全。
+ * 标签按帖子数降序排列，帖子按创建时间降序，用户按粉丝数降序排列，分类按 mode 分组，每类最多 limit 条。
  *
  * @param input - { query: 搜索关键词, limit?: 每类最大返回条数（默认 5） }
- * @returns 标签、用户和分类的搜索建议
+ * @returns 标签、帖子、用户和分类的搜索建议
  */
 export async function searchSuggest(input: SearchSuggestInput): Promise<SearchSuggestResult> {
 	const { query, limit } = input;
 	/** 每类返回的最大条数，默认 5 */
 	const MAX_SUGGESTIONS = limit ?? 5;
 
-	// 并行查询标签、用户和分类
-	const [tags, users, categories] = await Promise.all([
+	// 并行查询标签、帖子、用户和分类
+	const [tags, posts, users, categories] = await Promise.all([
 		// 查询标签：名称包含关键词、未隐藏、按帖子数降序、最多 MAX_SUGGESTIONS 条
 		prisma.tag.findMany({
 			where: {
@@ -110,6 +123,30 @@ export async function searchSuggest(input: SearchSuggestInput): Promise<SearchSu
 				name: true,
 				_count: {
 					select: { posts: true }
+				}
+			}
+		}),
+		// 查询帖子：标题或内容包含关键词、未删除、按创建时间降序、最多 3 条
+		prisma.post.findMany({
+			where: {
+				isDeleted: false,
+				OR: [{ title: { contains: query } }, { content: { contains: query } }]
+			},
+			orderBy: { createdAt: 'desc' },
+			take: 3,
+			select: {
+				id: true,
+				title: true,
+				content: true,
+				mode: true,
+				createdAt: true,
+				user: {
+					select: {
+						id: true,
+						username: true,
+						displayName: true,
+						avatarUrl: true
+					}
 				}
 			}
 		}),
@@ -153,5 +190,15 @@ export async function searchSuggest(input: SearchSuggestInput): Promise<SearchSu
 		postCount: tag._count.posts
 	}));
 
-	return { tags: formattedTags, users, categories };
+	// 格式化帖子数据：将 content 截取前 100 字符，createdAt 转为 ISO 字符串
+	const formattedPosts = posts.map((post) => ({
+		id: post.id,
+		title: post.title ?? '',
+		content: post.content.slice(0, 100),
+		mode: post.mode,
+		createdAt: post.createdAt.toISOString(),
+		user: post.user
+	}));
+
+	return { tags: formattedTags, posts: formattedPosts, users, categories };
 }
