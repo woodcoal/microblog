@@ -1,0 +1,58 @@
+---
+/**
+ * 首页布局
+ *
+ * 基于 BaseLayout，全宽个性化推荐布局，无侧边栏。
+ * 首页作为全站数据聚合入口，以推荐/发现为核心，
+ * 展示热门内容、个性化推荐、各频道精选等。
+ */
+import BaseLayout from './Base.astro';
+
+interface Props {
+	title?: string;
+	description?: string;
+	ogTitle?: string;
+	ogDescription?: string;
+	ogImage?: string;
+	ogType?: string;
+	canonicalUrl?: string;
+	noindex?: boolean;
+	jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
+---
+
+<BaseLayout
+	title={title}
+	description={description}
+	ogTitle={ogTitle}
+	ogDescription={ogDescription}
+	ogImage={ogImage}
+	ogType={ogType}
+	canonicalUrl={canonicalUrl}
+	noindex={noindex}
+	jsonLd={jsonLd}
+>
+	<div class="layout-home">
+		<slot />
+	</div>
+</BaseLayout>
+
+<style>
+	/* 首页布局：宽容器，适合推荐流和多栏展示 */
+	.layout-home {
+		max-width: 960px;
+		margin: 0 auto;
+		padding: var(--spacing-6) var(--spacing-4);
+		flex: 1;
+		width: 100%;
+	}
+
+	@media (max-width: 767px) {
+		.layout-home {
+			padding: var(--spacing-4) var(--spacing-3);
+			padding-bottom: calc(56px + var(--spacing-4) + env(safe-area-inset-bottom, 0));
+		}
+	}
+</style>

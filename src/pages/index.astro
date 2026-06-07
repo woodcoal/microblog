@@ -1,13 +1,15 @@
 ---
 /**
- * 首页（大杂烩时间线）
+ * 首页（个性化推荐）
  *
- * 多模式时：显示混合时间线，三种模式帖子混排，卡片按 mode 渲染。
- * 单模式时：直接重定向到该模式首页（/weibo、/forum、/blog）。
- * 全局置顶帖始终排在最前面，其余帖子按热门分数倒序。
- * 支持页码分页（?page=N），每页20条。
+ * 全站数据聚合入口，以推荐/发现为核心：
+ * - 已登录用户：优先展示 Gorse 个性化推荐 + 关注动态
+ * - 未登录用户：展示热门内容（按热门分数排序）
+ * - 三种模式帖子混排，卡片按 mode 渲染
+ * - 全局置顶帖始终排在最前面
+ * - 支持页码分页（?page=N），每页20条
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import HomeLayout from '@/layouts/HomeLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -133,7 +135,15 @@ const hasPagination = totalPages > 1;
 const gorseEnabled = isGorseEnabled() && !!currentUser;
 ---
 
-<WeiboLayout title="首页">
+<HomeLayout title="首页">
+	{/* 首页标题区 */}
+	<div class="home-header">
+		<h1 class="home-title">发现</h1>
+		<p class="home-desc">
+			{currentUser ? '为你精选的全站好内容' : '全站热门内容，登录后获取个性化推荐'}
+		</p>
+	</div>
+
 	{
 		!hasPosts ? (
 			<div class="empty-state">
@@ -239,9 +249,28 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 			</nav>
 		)
 	}
-</WeiboLayout>
+</HomeLayout>
 
 <style>
+	/* 首页标题区 */
+	.home-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.home-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0 0 var(--spacing-1);
+	}
+
+	.home-desc {
+		font-size: 0.875rem;
+		color: var(--color-muted);
+		margin: 0;
+	}
+
 	/* 猜你喜欢 - 个性化推荐区域样式 */
 	.recommend-section {
 		margin-top: 2rem;
