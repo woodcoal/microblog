@@ -697,12 +697,19 @@ const resolvedOgType = ogType || 'website';
 			});
 		</script>
 
-		<script data-notifications-enabled={String(notificationsEnabled)}>
+		<!-- 全局配置数据容器：供 JS 读取服务端配置，避免在 script 标签上使用自定义属性导致 Astro 跳过 Vite 处理 -->
+		<meta name="mutan-notifications-enabled" content={String(notificationsEnabled)} data-mutan-config />
+
+		<script>
 			import { actions } from 'astro:actions';
 
 			/**
 			 * 用户菜单下拉切换 + 登出 + 移动端导航栏切换 + 未读通知轮询
 			 */
+			// 从 meta 标签读取通知开关配置
+			const notificationsEnabled =
+				document.querySelector('meta[name="mutan-notifications-enabled"]')?.content === 'true';
+
 			// 下拉菜单切换
 			const userTrigger = document.querySelector('.nav-user-trigger');
 			const userMenu = document.querySelector('.nav-dropdown-menu');
@@ -750,8 +757,6 @@ const resolvedOgType = ogType || 'website';
 			 * 轮询未读通知计数并更新徽章
 			 * 通知关闭时不轮询
 			 */
-			const notificationsEnabled =
-				document.currentScript?.dataset.notificationsEnabled === 'true';
 			if (notificationsEnabled) {
 				(async function pollUnread() {
 					try {
