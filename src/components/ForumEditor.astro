@@ -423,24 +423,21 @@ const hasInitialContent = initialContent.length > 0;
 	/**
 	 * 上传图片文件到服务器
 	 *
-	 * 使用原生 FormData + fetch 调用 /api/upload 端点，
-	 * 返回标准 JSON 格式，无需 SuperJSON 反序列化。
+	 * 通过 Astro Actions SDK 调用 uploadMedia action。
+	 * 因为 action 定义了 accept: 'form'，必须传 FormData 而非普通对象，
+	 * 否则 SDK 会 JSON.stringify 发送 application/json，服务器返回 415。
 	 *
 	 * @param file - 要上传的图片文件
 	 * @returns 上传成功后的图片 URL，失败返回 null
 	 */
 	async function uploadImageFile(file: File): Promise<string | null> {
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('fileType', 'image');
 		try {
-			const res = await fetch('/api/upload', {
-				method: 'POST',
-				body: formData
-			});
-			const json = await res.json();
-			if (json.success && json.data && json.data.url) {
-				return json.data.url as string;
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('fileType', 'image');
+			const result = await actions.uploadMedia(formData);
+			if (result.data && result.data.url) {
+				return result.data.url;
 			}
 			return null;
 		} catch {

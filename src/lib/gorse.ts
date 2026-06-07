@@ -202,6 +202,7 @@ export async function hideItem(postId: string): Promise<void> {
  *
  * 根据用户的历史行为，返回推荐帖子 ID。
  * 可按分类过滤，返回结果已排除用户已读帖子。
+ * Gorse API 返回格式：[{ Id: string, Score: number }]
  *
  * @param userId - 用户 ID
  * @param options - 查询选项
@@ -224,13 +225,9 @@ export async function getRecommendations(
 				...(options?.category ? { category: options.category } : {})
 			}
 		});
-		// 返回值格式：{ Id: string, Score: number }[]
+		// getRecommend 返回格式：[{ Id: string, Score: number }]
 		if (Array.isArray(result)) {
-			return result.map((item: any) => item.Id);
-		}
-		// 分页格式：{ Cursor, Items }
-		if (result && Array.isArray((result as any).Items)) {
-			return (result as any).Items.map((item: any) => item.Id);
+			return result.map((item: any) => (typeof item === 'string' ? item : item.Id));
 		}
 		return [];
 	} catch (error) {
@@ -244,28 +241,35 @@ export async function getRecommendations(
  *
  * 基于帖子内容特征，返回与之相似的帖子。
  * 用于帖子详情页的"相关推荐"板块。
+ * 需要在 gorse.toml 中配置 [[recommend.item-to-item]] 才能使用。
  *
  * @param itemId - 目标帖子 ID
  * @param options - 查询选项
  * @param options.n - 返回数量（默认 5）
+ * @param options.name - item-to-item 推荐器名称（默认 "neighbors"）
  * @returns 相似帖子 ID 数组，失败时返回空数组
  */
-export async function getSimilarItems(itemId: string, options?: { n?: number }): Promise<string[]> {
+export async function getSimilarItems(
+	itemId: string,
+	options?: { n?: number; name?: string }
+): Promise<string[]> {
 	const client = getGorseClient();
 	if (!client) return [];
 
 	try {
-		const result = await client.getNeighbors({
-			itemId,
-			cursorOptions: {
-				n: options?.n ?? 5
-			}
+		// 使用 REST API 调用 item-to-item 推荐端点
+		// 对应 gorse.toml 中的 [[recommend.item-to-item]] 配置
+		const name = options?.name ?? 'neighbors';
+		const n = options?.n ?? 5;
+		const url = `${GORSE_ENDPOINT}/api/item-to-item/${name}/${itemId}?n=${n}`;
+		const res = await fetch(url, {
+			headers: GORSE_API_KEY ? { 'X-API-Key': GORSE_API_KEY } : {}
 		});
-		if (Array.isArray(result)) {
-			return result.map((item: any) => item.Id);
-		}
-		if (result && Array.isArray((result as any).Items)) {
-			return (result as any).Items.map((item: any) => item.Id);
+		if (!res.ok) return [];
+		const data = await res.json();
+		// 返回格式：[{ Id: string, Score: number }]
+		if (Array.isArray(data)) {
+			return data.map((item: any) => item.Id);
 		}
 		return [];
 	} catch (error) {

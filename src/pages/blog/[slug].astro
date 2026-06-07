@@ -9,7 +9,7 @@ import BaseLayout from '@/layouts/Base.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { renderMarkdown } from '@/lib/markdown';
+import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled } from '@/lib/config';
@@ -177,7 +177,7 @@ const hasIcon = !!category.icon;
 								categoryId: post.categoryId,
 								category: post.category
 							}}
-							htmlContent={renderMarkdown(post.content)}
+							htmlContent={renderFullMarkdown(post.content)}
 							likeCount={postLikeCount}
 							liked={postLiked}
 							commentCount={postCommentCount}

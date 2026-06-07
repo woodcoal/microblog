@@ -16,7 +16,7 @@ import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { renderMarkdown } from '@/lib/markdown';
+import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
 import { checkPostVisibility } from '@/lib/visibility';
 import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS } from '@/lib/config';
@@ -147,7 +147,6 @@ const needPassword = isPasswordProtected && !isAuthor;
 // 已删除帖子的处理
 const isDeleted = post.isDeleted;
 const isLocked = post.isLocked;
-const htmlContent = isDeleted ? '<p>该内容已删除</p>' : renderMarkdown(post.content);
 
 // 是否可以置顶（作者且置顶功能开启）
 const canPin = isAuthor && MAX_USER_PINNED_POSTS > 0;
@@ -307,6 +306,13 @@ const postMode = post.mode || 'weibo';
 const isWeibo = postMode === 'weibo';
 const isForum = postMode === 'forum';
 const isBlog = postMode === 'blog';
+
+// 渲染内容：forum/blog 模式使用 renderFullMarkdown（支持图片），weibo 使用受限版
+const htmlContent = isDeleted
+	? '<p>该内容已删除</p>'
+	: isForum || isBlog
+		? renderFullMarkdown(post.content)
+		: renderMarkdown(post.content);
 const hasTitle = !!post.title;
 const hasCategory = !!post.category;
 
