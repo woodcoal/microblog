@@ -109,43 +109,38 @@ const isLiked = initialLiked;
 			// 禁用按钮防止重复点击
 			btn.disabled = true;
 
-			try {
-				const result = await actions.toggleLike({ targetId, type: targetType });
+			const result = await actions.toggleLike({ targetId, type: targetType });
 
-				if (result.data) {
-					// 以服务端返回为准
-					const { liked, likeCount } = result.data;
-					btn.classList.toggle('like-btn-liked', liked);
-					btn.setAttribute('aria-label', liked ? '取消点赞' : '点赞');
-					if (countEl) {
-						countEl.textContent = String(likeCount);
-					}
-					if (svg) {
-						svg.setAttribute('fill', liked ? 'currentColor' : 'none');
-					}
-
-					// 通知页面点赞状态变更，用于刷新点赞用户列表
-					window.dispatchEvent(
-						new CustomEvent('post-like-changed', {
-							detail: { postId: targetType === 'post' ? targetId : undefined, liked }
-						})
-					);
-				} else {
-					// Action 返回错误，回滚
-					rollback(btn, countEl, svg, prevLiked, prevCount);
+			if (result.data) {
+				// 以服务端返回为准
+				const { liked, likeCount } = result.data;
+				btn.classList.toggle('like-btn-liked', liked);
+				btn.setAttribute('aria-label', liked ? '取消点赞' : '点赞');
+				if (countEl) {
+					countEl.textContent = String(likeCount);
 				}
-			} catch (err: any) {
+				if (svg) {
+					svg.setAttribute('fill', liked ? 'currentColor' : 'none');
+				}
+
+				// 通知页面点赞状态变更，用于刷新点赞用户列表
+				window.dispatchEvent(
+					new CustomEvent('post-like-changed', {
+						detail: { postId: targetType === 'post' ? targetId : undefined, liked }
+					})
+				);
+			} else if (result.error) {
 				// 未登录时跳转登录页
-				if (err?.message?.includes('登录') || err?.status === 401) {
+				const errStatus = (result.error as any).status;
+				if (errStatus === 401) {
 					rollback(btn, countEl, svg, prevLiked, prevCount);
 					window.location.href = '/login';
 					return;
 				}
 				// 其他错误回滚
 				rollback(btn, countEl, svg, prevLiked, prevCount);
-			} finally {
-				btn.disabled = false;
 			}
+			btn.disabled = false;
 		});
 	});
 

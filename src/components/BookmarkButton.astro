@@ -99,36 +99,31 @@ const isBookmarked = initialBookmarked;
 			// 禁用按钮防止重复点击
 			btn.disabled = true;
 
-			try {
-				const result = await actions.toggleBookmark({ postId });
+			const result = await actions.toggleBookmark({ postId });
 
-				if (result.data) {
-					// 以服务端返回为准
-					const { bookmarked, bookmarkCount } = result.data;
-					btn.classList.toggle('bookmark-btn-bookmarked', bookmarked);
-					btn.setAttribute('aria-label', bookmarked ? '取消收藏' : '收藏');
-					if (countEl) {
-						countEl.textContent = String(bookmarkCount);
-					}
-					if (svg) {
-						svg.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
-					}
-				} else {
-					// Action 返回错误，回滚
-					rollback(btn, countEl, svg, prevBookmarked, prevCount);
+			if (result.data) {
+				// 以服务端返回为准
+				const { bookmarked, bookmarkCount } = result.data;
+				btn.classList.toggle('bookmark-btn-bookmarked', bookmarked);
+				btn.setAttribute('aria-label', bookmarked ? '取消收藏' : '收藏');
+				if (countEl) {
+					countEl.textContent = String(bookmarkCount);
 				}
-			} catch (err: any) {
+				if (svg) {
+					svg.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
+				}
+			} else if (result.error) {
 				// 未登录时跳转登录页
-				if (err?.message?.includes('登录') || err?.status === 401) {
+				const errStatus = (result.error as any).status;
+				if (errStatus === 401) {
 					rollback(btn, countEl, svg, prevBookmarked, prevCount);
 					window.location.href = '/login';
 					return;
 				}
 				// 其他错误回滚
 				rollback(btn, countEl, svg, prevBookmarked, prevCount);
-			} finally {
-				btn.disabled = false;
 			}
+			btn.disabled = false;
 		});
 	});
 

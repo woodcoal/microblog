@@ -271,24 +271,20 @@ const isBlog = post.mode === 'blog';
 				loading = true;
 				formError.style.display = 'none';
 
-				try {
-					const result = await actions.updatePost({
-						postId,
-						content,
-						visibility: visibilitySelect.value,
-						title: title || undefined
-					} as any);
+				const result = await actions.updatePost({
+					postId,
+					content,
+					visibility: visibilitySelect.value,
+					title: title || undefined
+				} as any);
 
-					if (result.data) {
-						window.location.href = `/${username}/${postId}`;
-					} else {
-						showError('保存失败');
-					}
-				} catch {
-					showError('网络错误，请稍后重试');
-				} finally {
-					loading = false;
+				if (result.error) {
+					showError(result.error.message || '保存失败');
+				} else {
+					window.location.href = `/${username}/${postId}`;
 				}
+
+				loading = false;
 			});
 		}
 	}
@@ -339,24 +335,20 @@ const isBlog = post.mode === 'blog';
 			loading = true;
 			formError.style.display = 'none';
 
-			try {
-				const result = await actions.updatePost({
-					postId,
-					content,
-					visibility: visibilitySelect.value,
-					title: title || undefined
-				} as any);
+			const result = await actions.updatePost({
+				postId,
+				content,
+				visibility: visibilitySelect.value,
+				title: title || undefined
+			} as any);
 
-				if (result.data) {
-					window.location.href = `/${username}/${postId}`;
-				} else {
-					showError('保存失败');
-				}
-			} catch {
-				showError('网络错误，请稍后重试');
-			} finally {
-				loading = false;
+			if (result.error) {
+				showError(result.error.message || '保存失败');
+			} else {
+				window.location.href = `/${username}/${postId}`;
 			}
+
+			loading = false;
 		});
 	}
 </script>

@@ -91,34 +91,29 @@ const btnLabel = isFollowing ? '取消关注' : '关注';
 				: 'btn btn-primary follow-btn';
 			btn.disabled = true;
 
-			try {
-				// 调用 Astro Action
-				const result = await actions.toggleFollow({ username });
+			// 调用 Astro Action
+			const result = await actions.toggleFollow({ username });
 
-				if (result.data) {
-					// 以服务端返回为准
-					const serverFollowing = result.data.following;
-					btn.dataset.following = String(serverFollowing);
-					btn.textContent = serverFollowing ? '已关注' : '关注';
-					btn.setAttribute('aria-label', serverFollowing ? '取消关注' : '关注');
-					btn.className = serverFollowing
-						? 'btn btn-outline follow-btn'
-						: 'btn btn-primary follow-btn';
-				} else {
-					// Action 返回错误，回滚
-					rollback(btn, wasFollowing);
-				}
-			} catch (err: any) {
+			if (result.data) {
+				// 以服务端返回为准
+				const serverFollowing = result.data.following;
+				btn.dataset.following = String(serverFollowing);
+				btn.textContent = serverFollowing ? '已关注' : '关注';
+				btn.setAttribute('aria-label', serverFollowing ? '取消关注' : '关注');
+				btn.className = serverFollowing
+					? 'btn btn-outline follow-btn'
+					: 'btn btn-primary follow-btn';
+			} else if (result.error) {
 				// 未登录错误，跳转登录页
-				if (err?.message?.includes('登录')) {
+				if (result.error.message?.includes('登录')) {
+					rollback(btn, wasFollowing);
 					window.location.href = '/login';
 					return;
 				}
 				// 其他错误，回滚
 				rollback(btn, wasFollowing);
-			} finally {
-				btn.disabled = false;
 			}
+			btn.disabled = false;
 		});
 	});
 

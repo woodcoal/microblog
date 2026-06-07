@@ -349,45 +349,36 @@ const hasCategories = categories.length > 0;
 				publishBtn.textContent = '发布中...';
 			}
 
-			try {
-				const actionInput: Record<string, unknown> = {
-					content,
-					visibility: visibilitySelect.value,
-					mode: 'blog',
-					title
-				};
+			const actionInput: Record<string, unknown> = {
+				content,
+				visibility: visibilitySelect.value,
+				mode: 'blog',
+				title
+			};
 
-				// 有分类时传入 categoryId
-				if (categoryId) {
-					actionInput.categoryId = categoryId;
-				}
+			// 有分类时传入 categoryId
+			if (categoryId) {
+				actionInput.categoryId = categoryId;
+			}
 
-				const result = await actions.createPost(actionInput as any);
+			const result = await actions.createPost(actionInput as any);
 
-				if (result.error) {
-					showError(result.error.message || '发布失败');
-					container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
-					if (publishBtn) {
-						publishBtn.disabled = false;
-						publishBtn.textContent = '发布文章';
-					}
-					return;
-				}
-
-				// 发布成功，清除草稿
-				clearBlogDraft();
-
-				// 跳转到文章详情页
-				const post = result.data;
-				window.location.href = `/${post.user.username}/${post.id}`;
-			} catch {
-				showError('网络错误，请稍后重试');
+			if (result.error) {
+				showError(result.error.message || '发布失败');
 				container.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				if (publishBtn) {
 					publishBtn.disabled = false;
 					publishBtn.textContent = '发布文章';
 				}
+				return;
 			}
+
+			// 发布成功，清除草稿
+			clearBlogDraft();
+
+			// 跳转到文章详情页
+			const post = result.data;
+			window.location.href = `/${post.user.username}/${post.id}`;
 		});
 
 		/**
