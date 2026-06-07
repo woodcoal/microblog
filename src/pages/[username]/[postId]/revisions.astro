@@ -6,7 +6,7 @@
  * 按时间倒序展示所有版本，可选择任意两个版本进行 diff 对比。
  * 使用 Astro 组件服务端渲染，版本选择器通过 URL 参数切换。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import RevisionDiff from '@/components/RevisionDiff.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -78,7 +78,7 @@ const newContent = allVersions[newIdx]?.content || '';
 const hasHistory = allVersions.length > 0;
 ---
 
-<BaseLayout title="版本历史">
+<WeiboLayout title="版本历史">
 	<div class="revisions-page">
 		<div class="revisions-header">
 			<h1 class="revisions-title">版本历史</h1>
@@ -129,7 +129,7 @@ const hasHistory = allVersions.length > 0;
 			)
 		}
 	</div>
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.revisions-page {

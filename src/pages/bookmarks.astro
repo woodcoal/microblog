@@ -6,7 +6,7 @@
  * 每个帖子卡片显示取消收藏按钮。
  * 需要认证，未登录重定向到登录页。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
 import { prisma } from '@/lib/db';
@@ -81,7 +81,7 @@ const bookmarkCountMap = new Map(bookmarkCounts.map((b) => [b.postId, b._count._
 const hasBookmarks = validItems.length > 0;
 ---
 
-<BaseLayout title="我的收藏">
+<WeiboLayout title="我的收藏">
 	<h1 class="page-title">我的收藏</h1>
 
 	{
@@ -170,7 +170,7 @@ const hasBookmarks = validItems.length > 0;
 			</div>
 		)
 	}
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.page-title {

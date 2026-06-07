@@ -5,7 +5,7 @@
  * 根据 slug 显示该分类下的文章列表。
  * 支持分页浏览，保留分类筛选上下文。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import BlogLayout from '@/layouts/BlogLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -111,7 +111,7 @@ const hasPagination = totalPages > 1;
 const hasIcon = !!category.icon;
 ---
 
-<BaseLayout title={`${category.name} - 博客`}>
+<BlogLayout title={`${category.name} - 博客`}>
 	<div class="page-header">
 		<nav class="breadcrumb" aria-label="面包屑导航">
 			<a href="/blog" class="breadcrumb-link">博客</a>
@@ -224,7 +224,7 @@ const hasIcon = !!category.icon;
 			</nav>
 		)
 	}
-</BaseLayout>
+</BlogLayout>
 
 <style>
 	/* 页面头部 */

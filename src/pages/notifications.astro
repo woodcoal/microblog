@@ -6,7 +6,7 @@
  * 支持按通知类型筛选（type 查询参数）和分页加载更多。
  * 需要登录，未登录重定向到 /login。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import NotificationList from '@/components/NotificationList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -95,7 +95,7 @@ const filterOptions = [
 ];
 ---
 
-<BaseLayout title="通知">
+<WeiboLayout title="通知">
 	<div>
 		<!-- 标题栏 -->
 		<div class="notification-header">
@@ -155,7 +155,7 @@ const filterOptions = [
 			)
 		}
 	</div>
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	/* 通知标题栏 */

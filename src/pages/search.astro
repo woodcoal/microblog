@@ -9,7 +9,7 @@
  * 支持 mode 过滤（全部/微博/论坛/博客）和分类下拉选择器。
  * 使用 SearchBox 和 SearchResults Astro 组件，完全服务端渲染。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
 import SearchSuggest from '@/components/SearchSuggest.astro';
@@ -235,7 +235,7 @@ function buildSearchUrl(params: {
 }
 ---
 
-<BaseLayout title={q ? `搜索: ${q}` : '搜索'}>
+<WeiboLayout title={q ? `搜索: ${q}` : '搜索'}>
 	<h1 class="page-title">搜索</h1>
 
 	<!-- 搜索框 + 实时建议 -->
@@ -358,7 +358,7 @@ function buildSearchUrl(params: {
 		users={users}
 		nextUsersCursor={nextUsersCursor}
 	/>
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.page-title {

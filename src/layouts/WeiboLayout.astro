@@ -1,0 +1,103 @@
+---
+/**
+ * 微博频道布局
+ *
+ * 基于 BaseLayout，提供两栏布局（左侧导航菜单 + 右侧内容）。
+ * 用于首页、微博频道、用户主页等需要侧边栏的页面。
+ */
+import BaseLayout from './Base.astro';
+import { getUserFromRequest } from '@/lib/auth';
+
+interface Props {
+	title?: string;
+	description?: string;
+	ogTitle?: string;
+	ogDescription?: string;
+	ogImage?: string;
+	ogType?: string;
+	canonicalUrl?: string;
+	noindex?: boolean;
+	jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
+
+const currentUser = await getUserFromRequest(Astro);
+const currentPath = Astro.url.pathname;
+---
+
+<BaseLayout
+	title={title}
+	description={description}
+	ogTitle={ogTitle}
+	ogDescription={ogDescription}
+	ogImage={ogImage}
+	ogType={ogType}
+	canonicalUrl={canonicalUrl}
+	noindex={noindex}
+	jsonLd={jsonLd}
+>
+	<div class="layout-wide">
+		<aside class="layout-sidebar">
+			<a
+				href="/"
+				class="sidebar-link"
+				aria-current={currentPath === '/' ? 'page' : undefined}>
+				<span class="sidebar-link-icon">🏠</span>
+				<span>首页</span>
+			</a>
+			<a
+				href="/latest"
+				class="sidebar-link"
+				aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}>
+				<span class="sidebar-link-icon">⏰</span>
+				<span>最新</span>
+			</a>
+			{currentUser ? (
+				<>
+					<a
+						href="/following"
+						class="sidebar-link"
+						aria-current={currentPath.startsWith('/following') ? 'page' : undefined}>
+						<span class="sidebar-link-icon">👀</span>
+						<span>关注</span>
+					</a>
+					<a
+						href="/bookmarks"
+						class="sidebar-link"
+						aria-current={currentPath.startsWith('/bookmarks') ? 'page' : undefined}>
+						<span class="sidebar-link-icon">🔖</span>
+						<span>收藏</span>
+					</a>
+					<a
+						href="/followers"
+						class="sidebar-link"
+						aria-current={currentPath.startsWith('/followers') ? 'page' : undefined}>
+						<span class="sidebar-link-icon">👥</span>
+						<span>粉丝</span>
+					</a>
+				</>
+			) : (
+				<>
+					<a
+						href="/login"
+						class="sidebar-link"
+						aria-current={currentPath === '/login' ? 'page' : undefined}>
+						<span class="sidebar-link-icon">🔑</span>
+						<span>登录</span>
+					</a>
+					<a
+						href="/register"
+						class="sidebar-link"
+						aria-current={currentPath === '/register' ? 'page' : undefined}>
+						<span class="sidebar-link-icon">📝</span>
+						<span>注册</span>
+					</a>
+				</>
+			)}
+		</aside>
+		<div class="layout-main">
+			<slot />
+		</div>
+	</div>
+</BaseLayout>

@@ -7,7 +7,7 @@
  * 名称、描述、图标、帖子数。点击分类进入版块详情页。
  * 已登录用户可在页面标题区域点击"发帖"按钮。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import ForumLayout from '@/layouts/ForumLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { isModeEnabled } from '@/lib/config';
@@ -61,7 +61,7 @@ const rootCategories = await prisma.category.findMany({
 const hasGroups = groups.length > 0;
 ---
 
-<BaseLayout title="论坛">
+<ForumLayout title="论坛">
 	<div class="page-header">
 		<div class="page-header-row">
 			<div>
@@ -147,7 +147,7 @@ const hasGroups = groups.length > 0;
 			</div>
 		)
 	}
-</BaseLayout>
+</ForumLayout>
 
 <style>
 	/* 页面头部 */

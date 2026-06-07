@@ -5,7 +5,7 @@
  * 展示使用该标签的所有帖子。
  * 标签不存在或已隐藏时显示 404。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { renderMarkdown } from '@/lib/markdown';
@@ -125,7 +125,7 @@ for (const post of posts) {
 const hasPosts = posts.length > 0;
 ---
 
-<BaseLayout title={`#${tag}# - 标签`}>
+<WeiboLayout title={`#${tag}# - 标签`}>
 	<div class="tag-page">
 		<div class="tag-page-header">
 			<div class="tag-page-header-left">
@@ -215,7 +215,7 @@ const hasPosts = posts.length > 0;
 			)
 		}
 	</div>
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.tag-page {

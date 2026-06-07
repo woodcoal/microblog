@@ -13,7 +13,7 @@
  * - tokens     — API Token
  * - note       — 用户记录
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import TokenManager from '@/components/TokenManager.astro';
 import WebhookManager from '@/components/WebhookManager.astro';
 import { prisma } from '@/lib/db';
@@ -102,7 +102,7 @@ const tabs = [
 const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
 
-<BaseLayout title="设置">
+<WeiboLayout title="设置">
 	<div class="settings-page">
 		<h1 class="page-title">个人设置</h1>
 
@@ -384,7 +384,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			}
 		</div><!-- /.settings-content -->
 	</div>
-</BaseLayout>
+</WeiboLayout>
 
 <script>
 	import { actions } from 'astro:actions';

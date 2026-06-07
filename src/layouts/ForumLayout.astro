@@ -1,0 +1,39 @@
+---
+/**
+ * 论坛频道布局
+ *
+ * 基于 BaseLayout，全宽单列布局，无侧边栏。
+ * 用于论坛频道页、版块详情页、论坛帖子详情页。
+ */
+import BaseLayout from './Base.astro';
+
+interface Props {
+	title?: string;
+	description?: string;
+	ogTitle?: string;
+	ogDescription?: string;
+	ogImage?: string;
+	ogType?: string;
+	canonicalUrl?: string;
+	noindex?: boolean;
+	jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
+---
+
+<BaseLayout
+	title={title}
+	description={description}
+	ogTitle={ogTitle}
+	ogDescription={ogDescription}
+	ogImage={ogImage}
+	ogType={ogType}
+	canonicalUrl={canonicalUrl}
+	noindex={noindex}
+	jsonLd={jsonLd}
+>
+	<div class="layout-full">
+		<slot />
+	</div>
+</BaseLayout>

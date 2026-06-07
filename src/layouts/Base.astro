@@ -7,6 +7,9 @@
  * - 导航栏（站点标题、登录/注册/用户信息、主题切换）
  * - 页脚
  * - 主题系统（4套预置主题 CSS 变量 + 初始化脚本）
+ *
+ * 内容区布局由子 Layout 决定（WeiboLayout / ForumLayout / BlogLayout），
+ * 或通过 layoutMode='narrow' 使用窄版单列布局。
  */
 import { getUserFromRequest } from '@/lib/auth';
 import { getUnreadCount } from '@/lib/notification';
@@ -43,8 +46,8 @@ interface Props {
 	canonicalUrl?: string;
 	/** 是否禁止搜索引擎索引此页面 */
 	noindex?: boolean;
-	/** 布局模式：wide（两栏带侧栏）| narrow（单列窄版） */
-	layoutMode?: 'wide' | 'narrow';
+	/** 布局模式：narrow（单列窄版） | 默认无特殊布局 */
+	layoutMode?: 'narrow';
 	/** JSON-LD 结构化数据（SEO），传入对象将自动序列化为 script 标签 */
 	jsonLd?: Record<string, unknown>;
 }
@@ -58,7 +61,7 @@ const {
 	ogType,
 	canonicalUrl,
 	noindex,
-	layoutMode = 'wide',
+	layoutMode,
 	jsonLd
 } = Astro.props;
 
@@ -335,78 +338,8 @@ const resolvedOgType = ogType || 'website';
 			</div>
 		</nav>
 
-		<main class:list={[layoutMode === 'wide' ? 'layout-wide' : 'container']}>
-			{
-				layoutMode === 'wide' && (
-					<aside class="layout-sidebar">
-						<a
-							href="/"
-							class="sidebar-link"
-							aria-current={currentPath === '/' ? 'page' : undefined}>
-							<span class="sidebar-link-icon">🏠</span>
-							<span>首页</span>
-						</a>
-						<a
-							href="/latest"
-							class="sidebar-link"
-							aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}>
-							<span class="sidebar-link-icon">⏰</span>
-							<span>最新</span>
-						</a>
-						{currentUser ? (
-							<>
-								<a
-									href="/following"
-									class="sidebar-link"
-									aria-current={
-										currentPath.startsWith('/following') ? 'page' : undefined
-									}>
-									<span class="sidebar-link-icon">👀</span>
-									<span>关注</span>
-								</a>
-								<a
-									href="/bookmarks"
-									class="sidebar-link"
-									aria-current={
-										currentPath.startsWith('/bookmarks') ? 'page' : undefined
-									}>
-									<span class="sidebar-link-icon">🔖</span>
-									<span>收藏</span>
-								</a>
-								<a
-									href="/followers"
-									class="sidebar-link"
-									aria-current={
-										currentPath.startsWith('/followers') ? 'page' : undefined
-									}>
-									<span class="sidebar-link-icon">👥</span>
-									<span>粉丝</span>
-								</a>
-							</>
-						) : (
-							<>
-								<a
-									href="/login"
-									class="sidebar-link"
-									aria-current={currentPath === '/login' ? 'page' : undefined}>
-									<span class="sidebar-link-icon">🔑</span>
-									<span>登录</span>
-								</a>
-								<a
-									href="/register"
-									class="sidebar-link"
-									aria-current={currentPath === '/register' ? 'page' : undefined}>
-									<span class="sidebar-link-icon">📝</span>
-									<span>注册</span>
-								</a>
-							</>
-						)}
-					</aside>
-				)
-			}
-			<div class:list={[layoutMode === 'wide' ? 'layout-main' : '']}>
-				<slot />
-			</div>
+		<main class:list={[layoutMode === 'narrow' ? 'container' : 'layout-content']}>
+			<slot />
 		</main>
 
 		<footer class="footer">

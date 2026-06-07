@@ -6,7 +6,7 @@
  * 以及该用户的帖子列表（置顶帖优先，未删除）。
  * 包含 FollowButton 和帖子搜索框。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import FollowButton from '@/components/FollowButton.astro';
 import { prisma } from '@/lib/db';
@@ -206,7 +206,7 @@ const likedPostIds = await getLikedPostIds(
 );
 ---
 
-<BaseLayout
+<WeiboLayout
 	title={user.displayName}
 	ogTitle={`${user.displayName} (@${user.username}) - ${SITE_TITLE}`}
 	ogDescription={user.bio || `${user.displayName} 的微博主页`}
@@ -395,7 +395,7 @@ const likedPostIds = await getLikedPostIds(
 			</div>
 		)
 	}
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.profile-banner {

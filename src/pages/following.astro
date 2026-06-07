@@ -6,7 +6,7 @@
  * 下半部分：这些用户近 7 天最热门的 10 条帖子。
  * 需要认证，未登录重定向到登录页。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -81,7 +81,7 @@ const likedPostIds = await getLikedPostIds(
 );
 ---
 
-<BaseLayout title="我的关注">
+<WeiboLayout title="我的关注">
 	<h1 class="page-title">我的关注</h1>
 
 	<!-- 关注用户列表 -->
@@ -183,7 +183,7 @@ const likedPostIds = await getLikedPostIds(
 			)
 		}
 	</section>
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	.page-title {

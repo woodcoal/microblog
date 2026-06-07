@@ -7,7 +7,7 @@
  * 顶部"写文章"按钮，已登录用户可见。
  * 支持分页浏览。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import BlogLayout from '@/layouts/BlogLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
@@ -142,7 +142,7 @@ const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
 ---
 
-<BaseLayout title="博客">
+<BlogLayout title="博客">
 	<div class="page-header">
 		<div class="page-header-row">
 			<div>
@@ -286,7 +286,7 @@ const hasFilter = !!filterCategoryId;
 			</nav>
 		)
 	}
-</BaseLayout>
+</BlogLayout>
 
 <style>
 	/* 页面头部 */

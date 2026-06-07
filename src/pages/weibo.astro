@@ -7,7 +7,7 @@
  * 发布功能通过页面标题旁的"发布"按钮（ComposeModal）完成。
  * 支持分页浏览。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -115,7 +115,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 ---
 
-<BaseLayout title="微博">
+<WeiboLayout title="微博">
 	<div class="page-header">
 		<div class="page-header-row">
 			<div>
@@ -235,7 +235,7 @@ const hasPagination = totalPages > 1;
 			</nav>
 		)
 	}
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	/* 页面头部 */

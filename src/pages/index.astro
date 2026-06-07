@@ -7,7 +7,7 @@
  * 全局置顶帖始终排在最前面，其余帖子按热门分数倒序。
  * 支持页码分页（?page=N），每页20条。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -133,7 +133,7 @@ const hasPagination = totalPages > 1;
 const gorseEnabled = isGorseEnabled() && !!currentUser;
 ---
 
-<BaseLayout title="首页">
+<WeiboLayout title="首页">
 	{
 		!hasPosts ? (
 			<div class="empty-state">
@@ -239,7 +239,7 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 			</nav>
 		)
 	}
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	/* 猜你喜欢 - 个性化推荐区域样式 */

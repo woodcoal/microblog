@@ -7,7 +7,7 @@
  * 发布时 mode 自动设为 'forum'，categoryId 自动设为当前版块。
  * 支持分页浏览。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import ForumLayout from '@/layouts/ForumLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -114,7 +114,7 @@ const hasParent = !!category.parent;
 const hasIcon = !!category.icon;
 ---
 
-<BaseLayout title={`${category.name} - 论坛`}>
+<ForumLayout title={`${category.name} - 论坛`}>
 	<div class="page-header">
 		<nav class="breadcrumb" aria-label="面包屑导航">
 			<a href="/forum" class="breadcrumb-link">论坛</a>
@@ -246,7 +246,7 @@ const hasIcon = !!category.icon;
 			</nav>
 		)
 	}
-</BaseLayout>
+</ForumLayout>
 
 <style>
 	/* 页面头部 */

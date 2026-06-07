@@ -5,7 +5,7 @@
  * 按时间倒序展示所有公开帖子，支持分页浏览。
  * 不显示全局置顶帖（仅首页展示）。
  */
-import BaseLayout from '@/layouts/Base.astro';
+import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -88,7 +88,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 ---
 
-<BaseLayout title="最新 - 睦谈">
+<WeiboLayout title="最新 - 睦谈">
 	<div class="page-header">
 		<h1 class="page-title">最新</h1>
 		<p class="page-desc">所有公开动态，按时间倒序排列</p>
@@ -194,7 +194,7 @@ const hasPagination = totalPages > 1;
 			</nav>
 		)
 	}
-</BaseLayout>
+</WeiboLayout>
 
 <style>
 	/* 页面头部 */
