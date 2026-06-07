@@ -165,7 +165,7 @@ const resolvedOgType = ogType || 'website';
 					<img src={siteLogoUrl} alt={siteTitle} class="navbar-logo" />
 					<span>{siteTitle}</span>
 				</a>
-				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单"> ☰ </button>
+				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单">☰</button>
 				<div class="navbar-links" id="navbar-links">
 					{/* 频道导航（仅多模式时显示） */}
 					{
@@ -177,22 +177,14 @@ const resolvedOgType = ogType || 'website';
 										class:list={[
 											'nav-mode-link',
 											{ 'nav-mode-active': currentPath.startsWith(mode.path) }
-										]}
-									>
+										]}>
 										{mode.icon} {mode.label}
 									</a>
 								))}
 							</div>
 						)
 					}
-					{
-						currentUser && (
-							<button type="button" class="nav-compose-btn" aria-label="发布帖子">
-								✏️ 发布
-							</button>
-						)
-					}
-					<a href="/search" class="nav-search-btn" aria-label="搜索"> 🔍 </a>
+					<a href="/search" class="nav-search-btn" aria-label="搜索">🔍</a>
 					<ThemeSwitcher />
 					<!-- 移动端导航菜单（hamburger 面板内） -->
 					<div class="mobile-user-area">
@@ -248,8 +240,7 @@ const resolvedOgType = ogType || 'website';
 										class="nav-user-trigger"
 										aria-haspopup="true"
 										aria-expanded="false"
-										aria-label="用户菜单"
-									>
+										aria-label="用户菜单">
 										<span class="nav-avatar-wrap">
 											{userAvatarUrl ? (
 												<img
@@ -276,8 +267,7 @@ const resolvedOgType = ogType || 'website';
 											href={`/${currentUser.username}`}
 											class="nav-dropdown-item"
 											role="menuitem"
-											aria-label="个人主页"
-										>
+											aria-label="个人主页">
 											<span class="nav-dropdown-icon">👤</span>
 											<span>个人主页</span>
 										</a>
@@ -285,8 +275,7 @@ const resolvedOgType = ogType || 'website';
 											href="/bookmarks"
 											class="nav-dropdown-item"
 											role="menuitem"
-											aria-label="收藏"
-										>
+											aria-label="收藏">
 											<span class="nav-dropdown-icon">🔖</span>
 											<span>收藏</span>
 										</a>
@@ -295,8 +284,7 @@ const resolvedOgType = ogType || 'website';
 												href="/notifications"
 												class="nav-dropdown-item"
 												role="menuitem"
-												aria-label="通知"
-											>
+												aria-label="通知">
 												<span class="nav-dropdown-icon">🔔</span>
 												<span>通知</span>
 												{hasUnread && (
@@ -310,8 +298,7 @@ const resolvedOgType = ogType || 'website';
 											href="/settings"
 											class="nav-dropdown-item"
 											role="menuitem"
-											aria-label="设置"
-										>
+											aria-label="设置">
 											<span class="nav-dropdown-icon">⚙️</span>
 											<span>设置</span>
 										</a>
@@ -320,8 +307,7 @@ const resolvedOgType = ogType || 'website';
 												href="/admin"
 												class="nav-dropdown-item"
 												role="menuitem"
-												aria-label="管理后台"
-											>
+												aria-label="管理后台">
 												<span class="nav-dropdown-icon">🛡️</span>
 												<span>管理后台</span>
 											</a>
@@ -331,8 +317,7 @@ const resolvedOgType = ogType || 'website';
 											type="button"
 											class="nav-dropdown-item logout-option"
 											role="menuitem"
-											aria-label="登出"
-										>
+											aria-label="登出">
 											<span class="nav-dropdown-icon">🚪</span>
 											<span>登出</span>
 										</button>
@@ -357,16 +342,14 @@ const resolvedOgType = ogType || 'website';
 						<a
 							href="/"
 							class="sidebar-link"
-							aria-current={currentPath === '/' ? 'page' : undefined}
-						>
+							aria-current={currentPath === '/' ? 'page' : undefined}>
 							<span class="sidebar-link-icon">🏠</span>
 							<span>首页</span>
 						</a>
 						<a
 							href="/latest"
 							class="sidebar-link"
-							aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
-						>
+							aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}>
 							<span class="sidebar-link-icon">⏰</span>
 							<span>最新</span>
 						</a>
@@ -377,8 +360,7 @@ const resolvedOgType = ogType || 'website';
 									class="sidebar-link"
 									aria-current={
 										currentPath.startsWith('/following') ? 'page' : undefined
-									}
-								>
+									}>
 									<span class="sidebar-link-icon">👀</span>
 									<span>关注</span>
 								</a>
@@ -387,8 +369,7 @@ const resolvedOgType = ogType || 'website';
 									class="sidebar-link"
 									aria-current={
 										currentPath.startsWith('/bookmarks') ? 'page' : undefined
-									}
-								>
+									}>
 									<span class="sidebar-link-icon">🔖</span>
 									<span>收藏</span>
 								</a>
@@ -397,8 +378,7 @@ const resolvedOgType = ogType || 'website';
 									class="sidebar-link"
 									aria-current={
 										currentPath.startsWith('/followers') ? 'page' : undefined
-									}
-								>
+									}>
 									<span class="sidebar-link-icon">👥</span>
 									<span>粉丝</span>
 								</a>
@@ -408,16 +388,14 @@ const resolvedOgType = ogType || 'website';
 								<a
 									href="/login"
 									class="sidebar-link"
-									aria-current={currentPath === '/login' ? 'page' : undefined}
-								>
+									aria-current={currentPath === '/login' ? 'page' : undefined}>
 									<span class="sidebar-link-icon">🔑</span>
 									<span>登录</span>
 								</a>
 								<a
 									href="/register"
 									class="sidebar-link"
-									aria-current={currentPath === '/register' ? 'page' : undefined}
-								>
+									aria-current={currentPath === '/register' ? 'page' : undefined}>
 									<span class="sidebar-link-icon">📝</span>
 									<span>注册</span>
 								</a>
@@ -440,37 +418,25 @@ const resolvedOgType = ogType || 'website';
 			<a
 				href="/"
 				class="tab-bar-item"
-				aria-current={currentPath === '/' ? 'page' : undefined}
-			>
+				aria-current={currentPath === '/' ? 'page' : undefined}>
 				<span class="tab-bar-icon">🏠</span>
 				<span>首页</span>
 			</a>
 			<a
 				href="/search"
 				class="tab-bar-item"
-				aria-current={currentPath.startsWith('/search') ? 'page' : undefined}
-			>
+				aria-current={currentPath.startsWith('/search') ? 'page' : undefined}>
 				<span class="tab-bar-icon">🔍</span>
 				<span>搜索</span>
 			</a>
-			{
-				currentUser ? (
-					<button type="button" class="tab-bar-post" aria-label="发布帖子">
-						✏️
-					</button>
-				) : (
-					<a href="/login" class="tab-bar-post" aria-label="登录后发布">
-						✏️
-					</a>
-				)
-			}
 			{
 				notificationsEnabled && (
 					<a
 						href="/notifications"
 						class="tab-bar-item"
-						aria-current={currentPath.startsWith('/notifications') ? 'page' : undefined}
-					>
+						aria-current={
+							currentPath.startsWith('/notifications') ? 'page' : undefined
+						}>
 						<span class="tab-bar-icon">🔔</span>
 						<span>通知</span>
 						{hasUnread && <span class="tab-bar-badge" />}
@@ -484,8 +450,7 @@ const resolvedOgType = ogType || 'website';
 						class="tab-bar-item"
 						aria-current={
 							currentPath === `/${currentUser.username}` ? 'page' : undefined
-						}
-					>
+						}>
 						<span class="tab-bar-icon">👤</span>
 						<span>我的</span>
 					</a>
@@ -493,8 +458,7 @@ const resolvedOgType = ogType || 'website';
 					<a
 						href="/login"
 						class="tab-bar-item"
-						aria-current={currentPath === '/login' ? 'page' : undefined}
-					>
+						aria-current={currentPath === '/login' ? 'page' : undefined}>
 						<span class="tab-bar-icon">🔑</span>
 						<span>登录</span>
 					</a>
@@ -646,16 +610,7 @@ const resolvedOgType = ogType || 'website';
 				}
 			}
 
-			// 发布按钮点击事件：根据当前页面路径决定打开哪个编辑器
-			document.querySelectorAll('.nav-compose-btn').forEach((btn) => {
-				btn.addEventListener('click', openComposeByPath);
-			});
-			document.querySelectorAll('.tab-bar-post').forEach((btn) => {
-				// 仅绑定 button 类型（a 标签的跳转由 href 处理）
-				if (btn.tagName === 'BUTTON') {
-					btn.addEventListener('click', openComposeByPath);
-				}
-			});
+			// 发布按钮点击事件已移至各频道页面
 
 			/**
 			 * 全局键盘快捷键
@@ -698,7 +653,11 @@ const resolvedOgType = ogType || 'website';
 		</script>
 
 		<!-- 全局配置数据容器：供 JS 读取服务端配置，避免在 script 标签上使用自定义属性导致 Astro 跳过 Vite 处理 -->
-		<meta name="mutan-notifications-enabled" content={String(notificationsEnabled)} data-mutan-config />
+		<meta
+			name="mutan-notifications-enabled"
+			content={String(notificationsEnabled)}
+			data-mutan-config
+		/>
 
 		<script>
 			import { actions } from 'astro:actions';
@@ -708,7 +667,8 @@ const resolvedOgType = ogType || 'website';
 			 */
 			// 从 meta 标签读取通知开关配置
 			const notificationsEnabled =
-				document.querySelector('meta[name="mutan-notifications-enabled"]')?.content === 'true';
+				document.querySelector('meta[name="mutan-notifications-enabled"]')?.content ===
+				'true';
 
 			// 下拉菜单切换
 			const userTrigger = document.querySelector('.nav-user-trigger');
