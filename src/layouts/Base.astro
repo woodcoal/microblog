@@ -698,6 +698,8 @@ const resolvedOgType = ogType || 'website';
 		</script>
 
 		<script data-notifications-enabled={String(notificationsEnabled)}>
+			import { actions } from 'astro:actions';
+
 			/**
 			 * 用户菜单下拉切换 + 登出 + 移动端导航栏切换 + 未读通知轮询
 			 */
@@ -730,7 +732,7 @@ const resolvedOgType = ogType || 'website';
 				if (!btn) return;
 				e.preventDefault();
 				try {
-					await fetch('/api/auth/logout', { method: 'POST' });
+					await actions.logout();
 				} catch {
 					// 即使请求失败也继续清理
 				}
@@ -753,11 +755,9 @@ const resolvedOgType = ogType || 'website';
 			if (notificationsEnabled) {
 				(async function pollUnread() {
 					try {
-						const res = await fetch('/api/notifications/unread-count');
-						if (!res.ok) return;
-						const json = await res.json();
-						if (!json.success) return;
-						const count = json.data.count;
+						// 调用 Astro Action 获取未读通知计数
+						const result = await actions.getUnreadCount();
+						const count = result.count;
 
 						// 更新下拉菜单通知项徽章
 						const menuBadge = document.querySelector(

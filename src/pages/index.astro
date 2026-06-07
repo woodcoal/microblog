@@ -312,10 +312,12 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 </style>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 个性化推荐加载逻辑
 	 *
-	 * 页面加载后异步请求 /api/recommend 获取推荐帖子，
+	 * 页面加载后通过 Astro Actions 获取推荐帖子，
 	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
 	 * 仅在推荐区域存在时执行（Gorse 已启用且用户已登录）。
 	 */
@@ -324,21 +326,14 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 		const list = document.getElementById('recommend-list');
 		if (!section || !list) return;
 
-		const token = localStorage.getItem('token');
-		if (!token) return;
-
 		try {
-			const res = await fetch('/api/recommend?n=5', {
-				headers: token ? { Authorization: `Bearer ${token}` } : undefined
-			});
-			const data = await res.json();
-
-			if (!data.success || !data.data?.items?.length) {
+			const result = await actions.getRecommend({ n: 5 });
+			if (!result.items?.length) {
 				// 无推荐结果，不显示区域
 				return;
 			}
 
-			const items = data.data.items;
+			const items = result.items;
 			const fragment = document.createDocumentFragment();
 
 			for (const item of items) {

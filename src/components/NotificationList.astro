@@ -241,21 +241,14 @@ const hasNotifications = notifications.length > 0;
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 通知列表组件交互逻辑
 	 *
 	 * 功能：
 	 * - 点击未读通知项：标记该条已读，移除未读样式
 	 */
-
-	/** 构建带认证的请求头 */
-	function getAuthHeaders(): HeadersInit {
-		const token = localStorage.getItem('token');
-		return {
-			'Content-Type': 'application/json',
-			...(token ? { Authorization: `Bearer ${token}` } : {})
-		};
-	}
 
 	/**
 	 * 标记指定通知为已读，并移除未读样式
@@ -265,11 +258,7 @@ const hasNotifications = notifications.length > 0;
 	 */
 	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
 		try {
-			await fetch('/api/notifications/read', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ ids: [notificationId] })
-			});
+			await actions.markNotificationsRead({ ids: [notificationId] });
 			// 移除未读样式和标记
 			itemEl.classList.remove('notification-unread');
 			itemEl.removeAttribute('data-unread');

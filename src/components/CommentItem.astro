@@ -243,12 +243,14 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 评论项交互逻辑
 	 *
 	 * 功能：
 	 * - 回复按钮：切换回复表单的显示/隐藏
-	 * - 删除按钮：确认后发送 DELETE 请求，成功后刷新页面
+	 * - 删除按钮：确认后调用 Astro Actions，成功后刷新页面
 	 */
 	document.addEventListener('DOMContentLoaded', () => {
 		// 回复按钮：切换回复表单
@@ -279,25 +281,15 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 				const commentId = (btn as HTMLElement).dataset.commentId;
 				if (!commentId) return;
 
-				// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
-				const token = localStorage.getItem('token');
-
 				try {
-					const res = await fetch(`/api/comments/${commentId}`, {
-						method: 'DELETE',
-						headers: token ? { Authorization: `Bearer ${token}` } : undefined
-					});
-
-					const data = await res.json();
-					if (data.success) {
-						location.reload();
-					} else if (res.status === 401) {
+					await actions.deleteComment({ commentId });
+					location.reload();
+				} catch (e) {
+					if (e.status === 401) {
 						window.location.href = '/login';
 					} else {
-						await MutanDialog.alert(data.error?.message || '删除失败');
+						await MutanDialog.alert(e.message || '删除失败');
 					}
-				} catch {
-					await MutanDialog.alert('网络错误，请稍后重试');
 				}
 			});
 		});

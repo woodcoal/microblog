@@ -495,18 +495,9 @@ const hasInitialContent = initialContent.length > 0;
 					return;
 				}
 				try {
-					// 调用服务端渲染 API
-					const resp = await fetch('/api/markdown-preview', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ markdown: content })
-					});
-					if (resp.ok) {
-						const data = await resp.json();
-						preview.innerHTML = data.html || '';
-					} else {
-						preview.innerHTML = '<p style="color:var(--color-danger)">预览渲染失败</p>';
-					}
+					// 调用 Astro Actions 渲染 Markdown 预览
+					const result = await actions.markdownPreview({ markdown: content });
+					preview.innerHTML = result.html || '';
 				} catch {
 					preview.innerHTML = '<p style="color:var(--color-danger)">预览渲染失败</p>';
 				}

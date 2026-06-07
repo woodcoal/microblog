@@ -1014,6 +1014,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 </style>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 删除按钮交互逻辑
 	 *
@@ -1036,27 +1038,16 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				return;
 			}
 
-			// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
-			const token = localStorage.getItem('token');
-
 			try {
-				const res = await fetch(`/api/posts/${postId}`, {
-					method: 'DELETE',
-					headers: token ? { Authorization: `Bearer ${token}` } : undefined
-				});
-
-				const data = await res.json();
-
-				if (data.success) {
-					// 删除成功，跳转到用户主页
-					window.location.href = `/${username}`;
-				} else if (res.status === 401) {
+				await actions.deletePost({ postId });
+				// 删除成功，跳转到用户主页
+				window.location.href = `/${username}`;
+			} catch (e: any) {
+				if (e.status === 401) {
 					await MutanDialog.alert('请先登录', { title: '提示' });
 				} else {
-					await MutanDialog.alert(data.error?.message || '删除失败');
+					await MutanDialog.alert(e.message || '删除失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误，请稍后重试');
 			}
 		});
 	}
@@ -1106,15 +1097,9 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				}
 
 				try {
-					const res = await fetch(`/api/posts/${postId}/verify-password`, {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ password })
-					});
+					const result = await actions.verifyPostPassword({ postId, password });
 
-					const data = await res.json();
-
-					if (data.success && data.data?.valid) {
+					if (result.valid) {
 						// 密码正确，记录过期时间到 sessionStorage
 						// 过期时间 = 当前时间 + PASSWORD_PROTECT_EXPIRE_MINUTES 分钟
 						const expireMinutes = 10; // 默认 10 分钟
@@ -1154,11 +1139,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		if (!postId) return;
 
 		try {
-			const res = await fetch(`/api/posts/${postId}/likers`);
-			const data = await res.json();
-			if (!data.success) return;
-
-			const users = data.data as Array<{
+			const result = await actions.getPostLikers({ postId });
+			const users = result.users as Array<{
 				username: string;
 				displayName: string;
 				avatarUrl: string;
@@ -1231,29 +1213,18 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		pinBtn.addEventListener('click', async () => {
 			const postId = (pinBtn as HTMLElement).dataset.postId;
 
-			// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
-			const token = localStorage.getItem('token');
-
 			try {
-				const res = await fetch(`/api/posts/${postId}/pin`, {
-					method: 'PUT',
-					headers: token ? { Authorization: `Bearer ${token}` } : undefined
-				});
-
-				const data = await res.json();
-
-				if (data.success) {
-					// 更新按钮文字和状态
-					const isNowPinned = data.data.pinned;
-					(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
-					pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
-				} else if (res.status === 401) {
+				const result = await actions.togglePin({ postId });
+				// 更新按钮文字和状态
+				const isNowPinned = result.pinned;
+				(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
+				pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
+			} catch (e: any) {
+				if (e.status === 401) {
 					await MutanDialog.alert('请先登录', { title: '提示' });
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(e.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误，请稍后重试');
 			}
 		});
 	}
@@ -1266,23 +1237,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	 * 仅登录用户触发，失败静默不影响页面。
 	 */
 	(async () => {
-		const token = localStorage.getItem('token');
-		if (!token) return;
-
 		// 从路径中提取帖子 ID
 		const pathParts = window.location.pathname.split('/');
 		const postId = pathParts[pathParts.length - 1];
 		if (!postId) return;
 
 		try {
-			await fetch('/api/recommend/read', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					Authorization: `Bearer ${token}`
-				},
-				body: JSON.stringify({ postId })
-			});
+			await actions.recordRead({ postId });
 		} catch {
 			// 静默失败
 		}

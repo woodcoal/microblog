@@ -130,6 +130,8 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 </style>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	// 登录表单提交处理
 	const form = document.getElementById('login-form') as HTMLFormElement;
 	const errorEl = document.getElementById('form-error')!;
@@ -157,21 +159,11 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 			submitBtn.textContent = '登录中...';
 
 			try {
-				const res = await fetch('/api/auth/login', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ email, password })
-				});
-
-				const data = await res.json();
-
-				if (!data.success) {
-					errorEl.textContent = data.error?.message || '登录失败';
-					return;
-				}
+				// 调用 Astro Action 登录，成功直接返回数据
+				const result = await actions.login({ email, password });
+				const { token } = result;
 
 				// 登录成功：token 写入 localStorage 和 cookie
-				const { token } = data.data;
 				localStorage.setItem('token', token);
 				// 前端写入非 HttpOnly 的 cookie，供 SSR 页面读取
 				document.cookie =
@@ -179,8 +171,9 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 
 				// 跳转首页
 				window.location.href = '/';
-			} catch {
-				errorEl.textContent = '网络错误，请稍后重试';
+			} catch (e: any) {
+				// ActionError 通过 e.message 获取错误信息
+				errorEl.textContent = e.message || '登录失败';
 			} finally {
 				submitBtn.disabled = false;
 				submitBtn.textContent = '登录';

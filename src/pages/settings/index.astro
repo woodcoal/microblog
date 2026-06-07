@@ -387,6 +387,8 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 </BaseLayout>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 设置页面客户端交互逻辑
 	 *
@@ -401,15 +403,6 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		setTimeout(() => {
 			el.textContent = '';
 		}, 3000);
-	}
-
-	/** 构建带认证的请求头 */
-	function getAuthHeaders(): HeadersInit {
-		const token = localStorage.getItem('token');
-		return {
-			'Content-Type': 'application/json',
-			...(token ? { Authorization: `Bearer ${token}` } : {})
-		};
 	}
 
 	// ===== 头像上传 =====
@@ -435,25 +428,11 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		reader.readAsDataURL(file);
 
 		try {
-			const uploadFormData = new FormData();
-			uploadFormData.append('image', file);
-
-			const token = localStorage.getItem('token');
-			const res = await fetch('/api/settings/avatar', {
-				method: 'POST',
-				headers: token ? { Authorization: `Bearer ${token}` } : {},
-				body: uploadFormData
-			});
-			const data = await res.json();
-			if (data.success) {
-				avatarUrlInput.value = data.data.avatarUrl;
-				showMsg(profileMsg, '头像已更新', false);
-			} else {
-				await MutanDialog.alert(data.error?.message || '头像上传失败');
-				avatarFileInput.value = '';
-			}
-		} catch {
-			await MutanDialog.alert('网络错误');
+			const result = await actions.uploadAvatar({ image: file });
+			avatarUrlInput.value = result.avatarUrl;
+			showMsg(profileMsg, '头像已更新', false);
+		} catch (e: any) {
+			await MutanDialog.alert(e.message || '头像上传失败');
 			avatarFileInput.value = '';
 		}
 	});
@@ -470,19 +449,10 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		const avatarUrl = formData.get('avatarUrl') as string;
 
 		try {
-			const res = await fetch('/api/settings/profile', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ displayName, bio, avatarUrl })
-			});
-			const data = await res.json();
-			if (data.success) {
-				showMsg(profileMsg, '资料已更新', false);
-			} else {
-				showMsg(profileMsg, data.error?.message ?? '更新失败', true);
-			}
-		} catch {
-			showMsg(profileMsg, '网络错误', true);
+			const result = await actions.updateProfile({ displayName, bio, avatarUrl });
+			showMsg(profileMsg, '资料已更新', false);
+		} catch (e: any) {
+			showMsg(profileMsg, e.message ?? '更新失败', true);
 		}
 	});
 
@@ -503,20 +473,11 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		}
 
 		try {
-			const res = await fetch('/api/settings/password', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ oldPassword, newPassword })
-			});
-			const data = await res.json();
-			if (data.success) {
-				showMsg(passwordMsg, '密码修改成功', false);
-				passwordForm.reset();
-			} else {
-				showMsg(passwordMsg, data.error?.message ?? '修改失败', true);
-			}
-		} catch {
-			showMsg(passwordMsg, '网络错误', true);
+			const result = await actions.changePassword({ oldPassword, newPassword });
+			showMsg(passwordMsg, '密码修改成功', false);
+			passwordForm.reset();
+		} catch (e: any) {
+			showMsg(passwordMsg, e.message ?? '修改失败', true);
 		}
 	});
 
@@ -542,22 +503,13 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		if (commentSortOrder) body.commentSortOrder = commentSortOrder;
 
 		try {
-			const res = await fetch('/api/settings', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify(body)
-			});
-			const data = await res.json();
-			if (data.success) {
-				showMsg(appearanceMsg, '偏好已保存', false);
-				if (selectedTheme) {
-					document.documentElement.setAttribute('data-theme', selectedTheme);
-				}
-			} else {
-				showMsg(appearanceMsg, data.error?.message ?? '保存失败', true);
+			const result = await actions.updateSettings(body);
+			showMsg(appearanceMsg, '偏好已保存', false);
+			if (selectedTheme) {
+				document.documentElement.setAttribute('data-theme', selectedTheme);
 			}
-		} catch {
-			showMsg(appearanceMsg, '网络错误', true);
+		} catch (e: any) {
+			showMsg(appearanceMsg, e.message ?? '保存失败', true);
 		}
 	});
 
@@ -571,19 +523,10 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 	saveNotificationBtn?.addEventListener('click', async () => {
 		const enabled = notificationsCheckbox?.checked ?? true;
 		try {
-			const res = await fetch('/api/settings', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ notificationsEnabled: enabled })
-			});
-			const data = await res.json();
-			if (data.success) {
-				showMsg(notificationMsg, '通知设置已保存', false);
-			} else {
-				showMsg(notificationMsg, data.error?.message ?? '保存失败', true);
-			}
-		} catch {
-			showMsg(notificationMsg, '网络错误', true);
+			const result = await actions.updateSettings({ notificationsEnabled: enabled });
+			showMsg(notificationMsg, '通知设置已保存', false);
+		} catch (e: any) {
+			showMsg(notificationMsg, e.message ?? '保存失败', true);
 		}
 	});
 
@@ -607,19 +550,10 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		const note = formData.get('note') as string;
 
 		try {
-			const res = await fetch('/api/settings/profile', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ note })
-			});
-			const data = await res.json();
-			if (data.success) {
-				showMsg(noteMsg, '记录已保存', false);
-			} else {
-				showMsg(noteMsg, data.error?.message ?? '保存失败', true);
-			}
-		} catch {
-			showMsg(noteMsg, '网络错误', true);
+			const result = await actions.updateProfile({ note });
+			showMsg(noteMsg, '记录已保存', false);
+		} catch (e: any) {
+			showMsg(noteMsg, e.message ?? '保存失败', true);
 		}
 	});
 </script>

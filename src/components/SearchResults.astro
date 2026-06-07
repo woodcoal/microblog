@@ -317,31 +317,23 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 }
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 搜索结果页关注按钮交互
 	 *
-	 * 使用 fetch API 调用关注接口，避免表单提交导致页面跳转到 JSON 端点。
+	 * 使用 Astro Actions 调用关注接口，避免表单提交导致页面跳转到 JSON 端点。
 	 */
 	document.querySelectorAll('.follow-btn').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const username = (btn as HTMLElement).dataset.username;
 			if (!username) return;
 
-			const token = localStorage.getItem('token');
 			try {
-				const res = await fetch(`/api/users/${username}/follow`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						...(token ? { Authorization: `Bearer ${token}` } : {})
-					}
-				});
-				const data = await res.json();
-				if (data.success) {
-					// 切换按钮状态
-					(btn as HTMLButtonElement).textContent = '已关注';
-					(btn as HTMLButtonElement).disabled = true;
-				}
+				await actions.toggleFollow({ username });
+				// 切换按钮状态
+				(btn as HTMLButtonElement).textContent = '已关注';
+				(btn as HTMLButtonElement).disabled = true;
 			} catch {
 				// 静默失败
 			}

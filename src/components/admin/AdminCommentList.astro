@@ -190,32 +190,29 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 评论管理操作交互逻辑
 	 *
 	 * 通过 data-action 属性识别操作类型，
-	 * 使用 fetch 发送 DELETE 请求到对应 API 端点。
-	 * 操作类型与端点映射：
-	 * - delete → DELETE /api/admin/comments/:id/delete
+	 * 使用 Astro Actions 调用对应操作。
+	 * 操作类型：
+	 * - delete → 删除评论
 	 */
 	document.querySelectorAll('[data-action="delete"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const commentId = (btn as HTMLElement).dataset.commentId || '';
-			const endpoint = `/api/admin/comments/${commentId}/delete`;
 
 			try {
-				const res = await fetch(endpoint, {
-					method: 'DELETE',
-					headers: { 'Content-Type': 'application/json' }
-				});
-				const data = await res.json();
-				if (data.success) {
+				const result = await actions.adminDeleteComment({ commentId });
+				if (result.success) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(result.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+			} catch (e) {
+				await MutanDialog.alert(e.message || '网络错误');
 			}
 		});
 	});
@@ -269,19 +266,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				return;
 
 			try {
-				const res = await fetch('/api/admin/comments/batch', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ action, ids: checkedIds })
-				});
-				const data = await res.json();
-				if (data.success) {
+				const result = await actions.batchComments({ action, ids: checkedIds });
+				if (result.success) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(result.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+			} catch (e) {
+				await MutanDialog.alert(e.message || '网络错误');
 			}
 		});
 	});

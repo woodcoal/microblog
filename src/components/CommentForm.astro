@@ -45,12 +45,14 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 评论表单交互逻辑
 	 *
 	 * 功能：
 	 * - 实时字数统计，超过限制时标红
-	 * - 提交评论到 API
+	 * - 提交评论到 Astro Actions
 	 * - 成功后刷新页面
 	 */
 	document.addEventListener('DOMContentLoaded', () => {
@@ -88,16 +90,13 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 			/**
 			 * 提交评论
 			 *
-			 * 1. 校验登录状态
-			 * 2. 发送 POST 请求
+			 * 1. 校验内容
+			 * 2. 调用 Astro Actions
 			 * 3. 成功后刷新页面
 			 */
 			submitBtn.addEventListener('click', async () => {
 				const content = textarea.value.trim();
 				if (!content || content.length > MAX_LENGTH) return;
-
-				// 优先从 localStorage 获取 token，不存在时依赖 cookie 认证
-				const token = localStorage.getItem('token');
 
 				submitBtn.disabled = true;
 				submitBtn.textContent = '发表中...';
@@ -106,34 +105,22 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 				const parentId = textarea.dataset.parentId || null;
 
 				try {
-					const res = await fetch(`/api/posts/${postId}/comments`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							...(token ? { Authorization: `Bearer ${token}` } : {})
-						},
-						body: JSON.stringify({
-							content,
-							parentId
-						})
+					await actions.createComment({
+						postId,
+						content,
+						parentId: parentId || undefined
 					});
-
-					const data = await res.json();
-					if (data.success) {
-						// 成功后刷新页面
-						location.reload();
-					} else if (res.status === 401) {
+					// 成功后刷新页面
+					location.reload();
+				} catch (e) {
+					if (e.status === 401) {
 						// 未登录跳转登录页
 						window.location.href = '/login';
 					} else {
-						await MutanDialog.alert(data.error?.message || '发表评论失败');
+						await MutanDialog.alert(e.message || '发表评论失败');
 						submitBtn.disabled = false;
 						submitBtn.textContent = '发表评论';
 					}
-				} catch {
-					await MutanDialog.alert('网络错误，请稍后重试');
-					submitBtn.disabled = false;
-					submitBtn.textContent = '发表评论';
 				}
 			});
 		});

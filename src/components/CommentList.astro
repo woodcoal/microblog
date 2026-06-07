@@ -119,6 +119,8 @@ const isLoggedIn = !!currentUser;
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 评论排序切换逻辑
 	 *
@@ -133,20 +135,10 @@ const isLoggedIn = !!currentUser;
 				const postId = (btn as HTMLElement).dataset.postId;
 				if (!newSort || !postId) return;
 
-				// 持久化排序偏好到服务端
-				const token = localStorage.getItem('token');
-				if (token) {
-					fetch('/api/settings/comment-sort', {
-						method: 'PUT',
-						headers: {
-							'Content-Type': 'application/json',
-							Authorization: `Bearer ${token}`
-						},
-						body: JSON.stringify({ order: newSort })
-					}).catch(() => {
-						// 持久化失败不影响使用
-					});
-				}
+				// 持久化排序偏好到服务端（Actions 自动处理认证）
+				actions.updateCommentSort({ order: newSort }).catch(() => {
+					// 持久化失败不影响使用
+				});
 
 				// 刷新页面，通过 URL 参数传递排序方式
 				const url = new URL(window.location.href);

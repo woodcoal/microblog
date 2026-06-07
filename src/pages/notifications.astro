@@ -228,23 +228,16 @@ const filterOptions = [
 </style>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 通知页面交互逻辑
 	 *
 	 * 功能：
 	 * - 点击未读通知项：标记该条已读，移除未读样式
-	 * - "全部已读"按钮：通过 fetch 请求 PUT /api/notifications/read，成功后刷新
-	 * - "加载更多"按钮：通过 fetch 请求 GET /api/notifications，追加通知到列表
+	 * - "全部已读"按钮：标记所有通知为已读，成功后刷新
+	 * - "加载更多"按钮：游标分页加载下一页通知
 	 */
-
-	/** 构建带认证的请求头 */
-	function getAuthHeaders(): HeadersInit {
-		const token = localStorage.getItem('token');
-		return {
-			'Content-Type': 'application/json',
-			...(token ? { Authorization: `Bearer ${token}` } : {})
-		};
-	}
 
 	/**
 	 * 标记指定通知为已读，并移除未读样式
@@ -254,11 +247,7 @@ const filterOptions = [
 	 */
 	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
 		try {
-			await fetch('/api/notifications/read', {
-				method: 'PUT',
-				headers: getAuthHeaders(),
-				body: JSON.stringify({ ids: [notificationId] })
-			});
+			await actions.markNotificationsRead({ ids: [notificationId] });
 			// 移除未读样式和标记
 			itemEl.classList.remove('notification-unread');
 			itemEl.removeAttribute('data-unread');
@@ -310,18 +299,10 @@ const filterOptions = [
 			return;
 
 		try {
-			const res = await fetch(`/api/notifications/${notificationId}`, {
-				method: 'DELETE',
-				headers: getAuthHeaders()
-			});
-			const data = await res.json();
-			if (data.success) {
-				item.remove();
-			} else {
-				await MutanDialog.alert(data.error?.message || '删除失败');
-			}
-		} catch {
-			await MutanDialog.alert('网络错误');
+			await actions.deleteNotification({ notificationId });
+			item.remove();
+		} catch (e: any) {
+			await MutanDialog.alert(e.message || '删除失败');
 		}
 	});
 
@@ -329,20 +310,14 @@ const filterOptions = [
 	document.querySelectorAll('[data-action="mark-all-read"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			try {
-				const res = await fetch('/api/notifications/read', {
-					method: 'PUT',
-					headers: getAuthHeaders()
-				});
-				const data = await res.json();
-				if (data.success) {
-					window.location.reload();
-				} else if (res.status === 401) {
+				await actions.markNotificationsRead({});
+				window.location.reload();
+			} catch (e: any) {
+				if (e.status === 401) {
 					window.location.href = '/login';
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(e.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
 			}
 		});
 	});
@@ -359,18 +334,10 @@ const filterOptions = [
 				return;
 
 			try {
-				const res = await fetch('/api/notifications', {
-					method: 'DELETE',
-					headers: getAuthHeaders()
-				});
-				const data = await res.json();
-				if (data.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(data.error?.message || '删除失败');
-				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+				await actions.deleteAllNotifications();
+				window.location.reload();
+			} catch (e: any) {
+				await MutanDialog.alert(e.message || '删除失败');
 			}
 		});
 	});
@@ -386,31 +353,23 @@ const filterOptions = [
 			loadMoreBtn.textContent = '加载中...';
 
 			try {
-				// 构建请求 URL，带上游标和类型筛选
 				const typeFilter = loadMoreBtn.dataset.typeFilter || '';
-				let fetchUrl = '/api/notifications';
-				const params = new URLSearchParams();
-				if (nextCursor) params.set('cursor', nextCursor);
-				if (typeFilter) params.set('type', typeFilter);
-				if (params.toString()) fetchUrl += `?${params.toString()}`;
+				const result = await actions.getNotifications({
+					cursor: nextCursor || undefined,
+					type: typeFilter || undefined
+				});
+				const items = result.items;
+				nextCursor = result.nextCursor;
 
-				const res = await fetch(fetchUrl, { headers: getAuthHeaders() });
-				const data = await res.json();
+				// 将新通知追加到列表
+				for (const notification of items) {
+					const el = createNotificationElement(notification);
+					notificationList.appendChild(el);
+				}
 
-				if (data.success) {
-					const items = data.data.items;
-					nextCursor = data.data.nextCursor;
-
-					// 将新通知追加到列表（API 已包含 postAuthorUsername）
-					for (const notification of items) {
-						const el = createNotificationElement(notification);
-						notificationList.appendChild(el);
-					}
-
-					// 没有更多数据时隐藏按钮
-					if (!data.data.hasMore) {
-						loadMoreBtn.style.display = 'none';
-					}
+				// 没有更多数据时隐藏按钮
+				if (!result.hasMore) {
+					loadMoreBtn.style.display = 'none';
 				}
 			} catch {
 				await MutanDialog.alert('加载失败，请重试');
