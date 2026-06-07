@@ -4,7 +4,7 @@
  *
  * 仅在 SITE_MODES 包含 weibo 时可访问，否则返回 404。
  * 时间线布局，只显示 weibo 模式的帖子。
- * 发布功能通过顶部导航栏的"发布"按钮（ComposeModal）完成。
+ * 发布功能通过页面标题旁的"发布"按钮（ComposeModal）完成。
  * 支持分页浏览。
  */
 import BaseLayout from '@/layouts/Base.astro';
@@ -117,8 +117,23 @@ const hasPagination = totalPages > 1;
 
 <BaseLayout title="微博">
 	<div class="page-header">
-		<h1 class="page-title">💬 微博</h1>
-		<p class="page-desc">分享你的想法，随时随地说点什么</p>
+		<div class="page-header-row">
+			<div>
+				<h1 class="page-title">💬 微博</h1>
+				<p class="page-desc">分享你的想法，随时随地说点什么</p>
+			</div>
+			{
+				currentUser && (
+					<button
+						type="button"
+						class="btn btn-primary"
+						onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
+					>
+						✏️ 发布
+					</button>
+				)
+			}
+		</div>
 	</div>
 
 	{
@@ -228,6 +243,13 @@ const hasPagination = totalPages > 1;
 		margin-bottom: var(--spacing-6);
 		padding-bottom: var(--spacing-4);
 		border-bottom: 1px solid var(--color-border);
+	}
+
+	.page-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: var(--spacing-4);
 	}
 
 	.page-title {
