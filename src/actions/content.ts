@@ -2,43 +2,42 @@
  * 内容管理 Actions
  *
  * 提供帖子、评论的创建、更新、删除功能。
+ * 业务逻辑委托 content.service，本层仅负责鉴权 + 输入校验。
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest, hashPassword } from '@/lib/auth';
 import { createNotification } from '@/lib/notification';
-import {
-	logActivity,
-	POST_CREATE,
-	POST_UPDATE,
-	POST_DELETE,
-	COMMENT_CREATE,
-	COMMENT_DELETE
-} from '@/lib/activity';
+import { logActivity, POST_CREATE, POST_UPDATE, POST_DELETE } from '@/lib/activity';
 import { generateShortId } from '@/lib/shortid';
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 import { deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
 import { parseMentions, parseTags } from '@/lib/parser';
 import { VALID_VISIBILITIES, type Visibility } from '@/lib/visibility';
 import { insertFeedback, upsertItem, hideItem, FEEDBACK_TYPE_COMMENT } from '@/lib/gorse';
+import { ServiceError } from '@/lib/errors';
+import {
+	createComment as createCommentService,
+	deleteComment as deleteCommentService
+} from '@/services/content.service';
+
+/** 将 ServiceError 转换为 ActionError */
+function handleServiceError(e: unknown): never {
+	if (e instanceof ServiceError) {
+		throw new ActionError({ code: e.code, message: e.message });
+	}
+	throw e;
+}
 
 /** 需要从帖子响应中排除的敏感字段 */
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
-
-/** 评论内容最大长度 */
-const COMMENT_MAX_LENGTH = 1000;
 
 /** 合法的帖子模式列表 */
 const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
 
 /**
  * 从帖子对象中移除敏感字段
- *
- * 过滤 passwordHash 和 allowedUserIds，防止通过 API 泄露。
- *
- * @param post - 帖子对象
- * @returns 移除敏感字段后的帖子对象
  */
 function sanitizePost<T extends Record<string, unknown>>(post: T): T {
 	const sanitized = { ...post };
@@ -50,19 +49,6 @@ function sanitizePost<T extends Record<string, unknown>>(post: T): T {
 
 /**
  * 创建帖子 Action
- *
- * 流程：
- * 1. 验证用户登录状态
- * 2. 校验内容非空和长度限制
- * 3. 校验可见度合法性
- * 4. 校验 mediaIds（图片数量限制）
- * 5. 生成 8 位短链 ID
- * 6. 事务中创建帖子 + Media 关联 + Mention + PostTag
- * 7. 异步发送 @提及通知 + 记录活动日志
- *
- * @param input - { content: 内容, visibility?: 可见度, mediaIds?: 媒体ID列表, password?: 密码, allowedUserIds?: 允许用户ID列表 }
- * @param context - Astro APIContext，用于提取认证信息
- * @returns 创建的帖子数据（含 user、media、tags、mentions）
  */
 export const createPost = defineAction({
 	input: z.object({
@@ -377,22 +363,6 @@ export const createPost = defineAction({
 
 /**
  * 编辑帖子 Action
- *
- * 流程：
- * 1. 验证登录状态
- * 2. 验证是帖子作者
- * 3. 验证帖子未被锁定
- * 4. 校验内容非空和长度限制
- * 5. 校验 mediaIds（图片数量限制）
- * 6. 保存旧版本到 PostRevision（含 mediaSnapshot）
- * 7. 更新内容，标记 isEdited = true
- * 8. 更新 Media 关联（删除旧的，创建新的）
- * 9. 删除的 Media 对应的 FileStorage refCount - 1
- * 10. 重建 Mention/PostTag
- *
- * @param input - { postId: 帖子ID, content: 内容, visibility?: 可见度, mediaIds?: 媒体ID列表, password?: 密码, allowedUserIds?: 允许用户ID列表 }
- * @param context - Astro APIContext，用于提取认证信息
- * @returns 更新后的帖子数据
  */
 export const updatePost = defineAction({
 	input: z.object({
@@ -775,16 +745,6 @@ export const updatePost = defineAction({
 
 /**
  * 删除帖子 Action（软删除）
- *
- * 流程：
- * 1. 验证登录状态
- * 2. 验证是帖子作者
- * 3. 验证帖子未被锁定
- * 4. 标记 isDeleted = true
- *
- * @param input - { postId: 帖子ID }
- * @param context - Astro APIContext，用于提取认证信息
- * @returns { id: string } 被删除的帖子 ID
  */
 export const deletePost = defineAction({
 	input: z.object({
@@ -840,18 +800,6 @@ export const deletePost = defineAction({
 
 /**
  * 创建评论 Action
- *
- * 流程：
- * 1. 验证登录状态
- * 2. 验证帖子存在、未删除、未锁定
- * 3. 校验内容非空且不超过最大长度
- * 4. 如果是二级评论，验证 parentId 属于同一帖子
- * 5. 创建评论记录
- * 6. 异步发送通知 + 记录活动日志
- *
- * @param input - { postId: 帖子ID, content: 内容, parentId?: 父评论ID }
- * @param context - Astro APIContext，用于提取认证信息
- * @returns 创建的评论数据（含 user、likeCount=0、liked=false）
  */
 export const createComment = defineAction({
 	input: z.object({
@@ -860,170 +808,42 @@ export const createComment = defineAction({
 		parentId: z.string().optional()
 	}),
 	handler: async (input, context) => {
-		// 1. 验证登录状态
 		const currentUser = await getUserFromRequest(context);
 		if (!currentUser) {
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { postId, content, parentId } = input;
-
-		// 2. 验证帖子存在、未删除、未锁定
-		const post = await prisma.post.findUnique({ where: { id: postId } });
-		if (!post) {
-			throw new ActionError({ code: 'NOT_FOUND', message: '帖子不存在' });
-		}
-		if (post.isDeleted) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '帖子已删除，无法评论' });
-		}
-		if (post.isLocked) {
-			throw new ActionError({ code: 'FORBIDDEN', message: '帖子已锁定，无法评论' });
-		}
-
-		// 3. 校验内容
-		if (!content || !content.trim()) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '评论内容不能为空' });
-		}
-		if (content.length > COMMENT_MAX_LENGTH) {
-			throw new ActionError({
-				code: 'BAD_REQUEST',
-				message: `评论不能超过 ${COMMENT_MAX_LENGTH} 个字符`
-			});
-		}
-
-		// 4. 验证 parentId 属于同一帖子
-		if (parentId) {
-			const parentComment = await prisma.comment.findUnique({
-				where: { id: parentId }
-			});
-			if (!parentComment) {
-				throw new ActionError({ code: 'NOT_FOUND', message: '回复的评论不存在' });
-			}
-			if (parentComment.postId !== postId) {
-				throw new ActionError({ code: 'BAD_REQUEST', message: '回复的评论不属于该帖子' });
-			}
-			// 不允许回复二级评论（只支持两级）
-			if (parentComment.parentId) {
-				throw new ActionError({ code: 'BAD_REQUEST', message: '不支持多级嵌套回复' });
-			}
-		}
-
-		// 5. 创建评论
-		const comment = await prisma.comment.create({
-			data: {
-				postId,
+		try {
+			return await createCommentService({
 				userId: currentUser.userId,
-				parentId: parentId || null,
-				content: content.trim()
-			},
-			include: {
-				user: {
-					select: {
-						id: true,
-						username: true,
-						displayName: true,
-						avatarUrl: true
-					}
-				}
-			}
-		});
-
-		// 6. 异步通知 + 活动日志
-		// 发送评论通知（异步，不阻塞主流程）
-		createNotification('comment', currentUser.userId, post.userId, postId, comment.id).catch(
-			() => {}
-		);
-		// 记录发表评论活动（异步，不阻塞主流程）
-		logActivity(
-			COMMENT_CREATE,
-			currentUser.userId,
-			'comment',
-			comment.id,
-			post.userId,
-			postId
-		).catch(() => {});
-		// 同步插入 Gorse 评论反馈（异步，不阻塞）
-		insertFeedback(
-			currentUser.userId,
-			postId,
-			FEEDBACK_TYPE_COMMENT,
-			new Date().toISOString()
-		).catch(() => {});
-
-		return {
-			id: comment.id,
-			postId: comment.postId,
-			userId: comment.userId,
-			parentId: comment.parentId,
-			content: comment.content,
-			isDeleted: comment.isDeleted,
-			createdAt: comment.createdAt.toISOString(),
-			updatedAt: comment.updatedAt.toISOString(),
-			user: comment.user,
-			likeCount: 0,
-			liked: false
-		};
+				...input
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
 	}
 });
 
 /**
  * 删除评论 Action（软删除）
- *
- * 流程：
- * 1. 验证登录状态
- * 2. 验证评论存在
- * 3. 验证是评论作者
- * 4. 标记 isDeleted = true
- *
- * @param input - { commentId: 评论ID }
- * @param context - Astro APIContext，用于提取认证信息
- * @returns { id: string } 被删除的评论 ID
  */
 export const deleteComment = defineAction({
 	input: z.object({
 		commentId: z.string().min(1, '评论 ID 不能为空')
 	}),
 	handler: async (input, context) => {
-		// 1. 验证登录状态
 		const currentUser = await getUserFromRequest(context);
 		if (!currentUser) {
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { commentId } = input;
-
-		// 2. 验证评论存在
-		const comment = await prisma.comment.findUnique({ where: { id: commentId } });
-		if (!comment) {
-			throw new ActionError({ code: 'NOT_FOUND', message: '评论不存在' });
+		try {
+			return await deleteCommentService({
+				userId: currentUser.userId,
+				commentId: input.commentId
+			});
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 3. 验证是评论作者
-		if (comment.userId !== currentUser.userId) {
-			throw new ActionError({ code: 'FORBIDDEN', message: '无权删除此评论' });
-		}
-
-		// 已删除的评论
-		if (comment.isDeleted) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '评论已被删除' });
-		}
-
-		// 4. 软删除
-		await prisma.comment.update({
-			where: { id: commentId },
-			data: { isDeleted: true }
-		});
-
-		// 记录删除评论活动（异步，不阻塞主流程）
-		logActivity(
-			COMMENT_DELETE,
-			currentUser.userId,
-			'comment',
-			commentId,
-			comment.userId,
-			comment.postId
-		).catch(() => {});
-
-		return { id: commentId };
 	}
 });

@@ -2,12 +2,21 @@
  * 用户配置 Actions
  *
  * 提供主题设置功能。
+ * 薄适配层：鉴权 → zod 校验 → 调用 service → handleServiceError 转换。
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
 import { getUserFromRequest } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
+import { ServiceError } from '@/lib/errors';
+import { updateTheme as updateThemeService } from '@/services/config.service';
+
+/** 将 ServiceError 转换为 ActionError */
+function handleServiceError(e: unknown): never {
+	if (e instanceof ServiceError) {
+		throw new ActionError({ code: e.code, message: e.message });
+	}
+	throw e;
+}
 
 /**
  * 更新主题/强调色偏好 Action
@@ -32,34 +41,13 @@ export const updateTheme = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { theme, accent } = input;
-
-		// 验证 theme 合法性
-		if (theme !== undefined && !isValidTheme(theme)) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '无效的主题' });
-		}
-
-		// 验证 accent 合法性
-		if (accent !== undefined && !isValidAccent(accent)) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '无效的强调色' });
-		}
-
-		// 构建更新数据
-		const updateData: { theme?: string; accent?: string } = {};
-		if (theme !== undefined) updateData.theme = theme;
-		if (accent !== undefined) updateData.accent = accent;
-
-		// upsert 更新或创建 UserSettings
-		const settings = await prisma.userSettings.upsert({
-			where: { userId: currentUser.userId },
-			update: updateData,
-			create: {
+		try {
+			return await updateThemeService({
 				userId: currentUser.userId,
-				theme: theme ?? DEFAULT_THEME,
-				accent: accent ?? DEFAULT_ACCENT
-			}
-		});
-
-		return { theme: settings.theme, accent: settings.accent };
+				...input
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
 	}
 });

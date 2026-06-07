@@ -27,12 +27,7 @@ import { createWebhook, updateWebhook, deleteWebhook, revealWebhookSecret } from
 import { createToken, revokeToken } from './token';
 
 // 分类管理模块
-import {
-	createCategory,
-	updateCategory,
-	deleteCategory,
-	reorderCategories
-} from './category';
+import { createCategory, updateCategory, deleteCategory, reorderCategories } from './category';
 
 // 认证模块
 import { login, register, logout } from './auth';

@@ -8,8 +8,16 @@ import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { createNotification } from '@/lib/notification';
-import { logActivity, FOLLOW_CREATE, FOLLOW_REMOVE } from '@/lib/activity';
+import { toggleFollow } from '@/services/social.service';
+import { ServiceError } from '@/lib/errors';
+
+/** ServiceError code → HTTP 状态码映射 */
+const statusCodeMap: Record<string, number> = {
+	NOT_FOUND: 404,
+	BAD_REQUEST: 400,
+	FORBIDDEN: 403,
+	UNAUTHORIZED: 401
+};
 
 /**
  * 关注或取消关注用户
@@ -37,7 +45,7 @@ export const POST: APIRoute = async (context) => {
 			return textErrorResponse('action 必须为 follow 或 unfollow');
 		}
 
-		// 检查目标用户存在
+		// 查询当前关注状态，仅在状态不匹配时才 toggle
 		const targetUser = await prisma.user.findUnique({
 			where: { username: username.trim() },
 			select: { id: true }
@@ -46,58 +54,34 @@ export const POST: APIRoute = async (context) => {
 			return textErrorResponse('用户不存在', 404);
 		}
 
-		// 不能关注自己
-		if (targetUser.id === currentUser.userId) {
-			return textErrorResponse('不能关注自己');
-		}
-
-		if (action === 'follow') {
-			// upsert 避免竞态，已关注时忽略（幂等）
-			await prisma.follow.upsert({
-				where: {
-					followerId_followingId: {
-						followerId: currentUser.userId,
-						followingId: targetUser.id
-					}
-				},
-				update: {},
-				create: {
+		const existingFollow = await prisma.follow.findUnique({
+			where: {
+				followerId_followingId: {
 					followerId: currentUser.userId,
 					followingId: targetUser.id
 				}
-			});
-			// 异步发送通知 + 记录活动
-			createNotification('follow', currentUser.userId, targetUser.id).catch(() => {});
-			logActivity(
-				FOLLOW_CREATE,
-				currentUser.userId,
-				'user',
-				targetUser.id,
-				targetUser.id
-			).catch(() => {});
-		} else {
-			// 取消关注：delete 并 catch P2025（记录不存在），幂等处理
-			try {
-				await prisma.follow.delete({
-					where: {
-						followerId_followingId: {
-							followerId: currentUser.userId,
-							followingId: targetUser.id
-						}
-					}
-				});
-			} catch (deleteError: any) {
-				// P2025 = 记录不存在，说明已取关，忽略
-				if (deleteError?.code !== 'P2025') throw deleteError;
 			}
-			// 异步记录活动
-			logActivity(
-				FOLLOW_REMOVE,
-				currentUser.userId,
-				'user',
-				targetUser.id,
-				targetUser.id
-			).catch(() => {});
+		});
+
+		const currentlyFollowing = !!existingFollow;
+		const wantFollowing = action === 'follow';
+
+		// 状态已匹配，无需操作（幂等）
+		if (currentlyFollowing === wantFollowing) {
+			return textResponse('ok');
+		}
+
+		// 状态不匹配，执行 toggle
+		try {
+			await toggleFollow({
+				userId: currentUser.userId,
+				username: username.trim()
+			});
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				return textErrorResponse(e.message, statusCodeMap[e.code] || 400);
+			}
+			throw e;
 		}
 
 		return textResponse('ok');

@@ -2,19 +2,27 @@
  * 通知 Actions
  *
  * 提供通知查询、删除、标记已读等服务端 Actions。
- * 替代传统 REST API 路由，使用 defineAction + zod schema 实现类型安全的 RPC 调用。
+ * 薄适配层：鉴权 → zod 校验 → 调用 service → handleServiceError 转换。
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
-import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { getUnreadCount, markNotificationsRead } from '@/lib/notification';
+import { ServiceError } from '@/lib/errors';
+import {
+	getUnreadNotificationCount,
+	getNotifications as getNotificationsService,
+	deleteAllNotifications as deleteAllNotificationsService,
+	deleteNotification as deleteNotificationService,
+	markNotificationsReadService
+} from '@/services/notification.service';
 
-/** 每页通知数量 */
-const PAGE_SIZE = 20;
-
-/** 合法的通知类型筛选值 */
-const VALID_TYPES = ['follow', 'comment', 'like', 'mention'];
+/** 将 ServiceError 转换为 ActionError */
+function handleServiceError(e: unknown): never {
+	if (e instanceof ServiceError) {
+		throw new ActionError({ code: e.code, message: e.message });
+	}
+	throw e;
+}
 
 /**
  * 获取未读通知数量 Action
@@ -35,19 +43,11 @@ const getUnreadCountAction = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		// 检查通知开关
-		const settings = await prisma.userSettings.findUnique({
-			where: { userId: currentUser.userId },
-			select: { notificationsEnabled: true }
-		});
-		if (settings && !settings.notificationsEnabled) {
-			return { count: 0 };
+		try {
+			return await getUnreadNotificationCount({ userId: currentUser.userId });
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 查询未读数量
-		const count = await getUnreadCount(currentUser.userId);
-
-		return { count };
 	}
 });
 
@@ -56,7 +56,6 @@ const getUnreadCountAction = defineAction({
  *
  * 游标分页，每页 20 条，按时间倒序排列。
  * 支持 type 筛选通知类型。
- * 每条通知包含触发者（actor）的用户信息和帖子作者用户名。
  * 需要登录认证。
  *
  * @param input - { cursor?: 游标, type?: 通知类型筛选 }
@@ -75,68 +74,14 @@ const getNotifications = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { cursor, type } = input;
-
-		// 验证类型筛选参数合法性
-		if (type && !VALID_TYPES.includes(type)) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '无效的通知类型筛选' });
-		}
-
-		// 构建查询条件
-		const where: any = { recipientId: currentUser.userId };
-		if (type) {
-			where.type = type;
-		}
-
-		// 查询通知列表
-		const notifications = await prisma.notification.findMany({
-			where,
-			include: {
-				actor: {
-					select: {
-						id: true,
-						username: true,
-						displayName: true,
-						avatarUrl: true
-					}
-				}
-			},
-			orderBy: { createdAt: 'desc' },
-			take: PAGE_SIZE + 1,
-			...(cursor && {
-				cursor: { id: cursor },
-				skip: 1
-			})
-		});
-
-		// 判断是否有下一页，截取实际返回数量
-		const hasMore = notifications.length > PAGE_SIZE;
-		const items = hasMore ? notifications.slice(0, PAGE_SIZE) : notifications;
-		const nextCursor = hasMore ? items[items.length - 1].id : null;
-
-		// 批量查询帖子作者用户名（用于构建帖子链接）
-		const postIds = [...new Set(items.map((n) => n.postId).filter(Boolean))] as string[];
-		const postAuthorMap = new Map<string, string>();
-		if (postIds.length > 0) {
-			const posts = await prisma.post.findMany({
-				where: { id: { in: postIds } },
-				select: {
-					id: true,
-					user: { select: { username: true } }
-				}
+		try {
+			return await getNotificationsService({
+				userId: currentUser.userId,
+				...input
 			});
-			for (const p of posts) {
-				postAuthorMap.set(p.id, p.user.username);
-			}
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 为每条通知附加 postAuthorUsername
-		const itemsWithAuthor = items.map((n: any) => ({
-			...n,
-			postAuthorUsername: n.postId ? (postAuthorMap.get(n.postId) ?? null) : null
-		}));
-
-		return { items: itemsWithAuthor, nextCursor, hasMore };
 	}
 });
 
@@ -159,12 +104,11 @@ const deleteAllNotifications = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		// 删除当前用户收到的所有通知
-		const result = await prisma.notification.deleteMany({
-			where: { recipientId: currentUser.userId }
-		});
-
-		return { deletedCount: result.count };
+		try {
+			return await deleteAllNotificationsService({ userId: currentUser.userId });
+		} catch (e) {
+			handleServiceError(e);
+		}
 	}
 });
 
@@ -189,28 +133,14 @@ const deleteNotification = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { notificationId } = input;
-
-		// 查询通知，确认属于当前用户
-		const notification = await prisma.notification.findUnique({
-			where: { id: notificationId },
-			select: { recipientId: true }
-		});
-
-		if (!notification) {
-			throw new ActionError({ code: 'NOT_FOUND', message: '通知不存在' });
+		try {
+			return await deleteNotificationService({
+				userId: currentUser.userId,
+				notificationId: input.notificationId
+			});
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		if (notification.recipientId !== currentUser.userId) {
-			throw new ActionError({ code: 'FORBIDDEN', message: '无权删除此通知' });
-		}
-
-		// 删除通知
-		await prisma.notification.delete({
-			where: { id: notificationId }
-		});
-
-		return { deleted: true };
 	}
 });
 
@@ -236,22 +166,14 @@ const markNotificationsReadAction = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		let { ids } = input;
-
-		// 如果 ids 为空数组，视为标记全部已读
-		if (ids && ids.length === 0) {
-			ids = undefined;
+		try {
+			return await markNotificationsReadService({
+				userId: currentUser.userId,
+				ids: input.ids
+			});
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 限制 ids 数组长度，防止批量操作过大
-		if (ids && ids.length > 100) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '通知 ID 数量不能超过 100' });
-		}
-
-		// 标记已读
-		const updatedCount = await markNotificationsRead(currentUser.userId, ids);
-
-		return { updatedCount };
 	}
 });
 

@@ -2,26 +2,32 @@
  * API 令牌 Actions
  *
  * 提供 API 令牌的创建和撤销功能。
+ * 薄适配层：鉴权 → zod 校验 → 调用 service → handleServiceError 转换。
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
 import { getUserFromRequest } from '@/lib/auth';
-import { prisma } from '@/lib/db';
-import { generateApiToken, hashToken } from '@/lib/token';
+import { ServiceError } from '@/lib/errors';
+import {
+	createToken as createTokenService,
+	revokeToken as revokeTokenService
+} from '@/services/token.service';
 
-/** 每个用户最多创建的 Token 数量 */
-const MAX_TOKENS_PER_USER = 10;
+/** 将 ServiceError 转换为 ActionError */
+function handleServiceError(e: unknown): never {
+	if (e instanceof ServiceError) {
+		throw new ActionError({ code: e.code, message: e.message });
+	}
+	throw e;
+}
 
 /**
  * 创建 API Token Action
  *
  * 流程：
  * 1. 验证登录状态
- * 2. 校验 name 参数（必填，1-50 字符）
- * 3. 检查用户 Token 数量上限
- * 4. 生成 Token 明文 → 计算 SHA-256 哈希
- * 5. 存储 tokenHash 到数据库
- * 6. 返回 Token 元信息 + 明文（仅此一次返回）
+ * 2. 调用 service 生成 Token 并存储
+ * 3. 返回 Token 元信息 + 明文（仅此一次返回）
  *
  * @param input - { name: Token 名称 }
  * @param context - Astro APIContext，用于提取认证信息
@@ -32,45 +38,20 @@ export const createToken = defineAction({
 		name: z.string().min(1, 'Token 名称不能为空').max(50, 'Token 名称不能超过 50 个字符')
 	}),
 	handler: async (input, context) => {
-		// 1. 验证登录状态
+		// 验证登录状态
 		const currentUser = await getUserFromRequest(context);
 		if (!currentUser) {
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { name } = input;
-
-		// 3. 检查用户 Token 数量上限
-		const tokenCount = await prisma.apiToken.count({
-			where: { userId: currentUser.userId }
-		});
-		if (tokenCount >= MAX_TOKENS_PER_USER) {
-			throw new ActionError({
-				code: 'BAD_REQUEST',
-				message: `每个用户最多创建 ${MAX_TOKENS_PER_USER} 个 Token`
-			});
-		}
-
-		// 4. 生成 Token 明文并计算哈希
-		const token = generateApiToken();
-		const tokenHash = await hashToken(token);
-
-		// 5. 存储到数据库
-		const apiToken = await prisma.apiToken.create({
-			data: {
+		try {
+			return await createTokenService({
 				userId: currentUser.userId,
-				name: name.trim(),
-				tokenHash
-			}
-		});
-
-		// 6. 返回 Token 元信息 + 明文（仅此一次返回）
-		return {
-			id: apiToken.id,
-			name: apiToken.name,
-			token,
-			createdAt: apiToken.createdAt.toISOString()
-		};
+				...input
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
 	}
 });
 
@@ -79,8 +60,7 @@ export const createToken = defineAction({
  *
  * 流程：
  * 1. 验证登录状态
- * 2. 查询 Token 是否存在并验证所属用户
- * 3. 删除 Token 记录
+ * 2. 调用 service 校验并删除 Token
  *
  * @param input - { id: Token ID }
  * @param context - Astro APIContext，用于提取认证信息
@@ -91,28 +71,19 @@ export const revokeToken = defineAction({
 		id: z.string().min(1, 'Token ID 不能为空')
 	}),
 	handler: async (input, context) => {
-		// 1. 验证登录状态
+		// 验证登录状态
 		const currentUser = await getUserFromRequest(context);
 		if (!currentUser) {
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { id } = input;
-
-		// 2. 查询 Token 是否存在
-		const apiToken = await prisma.apiToken.findUnique({ where: { id } });
-		if (!apiToken) {
-			throw new ActionError({ code: 'NOT_FOUND', message: 'Token 不存在' });
+		try {
+			return await revokeTokenService({
+				userId: currentUser.userId,
+				...input
+			});
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 验证是 Token 所属用户
-		if (apiToken.userId !== currentUser.userId) {
-			throw new ActionError({ code: 'FORBIDDEN', message: '无权撤销此 Token' });
-		}
-
-		// 3. 删除 Token 记录
-		await prisma.apiToken.delete({ where: { id } });
-
-		return { id };
 	}
 });

@@ -9,6 +9,16 @@ import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
+import { updateProfile } from '@/services/settings.service';
+import { ServiceError } from '@/lib/errors';
+
+/** ServiceError code → HTTP 状态码映射 */
+const statusCodeMap: Record<string, number> = {
+	NOT_FOUND: 404,
+	BAD_REQUEST: 400,
+	FORBIDDEN: 403,
+	UNAUTHORIZED: 401
+};
 
 /** 个人记录最大长度 */
 const NOTE_MAX_LENGTH = 2000;
@@ -28,6 +38,7 @@ export const GET: APIRoute = async (context) => {
 		if (authResult instanceof Response) return authResult;
 		const currentUser = authResult;
 
+		// 直接查询 note 字段
 		const user = await prisma.user.findUnique({
 			where: { id: currentUser.userId },
 			select: { note: true }
@@ -67,10 +78,18 @@ export const PUT: APIRoute = async (context) => {
 			return textErrorResponse(`个人记录最多 ${NOTE_MAX_LENGTH} 字符`);
 		}
 
-		await prisma.user.update({
-			where: { id: currentUser.userId },
-			data: { note }
-		});
+		// 使用 settings.service 的 updateProfile 更新 note
+		try {
+			await updateProfile({
+				userId: currentUser.userId,
+				note
+			});
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				return textErrorResponse(e.message, statusCodeMap[e.code] || 400);
+			}
+			throw e;
+		}
 
 		return textResponse('ok');
 	} catch (error: any) {

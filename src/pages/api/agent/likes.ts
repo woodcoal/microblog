@@ -8,17 +8,22 @@ import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { createNotification } from '@/lib/notification';
-import { logActivity, LIKE_CREATE, LIKE_REMOVE } from '@/lib/activity';
+import { toggleLike as toggleLikeService } from '@/services/social.service';
+import { ServiceError } from '@/lib/errors';
+
+/** ServiceError code → HTTP 状态码映射 */
+const statusCodeMap: Record<string, number> = {
+	NOT_FOUND: 404,
+	BAD_REQUEST: 400,
+	FORBIDDEN: 403,
+	UNAUTHORIZED: 401
+};
 
 /**
  * 点赞或取消点赞帖子
  *
  * 参数：postId（帖子标识）、action（like/unlike）
  * 幂等处理：重复 like 或取消不存在的点赞均返回 ok。
- *
- * @param context - Astro API 上下文
- * @returns `ok` 或 `error: 原因`
  */
 export const POST: APIRoute = async (context) => {
 	try {
@@ -37,64 +42,36 @@ export const POST: APIRoute = async (context) => {
 			return textErrorResponse('action 必须为 like 或 unlike');
 		}
 
-		// 检查帖子存在且未删除
-		const post = await prisma.post.findUnique({ where: { id: postId.trim() } });
-		if (!post) {
-			return textErrorResponse('帖子不存在', 404);
-		}
-		if (post.isDeleted) {
-			return textErrorResponse('帖子已删除');
+		// 查询当前点赞状态，仅在状态不匹配时才 toggle
+		const existingLike = await prisma.like.findUnique({
+			where: {
+				userId_postId: {
+					userId: currentUser.userId,
+					postId: postId.trim()
+				}
+			}
+		});
+
+		const currentlyLiked = !!existingLike;
+		const wantLiked = action === 'like';
+
+		// 状态已匹配，无需操作（幂等）
+		if (currentlyLiked === wantLiked) {
+			return textResponse('ok');
 		}
 
-		if (action === 'like') {
-			// upsert 避免竞态，已点赞时忽略（幂等）
-			await prisma.like.upsert({
-				where: {
-					userId_postId: {
-						userId: currentUser.userId,
-						postId: post.id
-					}
-				},
-				update: {},
-				create: {
-					userId: currentUser.userId,
-					postId: post.id
-				}
+		// 状态不匹配，执行 toggle
+		try {
+			await toggleLikeService({
+				userId: currentUser.userId,
+				targetId: postId.trim(),
+				type: 'post'
 			});
-			// 异步发送通知 + 记录活动
-			createNotification('like', currentUser.userId, post.userId, post.id).catch(() => {});
-			logActivity(
-				LIKE_CREATE,
-				currentUser.userId,
-				'post',
-				post.id,
-				post.userId,
-				post.id
-			).catch(() => {});
-		} else {
-			// 取消点赞：delete 并 catch P2025（记录不存在），幂等处理
-			try {
-				await prisma.like.delete({
-					where: {
-						userId_postId: {
-							userId: currentUser.userId,
-							postId: post.id
-						}
-					}
-				});
-			} catch (deleteError: any) {
-				// P2025 = 记录不存在，说明已取消，忽略
-				if (deleteError?.code !== 'P2025') throw deleteError;
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				return textErrorResponse(e.message, statusCodeMap[e.code] || 400);
 			}
-			// 异步记录活动
-			logActivity(
-				LIKE_REMOVE,
-				currentUser.userId,
-				'post',
-				post.id,
-				post.userId,
-				post.id
-			).catch(() => {});
+			throw e;
 		}
 
 		return textResponse('ok');

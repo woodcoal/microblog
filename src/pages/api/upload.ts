@@ -2,29 +2,16 @@
  * 文件上传 API
  *
  * POST /api/upload — 上传文件（需认证）
- * 接收 FormData，支持图片和附件两种类型。
  *
  * 注意：Astro 组件应优先使用 actions.uploadMedia() SDK 调用，
  * 此 API 路由保留供 React Island 等无法使用 astro:actions 的场景使用。
  */
 import type { APIRoute } from 'astro';
 import { requireAuth } from '@/lib/auth';
-import { saveFile } from '@/lib/upload';
 import { successResponse, jsonErrorResponse } from '@/lib/utils';
+import { uploadFile } from '@/services/media.service';
+import { ServiceError } from '@/lib/errors';
 
-/**
- * 处理文件上传请求
- *
- * 流程：
- * 1. 验证用户登录状态
- * 2. 从 FormData 中提取文件和文件类型
- * 3. 校验图片数量限制
- * 4. 调用 saveFile 保存文件
- * 5. 返回文件信息（id, url, fileType, originalName, fileSize）
- *
- * @param context - Astro API 上下文
- * @returns 上传结果或错误
- */
 export const POST: APIRoute = async (context) => {
 	try {
 		// 1. 验证登录状态
@@ -48,32 +35,21 @@ export const POST: APIRoute = async (context) => {
 			return jsonErrorResponse('文件类型参数无效');
 		}
 
-		// 3. 调用 saveFile 保存文件
-		const { fileStorage } = await saveFile(file, fileType as 'image' | 'attachment');
+		// 3. 调用 service 保存文件
+		try {
+			const result = await uploadFile({ file, fileType: fileType as 'image' | 'attachment' });
 
-		// 4. 返回文件信息（filePath 中的反斜杠替换为正斜杠，确保 URL 在所有平台正确）
-		return new Response(
-			JSON.stringify(
-				successResponse({
-					id: fileStorage.id,
-					url: `/uploads/${fileStorage.filePath.split('\\').join('/')}`,
-					fileType: fileStorage.fileType,
-					originalName: file.name,
-					fileSize: fileStorage.fileSize
-				})
-			),
-			{ status: 201, headers: { 'Content-Type': 'application/json' } }
-		);
-	} catch (error) {
-		// 区分业务错误和系统错误
-		const message = error instanceof Error ? error.message : '上传失败';
-		const isBusinessError =
-			message.includes('不支持的文件类型') || message.includes('文件大小超过限制');
-
-		if (isBusinessError) {
-			return jsonErrorResponse(message);
+			return new Response(JSON.stringify(successResponse(result)), {
+				status: 201,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		} catch (e) {
+			if (e instanceof ServiceError) {
+				return jsonErrorResponse(e.message);
+			}
+			throw e;
 		}
-
+	} catch (error) {
 		console.error('文件上传失败:', error);
 		return jsonErrorResponse('服务器错误', 500);
 	}
