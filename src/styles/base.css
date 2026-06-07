@@ -363,12 +363,6 @@ img {
 	width: 100%;
 }
 
-/* ===== 默认内容区（无特殊布局） ===== */
-.layout-content {
-	flex: 1;
-	width: 100%;
-}
-
 /* ===== 全宽布局（论坛/博客，无侧边栏） ===== */
 .layout-full {
 	max-width: 1200px;

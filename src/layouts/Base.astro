@@ -46,8 +46,8 @@ interface Props {
 	canonicalUrl?: string;
 	/** 是否禁止搜索引擎索引此页面 */
 	noindex?: boolean;
-	/** 布局模式：narrow（单列窄版） | 默认无特殊布局 */
-	layoutMode?: 'narrow';
+	/** 是否使用窄版布局（登录/注册等页面） */
+	narrow?: boolean;
 	/** JSON-LD 结构化数据（SEO），传入对象将自动序列化为 script 标签 */
 	jsonLd?: Record<string, unknown>;
 }
@@ -61,7 +61,7 @@ const {
 	ogType,
 	canonicalUrl,
 	noindex,
-	layoutMode,
+	narrow,
 	jsonLd
 } = Astro.props;
 
@@ -338,7 +338,7 @@ const resolvedOgType = ogType || 'website';
 			</div>
 		</nav>
 
-		<main class:list={[layoutMode === 'narrow' ? 'container' : 'layout-content']}>
+		<main class:list={[narrow && 'container']}>
 			<slot />
 		</main>
 
