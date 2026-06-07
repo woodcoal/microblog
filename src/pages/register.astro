@@ -392,14 +392,9 @@ const allowRegistration = ALLOW_REGISTRATION;
 				// 调用 Astro Action 注册，成功直接返回数据
 				const result = await actions.register({ username, displayName, email, password });
 
-				// 注册成功：token 写入 localStorage 和 cookie
+				// 注册成功：服务端已通过 setTokenCookie 设置 HttpOnly cookie
+				// 仅将 token 写入 localStorage 供客户端逻辑使用
 				localStorage.setItem('token', result.token);
-				document.cookie =
-					'token=' +
-					result.token +
-					'; path=/; max-age=' +
-					7 * 24 * 60 * 60 +
-					'; SameSite=Lax';
 				window.location.href = '/';
 			} catch (e: any) {
 				// ActionError 通过 e.message 获取错误信息

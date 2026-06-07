@@ -1,5 +1,22 @@
 # 更新日志
 
+### 2026-06-08 13:26
+
+**提交人**: AI
+**提交哈希**: d5da615
+**影响范围**: 登录/注册/登出
+**变更类型**: 修复
+
+**详细描述**:
+
+- 修复登录后用户菜单不显示的问题：移除客户端 `document.cookie` 设置，避免覆盖服务端 HttpOnly cookie
+- 登录/注册页面不再手动设置 cookie，完全依赖服务端 `setTokenCookie` 设置的 HttpOnly cookie
+- 登出时增加 `document.cookie` 清除，确保残留的客户端 cookie 被清理
+
+**注意事项**:
+
+- SSR 页面通过 HttpOnly cookie 读取用户状态，客户端通过 localStorage 读取 token
+
 ### 2026-06-08 13:12
 
 **提交人**: AI
