@@ -9,7 +9,7 @@
  * 包含点赞按钮和评论区域。
  * 支持可见度控制：不可见帖子返回 404，密码保护帖子显示密码输入框。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
 import CommentList from '@/components/CommentList.astro';
@@ -338,7 +338,7 @@ const isNotPublic = post.visibility !== 'public';
 const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.filePath}` : undefined;
 ---
 
-<WeiboLayout
+<UserLayout
 	title={seoTitle}
 	description={seoDescription}
 	ogTitle={`${seoTitle} - ${SITE_TITLE}`}
@@ -712,7 +712,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		)
 	}
 	<ImageLightbox />
-</WeiboLayout>
+</UserLayout>
 
 <style>
 	.post-detail {

@@ -1,0 +1,58 @@
+---
+/**
+ * 用户主页布局
+ *
+ * 基于 BaseLayout，全宽布局，无侧边栏。
+ * 顶部为用户资料横幅（全宽），下方为内容区（居中）。
+ * 适用于用户主页、帖子详情、编辑帖子、版本历史等页面。
+ */
+import BaseLayout from './Base.astro';
+
+interface Props {
+	title?: string;
+	description?: string;
+	ogTitle?: string;
+	ogDescription?: string;
+	ogImage?: string;
+	ogType?: string;
+	canonicalUrl?: string;
+	noindex?: boolean;
+	jsonLd?: Record<string, unknown>;
+}
+
+const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
+---
+
+<BaseLayout
+	title={title}
+	description={description}
+	ogTitle={ogTitle}
+	ogDescription={ogDescription}
+	ogImage={ogImage}
+	ogType={ogType}
+	canonicalUrl={canonicalUrl}
+	noindex={noindex}
+	jsonLd={jsonLd}
+>
+	<div class="layout-user">
+		<slot />
+	</div>
+</BaseLayout>
+
+<style>
+	/* 用户主页布局：全宽容器，内容区居中 */
+	.layout-user {
+		max-width: 800px;
+		margin: 0 auto;
+		padding: var(--spacing-6) var(--spacing-4);
+		flex: 1;
+		width: 100%;
+	}
+
+	@media (max-width: 767px) {
+		.layout-user {
+			padding: var(--spacing-4) var(--spacing-3);
+			padding-bottom: calc(56px + var(--spacing-4) + env(safe-area-inset-bottom, 0));
+		}
+	}
+</style>

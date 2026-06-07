@@ -8,7 +8,7 @@
  * - forum：ForumEditor.astro（Markdown 工具栏 + 预览）
  * - blog：BlogEditor.tsx（Tiptap 所见即所得编辑器）
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import PostEditForm from '@/components/PostEditForm.astro';
 import ForumEditor from '@/components/ForumEditor.astro';
 import BlogEditor from '@/components/BlogEditor';
@@ -85,7 +85,7 @@ const isForum = post.mode === 'forum';
 const isBlog = post.mode === 'blog';
 ---
 
-<WeiboLayout title="编辑帖子">
+<UserLayout title="编辑帖子">
 	<div class="edit-page">
 		<h1 class="edit-page-title">编辑帖子</h1>
 
@@ -210,7 +210,7 @@ const isBlog = post.mode === 'blog';
 			)
 		}
 	</div>
-</WeiboLayout>
+</UserLayout>
 
 <style>
 	.edit-page {
