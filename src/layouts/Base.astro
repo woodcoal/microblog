@@ -169,25 +169,25 @@ const resolvedOgType = ogType || 'website';
 					<img src={siteLogoUrl} alt={siteTitle} class="navbar-logo" />
 					<span>{siteTitle}</span>
 				</a>
-				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单">☰</button>
-				<div class="navbar-links" id="navbar-links">
-					{/* 频道导航（仅多模式时显示） */}
-					{
-						showModeNav && (
-							<div class="nav-mode-links">
-								{enabledModes.map((mode) => (
-									<a
-										href={mode.path}
-										class:list={[
-											'nav-mode-link',
-											{ 'nav-mode-active': currentPath.startsWith(mode.path) }
-										]}>
-										{mode.icon} {mode.label}
-									</a>
-								))}
-							</div>
-						)
-					}
+				{/* 频道导航（多模式时居中显示） */}
+				{
+					showModeNav && (
+						<div class="nav-mode-links">
+							{enabledModes.map((mode) => (
+								<a
+									href={mode.path}
+									class:list={[
+										'nav-mode-link',
+										{ 'nav-mode-active': currentPath.startsWith(mode.path) }
+									]}>
+									{mode.icon} {mode.label}
+								</a>
+							))}
+						</div>
+					)
+				}
+				<button class="navbar-toggle" id="navbar-toggle" aria-label="菜单" aria-expanded="false">☰</button>
+				<div class="navbar-actions" id="navbar-actions">
 					<a href="/search" class="nav-search-btn" aria-label="搜索">🔍</a>
 					<ThemeSwitcher />
 					<!-- 移动端导航菜单（hamburger 面板内） -->
@@ -329,9 +329,9 @@ const resolvedOgType = ogType || 'website';
 								</div>
 							</>
 						) : (
-							<div class="mobile-auth-links">
-								<a href="/login">登录</a>
-								<a href="/register">注册</a>
+							<div class="nav-auth-buttons">
+								<a href="/login" class="nav-auth-btn" aria-label="登录">🔑</a>
+								<a href="/register" class="nav-auth-btn nav-auth-register" aria-label="注册">📝</a>
 							</div>
 						)
 					}
@@ -642,9 +642,10 @@ const resolvedOgType = ogType || 'website';
 			});
 
 			const toggleBtn = document.getElementById('navbar-toggle');
-			const navLinks = document.getElementById('navbar-links');
+			const navLinks = document.getElementById('navbar-actions');
 			toggleBtn?.addEventListener('click', () => {
-				navLinks?.classList.toggle('navbar-links-open');
+				const isOpen = navLinks?.classList.toggle('navbar-actions-open');
+				toggleBtn.setAttribute('aria-expanded', String(!!isOpen));
 			});
 
 			/**

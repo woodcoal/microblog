@@ -73,6 +73,7 @@ img {
 	align-items: center;
 	justify-content: space-between;
 	height: var(--navbar-height);
+	gap: var(--spacing-2);
 }
 
 .navbar-brand {
@@ -92,17 +93,21 @@ img {
 	border-radius: 4px;
 }
 
-.navbar-links {
+/* 右侧操作区（搜索、主题、用户菜单/登录注册） */
+.navbar-actions {
 	display: flex;
 	align-items: center;
 	gap: var(--spacing-1);
+	flex-shrink: 0;
 }
 
-/* 频道导航链接容器 */
+/* 频道导航链接容器（居中） */
 .nav-mode-links {
 	display: flex;
 	align-items: center;
 	gap: 0.25rem;
+	flex: 1;
+	justify-content: center;
 }
 
 /* 频道导航链接项 */
@@ -128,7 +133,7 @@ img {
 	font-weight: 600;
 }
 
-.navbar-links a {
+.navbar-actions a {
 	color: var(--color-text);
 	text-decoration: none;
 	font-size: 0.875rem;
@@ -141,12 +146,12 @@ img {
 	font-weight: 450;
 }
 
-.navbar-links a:hover {
+.navbar-actions a:hover {
 	color: var(--color-primary);
 	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
-.navbar-links a[aria-current='page'] {
+.navbar-actions a[aria-current='page'] {
 	color: var(--color-primary);
 	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 	font-weight: 600;
@@ -1065,8 +1070,31 @@ mark.search-highlight {
 	display: none;
 }
 
-.mobile-auth-links {
-	display: none;
+/* 未登录：登录/注册图标按钮 */
+.nav-auth-buttons {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.nav-auth-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	border-radius: var(--radius-md);
+	text-decoration: none;
+	font-size: 1rem;
+	transition: all 0.15s;
+}
+
+.nav-auth-btn:hover {
+	background: var(--color-bg);
+}
+
+.nav-auth-register {
+	font-size: 0.9375rem;
 }
 
 .mobile-user-link {
@@ -1164,7 +1192,7 @@ mark.search-highlight {
 		display: block;
 	}
 
-	.navbar-links {
+	.navbar-actions {
 		display: none;
 		position: absolute;
 		top: var(--navbar-height);
@@ -1178,29 +1206,25 @@ mark.search-highlight {
 		box-shadow: var(--shadow-lg);
 	}
 
-	.navbar-links.navbar-links-open {
+	.navbar-actions.navbar-actions-open {
 		display: flex;
 	}
 
-	.navbar-links a,
-	.navbar-links .logout-btn {
+	.navbar-actions a,
+	.navbar-actions .logout-btn {
 		padding: var(--spacing-2) var(--spacing-3);
 		width: 100%;
 		text-align: left;
 		border-radius: var(--radius-sm);
 	}
 
-	.navbar-links .theme-switcher {
+	.navbar-actions .theme-switcher {
 		padding: var(--spacing-2) var(--spacing-3);
 	}
 
 	/* 移动端 hamburger 面板内显示扁平用户菜单，隐藏二级下拉 */
 	.mobile-user-area {
 		display: block;
-	}
-
-	.mobile-auth-links {
-		display: flex;
 	}
 
 	/* 移动端隐藏发布和搜索按钮（底部 Tab Bar 已有） */
@@ -1215,12 +1239,12 @@ mark.search-highlight {
 	}
 
 	/* 移动端隐藏主题切换（hamburger 面板只保留导航菜单） */
-	.navbar-links .theme-switcher {
+	.navbar-actions .theme-switcher {
 		display: none !important;
 	}
 
-	/* 移动端登录/注册链接居中 */
-	.mobile-auth-links {
+	/* 移动端登录/注册按钮在 hamburger 面板内展开 */
+	.nav-auth-buttons {
 		display: flex;
 		flex-direction: column;
 		align-items: center;
@@ -1228,7 +1252,7 @@ mark.search-highlight {
 		gap: var(--spacing-2);
 	}
 
-	.mobile-auth-links a {
+	.nav-auth-btn {
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
@@ -1246,12 +1270,12 @@ mark.search-highlight {
 			border-color var(--transition-fast);
 	}
 
-	.mobile-auth-links a:hover {
+	.nav-auth-btn:hover {
 		background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 		border-color: var(--color-primary);
 	}
 
-	.mobile-auth-links a:last-child {
+	.nav-auth-register {
 		background: var(--color-primary);
 		color: #fff;
 		border-color: var(--color-primary);
