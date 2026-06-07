@@ -139,36 +139,27 @@ const nextPage = page + 1;
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 标签管理操作交互逻辑
 	 *
 	 * 通过 data-action 属性识别操作类型，
-	 * 使用 fetch 发送 PUT 请求到对应 API 端点。
-	 * 操作类型与端点映射：
-	 * - hide → PUT /api/admin/tags/:id/hide
-	 * - show → PUT /api/admin/tags/:id/show
+	 * 使用 Astro Actions 调用对应操作。
+	 * 操作类型：
+	 * - hide → 隐藏标签
+	 * - show → 显示标签
 	 */
 	document.querySelectorAll('[data-action="hide"], [data-action="show"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.action || '';
 			const tagId = (btn as HTMLElement).dataset.tagId || '';
 
-			// 根据 action 类型拼接 API 端点
-			const endpoint = `/api/admin/tags/${tagId}/${action}`;
-
 			try {
-				const res = await fetch(endpoint, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' }
-				});
-				const data = await res.json();
-				if (data.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
-				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+				await actions.toggleTagVisibility({ tagId, action });
+				window.location.reload();
+			} catch (e) {
+				await MutanDialog.alert(e.message || '操作失败');
 			}
 		});
 	});

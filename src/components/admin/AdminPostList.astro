@@ -304,6 +304,8 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 </style>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 管理员操作弹窗交互逻辑
 	 *
@@ -321,43 +323,30 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	let currentPostId = '';
 
 	/**
-	 * 操作类型到标题和 API 端点的映射
+	 * 操作类型到标题的映射
 	 *
 	 * delete/restore/lock 需弹窗填写理由；
 	 * global-pin/unlock 直接发送请求无需理由。
 	 */
-	const actionConfig: Record<
-		string,
-		{ title: string; endpoint: (id: string) => string; method: string; needReason: boolean }
-	> = {
+	const actionConfig: Record<string, { title: string; needReason: boolean }> = {
 		delete: {
 			title: '删除帖子',
-			endpoint: (id) => `/api/admin/posts/${id}/delete`,
-			method: 'DELETE',
 			needReason: true
 		},
 		restore: {
 			title: '恢复帖子',
-			endpoint: (id) => `/api/admin/posts/${id}/restore`,
-			method: 'PUT',
 			needReason: true
 		},
 		lock: {
 			title: '锁定帖子',
-			endpoint: (id) => `/api/admin/posts/${id}/lock`,
-			method: 'PUT',
 			needReason: true
 		},
 		'global-pin': {
 			title: '置顶/取消置顶',
-			endpoint: (id) => `/api/admin/posts/${id}/global-pin`,
-			method: 'PUT',
 			needReason: false
 		},
 		unlock: {
 			title: '解锁帖子',
-			endpoint: (id) => `/api/admin/posts/${id}/unlock`,
-			method: 'PUT',
 			needReason: false
 		}
 	};
@@ -370,21 +359,17 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const config = actionConfig[action];
 			if (!config) return;
 
-			// 不需要理由的操作（置顶/解锁）：直接发送请求
+			// 不需要理由的操作（置顶/解锁）：直接调用 Actions
 			if (!config.needReason) {
 				try {
-					const res = await fetch(config.endpoint(postId), {
-						method: config.method,
-						headers: { 'Content-Type': 'application/json' }
-					});
-					const data = await res.json();
-					if (data.success) {
+					const result = await actions.adminPostAction({ action, postId });
+					if (result.success) {
 						window.location.reload();
 					} else {
-						await MutanDialog.alert(data.error?.message || '操作失败');
+						await MutanDialog.alert(result.message || '操作失败');
 					}
-				} catch {
-					await MutanDialog.alert('网络错误');
+				} catch (e) {
+					await MutanDialog.alert(e.message || '网络错误');
 				}
 				return;
 			}
@@ -415,19 +400,18 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		if (!config) return;
 
 		try {
-			const res = await fetch(config.endpoint(currentPostId), {
-				method: config.method,
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ reason })
+			const result = await actions.adminPostAction({
+				action: currentAction,
+				postId: currentPostId,
+				reason
 			});
-			const data = await res.json();
-			if (data.success) {
+			if (result.success) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(data.error?.message || '操作失败');
+				await MutanDialog.alert(result.message || '操作失败');
 			}
-		} catch {
-			await MutanDialog.alert('网络错误');
+		} catch (e) {
+			await MutanDialog.alert(e.message || '网络错误');
 		}
 	});
 
@@ -498,19 +482,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				return;
 
 			try {
-				const res = await fetch('/api/admin/posts/batch', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ action, ids: checkedIds, reason })
-				});
-				const data = await res.json();
-				if (data.success) {
+				const result = await actions.batchPosts({ action, ids: checkedIds, reason });
+				if (result.success) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(result.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+			} catch (e) {
+				await MutanDialog.alert(e.message || '网络错误');
 			}
 		});
 	});

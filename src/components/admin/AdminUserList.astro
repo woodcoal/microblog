@@ -100,9 +100,6 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 					const actionBtnClass = user.isDisabled
 						? 'admin-btn-sm-primary'
 						: 'admin-btn-sm-danger';
-					const actionEndpoint = user.isDisabled
-						? `/api/admin/users/${user.id}/enable`
-						: `/api/admin/users/${user.id}/disable`;
 					const formattedDate = new Date(user.createdAt).toLocaleDateString('zh-CN', {
 						year: 'numeric',
 						month: '2-digit',
@@ -183,36 +180,31 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 </div>
 
 <script>
+	import { actions } from 'astro:actions';
+
 	/**
 	 * 用户管理操作交互逻辑
 	 *
 	 * 通过 data-action 属性识别操作类型，
-	 * 使用 fetch 发送 PUT 请求到对应 API 端点。
-	 * 操作类型与端点映射：
-	 * - disable → PUT /api/admin/users/:id/disable
-	 * - enable  → PUT /api/admin/users/:id/enable
+	 * 使用 Astro Actions 调用对应操作。
+	 * 操作类型：
+	 * - disable → 禁用用户
+	 * - enable  → 启用用户
 	 */
 	document.querySelectorAll('[data-action="disable"], [data-action="enable"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.action || '';
 			const userId = (btn as HTMLElement).dataset.userId || '';
 
-			// 根据 action 类型拼接 API 端点
-			const endpoint = `/api/admin/users/${userId}/${action}`;
-
 			try {
-				const res = await fetch(endpoint, {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' }
-				});
-				const data = await res.json();
-				if (data.success) {
+				const result = await actions.adminToggleUser({ action, userId });
+				if (result.success) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(result.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+			} catch (e) {
+				await MutanDialog.alert(e.message || '网络错误');
 			}
 		});
 	});
@@ -267,19 +259,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				return;
 
 			try {
-				const res = await fetch('/api/admin/users/batch', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ action, ids: checkedIds })
-				});
-				const data = await res.json();
-				if (data.success) {
+				const result = await actions.batchUsers({ action, ids: checkedIds });
+				if (result.success) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(data.error?.message || '操作失败');
+					await MutanDialog.alert(result.message || '操作失败');
 				}
-			} catch {
-				await MutanDialog.alert('网络错误');
+			} catch (e) {
+				await MutanDialog.alert(e.message || '网络错误');
 			}
 		});
 	});

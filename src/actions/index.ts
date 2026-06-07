@@ -2326,6 +2326,28 @@ const reorderCategories = defineAction({
 	}
 });
 
+// 导入分组 Action 模块
+import { login, register, logout } from './auth';
+import {
+	getSettings,
+	updateSettings,
+	updateProfile,
+	changePassword,
+	uploadAvatar,
+	updateCommentSort
+} from './settings';
+import {
+	getUnreadCount,
+	getNotifications,
+	deleteAllNotifications,
+	deleteNotification,
+	markNotificationsRead
+} from './notifications';
+import { getPostLikers, togglePin, verifyPostPassword } from './posts';
+import { getRecommend, recordRead } from './recommend';
+import { batchUsers, batchPosts, batchComments, toggleTagVisibility } from './admin';
+import { markdownPreview } from './misc';
+
 /** 导出所有服务端 Actions */
 export const server = {
 	toggleLike,
@@ -2349,5 +2371,36 @@ export const server = {
 	createCategory,
 	updateCategory,
 	deleteCategory,
-	reorderCategories
+	reorderCategories,
+	// 认证
+	login,
+	register,
+	logout,
+	// 设置
+	getSettings,
+	updateSettings,
+	updateProfile,
+	changePassword,
+	uploadAvatar,
+	updateCommentSort,
+	// 通知
+	getUnreadCount,
+	getNotifications,
+	deleteAllNotifications,
+	deleteNotification,
+	markNotificationsRead,
+	// 帖子扩展
+	getPostLikers,
+	togglePin,
+	verifyPostPassword,
+	// 推荐
+	getRecommend,
+	recordRead,
+	// 管理后台
+	batchUsers,
+	batchPosts,
+	batchComments,
+	toggleTagVisibility,
+	// 工具
+	markdownPreview
 };
