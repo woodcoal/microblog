@@ -257,17 +257,17 @@ const hasNotifications = notifications.length > 0;
 	 * @param itemEl - 通知项 DOM 元素
 	 */
 	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
-		try {
-			await actions.markNotificationsRead({ ids: [notificationId] });
-			// 移除未读样式和标记
-			itemEl.classList.remove('notification-unread');
-			itemEl.removeAttribute('data-unread');
-			// 移除未读指示点
-			const dot = itemEl.querySelector('.notification-dot');
-			if (dot) dot.remove();
-		} catch {
+		const result = await actions.markNotificationsRead({ ids: [notificationId] });
+		if (result.error) {
 			// 标记已读失败不影响操作
+			return;
 		}
+		// 移除未读样式和标记
+		itemEl.classList.remove('notification-unread');
+		itemEl.removeAttribute('data-unread');
+		// 移除未读指示点
+		const dot = itemEl.querySelector('.notification-dot');
+		if (dot) dot.remove();
 	}
 
 	// 点击未读通知项时标记已读

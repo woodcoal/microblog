@@ -240,7 +240,7 @@ const allowRegistration = ALLOW_REGISTRATION;
 </style>
 
 <script>
-	import { actions } from 'astro:actions';
+	import { actions, isActionError } from 'astro:actions';
 
 	// 从 data 属性读取保留用户名列表（从服务端注入，包含内置 + .env 追加的保留词）
 	const form = document.getElementById('register-form') as HTMLFormElement;
@@ -389,12 +389,21 @@ const allowRegistration = ALLOW_REGISTRATION;
 			submitBtn.textContent = '注册中...';
 
 			try {
-				// 调用 Astro Action 注册，成功直接返回数据
+				// 调用 Astro Action 注册
+				// Astro 6 Actions 返回 SafeResult：{ data, error }
 				const result = await actions.register({ username, displayName, email, password });
+
+				// 检查是否返回错误
+				if (result.error) {
+					errorEl.textContent = result.error.message || '注册失败，请重试';
+					return;
+				}
 
 				// 注册成功：服务端已通过 setTokenCookie 设置 HttpOnly cookie
 				// 仅将 token 写入 localStorage 供客户端逻辑使用
-				localStorage.setItem('token', result.token);
+				if (result.data) {
+					localStorage.setItem('token', result.data.token);
+				}
 				window.location.href = '/';
 			} catch (e: any) {
 				// ActionError 通过 e.message 获取错误信息

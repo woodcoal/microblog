@@ -377,7 +377,7 @@ const hasOrphans = orphanChildren.length > 0;
 		try {
 			if (id) {
 				// 编辑模式：调用 updateCategory
-				await actions.updateCategory({
+				const result = await actions.updateCategory({
 					id,
 					name: data.name,
 					slug: data.slug,
@@ -387,9 +387,17 @@ const hasOrphans = orphanChildren.length > 0;
 					icon: data.icon,
 					sortOrder: data.sortOrder
 				});
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+					return;
+				}
 			} else {
 				// 创建模式：调用 createCategory
-				await actions.createCategory(data);
+				const result = await actions.createCategory(data);
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+					return;
+				}
 			}
 			window.location.reload();
 		} catch (err: any) {
@@ -453,7 +461,11 @@ const hasOrphans = orphanChildren.length > 0;
 			if (!confirmed) return;
 
 			try {
-				await actions.deleteCategory({ id });
+				const result = await actions.deleteCategory({ id });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '删除失败');
+					return;
+				}
 				window.location.reload();
 			} catch (err: any) {
 				await MutanDialog.alert(err?.message || '删除失败');
@@ -519,7 +531,11 @@ const hasOrphans = orphanChildren.length > 0;
 			];
 
 			try {
-				await actions.reorderCategories({ items });
+				const result = await actions.reorderCategories({ items });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '排序失败');
+					return;
+				}
 				window.location.reload();
 			} catch (err: any) {
 				await MutanDialog.alert(err?.message || '排序失败');

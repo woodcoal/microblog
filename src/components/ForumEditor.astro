@@ -431,18 +431,14 @@ const hasInitialContent = initialContent.length > 0;
 	 * @returns 上传成功后的图片 URL，失败返回 null
 	 */
 	async function uploadImageFile(file: File): Promise<string | null> {
-		try {
-			const formData = new FormData();
-			formData.append('file', file);
-			formData.append('fileType', 'image');
-			const result = await actions.uploadMedia(formData);
-			if (result.data && result.data.url) {
-				return result.data.url;
-			}
-			return null;
-		} catch {
-			return null;
+		const formData = new FormData();
+		formData.append('file', file);
+		formData.append('fileType', 'image');
+		const result = await actions.uploadMedia(formData);
+		if (result.data && result.data.url) {
+			return result.data.url;
 		}
+		return null;
 	}
 
 	// 为所有论坛编辑器绑定事件
@@ -494,12 +490,11 @@ const hasInitialContent = initialContent.length > 0;
 					preview.innerHTML = '<p style="color:var(--color-muted)">暂无内容</p>';
 					return;
 				}
-				try {
-					// 调用 Astro Actions 渲染 Markdown 预览
-					const result = await actions.markdownPreview({ markdown: content });
-					preview.innerHTML = result.html || '';
-				} catch {
+				const result = await actions.markdownPreview({ markdown: content });
+				if (result.error) {
 					preview.innerHTML = '<p style="color:var(--color-danger)">预览渲染失败</p>';
+				} else {
+					preview.innerHTML = result.data?.html || '';
 				}
 			}, 300);
 		}

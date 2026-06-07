@@ -1,5 +1,25 @@
 # 更新日志
 
+### 2026-06-08 14:00
+
+**提交人**: AI
+**提交哈希**: 82365da
+**影响范围**: 全站 Actions 客户端调用
+**变更类型**: 修复
+
+**详细描述**:
+
+- 修复 Astro 6 Actions 客户端 API 适配问题：Actions 返回 SafeResult（{ data, error }），不抛异常
+- 登录/注册页面：错误密码不再直接跳转首页，正确显示错误信息
+- 全部 25 个 .astro 文件的 actions 调用从 try/catch 改为 result.error 检查
+- 成功数据从 result.data 获取，而非直接从 result 获取
+- 修复 BookmarkButton/FollowButton/LikeButton 语法错误（多余缩进和闭合大括号）
+
+**注意事项**:
+
+- Astro 6 Actions 客户端不抛异常，必须检查 result.error
+- 此前登录失败时 result.token 为 undefined，被写入 localStorage 导致异常行为
+
 ### 2026-06-08 21:30
 
 **提交人**: AI

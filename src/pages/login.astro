@@ -130,7 +130,7 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 </style>
 
 <script>
-	import { actions } from 'astro:actions';
+	import { actions, isActionError } from 'astro:actions';
 
 	// 登录表单提交处理
 	const form = document.getElementById('login-form') as HTMLFormElement;
@@ -159,17 +159,26 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 			submitBtn.textContent = '登录中...';
 
 			try {
-				// 调用 Astro Action 登录，成功直接返回数据
+				// 调用 Astro Action 登录
+				// Astro 6 Actions 返回 SafeResult：{ data, error }
 				const result = await actions.login({ email, password });
+
+				// 检查是否返回错误
+				if (result.error) {
+					errorEl.textContent = result.error.message || '登录失败';
+					return;
+				}
 
 				// 登录成功：服务端已通过 setTokenCookie 设置 HttpOnly cookie
 				// 仅将 token 写入 localStorage 供客户端逻辑使用
-				localStorage.setItem('token', result.token);
+				if (result.data) {
+					localStorage.setItem('token', result.data.token);
+				}
 
 				// 跳转首页
 				window.location.href = '/';
 			} catch (e: any) {
-				// ActionError 通过 e.message 获取错误信息
+				// 兜底处理意外异常
 				errorEl.textContent = e.message || '登录失败';
 			} finally {
 				submitBtn.disabled = false;

@@ -427,13 +427,13 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		};
 		reader.readAsDataURL(file);
 
-		try {
-			const result = await actions.uploadAvatar({ image: file });
-			avatarUrlInput.value = result.avatarUrl;
-			showMsg(profileMsg, '头像已更新', false);
-		} catch (e: any) {
-			await MutanDialog.alert(e.message || '头像上传失败');
+		const result = await actions.uploadAvatar({ image: file });
+		if (result.error) {
+			await MutanDialog.alert(result.error.message || '头像上传失败');
 			avatarFileInput.value = '';
+		} else {
+			avatarUrlInput.value = result.data.avatarUrl;
+			showMsg(profileMsg, '头像已更新', false);
 		}
 	});
 
@@ -448,11 +448,11 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		const bio = formData.get('bio') as string;
 		const avatarUrl = formData.get('avatarUrl') as string;
 
-		try {
-			const result = await actions.updateProfile({ displayName, bio, avatarUrl });
+		const result = await actions.updateProfile({ displayName, bio, avatarUrl });
+		if (result.error) {
+			showMsg(profileMsg, result.error.message ?? '更新失败', true);
+		} else {
 			showMsg(profileMsg, '资料已更新', false);
-		} catch (e: any) {
-			showMsg(profileMsg, e.message ?? '更新失败', true);
 		}
 	});
 
@@ -472,12 +472,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			return;
 		}
 
-		try {
-			const result = await actions.changePassword({ oldPassword, newPassword });
+		const result = await actions.changePassword({ oldPassword, newPassword });
+		if (result.error) {
+			showMsg(passwordMsg, result.error.message ?? '修改失败', true);
+		} else {
 			showMsg(passwordMsg, '密码修改成功', false);
 			passwordForm.reset();
-		} catch (e: any) {
-			showMsg(passwordMsg, e.message ?? '修改失败', true);
 		}
 	});
 
@@ -502,14 +502,14 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		if (selectedTheme) body.theme = selectedTheme;
 		if (commentSortOrder) body.commentSortOrder = commentSortOrder;
 
-		try {
-			const result = await actions.updateSettings(body);
+		const result = await actions.updateSettings(body);
+		if (result.error) {
+			showMsg(appearanceMsg, result.error.message ?? '保存失败', true);
+		} else {
 			showMsg(appearanceMsg, '偏好已保存', false);
 			if (selectedTheme) {
 				document.documentElement.setAttribute('data-theme', selectedTheme);
 			}
-		} catch (e: any) {
-			showMsg(appearanceMsg, e.message ?? '保存失败', true);
 		}
 	});
 
@@ -522,11 +522,11 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 
 	saveNotificationBtn?.addEventListener('click', async () => {
 		const enabled = notificationsCheckbox?.checked ?? true;
-		try {
-			const result = await actions.updateSettings({ notificationsEnabled: enabled });
+		const result = await actions.updateSettings({ notificationsEnabled: enabled });
+		if (result.error) {
+			showMsg(notificationMsg, result.error.message ?? '保存失败', true);
+		} else {
 			showMsg(notificationMsg, '通知设置已保存', false);
-		} catch (e: any) {
-			showMsg(notificationMsg, e.message ?? '保存失败', true);
 		}
 	});
 
@@ -549,11 +549,11 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		const formData = new FormData(noteForm);
 		const note = formData.get('note') as string;
 
-		try {
-			const result = await actions.updateProfile({ note });
+		const result = await actions.updateProfile({ note });
+		if (result.error) {
+			showMsg(noteMsg, result.error.message ?? '保存失败', true);
+		} else {
 			showMsg(noteMsg, '记录已保存', false);
-		} catch (e: any) {
-			showMsg(noteMsg, e.message ?? '保存失败', true);
 		}
 	});
 </script>

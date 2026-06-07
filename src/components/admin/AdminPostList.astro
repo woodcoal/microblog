@@ -361,15 +361,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
 			// 不需要理由的操作（置顶/解锁）：直接调用 Actions
 			if (!config.needReason) {
-				try {
-					const result = await actions.adminPostAction({ action, postId });
-					if (result.success) {
-						window.location.reload();
-					} else {
-						await MutanDialog.alert(result.message || '操作失败');
-					}
-				} catch (e) {
-					await MutanDialog.alert(e.message || '网络错误');
+				const result = await actions.adminPostAction({ action, postId });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+				} else if (result.data?.success) {
+					window.location.reload();
+				} else {
+					await MutanDialog.alert(result.data?.message || '操作失败');
 				}
 				return;
 			}
@@ -399,19 +397,17 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		const config = actionConfig[currentAction];
 		if (!config) return;
 
-		try {
-			const result = await actions.adminPostAction({
-				action: currentAction,
-				postId: currentPostId,
-				reason
-			});
-			if (result.success) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert(result.message || '操作失败');
-			}
-		} catch (e) {
-			await MutanDialog.alert(e.message || '网络错误');
+		const result = await actions.adminPostAction({
+			action: currentAction,
+			postId: currentPostId,
+			reason
+		});
+		if (result.error) {
+			await MutanDialog.alert(result.error.message || '操作失败');
+		} else if (result.data?.success) {
+			window.location.reload();
+		} else {
+			await MutanDialog.alert(result.data?.message || '操作失败');
 		}
 	});
 
@@ -481,15 +477,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			try {
-				const result = await actions.batchPosts({ action, ids: checkedIds, reason });
-				if (result.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(result.message || '操作失败');
-				}
-			} catch (e) {
-				await MutanDialog.alert(e.message || '网络错误');
+			const result = await actions.batchPosts({ action, ids: checkedIds, reason });
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
 			}
 		});
 	});

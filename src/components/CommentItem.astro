@@ -281,15 +281,16 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 				const commentId = (btn as HTMLElement).dataset.commentId;
 				if (!commentId) return;
 
-				try {
-					await actions.deleteComment({ commentId });
-					location.reload();
-				} catch (e) {
-					if (e.status === 401) {
+				const result = await actions.deleteComment({ commentId });
+				if (result.error) {
+					const errStatus = (result.error as any).status;
+					if (errStatus === 401) {
 						window.location.href = '/login';
 					} else {
-						await MutanDialog.alert(e.message || '删除失败');
+						await MutanDialog.alert(result.error.message || '删除失败');
 					}
+				} else {
+					location.reload();
 				}
 			});
 		});

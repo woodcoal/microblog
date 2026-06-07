@@ -700,22 +700,17 @@ const MAX_IMAGES = 9;
 		 * @returns Promise<void>
 		 */
 		async function uploadFile(file: File): Promise<void> {
-			try {
-				const formData = new FormData();
-				formData.append('file', file);
-				formData.append('fileType', 'image');
-				const result = await actions.uploadMedia(formData);
-				if (result.data) {
-					uploadedFiles.push(result.data);
-					renderPreviews();
-					updateUploadUI();
-				} else {
-					showError(result.error?.message || '上传失败');
-					throw new Error(result.error?.message || '上传失败');
-				}
-			} catch (err: any) {
-				showError(err.message || '上传失败');
-				throw err;
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('fileType', 'image');
+			const result = await actions.uploadMedia(formData);
+			if (result.data) {
+				uploadedFiles.push(result.data);
+				renderPreviews();
+				updateUploadUI();
+			} else {
+				showError(result.error?.message || '上传失败');
+				throw new Error(result.error?.message || '上传失败');
 			}
 		}
 
@@ -858,47 +853,44 @@ const MAX_IMAGES = 9;
 			loading = true;
 			updateSubmitBtn();
 
-			try {
-				// 构建 action 输入
-				const mediaIds = uploadedFiles.map((f) => f.id);
-				const actionInput: Record<string, unknown> = {
-					content,
-					visibility,
-					mediaIds
-				};
+			// 构建 action 输入
+			const mediaIds = uploadedFiles.map((f) => f.id);
+			const actionInput: Record<string, unknown> = {
+				content,
+				visibility,
+				mediaIds
+			};
 
-				// visibility=password 时，添加密码
-				if (visibility === 'password') {
-					actionInput.password = postPassword;
-				}
+			// visibility=password 时，添加密码
+			if (visibility === 'password') {
+				actionInput.password = postPassword;
+			}
 
-				// visibility=users 时，查询用户名对应的用户 ID
-				if (visibility === 'users') {
-					const usernames = allowedUsernames
-						.split(',')
-						.map((s) => s.trim())
-						.filter(Boolean);
-					const searchResult = await actions.searchUsers({ usernames });
-					if (searchResult.data && searchResult.data.items.length > 0) {
-						actionInput.allowedUserIds = searchResult.data.items.map(
-							(u: { id: string }) => u.id
-						);
-					} else {
-						showError('未找到指定用户');
-						loading = false;
-						updateSubmitBtn();
-						return;
-					}
-				}
-
-				// 调用 createPost Action
-				const result = await actions.createPost(actionInput as any);
-
-				if (result.error) {
-					showError(result.error.message || '发布失败');
+			// visibility=users 时，查询用户名对应的用户 ID
+			if (visibility === 'users') {
+				const usernames = allowedUsernames
+					.split(',')
+					.map((s) => s.trim())
+					.filter(Boolean);
+				const searchResult = await actions.searchUsers({ usernames });
+				if (searchResult.data && searchResult.data.items.length > 0) {
+					actionInput.allowedUserIds = searchResult.data.items.map(
+						(u: { id: string }) => u.id
+					);
+				} else {
+					showError('未找到指定用户');
+					loading = false;
+					updateSubmitBtn();
 					return;
 				}
+			}
 
+			// 调用 createPost Action
+			const result = await actions.createPost(actionInput as any);
+
+			if (result.error) {
+				showError(result.error.message || '发布失败');
+			} else {
 				// 发布成功，清除草稿
 				// 先移除 beforeunload 监听器，防止页面跳转时触发自动保存重新写入草稿
 				if (beforeUnloadHandler) {
@@ -909,12 +901,10 @@ const MAX_IMAGES = 9;
 				// 跳转到帖子详情页
 				const post = result.data;
 				window.location.href = `/${post.user.username}/${post.id}`;
-			} catch {
-				showError('网络错误，请稍后重试');
-			} finally {
-				loading = false;
-				updateSubmitBtn();
 			}
+
+			loading = false;
+			updateSubmitBtn();
 		}
 
 		// ===== 事件绑定 =====

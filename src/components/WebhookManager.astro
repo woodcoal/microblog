@@ -332,31 +332,29 @@ const EVENT_OPTIONS = [
 			hideError();
 			if (createBtn) createBtn.textContent = '创建中...';
 
-			try {
-				const result = await actions.createWebhook({ url, events });
+			const result = await actions.createWebhook({ url, events });
 
-				if (result.data) {
-					const webhook = result.data.webhook;
-					// 添加到列表（secret 脱敏）
-					webhooks.unshift({
-						...webhook,
-						secret: webhook.secret.slice(0, 8) + '***'
-					});
-					// 弹窗显示明文 Secret
-					showSecretModal(webhook.url, webhook.secret, true);
-					// 重置表单
-					if (newUrlInput) newUrlInput.value = '';
-					eventCheckboxes.forEach((cb) => {
-						cb.checked = cb.value === 'notification.follow';
-					});
-					refreshList();
-				}
-			} catch (err: any) {
-				showError(err?.message || '创建失败');
-			} finally {
-				creating = false;
-				if (createBtn) createBtn.textContent = '创建 Webhook';
+			if (result.data) {
+				const webhook = result.data.webhook;
+				// 添加到列表（secret 脱敏）
+				webhooks.unshift({
+					...webhook,
+					secret: webhook.secret.slice(0, 8) + '***'
+				});
+				// 弹窗显示明文 Secret
+				showSecretModal(webhook.url, webhook.secret, true);
+				// 重置表单
+				if (newUrlInput) newUrlInput.value = '';
+				eventCheckboxes.forEach((cb) => {
+					cb.checked = cb.value === 'notification.follow';
+				});
+				refreshList();
+			} else if (result.error) {
+				showError(result.error.message || '创建失败');
 			}
+
+			creating = false;
+			if (createBtn) createBtn.textContent = '创建 Webhook';
 		});
 
 		// ===== 列表事件委托 =====
@@ -371,17 +369,15 @@ const EVENT_OPTIONS = [
 
 			// 切换启用/禁用
 			if (target.closest('[data-toggle-btn]')) {
-				try {
-					const result = await actions.updateWebhook({
-						id: webhookId,
-						isActive: !webhook.isActive
-					});
-					if (result.data) {
-						webhook.isActive = !webhook.isActive;
-						refreshList();
-					}
-				} catch {
-					showError('切换状态失败');
+				const result = await actions.updateWebhook({
+					id: webhookId,
+					isActive: !webhook.isActive
+				});
+				if (result.data) {
+					webhook.isActive = !webhook.isActive;
+					refreshList();
+				} else if (result.error) {
+					showError(result.error.message || '切换状态失败');
 				}
 				return;
 			}
@@ -401,16 +397,13 @@ const EVENT_OPTIONS = [
 				revealingId = webhookId;
 				hideError();
 
-				try {
-					const result = await actions.revealWebhookSecret({ id: webhookId });
-					if (result.data) {
-						showSecretModal(webhook.url, result.data.secret, false);
-					}
-				} catch (err: any) {
-					showError(err?.message || '获取密钥失败');
-				} finally {
-					revealingId = null;
+				const result = await actions.revealWebhookSecret({ id: webhookId });
+				if (result.data) {
+					showSecretModal(webhook.url, result.data.secret, false);
+				} else if (result.error) {
+					showError(result.error.message || '获取密钥失败');
 				}
+				revealingId = null;
 				return;
 			}
 
@@ -428,18 +421,15 @@ const EVENT_OPTIONS = [
 				deleting = true;
 				hideError();
 
-				try {
-					const result = await actions.deleteWebhook({ id: deletingId });
-					if (result.data) {
-						webhooks = webhooks.filter((w) => w.id !== deletingId);
-						deletingId = null;
-						refreshList();
-					}
-				} catch (err: any) {
-					showError(err?.message || '删除失败');
-				} finally {
-					deleting = false;
+				const result = await actions.deleteWebhook({ id: deletingId });
+				if (result.data) {
+					webhooks = webhooks.filter((w) => w.id !== deletingId);
+					deletingId = null;
+					refreshList();
+				} else if (result.error) {
+					showError(result.error.message || '删除失败');
 				}
+				deleting = false;
 				return;
 			}
 
@@ -475,31 +465,28 @@ const EVENT_OPTIONS = [
 				saving = true;
 				hideError();
 
-				try {
-					const result = await actions.updateWebhook({
-						id: editingId!,
-						url: editUrl,
-						events: editEvents
-					});
-					if (result.data) {
-						// 更新列表中的数据
-						const idx = webhooks.findIndex((w) => w.id === editingId);
-						if (idx !== -1) {
-							webhooks[idx] = {
-								...webhooks[idx],
-								url: editUrl,
-								events: JSON.stringify(editEvents),
-								updatedAt: new Date().toISOString()
-							};
-						}
-						editingId = null;
-						refreshList();
+				const result = await actions.updateWebhook({
+					id: editingId!,
+					url: editUrl,
+					events: editEvents
+				});
+				if (result.data) {
+					// 更新列表中的数据
+					const idx = webhooks.findIndex((w) => w.id === editingId);
+					if (idx !== -1) {
+						webhooks[idx] = {
+							...webhooks[idx],
+							url: editUrl,
+							events: JSON.stringify(editEvents),
+							updatedAt: new Date().toISOString()
+						};
 					}
-				} catch (err: any) {
-					showError(err?.message || '更新失败');
-				} finally {
-					saving = false;
+					editingId = null;
+					refreshList();
+				} else if (result.error) {
+					showError(result.error.message || '更新失败');
 				}
+				saving = false;
 				return;
 			}
 

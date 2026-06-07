@@ -376,18 +376,14 @@ const existingMediaJson = JSON.stringify(initialMedia);
 		 * @param fileType - 文件类型：'image' 或 'attachment'
 		 */
 		async function uploadFile(file: File, fileType: 'image' | 'attachment') {
-			try {
-				const result = await actions.uploadMedia({ file, fileType });
+			const result = await actions.uploadMedia({ file, fileType });
 
-				if (result.data) {
-					newFiles.push(result.data);
-					renderNewFiles();
-					updateImageCount();
-				} else {
-					showError('上传失败');
-				}
-			} catch (err: any) {
-				showError(err?.message || '上传失败，请稍后重试');
+			if (result.data) {
+				newFiles.push(result.data);
+				renderNewFiles();
+				updateImageCount();
+			} else {
+				showError(result.error?.message || '上传失败');
 			}
 		}
 
@@ -557,80 +553,79 @@ const existingMediaJson = JSON.stringify(initialMedia);
 			submitBtn.disabled = true;
 			submitBtn.textContent = '保存中...';
 
-			try {
-				// 合并已有媒体和新上传文件的 fileStorageId
-				const mediaIds = [
-					...existingMedia.map((m) => m.fileStorageId),
-					...newFiles.map((f) => f.id)
-				];
+			// 合并已有媒体和新上传文件的 fileStorageId
+			const mediaIds = [
+				...existingMedia.map((m) => m.fileStorageId),
+				...newFiles.map((f) => f.id)
+			];
 
-				// 构建请求参数
-				const input: Record<string, unknown> = {
-					postId,
-					content,
-					visibility,
-					mediaIds
-				};
+			// 构建请求参数
+			const input: Record<string, unknown> = {
+				postId,
+				content,
+				visibility,
+				mediaIds
+			};
 
-				// visibility=password 时，添加密码
-				if (visibility === 'password') {
-					const passwordInput = form.querySelector<HTMLInputElement>(
-						'input[name="postPassword"]'
-					);
-					if (passwordInput) {
-						input.password = passwordInput.value.trim();
-					}
+			// visibility=password 时，添加密码
+			if (visibility === 'password') {
+				const passwordInput = form.querySelector<HTMLInputElement>(
+					'input[name="postPassword"]'
+				);
+				if (passwordInput) {
+					input.password = passwordInput.value.trim();
 				}
+			}
 
-				// visibility=users 时，查询用户名对应的用户 ID
-				if (visibility === 'users') {
-					const usernamesInput = form.querySelector<HTMLInputElement>(
-						'input[name="allowedUsernames"]'
-					);
-					if (usernamesInput) {
-						const usernames = usernamesInput.value
-							.split(',')
-							.map((s) => s.trim())
-							.filter(Boolean);
+			// visibility=users 时，查询用户名对应的用户 ID
+			if (visibility === 'users') {
+				const usernamesInput = form.querySelector<HTMLInputElement>(
+					'input[name="allowedUsernames"]'
+				);
+				if (usernamesInput) {
+					const usernames = usernamesInput.value
+						.split(',')
+						.map((s) => s.trim())
+						.filter(Boolean);
 
-						if (usernames.length > 0) {
-							const searchResult = await actions.searchUsers({ usernames });
-							if (searchResult.data && searchResult.data.items.length > 0) {
-								input.allowedUserIds = searchResult.data.items.map(
-									(u: { id: string }) => u.id
-								);
-							} else {
-								showError('未找到指定用户');
-								loading = false;
-								submitBtn.disabled = false;
-								submitBtn.textContent = '保存修改';
-								return;
-							}
+					if (usernames.length > 0) {
+						const searchResult = await actions.searchUsers({ usernames });
+						if (searchResult.data && searchResult.data.items.length > 0) {
+							input.allowedUserIds = searchResult.data.items.map(
+								(u: { id: string }) => u.id
+							);
+						} else {
+							showError('未找到指定用户');
+							loading = false;
+							submitBtn.disabled = false;
+							submitBtn.textContent = '保存修改';
+							return;
 						}
 					}
 				}
+			}
 
-				// 调用 updatePost action
-				const result = await actions.updatePost(input as any);
+			// 调用 updatePost action
+			const result = await actions.updatePost(input as any);
 
-				if (result.data) {
-					// 编辑成功，跳转到帖子详情页
-					window.location.href = `/${username}/${postId}`;
-				} else {
-					showError('编辑失败');
-				}
-			} catch (err: any) {
+			if (result.error) {
 				// 未登录时跳转登录页
-				if (err?.message?.includes('登录') || err?.status === 401) {
+				const errStatus = (result.error as any).status;
+				if (errStatus === 401) {
 					window.location.href = '/login';
 					return;
 				}
-				showError(err?.message || '网络错误，请稍后重试');
-			} finally {
-				loading = false;
-				submitBtn.disabled = false;
-				submitBtn.textContent = '保存修改';
+				showError(result.error.message || '保存失败');
+			} else if (result.data) {
+				// 编辑成功，跳转到帖子详情页
+				window.location.href = `/${username}/${postId}`;
+			} else {
+				showError('编辑失败');
 			}
+
+			loading = false;
+			submitBtn.disabled = false;
+			submitBtn.textContent = '保存修改';
 		});
 	});
 </script>

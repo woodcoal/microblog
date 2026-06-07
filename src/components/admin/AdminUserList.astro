@@ -196,15 +196,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const action = (btn as HTMLElement).dataset.action || '';
 			const userId = (btn as HTMLElement).dataset.userId || '';
 
-			try {
-				const result = await actions.adminToggleUser({ action, userId });
-				if (result.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(result.message || '操作失败');
-				}
-			} catch (e) {
-				await MutanDialog.alert(e.message || '网络错误');
+			const result = await actions.adminToggleUser({ action, userId });
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
 			}
 		});
 	});
@@ -258,15 +256,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			try {
-				const result = await actions.batchUsers({ action, ids: checkedIds });
-				if (result.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(result.message || '操作失败');
-				}
-			} catch (e) {
-				await MutanDialog.alert(e.message || '网络错误');
+			const result = await actions.batchUsers({ action, ids: checkedIds });
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
 			}
 		});
 	});

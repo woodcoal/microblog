@@ -219,29 +219,27 @@ const { initialTokens } = Astro.props;
 			hideError();
 			if (createBtn) createBtn.textContent = '创建中...';
 
-			try {
-				const result = await actions.createToken({ name });
+			const result = await actions.createToken({ name });
 
-				if (result.data) {
-					// 添加到列表
-					tokens.unshift({
-						id: result.data.id,
-						name: result.data.name,
-						lastUsedAt: null,
-						createdAt: result.data.createdAt
-					});
-					// 弹窗显示明文 Token
-					showTokenModal(result.data.name, result.data.token);
-					// 重置表单
-					if (newNameInput) newNameInput.value = '';
-					refreshList();
-				}
-			} catch (err: any) {
-				showError(err?.message || '创建失败');
-			} finally {
-				creating = false;
-				if (createBtn) createBtn.textContent = '创建 Token';
+			if (result.data) {
+				// 添加到列表
+				tokens.unshift({
+					id: result.data.id,
+					name: result.data.name,
+					lastUsedAt: null,
+					createdAt: result.data.createdAt
+				});
+				// 弹窗显示明文 Token
+				showTokenModal(result.data.name, result.data.token);
+				// 重置表单
+				if (newNameInput) newNameInput.value = '';
+				refreshList();
+			} else if (result.error) {
+				showError(result.error.message || '创建失败');
 			}
+
+			creating = false;
+			if (createBtn) createBtn.textContent = '创建 Token';
 		});
 
 		// ===== 列表事件委托 =====
@@ -266,18 +264,15 @@ const { initialTokens } = Astro.props;
 				revoking = true;
 				hideError();
 
-				try {
-					const result = await actions.revokeToken({ id: revokingId! });
-					if (result.data) {
-						tokens = tokens.filter((t) => t.id !== revokingId);
-						revokingId = null;
-						refreshList();
-					}
-				} catch (err: any) {
-					showError(err?.message || '撤销失败');
-				} finally {
-					revoking = false;
+				const result = await actions.revokeToken({ id: revokingId! });
+				if (result.data) {
+					tokens = tokens.filter((t) => t.id !== revokingId);
+					revokingId = null;
+					refreshList();
+				} else if (result.error) {
+					showError(result.error.message || '撤销失败');
 				}
+				revoking = false;
 				return;
 			}
 

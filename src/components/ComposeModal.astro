@@ -391,26 +391,23 @@ const hasForumCategories = forumCategories.length > 0;
 			loading = true;
 			hideError();
 
-			try {
-				const actionInput: Record<string, unknown> = {
-					content,
-					visibility,
-					mode: 'forum',
-					title
-				};
+			const actionInput: Record<string, unknown> = {
+				content,
+				visibility,
+				mode: 'forum',
+				title
+			};
 
-				// 有分类时传入 categoryId
-				if (categoryId) {
-					actionInput.categoryId = categoryId;
-				}
+			// 有分类时传入 categoryId
+			if (categoryId) {
+				actionInput.categoryId = categoryId;
+			}
 
-				const result = await actions.createPost(actionInput as any);
+			const result = await actions.createPost(actionInput as any);
 
-				if (result.error) {
-					showError(result.error.message || '发布失败');
-					return;
-				}
-
+			if (result.error) {
+				showError(result.error.message || '发布失败');
+			} else {
 				// 发布成功，清除草稿
 				clearDraft();
 
@@ -420,11 +417,9 @@ const hasForumCategories = forumCategories.length > 0;
 				// 跳转到帖子详情页
 				const post = result.data;
 				window.location.href = `/${post.user.username}/${post.id}`;
-			} catch {
-				showError('网络错误，请稍后重试');
-			} finally {
-				loading = false;
 			}
+
+			loading = false;
 		}
 
 		// 监听 ForumEditor 的提交按钮点击

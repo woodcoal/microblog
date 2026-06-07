@@ -1039,15 +1039,16 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			}
 
 			try {
-				await actions.deletePost({ postId });
+				const result = await actions.deletePost({ postId });
+				if (result.error) {
+					const errMsg = result.error.message || '删除失败';
+					await MutanDialog.alert(errMsg);
+					return;
+				}
 				// 删除成功，跳转到用户主页
 				window.location.href = `/${username}`;
 			} catch (e: any) {
-				if (e.status === 401) {
-					await MutanDialog.alert('请先登录', { title: '提示' });
-				} else {
-					await MutanDialog.alert(e.message || '删除失败');
-				}
+				await MutanDialog.alert(e.message || '删除失败');
 			}
 		});
 	}
@@ -1099,7 +1100,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				try {
 					const result = await actions.verifyPostPassword({ postId, password });
 
-					if (result.valid) {
+					if (result.error) {
+						passwordError.textContent = result.error.message || '验证失败';
+						passwordError.style.display = '';
+						return;
+					}
+
+					if (result.data.valid) {
 						// 密码正确，记录过期时间到 sessionStorage
 						// 过期时间 = 当前时间 + PASSWORD_PROTECT_EXPIRE_MINUTES 分钟
 						const expireMinutes = 10; // 默认 10 分钟
@@ -1140,7 +1147,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 
 		try {
 			const result = await actions.getPostLikers({ postId });
-			const users = result.users as Array<{
+			if (result.error) return;
+			const users = result.data.users as Array<{
 				username: string;
 				displayName: string;
 				avatarUrl: string;

@@ -177,14 +177,10 @@ const THEME_ICONS: Record<string, string> = {
 			// 更新按钮显示
 			updateButtonDisplay();
 
-			// 已登录时同步到服务端
+			// 已登录时同步到服务端（静默处理错误，本地已生效）
 			const token = localStorage.getItem('token');
 			if (token) {
-				try {
-					await actions.updateTheme({ theme: themeId });
-				} catch {
-					// 网络错误静默处理，本地已生效
-				}
+				await actions.updateTheme({ theme: themeId });
 			}
 		}
 
@@ -205,14 +201,10 @@ const THEME_ICONS: Record<string, string> = {
 			// 更新按钮显示
 			updateButtonDisplay();
 
-			// 已登录时同步到服务端
+			// 已登录时同步到服务端（静默处理错误，本地已生效）
 			const token = localStorage.getItem('token');
 			if (token) {
-				try {
-					await actions.updateTheme({ accent: accentId });
-				} catch {
-					// 网络错误静默处理，本地已生效
-				}
+				await actions.updateTheme({ accent: accentId });
 			}
 		}
 

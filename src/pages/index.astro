@@ -355,62 +355,58 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 		const list = document.getElementById('recommend-list');
 		if (!section || !list) return;
 
-		try {
-			const result = await actions.getRecommend({ n: 5 });
-			if (!result.items?.length) {
-				// 无推荐结果，不显示区域
-				return;
-			}
-
-			const items = result.items;
-			const fragment = document.createDocumentFragment();
-
-			for (const item of items) {
-				const a = document.createElement('a');
-				a.href = `/${item.user.username}/${item.id}`;
-				a.className = 'recommend-item';
-
-				// 头像
-				if (item.user.avatarUrl) {
-					const img = document.createElement('img');
-					img.src = item.user.avatarUrl;
-					img.alt = item.user.displayName;
-					img.className = 'recommend-item-avatar';
-					img.loading = 'lazy';
-					a.appendChild(img);
-				} else {
-					const span = document.createElement('span');
-					span.className = 'recommend-item-avatar-placeholder';
-					span.textContent = item.user.displayName.charAt(0).toUpperCase();
-					a.appendChild(span);
-				}
-
-				// 内容区
-				const contentDiv = document.createElement('div');
-				contentDiv.className = 'recommend-item-content';
-
-				const titleDiv = document.createElement('div');
-				titleDiv.className = 'recommend-item-title';
-				// 有标题用标题，否则用内容前 80 字符
-				titleDiv.textContent =
-					item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
-
-				const metaDiv = document.createElement('div');
-				metaDiv.className = 'recommend-item-meta';
-				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
-				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-				metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
-
-				contentDiv.appendChild(titleDiv);
-				contentDiv.appendChild(metaDiv);
-				a.appendChild(contentDiv);
-				fragment.appendChild(a);
-			}
-
-			list.appendChild(fragment);
-			section.style.display = '';
-		} catch {
-			// 静默失败，不显示推荐区域
+		const result = await actions.getRecommend({ n: 5 });
+		if (result.error || !result.data?.items?.length) {
+			// 无推荐结果或出错，不显示区域
+			return;
 		}
+
+		const items = result.data.items;
+		const fragment = document.createDocumentFragment();
+
+		for (const item of items) {
+			const a = document.createElement('a');
+			a.href = `/${item.user.username}/${item.id}`;
+			a.className = 'recommend-item';
+
+			// 头像
+			if (item.user.avatarUrl) {
+				const img = document.createElement('img');
+				img.src = item.user.avatarUrl;
+				img.alt = item.user.displayName;
+				img.className = 'recommend-item-avatar';
+				img.loading = 'lazy';
+				a.appendChild(img);
+			} else {
+				const span = document.createElement('span');
+				span.className = 'recommend-item-avatar-placeholder';
+				span.textContent = item.user.displayName.charAt(0).toUpperCase();
+				a.appendChild(span);
+			}
+
+			// 内容区
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'recommend-item-content';
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'recommend-item-title';
+			// 有标题用标题，否则用内容前 80 字符
+			titleDiv.textContent =
+				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
+
+			const metaDiv = document.createElement('div');
+			metaDiv.className = 'recommend-item-meta';
+			const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+			const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+			metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+			contentDiv.appendChild(titleDiv);
+			contentDiv.appendChild(metaDiv);
+			a.appendChild(contentDiv);
+			fragment.appendChild(a);
+		}
+
+		list.appendChild(fragment);
+		section.style.display = '';
 	})();
 </script>

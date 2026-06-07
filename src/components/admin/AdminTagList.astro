@@ -155,11 +155,11 @@ const nextPage = page + 1;
 			const action = (btn as HTMLElement).dataset.action || '';
 			const tagId = (btn as HTMLElement).dataset.tagId || '';
 
-			try {
-				await actions.toggleTagVisibility({ tagId, action });
+			const result = await actions.toggleTagVisibility({ tagId, action });
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else {
 				window.location.reload();
-			} catch (e) {
-				await MutanDialog.alert(e.message || '操作失败');
 			}
 		});
 	});

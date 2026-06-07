@@ -20,7 +20,17 @@ interface Props {
 	jsonLd?: Record<string, unknown>;
 }
 
-const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
+const {
+	title,
+	description,
+	ogTitle,
+	ogDescription,
+	ogImage,
+	ogType,
+	canonicalUrl,
+	noindex,
+	jsonLd
+} = Astro.props;
 
 const currentUser = await getUserFromRequest(Astro);
 const currentPath = Astro.url.pathname;
@@ -42,59 +52,68 @@ const currentPath = Astro.url.pathname;
 			<a
 				href="/"
 				class="sidebar-link"
-				aria-current={currentPath === '/' ? 'page' : undefined}>
+				aria-current={currentPath === '/' ? 'page' : undefined}
+			>
 				<span class="sidebar-link-icon">🏠</span>
 				<span>首页</span>
 			</a>
 			<a
 				href="/latest"
 				class="sidebar-link"
-				aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}>
+				aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
+			>
 				<span class="sidebar-link-icon">⏰</span>
 				<span>最新</span>
 			</a>
-			{currentUser ? (
-				<>
-					<a
-						href="/following"
-						class="sidebar-link"
-						aria-current={currentPath.startsWith('/following') ? 'page' : undefined}>
-						<span class="sidebar-link-icon">👀</span>
-						<span>关注</span>
-					</a>
-					<a
-						href="/bookmarks"
-						class="sidebar-link"
-						aria-current={currentPath.startsWith('/bookmarks') ? 'page' : undefined}>
-						<span class="sidebar-link-icon">🔖</span>
-						<span>收藏</span>
-					</a>
-					<a
-						href="/followers"
-						class="sidebar-link"
-						aria-current={currentPath.startsWith('/followers') ? 'page' : undefined}>
-						<span class="sidebar-link-icon">👥</span>
-						<span>粉丝</span>
-					</a>
-				</>
-			) : (
-				<>
-					<a
-						href="/login"
-						class="sidebar-link"
-						aria-current={currentPath === '/login' ? 'page' : undefined}>
-						<span class="sidebar-link-icon">🔑</span>
-						<span>登录</span>
-					</a>
-					<a
-						href="/register"
-						class="sidebar-link"
-						aria-current={currentPath === '/register' ? 'page' : undefined}>
-						<span class="sidebar-link-icon">📝</span>
-						<span>注册</span>
-					</a>
-				</>
-			)}
+			{
+				currentUser ? (
+					<>
+						<a
+							href="/following"
+							class="sidebar-link"
+							aria-current={currentPath.startsWith('/following') ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">👀</span>
+							<span>关注</span>
+						</a>
+						<a
+							href="/bookmarks"
+							class="sidebar-link"
+							aria-current={currentPath.startsWith('/bookmarks') ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">🔖</span>
+							<span>收藏</span>
+						</a>
+						<a
+							href="/followers"
+							class="sidebar-link"
+							aria-current={currentPath.startsWith('/followers') ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">👥</span>
+							<span>粉丝</span>
+						</a>
+					</>
+				) : (
+					<>
+						<a
+							href="/login"
+							class="sidebar-link"
+							aria-current={currentPath === '/login' ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">🔑</span>
+							<span>登录</span>
+						</a>
+						<a
+							href="/register"
+							class="sidebar-link"
+							aria-current={currentPath === '/register' ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">📝</span>
+							<span>注册</span>
+						</a>
+					</>
+				)
+			}
 		</aside>
 		<div class="layout-main">
 			<slot />
