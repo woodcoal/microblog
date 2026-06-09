@@ -1,46 +1,41 @@
 # 睦谈（MuTan）
 
-> 世间纷纷扰扰，此处和睦相谈
+轻量级多用户微博系统，支持微博、论坛、博客三种内容模式，可灵活组合或独立运行。
 
-轻量级多用户微博系统，基于 Astro 6 SSR + React Islands + Prisma 7 + SQLite 构建。
+## 功能特性
 
-## 特性
-
-- 📝 **微博发布** — 支持 Markdown、图片/附件上传、7 级可见度控制
-- 💬 **互动系统** — 评论（二级回复）、点赞、关注
-- 🏷️ **内容标签** — @提及、#话题标签、标签聚合页
-- 📢 **通知系统** — 站内通知（关注/评论/点赞/提及）
-- 🔗 **Webhook** — HMAC-SHA256 签名的事件推送
-- 🔑 **API Token** — 第三方客户端安全访问
-- 🎨 **多主题** — 亮色/暗色/护眼/高对比度，偏好持久化
-- 🛡️ **管理后台** — 用户/帖子/评论/标签管理、操作审计
-- 🔍 **全文搜索** — 用户搜索 + 微博搜索
-- 📱 **SEO 友好** — SSR 渲染、Sitemap、robots.txt、Meta 标签
+- **三种内容模式**：微博（短内容流）、论坛（分类讨论）、博客（长文章），通过环境变量自由启用
+- **细粒度可见度**：7 种帖子可见度（公开/登录可见/粉丝可见/关注可见/私密/密码保护/指定用户）
+- **个性化推荐**：集成 Gorse 推荐引擎，支持"猜你喜欢"个性化内容推荐
+- **多主题系统**：4 套预置主题（亮色/暗色/护眼/高对比度）+ 5 种强调色
+- **双认证方式**：JWT Cookie 认证（浏览器）+ API Token 认证（外部客户端）
+- **管理后台**：用户/帖子/评论/标签/分类管理，操作日志审计
+- **通知系统**：关注、评论、点赞、提及实时通知
+- **Webhook**：支持自定义事件回调
+- **SEO 优化**：Open Graph、JSON-LD 结构化数据、规范链接、站点地图
 
 ## 技术栈
 
-| 组件     | 选型                      |
-| -------- | ------------------------- |
-| 前端框架 | Astro 6.x (SSR)           |
-| 交互组件 | React 19 (Islands)        |
-| 数据库   | SQLite (本地) / D1 (生产) |
-| ORM      | Prisma 7.x                |
-| 文件存储 | 本地 / Cloudflare R2      |
-| API 文档 | Scalar                    |
-| 部署     | Cloudflare Pages          |
+- **框架**：Astro 6（服务端渲染）
+- **前端**：Astro 组件 + React 19（Tiptap 富文本编辑器）
+- **样式**：纯 CSS（CSS 变量设计令牌，无 UI 框架依赖）
+- **数据库**：SQLite（@libsql/client，纯 JS 实现）
+- **ORM**：Prisma 7
+- **认证**：JWT（jose）+ bcryptjs
+- **部署**：Node.js standalone（默认），预留 Cloudflare 适配器
 
 ## 快速开始
 
 ### 环境要求
 
-- Node.js ≥ 18
-- npm
+- Node.js 18+
+- npm 或 pnpm
 
 ### 安装
 
 ```bash
-# 克隆项目
-git clone https://git.hndl.vip/woodcoal/microblog.git
+# 克隆仓库
+git clone https://github.com/woodcoal/microblog.git
 cd microblog
 
 # 安装依赖
@@ -48,9 +43,9 @@ npm install
 
 # 配置环境变量
 cp .env.example .env
-# 编辑 .env 填写配置（至少修改 JWT_SECRET）
+# 编辑 .env，至少配置 JWT_SECRET
 
-# 初始化数据库（生成 Client → 迁移 → 种子数据）
+# 初始化数据库
 npm run db:setup
 
 # 启动开发服务器
@@ -59,87 +54,82 @@ npm run dev
 
 访问 http://localhost:4321
 
-### 常用命令
+### 生产部署
 
-| 命令                  | 说明                                  |
-| --------------------- | ------------------------------------- |
-| `npm run dev`         | 启动开发服务器 (localhost:4321)       |
-| `npm run build`       | 生产构建                              |
-| `npm run preview`     | 预览构建产物                          |
-| `npm run start`       | 运行构建后的服务                      |
-| `npm run pm2`         | PM2 进程管理部署                      |
-| `npm run format`      | Prettier 格式化                       |
-| `npm run db:generate` | 生成 Prisma Client                    |
-| `npm run db:migrate`  | 执行数据库迁移                        |
-| `npm run db:studio`   | 打开 Prisma Studio                    |
-| `npm run db:seed`     | 填充种子数据                          |
-| `npm run db:setup`    | 完整初始化：generate → migrate → seed |
+```bash
+# 构建
+npm run build
+
+# 方式一：直接启动
+npm run start
+
+# 方式二：PM2 进程管理
+npm run pm2
+```
 
 ## 环境变量
 
-详见 [.env.example](.env.example)，关键配置：
+复制 `.env.example` 为 `.env` 进行配置：
 
-| 变量           | 说明         | 默认值                  |
-| -------------- | ------------ | ----------------------- |
-| `DATABASE_URL` | 数据库连接   | `file:./prisma/dev.db`  |
-| `JWT_SECRET`   | JWT 签名密钥 | ⚠️ 生产环境务必更换     |
-| `SITE_TITLE`   | 站点标题     | `睦谈`                  |
-| `SITE_URL`     | 站点 URL     | `http://localhost:4321` |
-| `UPLOAD_DIR`   | 上传目录     | `./uploads`             |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DATABASE_URL` | 数据库连接 | `file:./prisma/dev.db` |
+| `JWT_SECRET` | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
+| `JWT_EXPIRES_DAYS` | JWT 有效期（天） | `7` |
+| `UPLOAD_DIR` | 文件上传目录 | `./uploads` |
+| `SITE_URL` | 站点 URL | `http://localhost:4321` |
+| `SITE_TITLE` | 站点标题 | `睦谈` |
+| `SITE_DESCRIPTION` | 站点描述 | `世间纷纷扰扰，此处和睦相谈` |
+| `SITE_MODES` | 启用的模式（逗号分隔） | `weibo,forum,blog` |
+| `ALLOW_REGISTRATION` | 是否允许注册 | `true` |
+| `GORSE_ENDPOINT` | Gorse 推荐引擎地址（可选） | - |
+| `GORSE_API_KEY` | Gorse API 密钥（可选） | - |
+
+完整变量列表见 `.env.example`。
 
 ## 项目结构
 
 ```
 src/
-├── pages/          # 页面（.astro）和 API 路由（.ts）
-│   ├── api/        # REST API（auth/posts/comments/...）
-│   ├── [username]/ # 用户主页、帖子详情、编辑、版本历史
-│   ├── admin/      # 管理后台页面
-│   └── tags/       # 标签聚合页
-├── components/     # Astro + React Islands（交互组件）
-├── layouts/        # 页面布局模板
-├── lib/            # 核心逻辑（db/auth/visibility/shortid/...）
-└── styles/         # 自定义 CSS
-prisma/             # Schema + 迁移文件
-generated/prisma/   # Prisma Client 输出（gitignored）
-docs/               # 规格文档、计划、技术决策
-scripts/            # 自动化验证脚本
+  actions/          # Astro Actions（服务端 RPC）
+  pages/            # 文件路由
+  layouts/          # 布局组件
+  components/       # UI 组件
+  lib/              # 工具库
+  services/         # 业务 Service 层
+  styles/           # 样式文件
+prisma/
+  schema.prisma     # 数据库模型
 ```
 
-## API 文档
-
-启动开发服务器后访问 `/api/docs` 查看完整的 API 文档（Scalar）。
-
-### 认证方式
-
-三种认证方式按优先级：`Authorization: Bearer mt_xxx`（API Token）→ `Authorization: Bearer xxx`（JWT）→ cookie `token`（JWT）。
-
-### 响应格式
-
-```json
-// 成功
-{ "success": true, "data": { ... } }
-
-// 失败
-{ "success": false, "error": { "message": "...", "status": 400 } }
-```
-
-## 部署
-
-### Cloudflare Pages
-
-1. 修改 `astro.config.mjs`，切换 `@astrojs/cloudflare` 适配器
-2. 配置 Cloudflare D1 数据库和 R2 存储桶
-3. 设置环境变量
-4. 构建命令：`npm run build`，输出目录：`dist/`
-
-### 自托管（PM2）
+## 常用命令
 
 ```bash
-npm run build
-npm run pm2
+npm run dev              # 开发服务器
+npm run build            # 构建
+npm run start            # 生产启动
+npm run db:generate      # 生成 Prisma Client
+npm run db:migrate       # 数据库迁移
+npm run db:studio        # Prisma Studio GUI
+npm run db:setup         # 一键初始化数据库
+npm run format           # 代码格式化
 ```
+
+## 内容模式
+
+通过 `SITE_MODES` 环境变量控制：
+
+- **单模式**：只启用一种模式时，首页自动重定向到该模式首页，导航栏隐藏频道切换
+- **多模式**：导航栏显示频道切换，三种模式帖子可在首页混排
+
+每种模式有独立的布局、路由和交互方式：
+
+| 模式 | 特点 | 路由 |
+|------|------|------|
+| 微博 | 短内容流，快速发布 | `/weibo` |
+| 论坛 | 分类讨论，标题+内容 | `/forum` |
+| 博客 | 长文章，富文本编辑 | `/blog` |
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 木炭
+MIT
