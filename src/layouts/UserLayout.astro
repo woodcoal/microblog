@@ -20,17 +20,7 @@ interface Props {
 	jsonLd?: Record<string, unknown>;
 }
 
-const {
-	title,
-	description,
-	ogTitle,
-	ogDescription,
-	ogImage,
-	ogType,
-	canonicalUrl,
-	noindex,
-	jsonLd
-} = Astro.props;
+const { title, description, ogTitle, ogDescription, ogImage, ogType, canonicalUrl, noindex, jsonLd } = Astro.props;
 ---
 
 <BaseLayout

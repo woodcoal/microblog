@@ -398,17 +398,17 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		if (!config) return;
 
 		const result = await actions.adminPostAction({
-			action: currentAction,
-			postId: currentPostId,
-			reason
-		});
-		if (result.error) {
-			await MutanDialog.alert(result.error.message || '操作失败');
-		} else if (result.data?.success) {
-			window.location.reload();
-		} else {
-			await MutanDialog.alert(result.data?.message || '操作失败');
-		}
+				action: currentAction,
+				postId: currentPostId,
+				reason
+			});
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
+			}
 	});
 
 	// 点击弹窗外部关闭

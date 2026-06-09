@@ -138,11 +138,7 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 						const isBlog = postMode === 'blog';
 						const hasTitle = !!post.title;
 						const hasCategory = !!post.category;
-						const modeLabel = isForum
-							? getModeLabel('forum')
-							: isBlog
-								? getModeLabel('blog')
-								: null;
+						const modeLabel = isForum ? getModeLabel('forum') : isBlog ? getModeLabel('blog') : null;
 
 						return (
 							<article
