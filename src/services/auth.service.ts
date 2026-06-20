@@ -6,6 +6,7 @@
  */
 import { findUserByEmail, findUserByUsername, createUser } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
+import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
 import {
 	ALLOW_REGISTRATION,
@@ -18,6 +19,29 @@ import { createUser as lensCreateUser } from '@/lib/lens';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ── Agent API 专用查询函数 ──
+
+/**
+ * 获取用户 API Token 数量
+ *
+ * 登录成功后查询用户的 API Token 数量，
+ * 供 Agent API 层判断用户是否有可用 Token。
+ *
+ * @param input - { email }
+ * @returns 用户 ID 和 Token 数量；用户不存在时返回 null
+ */
+export async function getUserApiTokenCount(input: {
+	email: string;
+}): Promise<{ userId: string; tokenCount: number } | null> {
+	const user = await findUserByEmail(input.email);
+	if (!user) {
+		return null;
+	}
+
+	const tokenCount = await countApiTokens(user.id);
+	return { userId: user.id, tokenCount };
+}
 
 // ── 类型定义 ──
 

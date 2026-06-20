@@ -44,3 +44,4 @@ generated/
 
 # Astro
 .astro/
+yarn.lock

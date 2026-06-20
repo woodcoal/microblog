@@ -22,6 +22,72 @@ const PAGE_SIZE = 20;
 /** 合法的通知类型筛选值 */
 const VALID_TYPES = ['follow', 'comment', 'like', 'mention'];
 
+// ── Agent API 专用查询函数 ──
+
+/**
+ * Agent 通知列表查询
+ *
+ * 支持状态、类型、时间范围过滤和分页排序。
+ * 供 Agent API 层获取通知列表。
+ *
+ * @param input - 查询参数
+ * @returns 通知列表（含 actor 信息）
+ */
+export async function getAgentNotifications(input: {
+	recipientId: string;
+	status?: string;
+	type?: string;
+	from?: Date;
+	to?: Date;
+	sort?: string;
+	skip?: number;
+	limit?: number;
+}): Promise<any[]> {
+	const { recipientId, status, type, from, to, sort, limit } = input;
+
+	// 构建 where 条件
+	const where: Record<string, unknown> = {
+		recipientId
+	};
+
+	// 状态过滤
+	if (status === 'read') {
+		where.isRead = true;
+	} else if (status === 'unread') {
+		where.isRead = false;
+	}
+
+	// 类型过滤
+	if (type) {
+		where.type = type;
+	}
+
+	// 时间范围过滤
+	if (from || to) {
+		const createdAtFilter: Record<string, Date> = {};
+		if (from) createdAtFilter.gte = from;
+		if (to) createdAtFilter.lte = to;
+		where.createdAt = createdAtFilter;
+	}
+
+	// 排序
+	const orderBy =
+		sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
+
+	// 查询通知
+	return findNotifications(
+		where,
+		{
+			actor: {
+				select: { username: true, displayName: true }
+			}
+		},
+		orderBy,
+		limit,
+		undefined
+	);
+}
+
 // ── 类型定义 ──
 
 export interface GetUnreadCountInput {

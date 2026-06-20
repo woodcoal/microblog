@@ -23,6 +23,61 @@ import { findPostById, findPostByIdSelect } from '@/lib/post';
 import { findCommentById, findCommentByIdSelect } from '@/lib/comment';
 import { findUserByUsername } from '@/lib/user';
 
+// ── Agent API 专用查询函数 ──
+
+/**
+ * 检查点赞状态
+ *
+ * 查询用户对指定帖子的点赞记录是否存在。
+ * 供 Agent API 层判断当前状态，实现幂等操作。
+ *
+ * @param input - { userId, postId }
+ * @returns 是否已点赞
+ */
+export async function checkLikeStatus(input: { userId: string; postId: string }): Promise<boolean> {
+	const { userId, postId } = input;
+	const existingLike = await findLike({
+		userId_postId: { userId, postId }
+	});
+	return !!existingLike;
+}
+
+/**
+ * 检查关注状态
+ *
+ * 查询当前用户是否关注了目标用户。
+ * 先验证目标用户存在，再查询关注记录。
+ * 供 Agent API 层判断当前状态，实现幂等操作。
+ *
+ * @param input - { userId, username }
+ * @returns 目标用户 ID 和是否已关注；目标用户不存在时返回 null
+ */
+export async function checkFollowStatus(input: {
+	userId: string;
+	username: string;
+}): Promise<{ targetUserId: string; following: boolean } | null> {
+	const { userId, username } = input;
+
+	// 查询目标用户
+	const targetUser = await findUserByUsername(username, { id: true });
+	if (!targetUser) {
+		return null;
+	}
+
+	// 查询关注记录
+	const existingFollow = await findFollow({
+		followerId_followingId: {
+			followerId: userId,
+			followingId: targetUser.id
+		}
+	});
+
+	return {
+		targetUserId: targetUser.id,
+		following: !!existingFollow
+	};
+}
+
 // ── 类型定义 ──
 
 export interface ToggleLikeInput {
