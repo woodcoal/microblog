@@ -1,10 +1,12 @@
 /**
  * API Token 工具模块
  *
- * 提供 API Token 的生成、哈希和验证功能。
+ * 提供 API Token 的生成、哈希、验证和数据库 CRUD 功能。
  * 使用 Web Crypto API（兼容 Cloudflare Workers），
  * 不依赖 Node.js 内置 crypto 模块。
  */
+
+import { prisma } from '@/lib/db';
 
 /** Token 前缀，用于识别 MuTan 平台的 API Token */
 const TOKEN_PREFIX = 'mt_';
@@ -72,4 +74,46 @@ async function verifyApiToken(tokenHash: string, token: string): Promise<boolean
 		result |= tokenHash.charCodeAt(i) ^ computedHash.charCodeAt(i);
 	}
 	return result === 0;
+}
+
+// ── 数据库 CRUD 操作 ──
+
+/**
+ * 统计用户的 API Token 数量
+ *
+ * @param userId - 用户 ID
+ * @returns 该用户的 Token 数量
+ */
+export async function countApiTokens(userId: string): Promise<number> {
+	return prisma.apiToken.count({ where: { userId } });
+}
+
+/**
+ * 创建 API Token 数据库记录
+ *
+ * @param data - Token 创建数据（userId, name, tokenHash）
+ * @returns 创建的 ApiToken 记录
+ */
+export async function createApiToken(data: { userId: string; name: string; tokenHash: string }) {
+	return prisma.apiToken.create({ data });
+}
+
+/**
+ * 根据 ID 查询 API Token
+ *
+ * @param id - Token ID
+ * @returns Token 记录，不存在返回 null
+ */
+export async function findApiTokenById(id: string) {
+	return prisma.apiToken.findUnique({ where: { id } });
+}
+
+/**
+ * 删除 API Token
+ *
+ * @param id - Token ID
+ * @returns 被删除的 Token 记录
+ */
+export async function deleteApiToken(id: string) {
+	return prisma.apiToken.delete({ where: { id } });
 }

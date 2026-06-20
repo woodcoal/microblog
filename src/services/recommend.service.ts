@@ -5,7 +5,6 @@
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  * 底层调用 DaLi.Lens 推荐与搜索中间件。
  */
-import { prisma } from '@/lib/db';
 import {
 	isLensEnabled,
 	getRecommendations as lensGetRecommendations,
@@ -17,6 +16,8 @@ import {
 } from '@/lib/lens';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { findFollowingIds, findFollowerIds } from '@/lib/social';
+import { findPostsByIds } from '@/lib/post';
 
 // ── 类型定义 ──
 
@@ -92,34 +93,26 @@ async function mapRecommendationsToPosts(
 	const recommendedIds = recommendations.map((r) => r.documentId);
 
 	// 查询当前用户的关注关系，用于可见度过滤
-	const followingIds: string[] = [];
-	const followerIds: string[] = [];
-	const follows = await prisma.follow.findMany({
-		where: { followerId: userId },
-		select: { followingId: true }
-	});
-	followingIds.push(...follows.map((f) => f.followingId));
-	const followers = await prisma.follow.findMany({
-		where: { followingId: userId },
-		select: { followerId: true }
-	});
-	followerIds.push(...followers.map((f) => f.followerId));
+	const [followingIds, followerIds] = await Promise.all([
+		findFollowingIds(userId),
+		findFollowerIds(userId)
+	]);
 
 	const visibilityFilter = getVisibilityFilter({ userId }, { followingIds, followerIds });
 
 	// 从数据库查询推荐帖子的详细信息
-	const posts = await prisma.post.findMany({
-		where: {
-			id: { in: recommendedIds },
+	const posts = await findPostsByIds(
+		recommendedIds,
+		{
 			isDeleted: false,
 			...visibilityFilter
 		},
-		include: {
+		{
 			...POST_CARD_INCLUDE,
 			likes: { select: { id: true, userId: true } },
 			comments: { select: { id: true } }
 		}
-	});
+	);
 
 	// 逐条验证可见度（处理 password/users 等需要逐条验证的可见度类型）
 	const visiblePosts: any[] = [];

@@ -4,7 +4,7 @@
  * 编排用户注册、登录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { findUserByEmail, findUserByUsername, createUser } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
@@ -92,8 +92,8 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 
 	// 检查邮箱和用户名是否已存在（合并提示，防止枚举攻击）
 	const [existingEmail, existingUsername] = await Promise.all([
-		prisma.user.findUnique({ where: { email } }),
-		prisma.user.findUnique({ where: { username } })
+		findUserByEmail(email),
+		findUserByUsername(username)
 	]);
 	if (existingEmail || existingUsername) {
 		throw new ServiceError('BAD_REQUEST', '注册信息已存在，请更换邮箱或用户名');
@@ -103,13 +103,11 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 	const passwordHash = await hashPassword(password);
 
 	// 创建用户
-	const user = await prisma.user.create({
-		data: {
-			username,
-			displayName: displayName || username,
-			email,
-			passwordHash
-		}
+	const user = await createUser({
+		username,
+		displayName: displayName || username,
+		email,
+		passwordHash
 	});
 
 	// 异步同步用户到 DaLi.Lens 推荐系统（用于构建用户画像，失败不影响注册）
@@ -138,7 +136,7 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 	const { email, password } = input;
 
 	// 查找用户
-	const user = await prisma.user.findUnique({ where: { email } });
+	const user = await findUserByEmail(email);
 
 	// 无论用户是否存在都执行 bcrypt 比较，防止时序攻击枚举有效邮箱
 	const dummyHash = '$2a$10$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';

@@ -4,7 +4,8 @@
  * 编排用户设置、个人资料更新的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { findUserSettings, upsertUserSettings } from '@/lib/settings';
+import { findUserById, updateUser } from '@/lib/user';
 import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
 
@@ -121,14 +122,10 @@ export async function updateProfile(input: UpdateProfileInput): Promise<UpdatePr
 	if (note !== undefined) updateData.note = note;
 
 	// 更新 User 表
-	const updatedUser = await prisma.user.update({
-		where: { id: userId },
-		data: updateData,
-		select: {
-			displayName: true,
-			bio: true,
-			avatarUrl: true
-		}
+	const updatedUser = await updateUser(userId, updateData, {
+		displayName: true,
+		bio: true,
+		avatarUrl: true
 	});
 
 	return updatedUser;
@@ -139,16 +136,11 @@ export async function updateProfile(input: UpdateProfileInput): Promise<UpdatePr
  */
 export async function getSettings(input: GetSettingsInput): Promise<GetSettingsResult> {
 	const [settings, user] = await Promise.all([
-		prisma.userSettings.findUnique({
-			where: { userId: input.userId }
-		}),
-		prisma.user.findUnique({
-			where: { id: input.userId },
-			select: {
-				displayName: true,
-				bio: true,
-				avatarUrl: true
-			}
+		findUserSettings(input.userId),
+		findUserById(input.userId, {
+			displayName: true,
+			bio: true,
+			avatarUrl: true
 		})
 	]);
 
@@ -197,16 +189,12 @@ export async function updateSettings(input: UpdateSettingsInput): Promise<Update
 	if (notificationsEnabled !== undefined) updateData.notificationsEnabled = notificationsEnabled;
 
 	// upsert 更新或创建 UserSettings
-	const settings = await prisma.userSettings.upsert({
-		where: { userId },
-		update: updateData,
-		create: {
-			userId,
-			theme: theme ?? DEFAULT_THEME,
-			accent: accent ?? DEFAULT_ACCENT,
-			commentSortOrder: commentSortOrder ?? 'asc',
-			notificationsEnabled: notificationsEnabled ?? true
-		}
+	const settings = await upsertUserSettings(userId, updateData, {
+		userId,
+		theme: theme ?? DEFAULT_THEME,
+		accent: accent ?? DEFAULT_ACCENT,
+		commentSortOrder: commentSortOrder ?? 'asc',
+		notificationsEnabled: notificationsEnabled ?? true
 	});
 
 	return {

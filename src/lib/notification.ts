@@ -6,6 +6,7 @@
  */
 import { prisma } from '@/lib/db';
 import { triggerWebhooks } from '@/lib/webhook';
+import type { Prisma } from '../../generated/prisma/client';
 
 /** 允许的通知类型 */
 const VALID_TYPES = ['follow', 'comment', 'like', 'mention'] as const;
@@ -126,4 +127,80 @@ export async function getUnreadCount(userId: string): Promise<number> {
 			isRead: false
 		}
 	});
+}
+
+/**
+ * 查询通知列表（分页）
+ *
+ * 根据筛选条件查询通知列表，支持关联查询、排序、分页和游标。
+ * take 参数用于限制返回数量，cursor 用于游标分页（跳过 cursor 指定的记录）。
+ *
+ * @param where - 筛选条件（Prisma NotificationWhereInput）
+ * @param include - 关联查询配置（可选，如包含 actor 用户信息）
+ * @param orderBy - 排序规则（可选，默认按创建时间倒序）
+ * @param take - 返回数量上限（可选）
+ * @param cursor - 游标分页起始 ID（可选，传入后将跳过该记录）
+ * @returns 匹配的通知列表
+ */
+export function findNotifications(
+	where: Prisma.NotificationWhereInput,
+	include?: Prisma.NotificationInclude,
+	orderBy?: Prisma.NotificationOrderByWithRelationInput,
+	take?: number,
+	cursor?: string
+) {
+	return prisma.notification.findMany({
+		where,
+		...(include ? { include } : {}),
+		orderBy: orderBy ?? { createdAt: 'desc' },
+		...(take ? { take } : {}),
+		...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+	});
+}
+
+/**
+ * 按 ID 查询通知
+ *
+ * 根据通知 ID 查询单条通知记录，支持通过 select 指定返回字段。
+ * 若通知不存在，返回 null。
+ *
+ * @param id - 通知 ID
+ * @param select - 可选，Prisma select 对象，控制返回字段
+ * @returns 通知记录或 null
+ */
+export function findNotificationById<T extends Prisma.NotificationSelect>(id: string, select?: T) {
+	return prisma.notification.findUnique({
+		where: { id },
+		...(select ? { select } : {})
+	});
+}
+
+/**
+ * 按 ID 删除单条通知
+ *
+ * 根据通知 ID 删除一条通知记录。
+ * 调用方需在业务层确认归属权后再调用此函数。
+ *
+ * @param id - 通知 ID
+ * @returns 被删除的通知记录
+ */
+export function deleteNotificationById(id: string) {
+	return prisma.notification.delete({
+		where: { id }
+	});
+}
+
+/**
+ * 删除用户所有通知
+ *
+ * 删除指定用户（接收者）的所有通知记录。
+ *
+ * @param userId - 接收者用户 ID
+ * @returns 删除的记录数
+ */
+export async function deleteAllNotifications(userId: string) {
+	const result = await prisma.notification.deleteMany({
+		where: { recipientId: userId }
+	});
+	return result.count;
 }

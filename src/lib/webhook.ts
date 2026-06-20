@@ -213,3 +213,61 @@ export async function triggerWebhooks(
 		console.error('触发 Webhook 失败:', error);
 	}
 }
+
+// ── 数据库 CRUD 操作 ──
+
+/**
+ * 统计用户的 Webhook 数量
+ *
+ * @param userId - 用户 ID
+ * @returns 该用户的 Webhook 数量
+ */
+export async function countWebhooks(userId: string): Promise<number> {
+	return prisma.webhook.count({ where: { userId } });
+}
+
+/**
+ * 创建 Webhook 数据库记录
+ *
+ * @param data - Webhook 创建数据（userId, url, secret, events）
+ * @returns 创建的 Webhook 记录
+ */
+export async function createWebhookRecord(data: {
+	userId: string;
+	url: string;
+	secret: string;
+	events: string;
+}) {
+	return prisma.webhook.create({ data });
+}
+
+/**
+ * 根据 ID 查询 Webhook
+ *
+ * @param id - Webhook ID
+ * @returns Webhook 记录，不存在返回 null
+ */
+export async function findWebhookById(id: string) {
+	return prisma.webhook.findUnique({ where: { id } });
+}
+
+/**
+ * 更新 Webhook
+ *
+ * @param id - Webhook ID
+ * @param data - 更新数据
+ * @returns 更新后的 Webhook 记录
+ */
+export async function updateWebhookRecord(id: string, data: Record<string, unknown>) {
+	return prisma.webhook.update({ where: { id }, data });
+}
+
+/**
+ * 删除 Webhook
+ *
+ * @param id - Webhook ID
+ * @returns 被删除的 Webhook 记录
+ */
+export async function deleteWebhookRecord(id: string) {
+	return prisma.webhook.delete({ where: { id } });
+}

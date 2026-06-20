@@ -4,9 +4,17 @@
  * 编排通知查询、删除、标记已读的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
-import { getUnreadCount, markNotificationsRead } from '@/lib/notification';
+import {
+	getUnreadCount,
+	markNotificationsRead,
+	findNotifications,
+	findNotificationById,
+	deleteNotificationById,
+	deleteAllNotifications as deleteAllNotificationsFromLib
+} from '@/lib/notification';
+import { findUserSettings } from '@/lib/settings';
+import { findPostsByIds } from '@/lib/post';
 
 /** 每页通知数量 */
 const PAGE_SIZE = 20;
@@ -80,9 +88,8 @@ export async function getUnreadNotificationCount(
 	const { userId } = input;
 
 	// 检查通知开关
-	const settings = await prisma.userSettings.findUnique({
-		where: { userId },
-		select: { notificationsEnabled: true }
+	const settings = await findUserSettings(userId, {
+		notificationsEnabled: true
 	});
 	if (settings && !settings.notificationsEnabled) {
 		return { count: 0 };
@@ -121,9 +128,9 @@ export async function getNotifications(
 	}
 
 	// 查询通知列表
-	const notifications = await prisma.notification.findMany({
+	const notifications = await findNotifications(
 		where,
-		include: {
+		{
 			actor: {
 				select: {
 					id: true,
@@ -133,13 +140,10 @@ export async function getNotifications(
 				}
 			}
 		},
-		orderBy: { createdAt: 'desc' },
-		take: PAGE_SIZE + 1,
-		...(cursor && {
-			cursor: { id: cursor },
-			skip: 1
-		})
-	});
+		{ createdAt: 'desc' },
+		PAGE_SIZE + 1,
+		cursor ?? undefined
+	);
 
 	// 判断是否有下一页，截取实际返回数量
 	const hasMore = notifications.length > PAGE_SIZE;
@@ -150,14 +154,11 @@ export async function getNotifications(
 	const postIds = [...new Set(items.map((n) => n.postId).filter(Boolean))] as string[];
 	const postAuthorMap = new Map<string, string>();
 	if (postIds.length > 0) {
-		const posts = await prisma.post.findMany({
-			where: { id: { in: postIds } },
-			select: {
-				id: true,
-				user: { select: { username: true } }
-			}
+		const posts = await findPostsByIds(postIds, undefined, undefined, {
+			id: true,
+			user: { select: { username: true } }
 		});
-		for (const p of posts) {
+		for (const p of posts as any[]) {
 			postAuthorMap.set(p.id, p.user.username);
 		}
 	}
@@ -193,11 +194,9 @@ export async function deleteAllNotifications(
 	const { userId } = input;
 
 	// 删除用户收到的所有通知
-	const result = await prisma.notification.deleteMany({
-		where: { recipientId: userId }
-	});
+	const deletedCount = await deleteAllNotificationsFromLib(userId);
 
-	return { deletedCount: result.count };
+	return { deletedCount };
 }
 
 /**
@@ -214,9 +213,8 @@ export async function deleteNotification(
 	const { userId, notificationId } = input;
 
 	// 查询通知，确认属于当前用户
-	const notification = await prisma.notification.findUnique({
-		where: { id: notificationId },
-		select: { recipientId: true }
+	const notification = await findNotificationById(notificationId, {
+		recipientId: true
 	});
 
 	if (!notification) {
@@ -228,9 +226,7 @@ export async function deleteNotification(
 	}
 
 	// 删除通知
-	await prisma.notification.delete({
-		where: { id: notificationId }
-	});
+	await deleteNotificationById(notificationId);
 
 	return { deleted: true };
 }

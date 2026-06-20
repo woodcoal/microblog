@@ -4,7 +4,10 @@
  * 编排管理员对用户、帖子、评论的批量操作和标签管理业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { batchDisableUsers, batchEnableUsers } from '@/lib/user';
+import { batchSoftDeletePosts, batchLockPosts, batchUnlockPosts } from '@/lib/post';
+import { batchSoftDeleteComments } from '@/lib/comment';
+import { findTagById, updateTagVisibility } from '@/lib/tag';
 import { ServiceError } from '@/lib/errors';
 
 /** 单次批量操作最大数量 */
@@ -56,19 +59,10 @@ export async function batchUsers(input: BatchUsersInput): Promise<{ affected: nu
 
 	if (action === 'disable') {
 		// 禁用用户，排除 admin 角色防止误操作
-		result = await prisma.user.updateMany({
-			where: {
-				id: { in: ids },
-				role: { not: 'admin' }
-			},
-			data: { isDisabled: true }
-		});
+		result = await batchDisableUsers(ids);
 	} else {
 		// 启用用户，无角色限制
-		result = await prisma.user.updateMany({
-			where: { id: { in: ids } },
-			data: { isDisabled: false }
-		});
+		result = await batchEnableUsers(ids);
 	}
 
 	return { affected: result.count };
@@ -100,38 +94,17 @@ export async function batchPosts(input: BatchPostsInput): Promise<{ affected: nu
 			throw new ServiceError('BAD_REQUEST', '删除理由不能为空');
 		}
 		// 软删除：设置 isDeleted、deleteReason、deletedBy
-		result = await prisma.post.updateMany({
-			where: { id: { in: ids } },
-			data: {
-				isDeleted: true,
-				deleteReason: reason.trim(),
-				deletedBy: operatorId
-			}
-		});
+		result = await batchSoftDeletePosts(ids, reason.trim(), operatorId);
 	} else if (action === 'lock') {
 		// 锁定操作需填写理由
 		if (!reason || !reason.trim()) {
 			throw new ServiceError('BAD_REQUEST', '锁定理由不能为空');
 		}
 		// 锁定：设置 isLocked、lockedBy、lockReason
-		result = await prisma.post.updateMany({
-			where: { id: { in: ids } },
-			data: {
-				isLocked: true,
-				lockedBy: operatorId,
-				lockReason: reason.trim()
-			}
-		});
+		result = await batchLockPosts(ids, reason.trim(), operatorId);
 	} else {
 		// 解锁：清除锁定状态
-		result = await prisma.post.updateMany({
-			where: { id: { in: ids } },
-			data: {
-				isLocked: false,
-				lockedBy: null,
-				lockReason: null
-			}
-		});
+		result = await batchUnlockPosts(ids);
 	}
 
 	return { affected: result.count };
@@ -154,10 +127,7 @@ export async function batchComments(input: BatchCommentsInput): Promise<{ affect
 	}
 
 	// 软删除评论：设置 isDeleted = true
-	const result = await prisma.comment.updateMany({
-		where: { id: { in: ids } },
-		data: { isDeleted: true }
-	});
+	const result = await batchSoftDeleteComments(ids);
 
 	return { affected: result.count };
 }
@@ -177,7 +147,7 @@ export async function toggleTagVisibility(
 	const { tagId, action } = input;
 
 	// 验证标签存在
-	const tag = await prisma.tag.findUnique({ where: { id: tagId } });
+	const tag = await findTagById(tagId);
 	if (!tag) {
 		throw new ServiceError('NOT_FOUND', '标签不存在');
 	}
@@ -191,10 +161,7 @@ export async function toggleTagVisibility(
 	}
 
 	// 更新标签状态
-	await prisma.tag.update({
-		where: { id: tagId },
-		data: { isHidden: action === 'hide' }
-	});
+	await updateTagVisibility(tagId, action === 'hide');
 
 	return { id: tagId, isHidden: action === 'hide' };
 }

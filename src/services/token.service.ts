@@ -4,9 +4,15 @@
  * 编排 API 令牌的创建和撤销业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
-import { generateApiToken, hashToken } from '@/lib/token';
+import {
+	generateApiToken,
+	hashToken,
+	countApiTokens,
+	createApiToken,
+	findApiTokenById,
+	deleteApiToken
+} from '@/lib/token';
 
 /** 每个用户最多创建的 Token 数量 */
 const MAX_TOKENS_PER_USER = 10;
@@ -46,9 +52,7 @@ export async function createToken(input: CreateTokenInput): Promise<CreateTokenR
 	const { userId, name } = input;
 
 	// 检查用户 Token 数量上限
-	const tokenCount = await prisma.apiToken.count({
-		where: { userId }
-	});
+	const tokenCount = await countApiTokens(userId);
 	if (tokenCount >= MAX_TOKENS_PER_USER) {
 		throw new ServiceError('BAD_REQUEST', `每个用户最多创建 ${MAX_TOKENS_PER_USER} 个 Token`);
 	}
@@ -58,12 +62,10 @@ export async function createToken(input: CreateTokenInput): Promise<CreateTokenR
 	const tokenHash = await hashToken(token);
 
 	// 存储到数据库
-	const apiToken = await prisma.apiToken.create({
-		data: {
-			userId,
-			name: name.trim(),
-			tokenHash
-		}
+	const apiToken = await createApiToken({
+		userId,
+		name: name.trim(),
+		tokenHash
 	});
 
 	// 返回 Token 元信息 + 明文（仅此一次返回）
@@ -87,7 +89,7 @@ export async function revokeToken(input: RevokeTokenInput): Promise<{ id: string
 	const { userId, id } = input;
 
 	// 查询 Token 是否存在
-	const apiToken = await prisma.apiToken.findUnique({ where: { id } });
+	const apiToken = await findApiTokenById(id);
 	if (!apiToken) {
 		throw new ServiceError('NOT_FOUND', 'Token 不存在');
 	}
@@ -98,7 +100,7 @@ export async function revokeToken(input: RevokeTokenInput): Promise<{ id: string
 	}
 
 	// 删除 Token 记录
-	await prisma.apiToken.delete({ where: { id } });
+	await deleteApiToken(id);
 
 	return { id };
 }

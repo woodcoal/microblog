@@ -4,8 +4,10 @@
  * 编排用户搜索、搜索建议的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
-import { ServiceError } from '@/lib/errors';
+import { searchUsersByUsernames, searchUsers as searchUsersFromLib } from '@/lib/user';
+import { searchTags } from '@/lib/tag';
+import { searchPostsSuggest } from '@/lib/post';
+import { searchCategories } from '@/lib/category';
 
 // ── 类型定义 ──
 
@@ -78,17 +80,11 @@ export async function searchUsers(input: SearchUsersInput): Promise<SearchUsersR
 	const { usernames } = input;
 
 	// 精确匹配用户名，排除被禁用的用户
-	const users = await prisma.user.findMany({
-		where: {
-			username: { in: usernames },
-			isDisabled: false
-		},
-		select: {
-			id: true,
-			username: true,
-			displayName: true,
-			avatarUrl: true
-		}
+	const users = await searchUsersByUsernames(usernames, {
+		id: true,
+		username: true,
+		displayName: true,
+		avatarUrl: true
 	});
 
 	return { items: users };
@@ -111,87 +107,67 @@ export async function searchSuggest(input: SearchSuggestInput): Promise<SearchSu
 	// 并行查询标签、帖子、用户和分类
 	const [tags, posts, users, categories] = await Promise.all([
 		// 查询标签：名称包含关键词、未隐藏、按帖子数降序、最多 MAX_SUGGESTIONS 条
-		prisma.tag.findMany({
-			where: {
-				name: { contains: query },
-				isHidden: false
-			},
-			orderBy: { posts: { _count: 'desc' } },
-			take: MAX_SUGGESTIONS,
-			select: {
+		searchTags(
+			query,
+			MAX_SUGGESTIONS,
+			{
 				id: true,
 				name: true,
 				_count: {
 					select: { posts: true }
 				}
-			}
-		}),
-		// 查询帖子：标题或内容包含关键词、未删除、按创建时间降序、最多 3 条
-		prisma.post.findMany({
-			where: {
-				isDeleted: false,
-				OR: [{ title: { contains: query } }, { content: { contains: query } }]
 			},
-			orderBy: { createdAt: 'desc' },
-			take: 3,
-			select: {
-				id: true,
-				title: true,
-				content: true,
-				mode: true,
-				createdAt: true,
-				user: {
-					select: {
-						id: true,
-						username: true,
-						displayName: true,
-						avatarUrl: true
-					}
+			{ isHidden: false },
+			{ posts: { _count: 'desc' } }
+		),
+		// 查询帖子：标题或内容包含关键词、未删除、按创建时间降序、最多 3 条
+		searchPostsSuggest(query, 3, {
+			id: true,
+			title: true,
+			content: true,
+			mode: true,
+			createdAt: true,
+			user: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true,
+					avatarUrl: true
 				}
 			}
 		}),
 		// 查询用户：用户名或显示名包含关键词、未禁用、按粉丝数降序、最多 MAX_SUGGESTIONS 条
-		prisma.user.findMany({
-			where: {
-				isDisabled: false,
-				OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
-			},
-			orderBy: { followers: { _count: 'desc' } },
-			take: MAX_SUGGESTIONS,
-			select: {
-				id: true,
-				username: true,
-				displayName: true,
-				avatarUrl: true
-			}
+		searchUsersFromLib(query, MAX_SUGGESTIONS, {
+			id: true,
+			username: true,
+			displayName: true,
+			avatarUrl: true
 		}),
 		// 查询分类：名称包含关键词、按 mode 分组返回、最多 MAX_SUGGESTIONS 条
-		prisma.category.findMany({
-			where: {
-				name: { contains: query }
-			},
-			orderBy: [{ mode: 'asc' }, { sortOrder: 'asc' }],
-			take: MAX_SUGGESTIONS,
-			select: {
+		searchCategories(
+			query,
+			MAX_SUGGESTIONS,
+			{
 				id: true,
 				name: true,
 				slug: true,
 				mode: true,
 				icon: true,
 				parentId: true
-			}
-		})
+			},
+			[{ mode: 'asc' }, { sortOrder: 'asc' }]
+		)
 	]);
 
 	// 格式化标签数据：将 _count.posts 映射为 postCount
-	const formattedTags = tags.map((tag) => ({
+	const formattedTags = (tags as any[]).map((tag) => ({
 		id: tag.id,
 		name: tag.name,
-		postCount: tag._count.posts
+		postCount: tag._count?.posts ?? 0
 	}));
 
 	// 格式化帖子数据：将 content 截取前 100 字符，createdAt 转为 ISO 字符串
-	const formattedPosts = posts.map((post) => ({
+	const formattedPosts = (posts as any[]).map((post) => ({
 		id: post.id,
 		title: post.title ?? '',
 		content: post.content.slice(0, 100),

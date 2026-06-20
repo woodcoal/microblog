@@ -4,7 +4,7 @@
  * 编排主题/强调色偏好更新的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { upsertUserSettings } from '@/lib/settings';
 import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
 
@@ -52,14 +52,10 @@ export async function updateTheme(input: UpdateThemeInput): Promise<UpdateThemeR
 	if (accent !== undefined) updateData.accent = accent;
 
 	// upsert 更新或创建 UserSettings
-	const settings = await prisma.userSettings.upsert({
-		where: { userId },
-		update: updateData,
-		create: {
-			userId,
-			theme: theme ?? DEFAULT_THEME,
-			accent: accent ?? DEFAULT_ACCENT
-		}
+	const settings = await upsertUserSettings(userId, updateData, {
+		userId,
+		theme: theme ?? DEFAULT_THEME,
+		accent: accent ?? DEFAULT_ACCENT
 	});
 
 	return { theme: settings.theme, accent: settings.accent };

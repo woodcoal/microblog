@@ -4,7 +4,6 @@
  * 编排点赞、关注、收藏的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
 import {
@@ -17,6 +16,12 @@ import {
 	BOOKMARK_REMOVE
 } from '@/lib/activity';
 import { submitFeedback, FEEDBACK_ACTION_CLICK, FEEDBACK_ACTION_FAV } from '@/lib/lens';
+import { findLike, upsertLike, deleteLike, countLikes } from '@/lib/social';
+import { findFollow, upsertFollow, deleteFollow, countFollows } from '@/lib/social';
+import { findBookmark, upsertBookmark, deleteBookmark, countBookmarks } from '@/lib/social';
+import { findPostById, findPostByIdSelect } from '@/lib/post';
+import { findCommentById, findCommentByIdSelect } from '@/lib/comment';
+import { findUserByUsername } from '@/lib/user';
 
 // ── 类型定义 ──
 
@@ -64,7 +69,7 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 
 	// 1. 根据类型检查目标存在且未删除
 	if (type === 'post') {
-		const post = await prisma.post.findUnique({ where: { id: targetId } });
+		const post = await findPostById(targetId);
 		if (!post) {
 			throw new ServiceError('NOT_FOUND', '帖子不存在');
 		}
@@ -72,7 +77,7 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 			throw new ServiceError('BAD_REQUEST', '帖子已删除');
 		}
 	} else {
-		const comment = await prisma.comment.findUnique({ where: { id: targetId } });
+		const comment = await findCommentById(targetId);
 		if (!comment) {
 			throw new ServiceError('NOT_FOUND', '评论不存在');
 		}
@@ -87,13 +92,13 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 			? { userId_postId: { userId, postId: targetId } }
 			: { userId_commentId: { userId, commentId: targetId } };
 
-	const existingLike = await prisma.like.findUnique({ where: whereClause });
+	const existingLike = await findLike(whereClause);
 
 	let liked: boolean;
 	if (existingLike) {
 		// 已点赞 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
-			await prisma.like.delete({ where: whereClause });
+			await deleteLike(whereClause);
 		} catch (deleteError: any) {
 			if (deleteError?.code !== 'P2025') throw deleteError;
 		}
@@ -101,19 +106,17 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 
 		// 记录取消点赞活动（异步，不阻塞主流程）
 		if (type === 'post') {
-			const post = await prisma.post.findUnique({
-				where: { id: targetId },
-				select: { userId: true }
-			});
+			const post = await findPostByIdSelect(targetId, { userId: true });
 			if (post) {
 				logActivity(LIKE_REMOVE, userId, 'post', targetId, post.userId, targetId).catch(
 					() => {}
 				);
 			}
 		} else {
-			const comment = await prisma.comment.findUnique({
-				where: { id: targetId },
-				select: { id: true, userId: true, postId: true }
+			const comment = await findCommentByIdSelect(targetId, {
+				id: true,
+				userId: true,
+				postId: true
 			});
 			if (comment) {
 				logActivity(
@@ -131,19 +134,12 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 		const createData =
 			type === 'post' ? { userId, postId: targetId } : { userId, commentId: targetId };
 
-		await prisma.like.upsert({
-			where: whereClause,
-			update: {},
-			create: createData
-		});
+		await upsertLike(whereClause, createData);
 		liked = true;
 
 		// 发送点赞通知 + 记录活动（异步，不阻塞主流程）
 		if (type === 'post') {
-			const post = await prisma.post.findUnique({
-				where: { id: targetId },
-				select: { userId: true }
-			});
+			const post = await findPostByIdSelect(targetId, { userId: true });
 			if (post) {
 				createNotification('like', userId, post.userId, targetId).catch(() => {});
 				logActivity(LIKE_CREATE, userId, 'post', targetId, post.userId, targetId).catch(
@@ -153,9 +149,10 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 				submitFeedback(userId, targetId, FEEDBACK_ACTION_CLICK).catch(() => {});
 			}
 		} else {
-			const comment = await prisma.comment.findUnique({
-				where: { id: targetId },
-				select: { id: true, userId: true, postId: true }
+			const comment = await findCommentByIdSelect(targetId, {
+				id: true,
+				userId: true,
+				postId: true
 			});
 			if (comment) {
 				createNotification(
@@ -178,9 +175,9 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 	}
 
 	// 3. 统计当前点赞数
-	const likeCount = await prisma.like.count({
-		where: type === 'post' ? { postId: targetId } : { commentId: targetId }
-	});
+	const likeCount = await countLikes(
+		type === 'post' ? { postId: targetId } : { commentId: targetId }
+	);
 
 	return { liked, likeCount };
 }
@@ -195,10 +192,7 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
 	const { userId, username } = input;
 
 	// 1. 检查目标用户存在
-	const targetUser = await prisma.user.findUnique({
-		where: { username },
-		select: { id: true }
-	});
+	const targetUser = await findUserByUsername(username, { id: true });
 	if (!targetUser) {
 		throw new ServiceError('NOT_FOUND', '用户不存在');
 	}
@@ -209,27 +203,20 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
 	}
 
 	// 3. 查询当前关注状态（仅用于确定操作意图）
-	const existingFollow = await prisma.follow.findUnique({
-		where: {
-			followerId_followingId: {
-				followerId: userId,
-				followingId: targetUser.id
-			}
+	const followWhere = {
+		followerId_followingId: {
+			followerId: userId,
+			followingId: targetUser.id
 		}
-	});
+	};
+
+	const existingFollow = await findFollow(followWhere);
 
 	let following: boolean;
 	if (existingFollow) {
 		// 已关注 → 取关：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
-			await prisma.follow.delete({
-				where: {
-					followerId_followingId: {
-						followerId: userId,
-						followingId: targetUser.id
-					}
-				}
-			});
+			await deleteFollow(followWhere);
 		} catch (deleteError: any) {
 			if (deleteError?.code !== 'P2025') throw deleteError;
 		}
@@ -239,18 +226,9 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
 		logActivity(FOLLOW_REMOVE, userId, 'user', targetUser.id, targetUser.id).catch(() => {});
 	} else {
 		// 未关注 → 关注：使用 upsert 避免竞态，已存在则忽略
-		await prisma.follow.upsert({
-			where: {
-				followerId_followingId: {
-					followerId: userId,
-					followingId: targetUser.id
-				}
-			},
-			update: {},
-			create: {
-				followerId: userId,
-				followingId: targetUser.id
-			}
+		await upsertFollow(followWhere, {
+			followerId: userId,
+			followingId: targetUser.id
 		});
 		following = true;
 
@@ -260,9 +238,7 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
 	}
 
 	// 4. 统计目标用户粉丝数
-	const followerCount = await prisma.follow.count({
-		where: { followingId: targetUser.id }
-	});
+	const followerCount = await countFollows({ followingId: targetUser.id });
 
 	return { following, followerCount };
 }
@@ -277,7 +253,7 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 	const { userId, postId } = input;
 
 	// 1. 检查帖子存在且未删除
-	const post = await prisma.post.findUnique({ where: { id: postId } });
+	const post = await findPostById(postId);
 	if (!post) {
 		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
@@ -286,27 +262,20 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 	}
 
 	// 2. 查询当前收藏状态（仅用于确定操作意图）
-	const existingBookmark = await prisma.bookmark.findUnique({
-		where: {
-			userId_postId: {
-				userId,
-				postId
-			}
+	const bookmarkWhere = {
+		userId_postId: {
+			userId,
+			postId
 		}
-	});
+	};
+
+	const existingBookmark = await findBookmark(bookmarkWhere);
 
 	let bookmarked: boolean;
 	if (existingBookmark) {
 		// 已收藏 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
-			await prisma.bookmark.delete({
-				where: {
-					userId_postId: {
-						userId,
-						postId
-					}
-				}
-			});
+			await deleteBookmark(bookmarkWhere);
 		} catch (deleteError: any) {
 			if (deleteError?.code !== 'P2025') throw deleteError;
 		}
@@ -316,18 +285,9 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 		logActivity(BOOKMARK_REMOVE, userId, 'post', postId, post.userId, postId).catch(() => {});
 	} else {
 		// 未收藏 → 收藏：使用 upsert 避免竞态，已存在则忽略
-		await prisma.bookmark.upsert({
-			where: {
-				userId_postId: {
-					userId,
-					postId
-				}
-			},
-			update: {},
-			create: {
-				userId,
-				postId
-			}
+		await upsertBookmark(bookmarkWhere, {
+			userId,
+			postId
 		});
 		bookmarked = true;
 
@@ -338,9 +298,7 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 	}
 
 	// 3. 统计当前收藏数
-	const bookmarkCount = await prisma.bookmark.count({
-		where: { postId }
-	});
+	const bookmarkCount = await countBookmarks({ postId });
 
 	return { bookmarked, bookmarkCount };
 }

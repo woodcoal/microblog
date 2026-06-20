@@ -4,7 +4,8 @@
  * 编排帖子、评论的创建、更新、删除业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { findPostById } from '@/lib/post';
+import { findCommentById, createCommentRecord, softDeleteComment } from '@/lib/comment';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
 import { logActivity, COMMENT_CREATE, COMMENT_DELETE } from '@/lib/activity';
@@ -58,7 +59,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 	const { userId, postId, content, parentId } = input;
 
 	// 1. 验证帖子存在、未删除、未锁定
-	const post = await prisma.post.findUnique({ where: { id: postId } });
+	const post = await findPostById(postId);
 	if (!post) {
 		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
@@ -79,9 +80,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 
 	// 3. 验证 parentId 属于同一帖子
 	if (parentId) {
-		const parentComment = await prisma.comment.findUnique({
-			where: { id: parentId }
-		});
+		const parentComment = await findCommentById(parentId);
 		if (!parentComment) {
 			throw new ServiceError('NOT_FOUND', '回复的评论不存在');
 		}
@@ -95,14 +94,14 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 	}
 
 	// 4. 创建评论
-	const comment = await prisma.comment.create({
-		data: {
+	const comment = await createCommentRecord(
+		{
 			postId,
 			userId,
 			parentId: parentId || null,
 			content: content.trim()
 		},
-		include: {
+		{
 			user: {
 				select: {
 					id: true,
@@ -112,7 +111,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 				}
 			}
 		}
-	});
+	);
 
 	// 5. 异步通知 + 活动日志 + Lens 反馈
 	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
@@ -143,7 +142,7 @@ export async function deleteComment(input: DeleteCommentInput): Promise<{ id: st
 	const { userId, commentId } = input;
 
 	// 1. 验证评论存在
-	const comment = await prisma.comment.findUnique({ where: { id: commentId } });
+	const comment = await findCommentById(commentId);
 	if (!comment) {
 		throw new ServiceError('NOT_FOUND', '评论不存在');
 	}
@@ -159,10 +158,7 @@ export async function deleteComment(input: DeleteCommentInput): Promise<{ id: st
 	}
 
 	// 4. 软删除
-	await prisma.comment.update({
-		where: { id: commentId },
-		data: { isDeleted: true }
-	});
+	await softDeleteComment(commentId);
 
 	// 记录删除评论活动（异步，不阻塞主流程）
 	logActivity(COMMENT_DELETE, userId, 'comment', commentId, comment.userId, comment.postId).catch(

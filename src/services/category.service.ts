@@ -4,7 +4,16 @@
  * 编排分类的创建、更新、删除和排序业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import {
+	findCategoryBySlug,
+	findCategoryById,
+	createCategory as createCategoryRecord,
+	updateCategory as updateCategoryRecord,
+	deleteCategoryById,
+	countPostsByCategory,
+	countChildCategories,
+	reorderCategories as reorderCategoriesRecords
+} from '@/lib/category';
 import { ServiceError } from '@/lib/errors';
 
 /** 合法的分类模式列表 */
@@ -72,14 +81,14 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 	}
 
 	// 校验 slug 唯一
-	const existing = await prisma.category.findUnique({ where: { slug } });
+	const existing = await findCategoryBySlug(slug);
 	if (existing) {
 		throw new ServiceError('BAD_REQUEST', 'slug 已存在');
 	}
 
 	// 如果有 parentId，校验父分类存在
 	if (parentId) {
-		const parent = await prisma.category.findUnique({ where: { id: parentId } });
+		const parent = await findCategoryById(parentId);
 		if (!parent) {
 			throw new ServiceError('NOT_FOUND', '父分类不存在');
 		}
@@ -90,16 +99,14 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 	}
 
 	// 创建分类
-	const category = await prisma.category.create({
-		data: {
-			name: name.trim(),
-			slug: slug.trim(),
-			mode,
-			parentId: parentId || null,
-			description: description || '',
-			icon: icon || '',
-			sortOrder: sortOrder ?? 0
-		}
+	const category = await createCategoryRecord({
+		name: name.trim(),
+		slug: slug.trim(),
+		mode,
+		parentId: parentId || null,
+		description: description || '',
+		icon: icon || '',
+		sortOrder: sortOrder ?? 0
 	});
 
 	return {
@@ -128,14 +135,14 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 	const { id, name, slug, description, icon, sortOrder } = input;
 
 	// 查询分类是否存在
-	const category = await prisma.category.findUnique({ where: { id } });
+	const category = await findCategoryById(id);
 	if (!category) {
 		throw new ServiceError('NOT_FOUND', '分类不存在');
 	}
 
 	// 如果更新 slug，校验唯一性
 	if (slug && slug !== category.slug) {
-		const existing = await prisma.category.findUnique({ where: { slug } });
+		const existing = await findCategoryBySlug(slug);
 		if (existing) {
 			throw new ServiceError('BAD_REQUEST', 'slug 已存在');
 		}
@@ -155,10 +162,7 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 	}
 
 	// 执行更新
-	const updated = await prisma.category.update({
-		where: { id },
-		data: updateData
-	});
+	const updated = await updateCategoryRecord(id, updateData);
 
 	return {
 		id: updated.id,
@@ -186,25 +190,25 @@ export async function deleteCategory(input: DeleteCategoryInput): Promise<{ id: 
 	const { id } = input;
 
 	// 查询分类是否存在
-	const category = await prisma.category.findUnique({ where: { id } });
+	const category = await findCategoryById(id);
 	if (!category) {
 		throw new ServiceError('NOT_FOUND', '分类不存在');
 	}
 
 	// 检查是否有关联帖子
-	const postCount = await prisma.post.count({ where: { categoryId: id } });
+	const postCount = await countPostsByCategory(id);
 	if (postCount > 0) {
 		throw new ServiceError('BAD_REQUEST', `该分类下有 ${postCount} 篇帖子，无法删除`);
 	}
 
 	// 检查是否有子分类
-	const childCount = await prisma.category.count({ where: { parentId: id } });
+	const childCount = await countChildCategories(id);
 	if (childCount > 0) {
 		throw new ServiceError('BAD_REQUEST', `该分类下有 ${childCount} 个子分类，无法删除`);
 	}
 
 	// 删除分类
-	await prisma.category.delete({ where: { id } });
+	await deleteCategoryById(id);
 
 	return { id };
 }
@@ -223,14 +227,7 @@ export async function reorderCategories(
 	const { items } = input;
 
 	// 批量更新排序
-	await prisma.$transaction(
-		items.map((item) =>
-			prisma.category.update({
-				where: { id: item.id },
-				data: { sortOrder: item.sortOrder }
-			})
-		)
-	);
+	await reorderCategoriesRecords(items);
 
 	return { updated: items.length };
 }

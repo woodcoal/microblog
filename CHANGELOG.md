@@ -1,5 +1,26 @@
 # 更新日志
 
+### 2026-06-21 18:00
+
+**提交人**: AI
+**提交哈希**: 1de2f0f
+**影响范围**: lib 层（7 个新文件 + 3 个扩展）、services 层（13 个文件重构）
+**变更类型**: 重构
+
+**详细描述**:
+- 新建 lib 层数据库操作模块：user.ts、post.ts、comment.ts、social.ts、category.ts、tag.ts、settings.ts
+- 扩展已有 lib 模块：notification.ts（+4 函数）、token.ts（+4 函数）、webhook.ts（+5 函数）
+- 重构全部 13 个 service 文件，移除 prisma 直接调用，改为调用 lib 层函数
+- 修复 social.ts 中 findFollowingIds/findFollowerIds 重复定义的严重 bug
+- 修复 settings.ts 的 import type 一致性、category.ts 的 select 泛型类型
+- 修复 search.service.ts 的命名冲突和类型推断问题
+- 修复 notification.service.ts 的 findPostsByIds select 类型推断问题
+
+**注意事项**:
+- 本次重构为纯架构调整，业务逻辑无变化
+- Service 层不再直接 import prisma，所有数据库操作收敛到 lib 层
+- 格式化和类型检查均已通过
+
 ### 2026-06-20 16:00
 
 **提交人**: AI
@@ -8,6 +29,7 @@
 **变更类型**: 重构
 
 **详细描述**:
+
 - 移除 Gorse 推荐引擎全部代码，替换为自建 DaLi.Lens 推荐中间件
 - 新增 `src/lib/lens.ts`：DaLi.Lens 客户端封装（单例、优雅降级、统一 callLens）
 - 重写 `src/services/recommend.service.ts`：基于 Lens API 实现个性化推荐、相似推荐、浏览记录、用户画像
@@ -25,6 +47,7 @@
 - 修复 `recommend.service.ts` 中 visiblePosts 隐式 any 类型
 
 **注意事项**:
+
 - 需配置 LENS_ENDPOINT 和 LENS_API_KEY 环境变量，否则推荐功能静默停用
 - 反馈类型映射：bookmark→fav, like→click, read→view, comment→comment
 - 取消点赞/取消收藏不发送负向反馈（Lens 无 dislike 类型）

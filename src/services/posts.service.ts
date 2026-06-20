@@ -4,7 +4,8 @@
  * 编排帖子点赞用户列表、置顶切换、密码验证的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
+import { findPostById, findPostByIdSelect, togglePostPinTransaction } from '@/lib/post';
+import { findLikesByPostId } from '@/lib/social';
 import { ServiceError } from '@/lib/errors';
 import { verifyPassword } from '@/lib/auth';
 import { MAX_USER_PINNED_POSTS } from '@/lib/config';
@@ -57,15 +58,15 @@ export async function getPostLikers(input: GetPostLikersInput): Promise<GetPostL
 	const { postId } = input;
 
 	// 查询帖子是否存在
-	const post = await prisma.post.findUnique({ where: { id: postId } });
+	const post = await findPostById(postId);
 	if (!post) {
 		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
 
 	// 查询点赞用户列表，按时间倒序
-	const likes = await prisma.like.findMany({
-		where: { postId },
-		include: {
+	const likes = await findLikesByPostId(
+		postId,
+		{
 			user: {
 				select: {
 					username: true,
@@ -74,8 +75,8 @@ export async function getPostLikers(input: GetPostLikersInput): Promise<GetPostL
 				}
 			}
 		},
-		orderBy: { createdAt: 'desc' }
-	});
+		{ createdAt: 'desc' }
+	);
 
 	const users = likes.map((l) => l.user);
 
@@ -97,7 +98,7 @@ export async function togglePin(input: TogglePinInput): Promise<TogglePinResult>
 	const { userId, postId } = input;
 
 	// 验证帖子存在且未删除
-	const post = await prisma.post.findUnique({ where: { id: postId } });
+	const post = await findPostById(postId);
 	if (!post) {
 		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
@@ -116,29 +117,12 @@ export async function togglePin(input: TogglePinInput): Promise<TogglePinResult>
 	}
 
 	// 事务内检查置顶数量上限后切换状态
-	const newPinned = await prisma.$transaction(async (tx) => {
-		// 如果要置顶（当前未置顶），检查用户已置顶数量是否达上限
-		if (!post.isPinned) {
-			const pinnedCount = await tx.post.count({
-				where: {
-					userId,
-					isPinned: true,
-					isDeleted: false
-				}
-			});
-			if (pinnedCount >= MAX_USER_PINNED_POSTS) {
-				throw new ServiceError('BAD_REQUEST', '置顶数量已达上限');
-			}
-		}
-
-		// 切换置顶状态
-		const pinned = !post.isPinned;
-		await tx.post.update({
-			where: { id: postId },
-			data: { isPinned: pinned }
-		});
-		return pinned;
-	});
+	const newPinned = await togglePostPinTransaction(
+		userId,
+		postId,
+		post.isPinned,
+		MAX_USER_PINNED_POSTS
+	);
 
 	return { pinned: newPinned };
 }
@@ -157,13 +141,10 @@ export async function verifyPostPassword(
 	const { postId, password } = input;
 
 	// 查询帖子
-	const post = await prisma.post.findUnique({
-		where: { id: postId },
-		select: {
-			visibility: true,
-			passwordHash: true,
-			isDeleted: true
-		}
+	const post = await findPostByIdSelect(postId, {
+		visibility: true,
+		passwordHash: true,
+		isDeleted: true
 	});
 
 	// 帖子不存在或已删除

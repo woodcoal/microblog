@@ -4,9 +4,16 @@
  * 编排 Webhook 的创建、更新、删除和密钥查看业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
-import { generateSecret, VALID_WEBHOOK_EVENTS } from '@/lib/webhook';
+import {
+	generateSecret,
+	VALID_WEBHOOK_EVENTS,
+	countWebhooks,
+	createWebhookRecord,
+	findWebhookById,
+	updateWebhookRecord,
+	deleteWebhookRecord
+} from '@/lib/webhook';
 
 /** 每个用户最多创建的 Webhook 数量 */
 const MAX_WEBHOOKS_PER_USER = 5;
@@ -95,9 +102,7 @@ export async function createWebhook(input: CreateWebhookInput): Promise<CreateWe
 	}
 
 	// 检查用户 Webhook 数量上限
-	const webhookCount = await prisma.webhook.count({
-		where: { userId }
-	});
+	const webhookCount = await countWebhooks(userId);
 	if (webhookCount >= MAX_WEBHOOKS_PER_USER) {
 		throw new ServiceError(
 			'BAD_REQUEST',
@@ -109,13 +114,11 @@ export async function createWebhook(input: CreateWebhookInput): Promise<CreateWe
 	const secret = generateSecret();
 
 	// 存储到数据库
-	const webhook = await prisma.webhook.create({
-		data: {
-			userId,
-			url: url.trim(),
-			secret,
-			events: JSON.stringify(events)
-		}
+	const webhook = await createWebhookRecord({
+		userId,
+		url: url.trim(),
+		secret,
+		events: JSON.stringify(events)
 	});
 
 	// 返回完整数据（含明文 secret，仅此一次）
@@ -141,7 +144,7 @@ export async function updateWebhook(input: UpdateWebhookInput): Promise<UpdateWe
 	const { userId, id, url, events, isActive } = input;
 
 	// 查询 Webhook 是否存在
-	const webhook = await prisma.webhook.findUnique({ where: { id } });
+	const webhook = await findWebhookById(id);
 	if (!webhook) {
 		throw new ServiceError('NOT_FOUND', 'Webhook 不存在');
 	}
@@ -193,10 +196,7 @@ export async function updateWebhook(input: UpdateWebhookInput): Promise<UpdateWe
 	}
 
 	// 执行更新
-	const updatedWebhook = await prisma.webhook.update({
-		where: { id },
-		data: updateData
-	});
+	const updatedWebhook = await updateWebhookRecord(id, updateData);
 
 	// 返回更新后的数据（secret 脱敏）
 	return {
@@ -221,7 +221,7 @@ export async function deleteWebhook(input: DeleteWebhookInput): Promise<{ id: st
 	const { userId, id } = input;
 
 	// 查询 Webhook 是否存在
-	const webhook = await prisma.webhook.findUnique({ where: { id } });
+	const webhook = await findWebhookById(id);
 	if (!webhook) {
 		throw new ServiceError('NOT_FOUND', 'Webhook 不存在');
 	}
@@ -232,7 +232,7 @@ export async function deleteWebhook(input: DeleteWebhookInput): Promise<{ id: st
 	}
 
 	// 删除 Webhook 记录
-	await prisma.webhook.delete({ where: { id } });
+	await deleteWebhookRecord(id);
 
 	return { id };
 }
@@ -251,7 +251,7 @@ export async function revealWebhookSecret(
 	const { userId, id } = input;
 
 	// 查询 Webhook 是否存在
-	const webhook = await prisma.webhook.findUnique({ where: { id } });
+	const webhook = await findWebhookById(id);
 	if (!webhook) {
 		throw new ServiceError('NOT_FOUND', 'Webhook 不存在');
 	}
