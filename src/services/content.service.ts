@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
 import { logActivity, COMMENT_CREATE, COMMENT_DELETE } from '@/lib/activity';
-import { insertFeedback, FEEDBACK_TYPE_COMMENT } from '@/lib/gorse';
+import { submitFeedback, FEEDBACK_ACTION_COMMENT } from '@/lib/lens';
 
 /** 评论内容最大长度 */
 const COMMENT_MAX_LENGTH = 1000;
@@ -52,7 +52,7 @@ export interface DeleteCommentInput {
  * 创建评论
  *
  * 校验帖子存在/未删除/未锁定，校验内容，校验 parentId，
- * 创建评论记录，异步发送通知+活动日志+Gorse 反馈。
+ * 创建评论记录，异步发送通知+活动日志+Lens 反馈。
  */
 export async function createComment(input: CreateCommentInput): Promise<CreateCommentResult> {
 	const { userId, postId, content, parentId } = input;
@@ -114,10 +114,10 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 		}
 	});
 
-	// 5. 异步通知 + 活动日志 + Gorse 反馈
+	// 5. 异步通知 + 活动日志 + Lens 反馈
 	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
 	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => {});
-	insertFeedback(userId, postId, FEEDBACK_TYPE_COMMENT, new Date().toISOString()).catch(() => {});
+	submitFeedback(userId, postId, FEEDBACK_ACTION_COMMENT).catch(() => {});
 
 	return {
 		id: comment.id,

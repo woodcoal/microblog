@@ -6,7 +6,7 @@
 
 - **三种内容模式**：微博（短内容流）、论坛（分类讨论）、博客（长文章），通过环境变量自由启用
 - **细粒度可见度**：7 种帖子可见度（公开/登录可见/粉丝可见/关注可见/私密/密码保护/指定用户）
-- **个性化推荐**：集成 Gorse 推荐引擎，支持"猜你喜欢"个性化内容推荐
+- **个性化推荐**：集成 DaLi.Lens 推荐中间件，支持"猜你喜欢"个性化内容推荐与相关推荐
 - **多主题系统**：4 套预置主题（亮色/暗色/护眼/高对比度）+ 5 种强调色
 - **双认证方式**：JWT Cookie 认证（浏览器）+ API Token 认证（外部客户端）
 - **管理后台**：用户/帖子/评论/标签/分类管理，操作日志审计
@@ -71,19 +71,19 @@ npm run pm2
 
 复制 `.env.example` 为 `.env` 进行配置：
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `DATABASE_URL` | 数据库连接 | `file:./prisma/dev.db` |
-| `JWT_SECRET` | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
-| `JWT_EXPIRES_DAYS` | JWT 有效期（天） | `7` |
-| `UPLOAD_DIR` | 文件上传目录 | `./uploads` |
-| `SITE_URL` | 站点 URL | `http://localhost:4321` |
-| `SITE_TITLE` | 站点标题 | `睦谈` |
-| `SITE_DESCRIPTION` | 站点描述 | `世间纷纷扰扰，此处和睦相谈` |
-| `SITE_MODES` | 启用的模式（逗号分隔） | `weibo,forum,blog` |
-| `ALLOW_REGISTRATION` | 是否允许注册 | `true` |
-| `GORSE_ENDPOINT` | Gorse 推荐引擎地址（可选） | - |
-| `GORSE_API_KEY` | Gorse API 密钥（可选） | - |
+| 变量                 | 说明                                 | 默认值                                  |
+| -------------------- | ------------------------------------ | --------------------------------------- |
+| `DATABASE_URL`       | 数据库连接                           | `file:./prisma/dev.db`                  |
+| `JWT_SECRET`         | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
+| `JWT_EXPIRES_DAYS`   | JWT 有效期（天）                     | `7`                                     |
+| `UPLOAD_DIR`         | 文件上传目录                         | `./uploads`                             |
+| `SITE_URL`           | 站点 URL                             | `http://localhost:4321`                 |
+| `SITE_TITLE`         | 站点标题                             | `睦谈`                                  |
+| `SITE_DESCRIPTION`   | 站点描述                             | `世间纷纷扰扰，此处和睦相谈`            |
+| `SITE_MODES`         | 启用的模式（逗号分隔）               | `weibo,forum,blog`                      |
+| `ALLOW_REGISTRATION` | 是否允许注册                         | `true`                                  |
+| `LENS_ENDPOINT`      | DaLi.Lens 推荐中间件地址（可选）     | -                                       |
+| `LENS_API_KEY`       | DaLi.Lens API 密钥（可选）           | -                                       |
 
 完整变量列表见 `.env.example`。
 
@@ -124,11 +124,11 @@ npm run format           # 代码格式化
 
 每种模式有独立的布局、路由和交互方式：
 
-| 模式 | 特点 | 路由 |
-|------|------|------|
-| 微博 | 短内容流，快速发布 | `/weibo` |
+| 模式 | 特点                | 路由     |
+| ---- | ------------------- | -------- |
+| 微博 | 短内容流，快速发布  | `/weibo` |
 | 论坛 | 分类讨论，标题+内容 | `/forum` |
-| 博客 | 长文章，富文本编辑 | `/blog` |
+| 博客 | 长文章，富文本编辑  | `/blog`  |
 
 ## 许可证
 

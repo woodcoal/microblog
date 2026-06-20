@@ -1,17 +1,20 @@
 /**
  * 推荐系统 Service
  *
- * 编排个性化推荐和浏览记录的业务流程。
+ * 编排个性化推荐、相似推荐和浏览记录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
+ * 底层调用 DaLi.Lens 推荐与搜索中间件。
  */
 import { prisma } from '@/lib/db';
-import { ServiceError } from '@/lib/errors';
 import {
-	isGorseEnabled,
-	getRecommendations as gorseGetRecommend,
-	insertFeedback,
-	FEEDBACK_TYPE_READ
-} from '@/lib/gorse';
+	isLensEnabled,
+	getRecommendations as lensGetRecommendations,
+	getSimilarDocuments as lensGetSimilarDocuments,
+	getUserProfile as lensGetUserProfile,
+	submitFeedback,
+	FEEDBACK_ACTION_VIEW,
+	type LensRecommendationItem
+} from '@/lib/lens';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 
@@ -37,6 +40,8 @@ export interface RecommendItem {
 	likeCount: number;
 	commentCount: number;
 	liked: boolean;
+	/** DaLi.Lens 推荐匹配分（0~1），越高越匹配 */
+	score?: number;
 }
 
 export interface GetRecommendResult {
@@ -48,34 +53,43 @@ export interface RecordReadInput {
 	postId: string;
 }
 
-// ── 业务函数 ──
+export interface GetSimilarPostsInput {
+	userId: string;
+	postId: string;
+	n?: number;
+}
+
+export interface GetUserProfileInput {
+	userId: string;
+}
+
+export interface GetUserProfileResult {
+	interactionCount: number;
+	topCategories: Array<{ category: string; weight: number }>;
+}
+
+// ── 内部工具 ──
 
 /**
- * 获取个性化推荐
+ * 根据 Lens 推荐结果查询帖子并应用可见度过滤
  *
- * 根据用户历史行为，返回 Gorse 推荐引擎生成的个性化帖子列表。
- * Gorse 未配置时返回空列表。
- * 返回的帖子经过可见度过滤，确保用户只能看到有权限的内容。
+ * Lens 返回的 documentId 即帖子短链 ID，按推荐顺序查询数据库，
+ * 逐条验证可见度后按推荐优先级排序返回。
  *
- * @param input - { userId, n? }
- * @returns 推荐帖子列表
+ * @param userId - 当前用户 ID
+ * @param recommendations - Lens 推荐项列表
+ * @returns 过滤并格式化后的帖子列表
  */
-export async function getRecommend(input: GetRecommendInput): Promise<GetRecommendResult> {
-	const { userId, n } = input;
-
-	// Gorse 未启用时返回空列表
-	if (!isGorseEnabled()) {
-		return { items: [] };
+async function mapRecommendationsToPosts(
+	userId: string,
+	recommendations: LensRecommendationItem[]
+): Promise<RecommendItem[]> {
+	if (recommendations.length === 0) {
+		return [];
 	}
 
-	const count = n ?? 5;
-
-	// 从 Gorse 获取推荐帖子 ID
-	const recommendedIds = await gorseGetRecommend(userId, { n: count });
-
-	if (recommendedIds.length === 0) {
-		return { items: [] };
-	}
+	// 提取帖子 ID 列表
+	const recommendedIds = recommendations.map((r) => r.documentId);
 
 	// 查询当前用户的关注关系，用于可见度过滤
 	const followingIds: string[] = [];
@@ -108,7 +122,7 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 	});
 
 	// 逐条验证可见度（处理 password/users 等需要逐条验证的可见度类型）
-	const visiblePosts = [];
+	const visiblePosts: any[] = [];
 	for (const post of posts) {
 		const isVisible = await checkPostVisibility(
 			{
@@ -128,7 +142,8 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 		}
 	}
 
-	// 按推荐顺序排列（Gorse 返回的顺序即推荐优先级）
+	// 按推荐顺序排列（Lens 返回的顺序即推荐优先级）
+	const scoreMap = new Map(recommendations.map((r) => [r.documentId, r.score]));
 	const orderedPosts = recommendedIds
 		.map((id) => visiblePosts.find((p) => p.id === id))
 		.filter(Boolean);
@@ -140,7 +155,7 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 	);
 
 	// 格式化返回数据
-	const items = orderedPosts.map((post) => ({
+	return orderedPosts.map((post) => ({
 		id: post!.id,
 		content: post!.content,
 		createdAt: post!.createdAt.toISOString(),
@@ -154,8 +169,62 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 		tags: post!.tags.map((pt: any) => ({ id: pt.tag.id, name: pt.tag.name })),
 		likeCount: post!._count.likes,
 		commentCount: post!._count.comments,
-		liked: likedPostIds.has(post!.id)
+		liked: likedPostIds.has(post!.id),
+		score: scoreMap.get(post!.id)
 	}));
+}
+
+// ── 业务函数 ──
+
+/**
+ * 获取个性化推荐
+ *
+ * 根据用户画像，返回 DaLi.Lens 推荐引擎生成的个性化帖子列表。
+ * Lens 未配置时返回空列表。
+ * 返回的帖子经过可见度过滤，确保用户只能看到有权限的内容。
+ * 新用户（无画像）会收到最近入库的热门文档（冷启动处理）。
+ *
+ * @param input - { userId, n? }
+ * @returns 推荐帖子列表
+ */
+export async function getRecommend(input: GetRecommendInput): Promise<GetRecommendResult> {
+	const { userId, n } = input;
+
+	// Lens 未启用时返回空列表
+	if (!isLensEnabled()) {
+		return { items: [] };
+	}
+
+	const count = n ?? 5;
+
+	// 从 Lens 获取推荐
+	const recommendations = await lensGetRecommendations(userId, { topK: count });
+
+	// 映射为帖子数据
+	const items = await mapRecommendationsToPosts(userId, recommendations);
+
+	return { items };
+}
+
+/**
+ * 获取相似帖子
+ *
+ * 查找与指定帖子相似的其他帖子，用于详情页"相关推荐"。
+ * Lens 未配置时返回空列表。
+ *
+ * @param input - { userId, postId, n? }
+ * @returns 相似帖子列表
+ */
+export async function getSimilarPosts(input: GetSimilarPostsInput): Promise<GetRecommendResult> {
+	const { userId, postId, n } = input;
+
+	if (!isLensEnabled()) {
+		return { items: [] };
+	}
+
+	const count = n ?? 5;
+	const recommendations = await lensGetSimilarDocuments(userId, postId, count);
+	const items = await mapRecommendationsToPosts(userId, recommendations);
 
 	return { items };
 }
@@ -163,9 +232,9 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 /**
  * 记录浏览行为
  *
- * 将用户浏览帖子的行为异步记录到 Gorse 推荐引擎。
- * 浏览反馈（read）用于去重：已看过的帖子不再推荐。
- * Gorse 未配置时静默返回成功。
+ * 将用户浏览帖子的行为同步到 DaLi.Lens，用于更新用户画像。
+ * 浏览反馈（view）作为弱正向信号，帮助推荐系统理解用户兴趣。
+ * Lens 未配置时静默返回成功。
  *
  * @param input - { userId, postId }
  * @returns 记录成功
@@ -173,13 +242,42 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 export async function recordRead(input: RecordReadInput): Promise<{ recorded: true }> {
 	const { userId, postId } = input;
 
-	// Gorse 未启用时静默返回成功
-	if (!isGorseEnabled()) {
+	// Lens 未启用时静默返回成功
+	if (!isLensEnabled()) {
 		return { recorded: true };
 	}
 
-	// 异步插入浏览反馈（不等待结果，直接返回成功）
-	insertFeedback(userId, postId, FEEDBACK_TYPE_READ, new Date().toISOString()).catch(() => {});
+	// 异步提交浏览反馈（不等待结果，直接返回成功）
+	submitFeedback(userId, postId, FEEDBACK_ACTION_VIEW).catch(() => {});
 
 	return { recorded: true };
+}
+
+/**
+ * 获取用户画像
+ *
+ * 返回用户在 DaLi.Lens 中的兴趣画像，包括交互统计和分类偏好。
+ * 用于在设置页或个人主页展示用户兴趣标签。
+ * 新用户或 Lens 未配置时返回空画像。
+ *
+ * @param input - { userId }
+ * @returns 用户画像数据
+ */
+export async function getUserProfile(input: GetUserProfileInput): Promise<GetUserProfileResult> {
+	const { userId } = input;
+
+	if (!isLensEnabled()) {
+		return { interactionCount: 0, topCategories: [] };
+	}
+
+	const profile = await lensGetUserProfile(userId);
+
+	if (!profile) {
+		return { interactionCount: 0, topCategories: [] };
+	}
+
+	return {
+		interactionCount: profile.interactionCount,
+		topCategories: profile.topCategories
+	};
 }

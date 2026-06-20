@@ -16,12 +16,7 @@ import {
 	BOOKMARK_CREATE,
 	BOOKMARK_REMOVE
 } from '@/lib/activity';
-import {
-	insertFeedback,
-	deleteFeedback,
-	FEEDBACK_TYPE_LIKE,
-	FEEDBACK_TYPE_BOOKMARK
-} from '@/lib/gorse';
+import { submitFeedback, FEEDBACK_ACTION_CLICK, FEEDBACK_ACTION_FAV } from '@/lib/lens';
 
 // ── 类型定义 ──
 
@@ -114,12 +109,11 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 				logActivity(LIKE_REMOVE, userId, 'post', targetId, post.userId, targetId).catch(
 					() => {}
 				);
-				deleteFeedback(userId, targetId, FEEDBACK_TYPE_LIKE).catch(() => {});
 			}
 		} else {
 			const comment = await prisma.comment.findUnique({
 				where: { id: targetId },
-				select: { userId: true, postId: true }
+				select: { id: true, userId: true, postId: true }
 			});
 			if (comment) {
 				logActivity(
@@ -155,17 +149,13 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 				logActivity(LIKE_CREATE, userId, 'post', targetId, post.userId, targetId).catch(
 					() => {}
 				);
-				insertFeedback(
-					userId,
-					targetId,
-					FEEDBACK_TYPE_LIKE,
-					new Date().toISOString()
-				).catch(() => {});
+				// 点赞作为点击行为上报到 Lens（弱正向信号）
+				submitFeedback(userId, targetId, FEEDBACK_ACTION_CLICK).catch(() => {});
 			}
 		} else {
 			const comment = await prisma.comment.findUnique({
 				where: { id: targetId },
-				select: { userId: true, postId: true }
+				select: { id: true, userId: true, postId: true }
 			});
 			if (comment) {
 				createNotification(
@@ -324,7 +314,6 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 
 		// 记录取消收藏活动（异步，不阻塞主流程）
 		logActivity(BOOKMARK_REMOVE, userId, 'post', postId, post.userId, postId).catch(() => {});
-		deleteFeedback(userId, postId, FEEDBACK_TYPE_BOOKMARK).catch(() => {});
 	} else {
 		// 未收藏 → 收藏：使用 upsert 避免竞态，已存在则忽略
 		await prisma.bookmark.upsert({
@@ -344,9 +333,8 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 
 		// 记录收藏活动（异步，不阻塞主流程）
 		logActivity(BOOKMARK_CREATE, userId, 'post', postId, post.userId, postId).catch(() => {});
-		insertFeedback(userId, postId, FEEDBACK_TYPE_BOOKMARK, new Date().toISOString()).catch(
-			() => {}
-		);
+		// 收藏作为强正向信号上报到 Lens
+		submitFeedback(userId, postId, FEEDBACK_ACTION_FAV).catch(() => {});
 	}
 
 	// 3. 统计当前收藏数

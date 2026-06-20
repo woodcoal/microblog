@@ -205,13 +205,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const commentId = (btn as HTMLElement).dataset.commentId || '';
 
 			const result = await actions.adminDeleteComment({ commentId });
-				if (result.error) {
-					await MutanDialog.alert(result.error.message || '操作失败');
-				} else if (result.data?.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(result.data?.message || '操作失败');
-				}
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
+			}
 		});
 	});
 
@@ -264,13 +264,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				return;
 
 			const result = await actions.batchComments({ action, ids: checkedIds });
-				if (result.error) {
-					await MutanDialog.alert(result.error.message || '操作失败');
-				} else if (result.data?.success) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert(result.data?.message || '操作失败');
-				}
+			if (result.error) {
+				await MutanDialog.alert(result.error.message || '操作失败');
+			} else if (result.data?.success) {
+				window.location.reload();
+			} else {
+				await MutanDialog.alert(result.data?.message || '操作失败');
+			}
 		});
 	});
 </script>

@@ -1,5 +1,34 @@
 # 更新日志
 
+### 2026-06-20 16:00
+
+**提交人**: AI
+**提交哈希**: 5902805
+**影响范围**: 推荐系统（全栈）、文档、配置
+**变更类型**: 重构
+
+**详细描述**:
+- 移除 Gorse 推荐引擎全部代码，替换为自建 DaLi.Lens 推荐中间件
+- 新增 `src/lib/lens.ts`：DaLi.Lens 客户端封装（单例、优雅降级、统一 callLens）
+- 重写 `src/services/recommend.service.ts`：基于 Lens API 实现个性化推荐、相似推荐、浏览记录、用户画像
+- 重写 `src/actions/recommend.ts`：新增 getSimilarPosts、getUserProfile Actions
+- 更新 `src/actions/content.ts`：帖子 CRUD 改用 ingestDocument/updateDocument/deleteDocument
+- 更新 `src/services/content.service.ts`：评论反馈改用 submitFeedback(FEEDBACK_ACTION_COMMENT)
+- 更新 `src/services/social.service.ts`：点赞/收藏反馈改用 submitFeedback(click/fav)
+- 更新 `src/services/auth.service.ts`：注册时异步同步用户到 Lens（createUser）
+- 更新 `src/pages/index.astro`：推荐区域改用 isLensEnabled
+- 更新 `src/pages/[username]/[postId]/index.astro`：浏览反馈改用 view，新增"相关推荐"区域
+- 更新 `src/lib/config.ts`：移除 GORSE_ENDPOINT/GORSE_API_KEY，新增 LENS_ENDPOINT/LENS_API_KEY
+- 删除 `src/lib/gorse.ts`，移除 `gorsejs` 依赖
+- 更新 `.env.example`、`README.md`、`CLAUDE.md`、`docs/plan/M7-知音.md` 中所有 Gorse 引用
+- 修复 `social.service.ts` 中 comment.id 类型错误（select 缺少 id 字段）
+- 修复 `recommend.service.ts` 中 visiblePosts 隐式 any 类型
+
+**注意事项**:
+- 需配置 LENS_ENDPOINT 和 LENS_API_KEY 环境变量，否则推荐功能静默停用
+- 反馈类型映射：bookmark→fav, like→click, read→view, comment→comment
+- 取消点赞/取消收藏不发送负向反馈（Lens 无 dislike 类型）
+
 ### 2026-06-08 14:00
 
 **提交人**: AI
@@ -39,6 +68,7 @@
 - 修复 BookmarkButton/FollowButton/LikeButton 因之前编辑遗留的多余缩进和闭合大括号导致的语法错误
 
 **涉及文件**（25个）:
+
 - Base.astro, SearchResults.astro, admin/categories.astro, [username]/[postId]/index.astro
 - settings/index.astro, notifications.astro, index.astro
 - AdminUserList.astro, AdminPostList.astro, AdminTagList.astro, AdminCommentList.astro

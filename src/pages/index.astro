@@ -3,7 +3,7 @@
  * 首页（个性化推荐）
  *
  * 全站数据聚合入口，以推荐/发现为核心：
- * - 已登录用户：优先展示 Gorse 个性化推荐 + 关注动态
+ * - 已登录用户：优先展示 DaLi.Lens 个性化推荐 + 关注动态
  * - 未登录用户：展示热门内容（按热门分数排序）
  * - 三种模式帖子混排，卡片按 mode 渲染
  * - 全局置顶帖始终排在最前面
@@ -18,7 +18,7 @@ import { calculateTrendingScore } from '@/lib/trending';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isSingleMode, singleMode } from '@/lib/config';
-import { isGorseEnabled } from '@/lib/gorse';
+import { isLensEnabled } from '@/lib/lens';
 
 // 单模式时直接重定向到该模式首页
 if (isSingleMode && singleMode) {
@@ -132,7 +132,7 @@ const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
-const gorseEnabled = isGorseEnabled() && !!currentUser;
+const lensEnabled = isLensEnabled() && !!currentUser;
 ---
 
 <HomeLayout title="首页">
@@ -211,9 +211,9 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 		)
 	}
 
-	{/* 猜你喜欢 - Gorse 个性化推荐 */}
+	{/* 猜你喜欢 - DaLi.Lens 个性化推荐 */}
 	{
-		gorseEnabled && (
+		lensEnabled && (
 			<section class="recommend-section" id="recommend-section" style="display:none">
 				<h2 class="recommend-title">猜你喜欢</h2>
 				<div class="recommend-list" id="recommend-list" />
@@ -348,7 +348,7 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 	 *
 	 * 页面加载后通过 Astro Actions 获取推荐帖子，
 	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
-	 * 仅在推荐区域存在时执行（Gorse 已启用且用户已登录）。
+	 * 仅在推荐区域存在时执行（DaLi.Lens 已启用且用户已登录）。
 	 */
 	(async () => {
 		const section = document.getElementById('recommend-section');
@@ -362,51 +362,51 @@ const gorseEnabled = isGorseEnabled() && !!currentUser;
 		}
 
 		const items = result.data.items;
-			const fragment = document.createDocumentFragment();
+		const fragment = document.createDocumentFragment();
 
-			for (const item of items) {
-				const a = document.createElement('a');
-				a.href = `/${item.user.username}/${item.id}`;
-				a.className = 'recommend-item';
+		for (const item of items) {
+			const a = document.createElement('a');
+			a.href = `/${item.user.username}/${item.id}`;
+			a.className = 'recommend-item';
 
-				// 头像
-				if (item.user.avatarUrl) {
-					const img = document.createElement('img');
-					img.src = item.user.avatarUrl;
-					img.alt = item.user.displayName;
-					img.className = 'recommend-item-avatar';
-					img.loading = 'lazy';
-					a.appendChild(img);
-				} else {
-					const span = document.createElement('span');
-					span.className = 'recommend-item-avatar-placeholder';
-					span.textContent = item.user.displayName.charAt(0).toUpperCase();
-					a.appendChild(span);
-				}
-
-				// 内容区
-				const contentDiv = document.createElement('div');
-				contentDiv.className = 'recommend-item-content';
-
-				const titleDiv = document.createElement('div');
-				titleDiv.className = 'recommend-item-title';
-				// 有标题用标题，否则用内容前 80 字符
-				titleDiv.textContent =
-					item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
-
-				const metaDiv = document.createElement('div');
-				metaDiv.className = 'recommend-item-meta';
-				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
-				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-				metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
-
-				contentDiv.appendChild(titleDiv);
-				contentDiv.appendChild(metaDiv);
-				a.appendChild(contentDiv);
-				fragment.appendChild(a);
+			// 头像
+			if (item.user.avatarUrl) {
+				const img = document.createElement('img');
+				img.src = item.user.avatarUrl;
+				img.alt = item.user.displayName;
+				img.className = 'recommend-item-avatar';
+				img.loading = 'lazy';
+				a.appendChild(img);
+			} else {
+				const span = document.createElement('span');
+				span.className = 'recommend-item-avatar-placeholder';
+				span.textContent = item.user.displayName.charAt(0).toUpperCase();
+				a.appendChild(span);
 			}
 
-			list.appendChild(fragment);
+			// 内容区
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'recommend-item-content';
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'recommend-item-title';
+			// 有标题用标题，否则用内容前 80 字符
+			titleDiv.textContent =
+				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
+
+			const metaDiv = document.createElement('div');
+			metaDiv.className = 'recommend-item-meta';
+			const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+			const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+			metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+			contentDiv.appendChild(titleDiv);
+			contentDiv.appendChild(metaDiv);
+			a.appendChild(contentDiv);
+			fragment.appendChild(a);
+		}
+
+		list.appendChild(fragment);
 		section.style.display = '';
 	})();
 </script>

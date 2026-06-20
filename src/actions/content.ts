@@ -15,7 +15,7 @@ import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 import { deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
 import { parseMentions, parseTags } from '@/lib/parser';
 import { VALID_VISIBILITIES, type Visibility } from '@/lib/visibility';
-import { insertFeedback, upsertItem, hideItem, FEEDBACK_TYPE_COMMENT } from '@/lib/gorse';
+import { ingestDocument, updateDocument, deleteDocument } from '@/lib/lens';
 import { ServiceError } from '@/lib/errors';
 import {
 	createComment as createCommentService,
@@ -342,19 +342,12 @@ export const createPost = defineAction({
 			post.id
 		).catch(() => {});
 
-		// 同步帖子到 Gorse 推荐引擎（异步，不阻塞）
-		const gorseCategories: string[] = [];
-		if (fullPost?.category?.slug) gorseCategories.push(fullPost.category.slug);
-		if (fullPost?.tags) fullPost.tags.forEach((pt: any) => gorseCategories.push(pt.tag.name));
-		upsertItem(post.id, {
-			isDeleted: false,
-			categories: gorseCategories,
-			labels: {
-				mode: postMode,
-				tags: fullPost?.tags?.map((pt: any) => pt.tag.name) ?? []
-			},
-			timestamp: post.createdAt.toISOString(),
-			comment: title?.trim() || content.trim().slice(0, 100)
+		// 同步帖子到 DaLi.Lens 推荐引擎（异步，不阻塞）
+		ingestDocument({
+			externalId: post.id,
+			title: title?.trim() || content.trim().slice(0, 100),
+			content: content.trim(),
+			category: fullPost?.category?.name
 		}).catch(() => {});
 
 		return sanitizePost(fullPost || post);
@@ -724,19 +717,12 @@ export const updatePost = defineAction({
 			() => {}
 		);
 
-		// 同步更新帖子到 Gorse 推荐引擎（异步，不阻塞）
-		const gorseCategories: string[] = [];
-		if (updated.category?.slug) gorseCategories.push(updated.category.slug);
-		if (updated.tags) updated.tags.forEach((pt: any) => gorseCategories.push(pt.tag.name));
-		upsertItem(postId, {
-			isDeleted: false,
-			categories: gorseCategories,
-			labels: {
-				mode: postMode,
-				tags: updated.tags?.map((pt: any) => pt.tag.name) ?? []
-			},
-			timestamp: updated.updatedAt.toISOString(),
-			comment: updated.title || updated.content.slice(0, 100)
+		// 同步更新帖子到 DaLi.Lens 推荐引擎（异步，不阻塞）
+		updateDocument(postId, {
+			externalId: postId,
+			title: updated.title || updated.content.slice(0, 100),
+			content: updated.content,
+			category: updated.category?.name
 		}).catch(() => {});
 
 		return sanitizePost(updated);
@@ -791,8 +777,8 @@ export const deletePost = defineAction({
 			() => {}
 		);
 
-		// 在 Gorse 中隐藏帖子（异步，不阻塞）
-		hideItem(postId).catch(() => {});
+		// 从 DaLi.Lens 删除帖子（异步，不阻塞）
+		deleteDocument(postId).catch(() => {});
 
 		return { id: postId };
 	}

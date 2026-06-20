@@ -105,24 +105,24 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 				const parentId = textarea.dataset.parentId || null;
 
 				const result = await actions.createComment({
-						postId,
-						content,
-						parentId: parentId || undefined
-					});
-					if (result.error) {
-						const errStatus = (result.error as any).status;
-						if (errStatus === 401) {
-							// 未登录跳转登录页
-							window.location.href = '/login';
-						} else {
-							await MutanDialog.alert(result.error.message || '发表评论失败');
-							submitBtn.disabled = false;
-							submitBtn.textContent = '发表评论';
-						}
+					postId,
+					content,
+					parentId: parentId || undefined
+				});
+				if (result.error) {
+					const errStatus = (result.error as any).status;
+					if (errStatus === 401) {
+						// 未登录跳转登录页
+						window.location.href = '/login';
 					} else {
-						// 成功后刷新页面
-						location.reload();
+						await MutanDialog.alert(result.error.message || '发表评论失败');
+						submitBtn.disabled = false;
+						submitBtn.textContent = '发表评论';
 					}
+				} else {
+					// 成功后刷新页面
+					location.reload();
+				}
 			});
 		});
 	});

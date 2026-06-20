@@ -711,6 +711,16 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			</section>
 		)
 	}
+
+	{/* 相关推荐 - DaLi.Lens 相似文档推荐（仅登录用户） */}
+	{
+		currentUser && !isDeleted && !needPassword && (
+			<section class="post-detail-similar" id="similar-section" style="display:none">
+				<h2 class="post-detail-similar-title">相关推荐</h2>
+				<div class="post-detail-similar-list" id="similar-list" />
+			</section>
+		)
+	}
 	<ImageLightbox />
 </UserLayout>
 
@@ -921,6 +931,73 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		margin-top: 1.5rem;
 		padding-top: 1rem;
 		border-top: 1px solid var(--color-border);
+	}
+	/* 相关推荐区域 */
+	.post-detail-similar {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-similar-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin-bottom: 0.75rem;
+		color: var(--color-text);
+	}
+	.post-detail-similar-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.post-detail-similar-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		text-decoration: none;
+		color: var(--color-text);
+		transition: background 0.2s;
+	}
+	.post-detail-similar-item:hover {
+		background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+	}
+	.post-detail-similar-item-avatar {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.post-detail-similar-item-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.6875rem;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	.post-detail-similar-item-content {
+		flex: 1;
+		min-width: 0;
+	}
+	.post-detail-similar-item-title {
+		font-size: 0.8125rem;
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.post-detail-similar-item-meta {
+		font-size: 0.6875rem;
+		color: var(--color-muted);
+		margin-top: 0.125rem;
 	}
 	.post-detail-locked-hint {
 		text-align: center;
@@ -1238,10 +1315,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 
 	/**
-	 * 浏览行为追踪（Gorse read feedback）
+	 * 浏览行为追踪（DaLi.Lens view feedback）
 	 *
-	 * 用户查看帖子详情页时，异步发送浏览记录到 Gorse 推荐引擎。
-	 * 浏览反馈用于去重：已看过的帖子不再推荐给该用户。
+	 * 用户查看帖子详情页时，异步发送浏览记录到 DaLi.Lens 推荐引擎。
+	 * 浏览反馈（view）作为弱正向信号，帮助推荐系统理解用户兴趣。
 	 * 仅登录用户触发，失败静默不影响页面。
 	 */
 	(async () => {
@@ -1255,5 +1332,77 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		} catch {
 			// 静默失败
 		}
+	})();
+
+	/**
+	 * 相关推荐加载逻辑
+	 *
+	 * 页面加载后通过 Astro Actions 获取与当前帖子相似的其他帖子，
+	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
+	 * 仅在相关推荐区域存在时执行（登录用户且帖子可见）。
+	 */
+	(async () => {
+		const section = document.getElementById('similar-section');
+		const list = document.getElementById('similar-list');
+		if (!section || !list) return;
+
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+		if (!postId) return;
+
+		const result = await actions.getSimilarPosts({ postId, n: 5 });
+		if (result.error || !result.data?.items?.length) {
+			// 无推荐结果或出错，不显示区域
+			return;
+		}
+
+		const items = result.data.items;
+		const fragment = document.createDocumentFragment();
+
+		for (const item of items) {
+			const a = document.createElement('a');
+			a.href = `/${item.user.username}/${item.id}`;
+			a.className = 'post-detail-similar-item';
+
+			// 头像
+			if (item.user.avatarUrl) {
+				const img = document.createElement('img');
+				img.src = item.user.avatarUrl;
+				img.alt = item.user.displayName;
+				img.className = 'post-detail-similar-item-avatar';
+				img.loading = 'lazy';
+				a.appendChild(img);
+			} else {
+				const span = document.createElement('span');
+				span.className = 'post-detail-similar-item-avatar-placeholder';
+				span.textContent = item.user.displayName.charAt(0).toUpperCase();
+				a.appendChild(span);
+			}
+
+			// 内容区
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'post-detail-similar-item-content';
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'post-detail-similar-item-title';
+			// 有标题用标题，否则用内容前 60 字符
+			titleDiv.textContent =
+				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 60);
+
+			const metaDiv = document.createElement('div');
+			metaDiv.className = 'post-detail-similar-item-meta';
+			const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+			const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+			metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+			contentDiv.appendChild(titleDiv);
+			contentDiv.appendChild(metaDiv);
+			a.appendChild(contentDiv);
+			fragment.appendChild(a);
+		}
+
+		list.appendChild(fragment);
+		section.style.display = '';
 	})();
 </script>

@@ -55,7 +55,7 @@ import {
 import { getPostLikers, togglePin, verifyPostPassword } from './posts';
 
 // 推荐模块
-import { getRecommend, recordRead } from './recommend';
+import { getRecommend, getSimilarPosts, recordRead, getUserProfile } from './recommend';
 
 // 管理后台模块
 import { batchUsers, batchPosts, batchComments, toggleTagVisibility } from './admin';
@@ -110,7 +110,9 @@ export const server = {
 	verifyPostPassword,
 	// 推荐
 	getRecommend,
+	getSimilarPosts,
 	recordRead,
+	getUserProfile,
 	// 管理后台
 	batchUsers,
 	batchPosts,
