@@ -5,7 +5,6 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import {
 	requireAgentAuth,
 	textResponse,
@@ -13,6 +12,7 @@ import {
 	parsePagination,
 	formatNotificationItem
 } from '@/lib/agent';
+import { getAgentNotifications } from '@/services/notification.service';
 
 /** 合法的通知类型 */
 const VALID_TYPES = ['comment', 'like', 'follow', 'mention'];
@@ -61,46 +61,16 @@ export const GET: APIRoute = async (context) => {
 			if (isNaN(to.getTime())) return textErrorResponse('结束时间格式无效');
 		}
 
-		// 构建 where 条件
-		const where: Record<string, unknown> = {
-			recipientId: currentUser.userId
-		};
-
-		// 状态过滤
-		if (status === 'read') {
-			where.isRead = true;
-		} else if (status === 'unread') {
-			where.isRead = false;
-		}
-
-		// 类型过滤
-		if (type) {
-			where.type = type;
-		}
-
-		// 时间范围过滤
-		if (from || to) {
-			const createdAtFilter: Record<string, Date> = {};
-			if (from) createdAtFilter.gte = from;
-			if (to) createdAtFilter.lte = to;
-			where.createdAt = createdAtFilter;
-		}
-
-		// 排序
-		const orderBy =
-			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
-
-		// 查询通知
-		const notifications = await prisma.notification.findMany({
-			where,
-			orderBy,
+		// 通过 service 查询通知
+		const notifications = await getAgentNotifications({
+			recipientId: currentUser.userId,
+			status,
+			type,
+			from,
+			to,
+			sort,
 			skip,
-			take: limit,
-			include: {
-				actor: {
-					select: { username: true, displayName: true }
-				}
-			}
+			limit
 		});
 
 		// 格式化输出

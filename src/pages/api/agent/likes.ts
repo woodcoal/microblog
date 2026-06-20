@@ -5,10 +5,9 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { toggleLike as toggleLikeService } from '@/services/social.service';
+import { toggleLike as toggleLikeService, checkLikeStatus } from '@/services/social.service';
 import { ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -43,16 +42,10 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 查询当前点赞状态，仅在状态不匹配时才 toggle
-		const existingLike = await prisma.like.findUnique({
-			where: {
-				userId_postId: {
-					userId: currentUser.userId,
-					postId: postId.trim()
-				}
-			}
+		const currentlyLiked = await checkLikeStatus({
+			userId: currentUser.userId,
+			postId: postId.trim()
 		});
-
-		const currentlyLiked = !!existingLike;
 		const wantLiked = action === 'like';
 
 		// 状态已匹配，无需操作（幂等）

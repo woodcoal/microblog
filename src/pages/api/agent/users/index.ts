@@ -5,7 +5,6 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import {
 	requireAgentAuth,
 	textResponse,
@@ -14,6 +13,7 @@ import {
 	getFollowIds,
 	formatUserListItem
 } from '@/lib/agent';
+import { getAgentUserList } from '@/services/user.service';
 
 /**
  * 获取用户列表
@@ -35,46 +35,25 @@ export const GET: APIRoute = async (context) => {
 		const sort = url.searchParams.get('sort') || 'latest';
 		const { limit, skip } = parsePagination(url);
 
-		// 构建 where 条件
-		const where: Record<string, unknown> = {
-			isDisabled: false
-		};
-
-		// keyword 过滤
-		if (keyword) {
-			where.OR = [
-				{ username: { contains: keyword } },
-				{ displayName: { contains: keyword } }
-			];
-		}
-
-		// userScope 过滤
+		// userScope 过滤需要获取关注 ID 列表
+		let followingIds: string[] | undefined;
+		let followerIds: string[] | undefined;
 		if (userScope === 'following' || userScope === 'followers') {
-			const { followingIds, followerIds } = await getFollowIds(currentUser.userId);
-			if (userScope === 'following') {
-				// 当前用户关注的人（含自己）
-				where.id = { in: [...followingIds, currentUser.userId] };
-			} else {
-				// 关注当前用户的粉丝（含自己）
-				where.id = { in: [...followerIds, currentUser.userId] };
-			}
+			const ids = await getFollowIds(currentUser.userId);
+			followingIds = ids.followingIds;
+			followerIds = ids.followerIds;
 		}
 
-		// 排序
-		const orderBy =
-			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
-
-		// 查询
-		const users = await prisma.user.findMany({
-			where,
-			orderBy,
+		// 通过 service 查询用户列表
+		const users = await getAgentUserList({
+			keyword,
+			userScope,
+			sort,
 			skip,
-			take: limit,
-			select: {
-				id: true,
-				username: true,
-				displayName: true
-			}
+			limit,
+			followingIds,
+			followerIds,
+			currentUserId: currentUser.userId
 		});
 
 		// 格式化输出

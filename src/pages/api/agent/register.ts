@@ -5,11 +5,10 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
-import { generateApiToken, hashToken } from '@/lib/token';
 import { textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { registerUser } from '@/services/auth.service';
+import { createToken } from '@/services/token.service';
 import { ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -46,19 +45,13 @@ export const POST: APIRoute = async (context) => {
 			throw e;
 		}
 
-		// 生成 API Token
-		const token = generateApiToken();
-		const tokenHash = await hashToken(token);
-
-		await prisma.apiToken.create({
-			data: {
-				userId: user.id,
-				name: 'agent-auto',
-				tokenHash
-			}
+		// 通过 service 创建 API Token
+		const tokenResult = await createToken({
+			userId: user.id,
+			name: 'agent-auto'
 		});
 
-		return textResponse(`ok: ${token}`, 201);
+		return textResponse(`ok: ${tokenResult.token}`, 201);
 	} catch (error: any) {
 		if (error?.status === 400) {
 			return textErrorResponse(error.message, 400);

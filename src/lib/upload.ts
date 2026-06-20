@@ -190,6 +190,48 @@ export async function saveFile(
 }
 
 /**
+ * 按文件路径查询 FileStorage 记录
+ *
+ * 根据文件存储路径查找对应的数据库记录，用于文件引用管理。
+ *
+ * @param filePath - 文件存储路径（相对路径，如 images/xxx.jpg）
+ * @returns FileStorage 记录，不存在则返回 null
+ */
+export async function findFileStorageByFilePath(filePath: string): Promise<FileStorage | null> {
+	return prisma.fileStorage.findFirst({
+		where: { filePath }
+	});
+}
+
+/**
+ * 按 ID 列表查询 FileStorage 记录
+ *
+ * @param ids - FileStorage ID 列表
+ * @param select - 可选，指定返回字段（Prisma select 对象）
+ * @returns 匹配的 FileStorage 记录列表
+ */
+export function findFileStoragesByIds(ids: string[], select?: Record<string, boolean>) {
+	return prisma.fileStorage.findMany({
+		where: { id: { in: ids } },
+		...(select ? { select } : {})
+	});
+}
+
+/**
+ * 按文件路径列表查询 FileStorage 记录
+ *
+ * @param filePaths - 文件路径列表
+ * @param select - 可选，指定返回字段（Prisma select 对象）
+ * @returns 匹配的 FileStorage 记录列表
+ */
+export function findFileStoragesByFilePaths(filePaths: string[], select?: Record<string, boolean>) {
+	return prisma.fileStorage.findMany({
+		where: { filePath: { in: filePaths } },
+		...(select ? { select } : {})
+	});
+}
+
+/**
  * 删除文件引用（原子操作，避免并发竞态）
  *
  * 使用 Prisma 原子 decrement 操作将 refCount 减 1，

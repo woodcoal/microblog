@@ -1,5 +1,27 @@
 # 更新日志
 
+### 2026-06-21 19:30
+
+**提交人**: AI
+**提交哈希**: ab499e9
+**影响范围**: actions 层（3 文件）、api 层（10 文件）、services 层（5 文件新增/扩展）、lib 层（3 文件扩展）
+**变更类型**: 重构
+
+**详细描述**:
+- 重构 actions/content.ts：createPost/updatePost/deletePost 业务逻辑下沉到 content.service.ts
+- 重构 actions/settings.ts：changePassword/uploadAvatar/updateCommentSort 下沉到 settings.service.ts
+- 重构 actions/misc.ts：renderMarkdown 下沉到 misc.service.ts
+- 重构 api/agent/posts/：GET/POST 委托 content.service.ts
+- 重构 api/agent 其余 8 个文件：移除 prisma 直接调用，委托 service 层
+- 新建 services/misc.service.ts、services/user.service.ts
+- 扩展 lib/post.ts（事务函数）、lib/upload.ts（文件查询）、lib/tag.ts（标签查询）
+- content.service.ts 新增 createPost/updatePost/deletePost/getAgentPosts/getAgentPostDetail
+- settings.service.ts 新增 changePassword/uploadAvatar/updateCommentSort
+
+**注意事项**:
+- actions/api 层不再直接 import prisma 或跨层调用 lib
+- 业务逻辑完全不变，纯架构调整
+
 ### 2026-06-21 18:00
 
 **提交人**: AI
@@ -8,6 +30,7 @@
 **变更类型**: 重构
 
 **详细描述**:
+
 - 新建 lib 层数据库操作模块：user.ts、post.ts、comment.ts、social.ts、category.ts、tag.ts、settings.ts
 - 扩展已有 lib 模块：notification.ts（+4 函数）、token.ts（+4 函数）、webhook.ts（+5 函数）
 - 重构全部 13 个 service 文件，移除 prisma 直接调用，改为调用 lib 层函数
@@ -17,6 +40,7 @@
 - 修复 notification.service.ts 的 findPostsByIds select 类型推断问题
 
 **注意事项**:
+
 - 本次重构为纯架构调整，业务逻辑无变化
 - Service 层不再直接 import prisma，所有数据库操作收敛到 lib 层
 - 格式化和类型检查均已通过

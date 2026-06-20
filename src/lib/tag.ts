@@ -57,3 +57,27 @@ export async function searchTags<T extends Prisma.TagSelect>(
 		...(select ? { select } : {})
 	});
 }
+
+/**
+ * 按名称查询标签
+ *
+ * @param name - 标签名称
+ * @returns 标签记录，不存在则返回 null
+ */
+export function findTagByName(name: string) {
+	return prisma.tag.findUnique({ where: { name } });
+}
+
+/**
+ * 查询标签关联的帖子 ID 列表
+ *
+ * @param tagId - 标签 ID
+ * @returns 关联的帖子 ID 数组
+ */
+export async function findPostIdsByTagId(tagId: string): Promise<string[]> {
+	const postTags = await prisma.postTag.findMany({
+		where: { tagId },
+		select: { postId: true }
+	});
+	return postTags.map((pt) => pt.postId);
+}

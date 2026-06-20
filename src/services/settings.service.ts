@@ -6,8 +6,11 @@
  */
 import { findUserSettings, upsertUserSettings } from '@/lib/settings';
 import { findUserById, updateUser } from '@/lib/user';
+import { verifyPassword, hashPassword } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
+import { uploadFile as uploadFileService } from '@/services/media.service';
+import { findFileStorageByFilePath, deleteFileRef } from '@/lib/upload';
 
 /** 评论排序合法值 */
 const VALID_SORT_ORDERS = ['asc', 'desc'];
@@ -20,6 +23,24 @@ const BIO_MAX_LENGTH = 160;
 
 /** 个人备注最大长度 */
 const NOTE_MAX_LENGTH = 2000;
+
+// ── Agent API 专用查询函数 ──
+
+/**
+ * 获取用户个人记录
+ *
+ * 查询用户的 note 字段内容。
+ * 供 Agent API 层读取个人记录。
+ *
+ * @param input - { userId }
+ * @returns note 内容，不存在时返回空字符串
+ */
+export async function getUserNote(input: { userId: string }): Promise<string> {
+	const user = await findUserById(input.userId, {
+		note: true
+	});
+	return user?.note ?? '';
+}
 
 // ── 类型定义 ──
 
@@ -203,4 +224,135 @@ export async function updateSettings(input: UpdateSettingsInput): Promise<Update
 		commentSortOrder: settings.commentSortOrder,
 		notificationsEnabled: settings.notificationsEnabled
 	};
+}
+
+// ── 修改密码 ──
+
+export interface ChangePasswordInput {
+	userId: string;
+	oldPassword: string;
+	newPassword: string;
+}
+
+/**
+ * 修改密码
+ *
+ * 验证旧密码正确性后，生成新密码哈希并更新用户记录。
+ *
+ * @param input - { userId, oldPassword, newPassword }
+ * @returns 密码修改成功消息
+ * @throws ServiceError 用户不存在、旧密码不正确、新密码长度不足
+ */
+export async function changePassword(input: ChangePasswordInput): Promise<{ message: string }> {
+	const { userId, oldPassword, newPassword } = input;
+
+	// 查询用户当前密码哈希
+	const user = await findUserById(userId, { passwordHash: true });
+	if (!user) {
+		throw new ServiceError('NOT_FOUND', '用户不存在');
+	}
+
+	// 验证旧密码正确性
+	const isOldPasswordValid = await verifyPassword(oldPassword, user.passwordHash);
+	if (!isOldPasswordValid) {
+		throw new ServiceError('BAD_REQUEST', '旧密码不正确');
+	}
+
+	// 生成新密码哈希并更新
+	const newPasswordHash = await hashPassword(newPassword);
+	await updateUser(userId, { passwordHash: newPasswordHash });
+
+	return { message: '密码修改成功' };
+}
+
+// ── 上传头像 ──
+
+export interface UploadAvatarInput {
+	userId: string;
+	image: File;
+}
+
+export interface UploadAvatarResult {
+	avatarUrl: string;
+}
+
+/**
+ * 上传头像
+ *
+ * 调用 uploadFileService 保存文件，更新用户头像 URL，并清理旧头像文件引用。
+ *
+ * @param input - { userId, image }
+ * @returns 新头像 URL
+ * @throws ServiceError 文件上传失败
+ */
+export async function uploadAvatar(input: UploadAvatarInput): Promise<UploadAvatarResult> {
+	const { userId, image } = input;
+
+	// 保存文件
+	const fileResult = await uploadFileService({ file: image, fileType: 'image' });
+	const newAvatarUrl = fileResult.url;
+
+	// 获取旧头像 URL
+	const user = await findUserById(userId, { avatarUrl: true });
+
+	// 更新用户头像 URL
+	await updateUser(userId, { avatarUrl: newAvatarUrl });
+
+	// 清理旧头像文件的引用计数（仅清理本站上传的头像）
+	if (user?.avatarUrl && user.avatarUrl.startsWith('/uploads/')) {
+		const oldFilePath = user.avatarUrl.replace('/uploads/', '');
+		try {
+			const oldFile = await findFileStorageByFilePath(oldFilePath);
+			if (oldFile) {
+				await deleteFileRef(oldFile.id);
+			}
+		} catch (err) {
+			console.error('清理旧头像文件引用失败:', err);
+		}
+	}
+
+	return { avatarUrl: newAvatarUrl };
+}
+
+// ── 更新评论排序偏好 ──
+
+export interface UpdateCommentSortInput {
+	userId: string;
+	order: string;
+}
+
+export interface UpdateCommentSortResult {
+	order: string;
+}
+
+/**
+ * 更新评论排序偏好
+ *
+ * 校验排序值合法性后，upsert 更新或创建 UserSettings 记录。
+ *
+ * @param input - { userId, order }
+ * @returns 更新后的排序值
+ * @throws ServiceError 排序值不合法
+ */
+export async function updateCommentSort(
+	input: UpdateCommentSortInput
+): Promise<UpdateCommentSortResult> {
+	const { userId, order } = input;
+
+	// 校验排序值合法性
+	if (!VALID_SORT_ORDERS.includes(order)) {
+		throw new ServiceError('BAD_REQUEST', '排序值必须为 asc 或 desc');
+	}
+
+	// upsert 更新或创建 UserSettings
+	await upsertUserSettings(
+		userId,
+		{ commentSortOrder: order },
+		{
+			userId,
+			commentSortOrder: order
+		}
+	);
+
+	return { order };
 }

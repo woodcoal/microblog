@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 帖子数据库操作模块
  *
  * 提供帖子的 CRUD 原子操作，供 Service 层调用。
@@ -6,6 +6,7 @@
  */
 import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
+import { hashPassword } from '@/lib/auth';
 
 // ── 查询 ──
 
@@ -110,6 +111,87 @@ export function searchPostsSuggest<T extends Prisma.PostSelect>(
 	});
 }
 
+/**
+ * 查询帖子完整关联数据
+ *
+ * 包含 user、media+fileStorage、tags+tag、mentions+user、category 关联。
+ * 用于创建/更新帖子后返回完整数据。
+ *
+ * @param id - 帖子 ID
+ * @returns 包含完整关联的帖子记录，不存在则返回 null
+ */
+export function findPostWithRelations(id: string) {
+	return prisma.post.findUnique({
+		where: { id },
+		include: {
+			user: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true,
+					avatarUrl: true
+				}
+			},
+			media: {
+				orderBy: { sortOrder: 'asc' },
+				include: {
+					fileStorage: {
+						select: {
+							id: true,
+							filePath: true,
+							fileSize: true,
+							mimeType: true,
+							fileType: true
+						}
+					}
+				}
+			},
+			tags: {
+				include: {
+					tag: {
+						select: {
+							id: true,
+							name: true
+						}
+					}
+				}
+			},
+			mentions: {
+				include: {
+					user: {
+						select: {
+							id: true,
+							username: true,
+							displayName: true
+						}
+					}
+				}
+			},
+			category: {
+				select: {
+					id: true,
+					name: true,
+					slug: true,
+					mode: true
+				}
+			}
+		}
+	});
+}
+
+/**
+ * 查询帖子的 Media 关联列表
+ *
+ * @param postId - 帖子 ID
+ * @returns 按 sortOrder 升序排列的 Media 记录列表
+ */
+export function findMediaByPostId(postId: string) {
+	return prisma.media.findMany({
+		where: { postId },
+		orderBy: { sortOrder: 'asc' }
+	});
+}
+
 // ── 更新 ──
 
 /**
@@ -121,6 +203,21 @@ export function searchPostsSuggest<T extends Prisma.PostSelect>(
  */
 export function updatePost(id: string, data: Prisma.PostUpdateInput) {
 	return prisma.post.update({ where: { id }, data });
+}
+
+/**
+ * 软删除帖子
+ *
+ * 将 isDeleted 标记为 true，不物理删除记录。
+ *
+ * @param id - 帖子 ID
+ * @returns 更新后的帖子记录
+ */
+export function softDeletePost(id: string) {
+	return prisma.post.update({
+		where: { id },
+		data: { isDeleted: true }
+	});
 }
 
 // ── 批量操作 ──
@@ -211,6 +308,312 @@ export function updatePostPinStatus(tx: Prisma.TransactionClient, id: string, pi
 	return tx.post.update({
 		where: { id },
 		data: { isPinned: pinned }
+	});
+}
+
+/**
+ * 创建帖子事务（含 media、mention、tag 关联）
+ *
+ * 在事务中完成：创建帖子 → 创建 Media 关联 → 创建 Mention 关联 → 创建 PostTag 关联。
+ * visibility=password 时自动哈希密码，visibility=users 时序列化 allowedUserIds。
+ *
+ * @param data - 创建帖子事务数据
+ * @param data.postData - 帖子基础数据（id, userId, content, visibility, mode, title, categoryId）
+ * @param data.mediaItems - Media 关联数据列表（fileStorageId, fileType, sortOrder）
+ * @param data.mentionUsernames - 被提及的用户名列表（需查询 user 表验证存在性）
+ * @param data.tagNames - 标签名称列表（需 upsert Tag 记录）
+ * @param data.currentUserId - 当前用户 ID（用于排除 @自己）
+ * @param data.password - 明文密码（visibility=password 时使用）
+ * @param data.allowedUserIds - 允许查看的用户 ID 列表（visibility=users 时使用）
+ * @returns 创建的帖子记录
+ */
+export async function createPostTransaction(data: {
+	postData: {
+		id: string;
+		userId: string;
+		content: string;
+		visibility: string;
+		mode: string;
+		title?: string | null;
+		categoryId?: string | null;
+	};
+	mediaItems: Array<{ fileStorageId: string; fileType: string; sortOrder: number }>;
+	mentionUsernames: string[];
+	tagNames: string[];
+	currentUserId: string;
+	password?: string;
+	allowedUserIds?: string[];
+}) {
+	const {
+		postData,
+		mediaItems,
+		mentionUsernames,
+		tagNames,
+		currentUserId,
+		password,
+		allowedUserIds
+	} = data;
+
+	return prisma.$transaction(async (tx) => {
+		// 处理可见度相关字段
+		let passwordHash: string | undefined;
+		let allowedUserIdsJson: string | undefined;
+
+		// visibility=password 时，哈希密码
+		if (postData.visibility === 'password' && password) {
+			passwordHash = await hashPassword(password.trim());
+		}
+
+		// visibility=users 时，序列化用户 ID 列表
+		if (postData.visibility === 'users' && allowedUserIds) {
+			allowedUserIdsJson = JSON.stringify(allowedUserIds);
+		}
+
+		// 创建帖子
+		const createdPost = await tx.post.create({
+			data: {
+				id: postData.id,
+				userId: postData.userId,
+				content: postData.content,
+				visibility: postData.visibility,
+				passwordHash,
+				allowedUserIds: allowedUserIdsJson,
+				mode: postData.mode,
+				title: postData.title || null,
+				categoryId: postData.categoryId || null
+			}
+		});
+
+		// 创建 Media 关联记录
+		if (mediaItems.length > 0) {
+			await tx.media.createMany({
+				data: mediaItems.map((item) => ({
+					postId: createdPost.id,
+					fileStorageId: item.fileStorageId,
+					fileType: item.fileType,
+					originalName: '',
+					sortOrder: item.sortOrder
+				}))
+			});
+		}
+
+		// 解析 @提及，验证用户存在并创建 Mention 记录
+		if (mentionUsernames.length > 0) {
+			const mentionedUsers = await tx.user.findMany({
+				where: {
+					username: { in: mentionUsernames },
+					id: { not: currentUserId }
+				},
+				select: { id: true }
+			});
+			if (mentionedUsers.length > 0) {
+				await tx.mention.createMany({
+					data: mentionedUsers.map((u) => ({
+						postId: createdPost.id,
+						userId: u.id
+					}))
+				});
+			}
+		}
+
+		// 解析 #标签，创建或复用 Tag 记录，创建 PostTag 关联
+		if (tagNames.length > 0) {
+			for (const name of tagNames) {
+				const tag = await tx.tag.upsert({
+					where: { name },
+					update: {},
+					create: { name }
+				});
+				await tx.postTag.create({
+					data: {
+						postId: createdPost.id,
+						tagId: tag.id
+					}
+				});
+			}
+		}
+
+		return createdPost;
+	});
+}
+
+/**
+ * 更新帖子事务（含 revision、media diff、mention/tag 重建）
+ *
+ * 在事务中完成：保存旧版本 → 更新帖子 → 增删 Media → 重建 Mention/PostTag。
+ *
+ * @param data - 更新帖子事务数据
+ * @param data.postId - 帖子 ID
+ * @param data.updateData - 更新数据对象
+ * @param data.currentMedia - 当前帖子的 Media 关联列表
+ * @param data.mediaIds - 新的 fileStorageId 列表（用于计算 diff）
+ * @param data.mentionUsernames - 被提及的用户名列表
+ * @param data.tagNames - 标签名称列表
+ * @param data.currentUserId - 当前用户 ID
+ * @returns 更新后的帖子记录（含关联）
+ */
+export async function updatePostTransaction(data: {
+	postId: string;
+	updateData: Record<string, unknown>;
+	currentMedia: Array<{ id: string; fileStorageId: string; sortOrder: number }>;
+	mediaIds: string[];
+	mentionUsernames: string[];
+	tagNames: string[];
+	currentUserId: string;
+}) {
+	const {
+		postId,
+		updateData,
+		currentMedia,
+		mediaIds,
+		mentionUsernames,
+		tagNames,
+		currentUserId
+	} = data;
+
+	return prisma.$transaction(async (tx) => {
+		// 保存旧版本到 PostRevision（含 mediaSnapshot）
+		await tx.postRevision.create({
+			data: {
+				postId,
+				content: (updateData.content as string) || '',
+				mediaSnapshot: JSON.stringify(currentMedia.map((m) => m.fileStorageId))
+			}
+		});
+
+		// 更新 Media 关联：计算 diff
+		const oldFileStorageIds = new Set(currentMedia.map((m) => m.fileStorageId));
+		const newFileStorageIds = new Set(mediaIds);
+
+		// 需要删除的 Media（旧有新无）
+		const toDelete = currentMedia.filter((m) => !newFileStorageIds.has(m.fileStorageId));
+		// 需要新增的 fileStorageId（新有旧无）
+		const toAdd = mediaIds.filter((id) => !oldFileStorageIds.has(id));
+
+		// 删除旧的 Media 关联
+		if (toDelete.length > 0) {
+			await tx.media.deleteMany({
+				where: { id: { in: toDelete.map((m) => m.id) } }
+			});
+		}
+
+		// 创建新的 Media 关联
+		if (toAdd.length > 0) {
+			const addFileStorages = await tx.fileStorage.findMany({
+				where: { id: { in: toAdd } }
+			});
+			// 计算排序起始值
+			const maxSortOrder =
+				currentMedia.length > 0 ? Math.max(...currentMedia.map((m) => m.sortOrder)) : -1;
+			await tx.media.createMany({
+				data: addFileStorages.map((fs, index) => ({
+					postId,
+					fileStorageId: fs.id,
+					fileType: fs.fileType,
+					originalName: '',
+					sortOrder: maxSortOrder + 1 + index
+				}))
+			});
+		}
+
+		// 更新帖子内容
+		const updatedPost = await tx.post.update({
+			where: { id: postId },
+			data: updateData,
+			include: {
+				user: {
+					select: {
+						id: true,
+						username: true,
+						displayName: true,
+						avatarUrl: true
+					}
+				},
+				media: {
+					orderBy: { sortOrder: 'asc' },
+					include: {
+						fileStorage: {
+							select: {
+								id: true,
+								filePath: true,
+								fileSize: true,
+								mimeType: true,
+								fileType: true
+							}
+						}
+					}
+				},
+				tags: {
+					include: {
+						tag: {
+							select: {
+								id: true,
+								name: true
+							}
+						}
+					}
+				},
+				mentions: {
+					include: {
+						user: {
+							select: {
+								id: true,
+								username: true,
+								displayName: true
+							}
+						}
+					}
+				},
+				category: {
+					select: {
+						id: true,
+						name: true,
+						slug: true,
+						mode: true
+					}
+				}
+			}
+		});
+
+		// 重建 @提及和 #标签关联
+		// 删除旧的 PostTag 和 Mention 记录
+		await tx.postTag.deleteMany({ where: { postId } });
+		await tx.mention.deleteMany({ where: { postId } });
+
+		// 重新创建 Mention 记录
+		if (mentionUsernames.length > 0) {
+			const mentionedUsers = await tx.user.findMany({
+				where: {
+					username: { in: mentionUsernames },
+					id: { not: currentUserId }
+				},
+				select: { id: true }
+			});
+			if (mentionedUsers.length > 0) {
+				await tx.mention.createMany({
+					data: mentionedUsers.map((u) => ({
+						postId,
+						userId: u.id
+					}))
+				});
+			}
+		}
+
+		// 重新创建 PostTag 关联
+		if (tagNames.length > 0) {
+			for (const name of tagNames) {
+				const tag = await tx.tag.upsert({
+					where: { name },
+					update: {},
+					create: { name }
+				});
+				await tx.postTag.create({
+					data: { postId, tagId: tag.id }
+				});
+			}
+		}
+
+		return updatedPost;
 	});
 }
 

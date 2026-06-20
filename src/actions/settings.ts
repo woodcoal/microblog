@@ -6,16 +6,16 @@
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
-import { prisma } from '@/lib/db';
-import { getUserFromRequest, verifyPassword, hashPassword } from '@/lib/auth';
-import { saveFile, deleteFileRef } from '@/lib/upload';
+import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
 	getSettings as getSettingsService,
 	updateSettings as updateSettingsService,
-	updateProfile as updateProfileService
+	updateProfile as updateProfileService,
+	changePassword as changePasswordService,
+	uploadAvatar as uploadAvatarService,
+	updateCommentSort as updateCommentSortService
 } from '@/services/settings.service';
-import { uploadFile as uploadFileService } from '@/services/media.service';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -109,6 +109,8 @@ const updateProfile = defineAction({
 
 /**
  * 修改密码 Action
+ *
+ * 鉴权 → zod 校验 → 调用 service
  */
 const changePassword = defineAction({
 	input: z.object({
@@ -128,35 +130,22 @@ const changePassword = defineAction({
 			throw new ActionError({ code: 'BAD_REQUEST', message: '新密码至少 8 个字符' });
 		}
 
-		// 查询用户当前密码哈希
-		const user = await prisma.user.findUnique({
-			where: { id: currentUser.userId },
-			select: { passwordHash: true }
-		});
-
-		if (!user) {
-			throw new ActionError({ code: 'NOT_FOUND', message: '用户不存在' });
+		try {
+			return await changePasswordService({
+				userId: currentUser.userId,
+				oldPassword,
+				newPassword
+			});
+		} catch (e) {
+			handleServiceError(e);
 		}
-
-		// 验证旧密码正确性
-		const isOldPasswordValid = await verifyPassword(oldPassword, user.passwordHash);
-		if (!isOldPasswordValid) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '旧密码不正确' });
-		}
-
-		// 生成新密码哈希并更新
-		const newPasswordHash = await hashPassword(newPassword);
-		await prisma.user.update({
-			where: { id: currentUser.userId },
-			data: { passwordHash: newPasswordHash }
-		});
-
-		return { message: '密码修改成功' };
 	}
 });
 
 /**
  * 上传头像 Action
+ *
+ * 鉴权 → 文件类型/大小校验 → 调用 service
  */
 const uploadAvatar = defineAction({
 	accept: 'form',
@@ -185,48 +174,21 @@ const uploadAvatar = defineAction({
 			throw new ActionError({ code: 'BAD_REQUEST', message: '头像图片大小不能超过 2MB' });
 		}
 
-		// 保存文件
-		let fileResult;
 		try {
-			fileResult = await uploadFileService({ file: image, fileType: 'image' });
+			return await uploadAvatarService({
+				userId: currentUser.userId,
+				image
+			});
 		} catch (e) {
 			handleServiceError(e);
 		}
-
-		const newAvatarUrl = fileResult!.url;
-
-		// 获取旧头像 URL，更新用户记录
-		const user = await prisma.user.findUnique({
-			where: { id: currentUser.userId },
-			select: { avatarUrl: true }
-		});
-
-		await prisma.user.update({
-			where: { id: currentUser.userId },
-			data: { avatarUrl: newAvatarUrl }
-		});
-
-		// 清理旧头像文件的引用计数（仅清理本站上传的头像）
-		if (user?.avatarUrl && user.avatarUrl.startsWith('/uploads/')) {
-			const oldFilePath = user.avatarUrl.replace('/uploads/', '');
-			try {
-				const oldFile = await prisma.fileStorage.findUnique({
-					where: { filePath: oldFilePath }
-				});
-				if (oldFile) {
-					await deleteFileRef(oldFile.id);
-				}
-			} catch (err) {
-				console.error('清理旧头像文件引用失败:', err);
-			}
-		}
-
-		return { avatarUrl: newAvatarUrl };
 	}
 });
 
 /**
  * 更新评论排序偏好 Action
+ *
+ * 鉴权 → 排序值校验 → 调用 service
  */
 const updateCommentSort = defineAction({
 	input: z.object({
@@ -245,17 +207,14 @@ const updateCommentSort = defineAction({
 			throw new ActionError({ code: 'BAD_REQUEST', message: '排序值必须为 asc 或 desc' });
 		}
 
-		// upsert 更新或创建 UserSettings
-		await prisma.userSettings.upsert({
-			where: { userId: currentUser.userId },
-			update: { commentSortOrder: order },
-			create: {
+		try {
+			return await updateCommentSortService({
 				userId: currentUser.userId,
-				commentSortOrder: order
-			}
-		});
-
-		return { order };
+				order
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
 	}
 });
 

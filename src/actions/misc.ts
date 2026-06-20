@@ -3,11 +3,12 @@
  *
  * 定义 Markdown 预览等杂项服务端 Actions。
  * 使用 defineAction + zod schema 实现类型安全的 RPC 调用。
+ * 业务逻辑委托 misc.service，本层仅负责鉴权 + 输入校验。
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro:schema';
 import { getUserFromRequest } from '@/lib/auth';
-import { renderFullMarkdown } from '@/lib/markdown';
+import { renderMarkdown as renderMarkdownService } from '@/services/misc.service';
 
 /** Markdown 内容最大长度 */
 const MARKDOWN_MAX_LENGTH = 50000;
@@ -36,10 +37,10 @@ const markdownPreview = defineAction({
 
 		const { markdown } = input;
 
-		// 2. 渲染 Markdown 为 HTML
-		const html = renderFullMarkdown(markdown);
+		// 2. 委托 service 渲染 Markdown
+		const result = renderMarkdownService({ markdown });
 
-		return { html };
+		return result;
 	}
 });
 

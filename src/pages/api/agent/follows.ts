@@ -5,10 +5,9 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { toggleFollow } from '@/services/social.service';
+import { toggleFollow, checkFollowStatus } from '@/services/social.service';
 import { ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -46,24 +45,15 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 查询当前关注状态，仅在状态不匹配时才 toggle
-		const targetUser = await prisma.user.findUnique({
-			where: { username: username.trim() },
-			select: { id: true }
+		const followStatus = await checkFollowStatus({
+			userId: currentUser.userId,
+			username: username.trim()
 		});
-		if (!targetUser) {
+		if (!followStatus) {
 			return textErrorResponse('用户不存在', 404);
 		}
 
-		const existingFollow = await prisma.follow.findUnique({
-			where: {
-				followerId_followingId: {
-					followerId: currentUser.userId,
-					followingId: targetUser.id
-				}
-			}
-		});
-
-		const currentlyFollowing = !!existingFollow;
+		const currentlyFollowing = followStatus.following;
 		const wantFollowing = action === 'follow';
 
 		// 状态已匹配，无需操作（幂等）

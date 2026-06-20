@@ -6,10 +6,9 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { updateProfile } from '@/services/settings.service';
+import { updateProfile, getUserNote } from '@/services/settings.service';
 import { ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -38,13 +37,10 @@ export const GET: APIRoute = async (context) => {
 		if (authResult instanceof Response) return authResult;
 		const currentUser = authResult;
 
-		// 直接查询 note 字段
-		const user = await prisma.user.findUnique({
-			where: { id: currentUser.userId },
-			select: { note: true }
-		});
+		// 通过 service 查询 note 字段
+		const noteContent = await getUserNote({ userId: currentUser.userId });
 
-		return textResponse(user?.note ?? '');
+		return textResponse(noteContent);
 	} catch (error) {
 		console.error('读取个人记录失败:', error);
 		return textErrorResponse('服务器错误', 500);

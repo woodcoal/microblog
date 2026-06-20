@@ -5,8 +5,8 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { prisma } from '@/lib/db';
 import { requireAgentAuth, textResponse, textErrorResponse, formatUserDetail } from '@/lib/agent';
+import { getAgentUserDetail } from '@/services/user.service';
 
 /**
  * 获取用户详情
@@ -26,26 +26,8 @@ export const GET: APIRoute = async (context) => {
 			return textErrorResponse('用户名不能为空');
 		}
 
-		// 查询用户
-		const user = await prisma.user.findUnique({
-			where: { username },
-			select: {
-				id: true,
-				username: true,
-				displayName: true,
-				bio: true,
-				avatarUrl: true,
-				createdAt: true,
-				isDisabled: true,
-				_count: {
-					select: {
-						posts: { where: { isDeleted: false } },
-						following: true,
-						followers: true
-					}
-				}
-			}
-		});
+		// 通过 service 查询用户
+		const user = await getAgentUserDetail({ username });
 
 		if (!user) {
 			return textErrorResponse('用户不存在', 404);
