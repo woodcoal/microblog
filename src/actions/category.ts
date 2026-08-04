@@ -36,7 +36,7 @@ export const createCategory = defineAction({
 	input: z.object({
 		name: z.string().min(1, '分类名称不能为空'),
 		slug: z.string().min(1, 'slug 不能为空'),
-		mode: z.string().min(1, '模式不能为空'),
+		mode: z.string().min(1, '模式不能为空').optional(),
 		parentId: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),

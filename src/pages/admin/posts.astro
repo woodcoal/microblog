@@ -12,15 +12,47 @@
 import AdminLayout from '@/layouts/Admin.astro';
 import { prisma } from '@/lib/db';
 import AdminPostList from '@/components/admin/AdminPostList.astro';
+import type { Prisma } from '../../../generated/prisma/client';
 
 // 分页参数
 const page = Math.max(Number(Astro.url.searchParams.get('page')) || 1, 1);
 const limit = 20;
 const search = Astro.url.searchParams.get('search') || '';
+const mode = Astro.url.searchParams.get('mode') || '';
+const username = Astro.url.searchParams.get('username') || '';
+const startDate = Astro.url.searchParams.get('startDate') || '';
+const endDate = Astro.url.searchParams.get('endDate') || '';
+const status = Astro.url.searchParams.get('status') || '';
 const skip = (page - 1) * limit;
 
 // 构建查询条件（管理后台包含已删除帖子）
-const where = search ? { content: { contains: search } } : {};
+const where: Prisma.PostWhereInput = {};
+if (search) where.content = { contains: search };
+if (['weibo', 'forum', 'blog'].includes(mode)) where.mode = mode;
+if (username) where.user = { username: { contains: username } };
+if (startDate || endDate) {
+	const createdAt: Prisma.DateTimeFilter = {};
+	if (startDate) {
+		const start = new Date(`${startDate}T00:00:00`);
+		if (!Number.isNaN(start.getTime())) createdAt.gte = start;
+	}
+	if (endDate) {
+		const end = new Date(`${endDate}T23:59:59.999`);
+		if (!Number.isNaN(end.getTime())) createdAt.lte = end;
+	}
+	if (Object.keys(createdAt).length > 0) where.createdAt = createdAt;
+}
+if (status === 'active') {
+	where.isDeleted = false;
+	where.isLocked = false;
+	where.isGlobalPinned = false;
+} else if (status === 'deleted') {
+	where.isDeleted = true;
+} else if (status === 'locked') {
+	where.isLocked = true;
+} else if (status === 'pinned') {
+	where.isGlobalPinned = true;
+}
 
 // 并行查询
 const [posts, total] = await Promise.all([
@@ -37,6 +69,8 @@ const [posts, total] = await Promise.all([
 			isDeleted: true,
 			deleteReason: true,
 			isEdited: true,
+			mode: true,
+			title: true,
 			createdAt: true,
 			user: {
 				select: {
@@ -76,5 +110,10 @@ const serializedPosts = posts.map((p) => ({
 		hasPrev={hasPrev}
 		hasNext={hasNext}
 		search={search}
+		mode={mode}
+		username={username}
+		startDate={startDate}
+		endDate={endDate}
+		status={status}
 	/>
 </AdminLayout>

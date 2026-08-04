@@ -74,7 +74,13 @@ const nextPage = page + 1;
 					return (
 						<tr>
 							<td>
-								<a href={`/tags/${tag.name}`}>{tag.name}</a>
+								<a
+									href={`/tags/${tag.name}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{tag.name}
+								</a>
 							</td>
 							<td>{tag.usageCount}</td>
 							<td>

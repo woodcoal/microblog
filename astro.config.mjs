@@ -15,9 +15,9 @@ export default defineConfig({
 		host: '0.0.0.0',
 		allowedHosts: true
 	},
-	// 核心配置：在这里关闭 Origin 校验
+	// 开启 Astro 内置的 Origin 校验，拒绝跨站表单 POST。
 	security: {
-		checkOrigin: false
+		checkOrigin: true
 	},
 	// 部署到 Cloudflare 时切换：
 	// adapter: cloudflare(),

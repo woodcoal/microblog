@@ -58,7 +58,7 @@ import { getPostLikers, togglePin, verifyPostPassword } from './posts';
 import { getRecommend, getSimilarPosts, recordRead } from './recommend';
 
 // 管理后台模块
-import { batchUsers, batchPosts, batchComments, toggleTagVisibility } from './admin';
+import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility } from './admin';
 
 // 工具模块
 import { markdownPreview } from './misc';
@@ -114,6 +114,7 @@ export const server = {
 	recordRead,
 	// 管理后台
 	batchUsers,
+	createUser,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,

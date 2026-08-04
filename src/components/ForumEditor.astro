@@ -431,17 +431,21 @@ const hasInitialContent = initialEditorContent.length > 0;
 	 * 否则 SDK 会 JSON.stringify 发送 application/json，服务器返回 415。
 	 *
 	 * @param file - 要上传的图片文件
-	 * @returns 上传成功后的图片 URL，失败返回 null
+	 * @returns 上传成功后的图片 URL 或错误信息
 	 */
-	async function uploadImageFile(file: File): Promise<string | null> {
+	async function uploadImageFile(file: File): Promise<{ url?: string; error?: string }> {
 		const formData = new FormData();
 		formData.append('file', file);
 		formData.append('fileType', 'image');
-		const result = await actions.uploadMedia(formData);
-		if (result.data && result.data.url) {
-			return result.data.url;
+		try {
+			const result = await actions.uploadMedia(formData);
+			if (result.data?.url) {
+				return { url: result.data.url };
+			}
+			return { error: result.error?.message || '图片上传失败，请重试' };
+		} catch (error) {
+			return { error: error instanceof Error ? error.message : '图片上传失败，请重试' };
 		}
-		return null;
 	}
 
 	// 为所有论坛编辑器绑定事件
@@ -476,6 +480,25 @@ const hasInitialContent = initialEditorContent.length > 0;
 			if (submitBtn) {
 				submitBtn.disabled = !textarea.value.trim();
 			}
+		}
+
+		function showUploadError(message: string): void {
+			if (!errorDisplay) return;
+			errorDisplay.textContent = message;
+			errorDisplay.style.display = '';
+		}
+
+		function insertUploadedImage(file: File, url: string): void {
+			const imgMd = `![${file.name}](${url})`;
+			const start = textarea.selectionStart;
+			const end = textarea.selectionEnd;
+			const value = textarea.value;
+			textarea.value = value.slice(0, start) + imgMd + value.slice(end);
+			textarea.selectionStart = start + imgMd.length;
+			textarea.selectionEnd = start + imgMd.length;
+			textarea.focus();
+			updateCount();
+			renderPreview();
 		}
 
 		/**
@@ -648,25 +671,16 @@ const hasInitialContent = initialEditorContent.length > 0;
 				(async () => {
 					for (const file of imageFiles) {
 						try {
-							const url = await uploadImageFile(file);
-							if (url) {
-								// 插入 Markdown 图片语法
-								const imgMd = `![${file.name}](${url})`;
-								const start = textarea.selectionStart;
-								const end = textarea.selectionEnd;
-								const value = textarea.value;
-								textarea.value = value.slice(0, start) + imgMd + value.slice(end);
-								textarea.selectionStart = start + imgMd.length;
-								textarea.selectionEnd = start + imgMd.length;
-								textarea.focus();
-								updateCount();
-								renderPreview();
+							const upload = await uploadImageFile(file);
+							if (upload.url) {
+								insertUploadedImage(file, upload.url);
+							} else {
+								showUploadError(upload.error || '图片上传失败，请重试');
 							}
-						} catch {
-							if (errorDisplay) {
-								errorDisplay.textContent = '图片上传失败';
-								errorDisplay.style.display = '';
-							}
+						} catch (error) {
+							showUploadError(
+								error instanceof Error ? error.message : '图片上传失败，请重试'
+							);
 						}
 					}
 				})();
@@ -681,25 +695,16 @@ const hasInitialContent = initialEditorContent.length > 0;
 
 				for (const file of Array.from(files)) {
 					try {
-						const url = await uploadImageFile(file);
-						if (url) {
-							// 在 textarea 中插入图片 Markdown
-							const imgMd = `![${file.name}](${url})`;
-							const start = textarea.selectionStart;
-							const end = textarea.selectionEnd;
-							const value = textarea.value;
-							textarea.value = value.slice(0, start) + imgMd + value.slice(end);
-							textarea.selectionStart = start + imgMd.length;
-							textarea.selectionEnd = start + imgMd.length;
-							textarea.focus();
-							updateCount();
-							renderPreview();
+						const upload = await uploadImageFile(file);
+						if (upload.url) {
+							insertUploadedImage(file, upload.url);
+						} else {
+							showUploadError(upload.error || '图片上传失败，请重试');
 						}
-					} catch {
-						if (errorDisplay) {
-							errorDisplay.textContent = '图片上传失败';
-							errorDisplay.style.display = '';
-						}
+					} catch (error) {
+						showUploadError(
+							error instanceof Error ? error.message : '图片上传失败，请重试'
+						);
 					}
 				}
 				// 清空 file input

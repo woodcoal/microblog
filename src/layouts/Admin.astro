@@ -11,6 +11,7 @@
  */
 import { getUserFromRequest } from '@/lib/auth';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_FAVICON_URL } from '@/lib/config';
+import { getOrCreateCsrfToken } from '@/lib/csrf';
 
 // 导入样式依赖（主题变量 + 全局样式 + 管理后台样式）
 import '@/styles/tokens.css';
@@ -48,6 +49,7 @@ const pageTitle = title ? `${title} - 管理后台 - ${siteTitle}` : `管理后�
 
 // 当前路径，用于侧边栏高亮
 const currentPath = Astro.url.pathname;
+const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
 
 // 侧边栏导航项
 const navItems = [
@@ -65,6 +67,62 @@ const navItems = [
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="csrf-token" content={csrfToken} />
+		<!-- 为同源 Action/fetch 自动加入 CSRF header，并为原生表单补充隐藏字段。 -->
+		<script is:inline>
+			(function () {
+				var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+				var token = tokenMeta && tokenMeta.getAttribute('content');
+				if (!token) return;
+
+				var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+				var originalFetch = window.fetch.bind(window);
+				window.fetch = function (input, init) {
+					var request = input instanceof Request ? input : null;
+					var targetUrl = new URL(
+						request ? request.url : String(input),
+						window.location.href
+					);
+					var method = String(
+						(init && init.method) || (request && request.method) || 'GET'
+					).toUpperCase();
+					if (targetUrl.origin !== window.location.origin || !unsafeMethods[method]) {
+						return originalFetch(input, init);
+					}
+
+					var headers = new Headers(request ? request.headers : undefined);
+					if (init && init.headers) {
+						new Headers(init.headers).forEach(function (value, key) {
+							headers.set(key, value);
+						});
+					}
+					if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', token);
+					return originalFetch(
+						input,
+						Object.assign({}, init || {}, { headers: headers })
+					);
+				};
+
+				document.addEventListener('submit', function (event) {
+					var form = event.target;
+					if (!(form instanceof HTMLFormElement)) return;
+					var method = (form.method || 'GET').toUpperCase();
+					if (!unsafeMethods[method]) return;
+					var action = new URL(
+						form.getAttribute('action') || window.location.href,
+						window.location.href
+					);
+					if (action.origin !== window.location.origin) return;
+					if (!form.querySelector('input[name="csrf_token"]')) {
+						var input = document.createElement('input');
+						input.type = 'hidden';
+						input.name = 'csrf_token';
+						input.value = token;
+						form.appendChild(input);
+					}
+				});
+			})();
+		</script>
 		<meta name="description" content={siteDesc} />
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
@@ -122,6 +180,87 @@ const navItems = [
 		<main class="admin-main">
 			<slot />
 		</main>
+
+		<!-- 管理后台 Actions 使用的统一提示对话框 -->
+		<script is:inline>
+			window.MutanDialog = {
+				alert: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn dialog-btn-primary" data-role="ok">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close() {
+							overlay.remove();
+							resolve();
+						}
+
+						overlay.querySelector('[data-role="ok"]').addEventListener('click', close);
+						overlay.addEventListener('click', function (event) {
+							if (event.target === overlay) close();
+						});
+						overlay.querySelector('[data-role="ok"]').focus();
+					});
+				},
+				confirm: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						var confirmClass = options.danger
+							? 'dialog-btn dialog-btn-danger'
+							: 'dialog-btn dialog-btn-primary';
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn" data-role="cancel">取消</button>' +
+							'<button class="' +
+							confirmClass +
+							'" data-role="confirm">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close(result) {
+							overlay.remove();
+							resolve(result);
+						}
+
+						overlay
+							.querySelector('[data-role="confirm"]')
+							.addEventListener('click', function () {
+								close(true);
+							});
+						overlay
+							.querySelector('[data-role="cancel"]')
+							.addEventListener('click', function () {
+								close(false);
+							});
+						overlay.addEventListener('click', function (event) {
+							if (event.target === overlay) close(false);
+						});
+						overlay.querySelector('[data-role="cancel"]').focus();
+					});
+				}
+			};
+		</script>
 
 		<script>
 			/**

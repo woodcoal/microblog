@@ -75,94 +75,100 @@ const hasCategories = serializedTree.length > 0;
 <AdminLayout title="分类管理">
 	<h1 class="admin-page-title">📂 分类管理</h1>
 
-	<!-- 创建分类表单 -->
-	<form class="admin-form" id="category-form">
-		<h2 class="admin-section-title" id="form-title">新建分类</h2>
-		<input type="hidden" name="id" id="form-id" value="" />
-		<div class="admin-form-grid">
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-name">名称 *</label>
-				<input
-					type="text"
-					class="admin-form-input"
-					id="form-name"
-					name="name"
-					required
-					placeholder="分类名称"
-				/>
+	<div class="admin-category-toolbar">
+		<button type="button" class="admin-btn admin-btn-primary" id="category-create-open">
+			新建分类
+		</button>
+	</div>
+
+	<!-- 创建/编辑分类弹窗 -->
+	<dialog id="category-dialog" class="admin-modal" aria-labelledby="form-title">
+		<form id="category-form" novalidate>
+			<h2 class="admin-modal-title" id="form-title">新建分类</h2>
+			<input type="hidden" name="id" id="form-id" value="" />
+			<div class="admin-form-grid">
+				<div class="admin-form-group">
+					<label class="admin-form-label" for="form-name">名称 *</label>
+					<input
+						type="text"
+						class="admin-form-input"
+						id="form-name"
+						name="name"
+						required
+						placeholder="分类名称"
+					/>
+				</div>
+				<div class="admin-form-group">
+					<label class="admin-form-label" for="form-slug">Slug *</label>
+					<input
+						type="text"
+						class="admin-form-input"
+						id="form-slug"
+						name="slug"
+						required
+						placeholder="url-friendly-identifier"
+					/>
+				</div>
+				<div class="admin-form-group" id="form-mode-group">
+					<label class="admin-form-label" for="form-mode">模式 *</label>
+					<select class="admin-form-select" id="form-mode" name="mode" required>
+						<option value="weibo">{getModeLabel('weibo')}</option>
+						<option value="forum">{getModeLabel('forum')}</option>
+						<option value="blog">{getModeLabel('blog')}</option>
+					</select>
+				</div>
+				<div class="admin-form-group">
+					<label class="admin-form-label" for="form-parentId">父分类</label>
+					<select class="admin-form-select" id="form-parentId" name="parentId">
+						<option value="">— 无（一级分组）—</option>
+						{
+							parentOptions.map((p) => (
+								<option value={p.id} data-mode={p.mode}>
+									{p.icon ? `${p.icon} ` : ''}
+									{p.name} ({p.mode})
+								</option>
+							))
+						}
+					</select>
+				</div>
+				<div class="admin-form-group">
+					<label class="admin-form-label" for="form-icon">图标</label>
+					<input
+						type="text"
+						class="admin-form-input"
+						id="form-icon"
+						name="icon"
+						placeholder="emoji 或图标名"
+					/>
+				</div>
+				<div class="admin-form-group">
+					<label class="admin-form-label" for="form-sortOrder">排序</label>
+					<input
+						type="number"
+						class="admin-form-input"
+						id="form-sortOrder"
+						name="sortOrder"
+						value="0"
+						min="0"
+					/>
+				</div>
+				<div class="admin-form-group admin-form-group-full">
+					<label class="admin-form-label" for="form-description">描述</label>
+					<textarea
+						class="admin-form-textarea"
+						id="form-description"
+						name="description"
+						placeholder="分类描述（可选）"></textarea>
+				</div>
 			</div>
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-slug">Slug *</label>
-				<input
-					type="text"
-					class="admin-form-input"
-					id="form-slug"
-					name="slug"
-					required
-					placeholder="url-friendly-identifier"
-				/>
+			<div class="admin-modal-actions">
+				<button type="submit" class="admin-btn admin-btn-primary" id="form-submit">
+					创建分类
+				</button>
+				<button type="button" class="admin-btn" id="form-cancel">取消</button>
 			</div>
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-mode">模式 *</label>
-				<select class="admin-form-select" id="form-mode" name="mode" required>
-					<option value="weibo">{getModeLabel('weibo')}</option>
-					<option value="forum">{getModeLabel('forum')}</option>
-					<option value="blog">{getModeLabel('blog')}</option>
-				</select>
-			</div>
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-parentId">父分类</label>
-				<select class="admin-form-select" id="form-parentId" name="parentId">
-					<option value="">— 无（一级分组）—</option>
-					{
-						parentOptions.map((p) => (
-							<option value={p.id}>
-								{p.icon ? `${p.icon} ` : ''}
-								{p.name} ({p.mode})
-							</option>
-						))
-					}
-				</select>
-			</div>
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-icon">图标</label>
-				<input
-					type="text"
-					class="admin-form-input"
-					id="form-icon"
-					name="icon"
-					placeholder="emoji 或图标名"
-				/>
-			</div>
-			<div class="admin-form-group">
-				<label class="admin-form-label" for="form-sortOrder">排序</label>
-				<input
-					type="number"
-					class="admin-form-input"
-					id="form-sortOrder"
-					name="sortOrder"
-					value="0"
-					min="0"
-				/>
-			</div>
-			<div class="admin-form-group admin-form-group-full">
-				<label class="admin-form-label" for="form-description">描述</label>
-				<textarea
-					class="admin-form-textarea"
-					id="form-description"
-					name="description"
-					placeholder="分类描述（可选）"></textarea>
-			</div>
-		</div>
-		<div class="admin-form-actions">
-			<button type="submit" class="admin-btn admin-btn-primary" id="form-submit">
-				创建分类
-			</button>
-			<button type="button" class="admin-btn" id="form-cancel" style="display:none">
-				取消编辑
-			</button>
-		</div>
-	</form>
+		</form>
+	</dialog>
 
 	<!-- 分类列表 -->
 	<div class="admin-table-wrapper">
@@ -210,6 +216,7 @@ const hasCategories = serializedTree.length > 0;
 											data-name={parent.name}
 											data-slug={parent.slug}
 											data-mode={parent.mode}
+											data-parent-id={parent.parentId || ''}
 											data-description={parent.description}
 											data-icon={parent.icon}
 											data-sort-order={String(parent.sortOrder)}
@@ -277,6 +284,7 @@ const hasCategories = serializedTree.length > 0;
 												data-name={child.name}
 												data-slug={child.slug}
 												data-mode={child.mode}
+												data-parent-id={child.parentId || ''}
 												data-description={child.description}
 												data-icon={child.icon}
 												data-sort-order={String(child.sortOrder)}
@@ -315,6 +323,20 @@ const hasCategories = serializedTree.length > 0;
 	</div>
 </AdminLayout>
 
+<style>
+	.admin-category-toolbar {
+		margin-bottom: var(--spacing-4);
+	}
+
+	#category-dialog {
+		max-width: 720px;
+	}
+
+	#category-dialog form {
+		margin: 0;
+	}
+</style>
+
 <script>
 	import { actions } from 'astro:actions';
 
@@ -328,10 +350,13 @@ const hasCategories = serializedTree.length > 0;
 	 */
 
 	const form = document.getElementById('category-form') as HTMLFormElement;
+	const categoryDialog = document.getElementById('category-dialog') as HTMLDialogElement;
+	const createOpen = document.getElementById('category-create-open');
 	const formId = document.getElementById('form-id') as HTMLInputElement;
 	const formName = document.getElementById('form-name') as HTMLInputElement;
 	const formSlug = document.getElementById('form-slug') as HTMLInputElement;
 	const formMode = document.getElementById('form-mode') as HTMLSelectElement;
+	const formModeGroup = document.getElementById('form-mode-group') as HTMLDivElement;
 	const formParentId = document.getElementById('form-parentId') as HTMLSelectElement;
 	const formDescription = document.getElementById('form-description') as HTMLTextAreaElement;
 	const formIcon = document.getElementById('form-icon') as HTMLInputElement;
@@ -339,6 +364,15 @@ const hasCategories = serializedTree.length > 0;
 	const formTitle = document.getElementById('form-title') as HTMLHeadingElement;
 	const formSubmit = document.getElementById('form-submit') as HTMLButtonElement;
 	const formCancel = document.getElementById('form-cancel') as HTMLButtonElement;
+
+	/** 同步模式字段：二级分类继承父分类，编辑时始终不可修改。 */
+	function syncModeField(isEditing = Boolean(formId.value)) {
+		const selectedParent = formParentId.selectedOptions[0];
+		const parentMode = selectedParent?.dataset.mode;
+		if (parentMode) formMode.value = parentMode;
+		formMode.disabled = isEditing || Boolean(parentMode);
+		formModeGroup.hidden = Boolean(parentMode) && !isEditing;
+	}
 
 	/**
 	 * 重置表单为创建模式
@@ -349,8 +383,16 @@ const hasCategories = serializedTree.length > 0;
 		formSortOrder.value = '0';
 		formTitle.textContent = '新建分类';
 		formSubmit.textContent = '创建分类';
-		formCancel.style.display = 'none';
+		syncModeField(false);
 	}
+
+	createOpen?.addEventListener('click', () => {
+		resetForm();
+		categoryDialog.showModal();
+		formName.focus();
+	});
+
+	formParentId.addEventListener('change', () => syncModeField());
 
 	/**
 	 * 表单提交处理（创建或更新分类）
@@ -405,7 +447,11 @@ const hasCategories = serializedTree.length > 0;
 	/**
 	 * 取消编辑
 	 */
-	formCancel.addEventListener('click', resetForm);
+	formCancel.addEventListener('click', () => categoryDialog.close());
+
+	categoryDialog.addEventListener('click', (event) => {
+		if (event.target === categoryDialog) categoryDialog.close();
+	});
 
 	/**
 	 * 操作按钮委托处理（编辑、删除、上移、下移）
@@ -423,14 +469,15 @@ const hasCategories = serializedTree.length > 0;
 			formName.value = target.dataset.name || '';
 			formSlug.value = target.dataset.slug || '';
 			formMode.value = target.dataset.mode || 'weibo';
+			formParentId.value = target.dataset.parentId || '';
 			formDescription.value = target.dataset.description || '';
 			formIcon.value = target.dataset.icon || '';
 			formSortOrder.value = target.dataset.sortOrder || '0';
 			formTitle.textContent = '编辑分类';
 			formSubmit.textContent = '保存修改';
-			formCancel.style.display = '';
-			// 滚动到表单
-			form.scrollIntoView({ behavior: 'smooth' });
+			syncModeField(true);
+			categoryDialog.showModal();
+			formName.focus();
 			return;
 		}
 

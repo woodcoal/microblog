@@ -4,12 +4,12 @@
  *
  * 需要认证，仅作者可访问。
  * 根据 post.mode 使用不同的编辑器：
- * - weibo：简单 textarea（现有 PostEditForm.astro）
+ * - weibo：PostEditor.astro（与创建场景复用）
  * - forum：ForumEditor.astro（Markdown 工具栏 + 预览）
  * - blog：BlogEditor.tsx（Tiptap 所见即所得编辑器）
  */
 import UserLayout from '@/layouts/UserLayout.astro';
-import PostEditForm from '@/components/PostEditForm.astro';
+import PostEditor from '@/components/PostEditor.astro';
 import ForumEditor from '@/components/ForumEditor.astro';
 import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
@@ -83,16 +83,23 @@ const initialMedia = post.media.map((m) => ({
 const isWeibo = post.mode === 'weibo';
 const isForum = post.mode === 'forum';
 const isBlog = post.mode === 'blog';
+const blogCategories = isBlog
+	? await prisma.category.findMany({
+			where: { mode: 'blog' },
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }]
+		})
+	: [];
+const hasBlogCategories = blogCategories.length > 0;
 ---
 
 <UserLayout title="编辑帖子">
 	<div class="edit-page">
-		<h1 class="edit-page-title">编辑帖子</h1>
+		{!isBlog && <h1 class="edit-page-title">编辑帖子</h1>}
 
-		{/* weibo 模式：使用原有 PostEditForm */}
+		{/* weibo 模式：与创建场景复用 PostEditor */}
 		{
 			isWeibo && (
-				<PostEditForm
+				<PostEditor
 					postId={post.id}
 					initialContent={post.content}
 					username={post.user.username}
@@ -157,53 +164,95 @@ const isBlog = post.mode === 'blog';
 			)
 		}
 
-		{/* blog 模式：使用 BlogEditor React Island */}
+		{/* blog 模式：与新建页使用相同的文档工作区 */}
 		{
 			isBlog && (
 				<div
-					class="blog-edit-container"
+					class="blog-write-page blog-edit-page"
 					id="blog-edit-container"
 					data-post-id={post.id}
 					data-username={post.user.username}
 					data-visibility={post.visibility}
 				>
-					<div class="form-group">
-						<label class="form-label" for="blog-edit-title">
-							标题
-						</label>
+					<div class="blog-write-toolbar">
+						<div class="blog-write-toolbar-left">
+							{hasBlogCategories && (
+								<select
+									class="form-input blog-write-select"
+									id="blog-edit-category"
+								>
+									<option value="">选择分类（可选）</option>
+									{blogCategories.map((category) => (
+										<option
+											value={category.id}
+											selected={post.categoryId === category.id}
+										>
+											{category.icon && `${category.icon} `}
+											{category.name}
+										</option>
+									))}
+								</select>
+							)}
+							<select class="form-input blog-write-select" id="blog-edit-visibility">
+								<option value="public" selected={post.visibility === 'public'}>
+									🌐 公开
+								</option>
+								<option
+									value="logged_in"
+									selected={post.visibility === 'logged_in'}
+								>
+									🔐 登录用户可见
+								</option>
+								<option
+									value="followers"
+									selected={post.visibility === 'followers'}
+								>
+									👥 粉丝可见
+								</option>
+								<option
+									value="following"
+									selected={post.visibility === 'following'}
+								>
+									🤝 我关注的人可见
+								</option>
+								<option value="private" selected={post.visibility === 'private'}>
+									🔒 仅自己可见
+								</option>
+							</select>
+						</div>
+						<div class="blog-write-toolbar-right">
+							<a
+								href={`/${post.user.username}/${post.id}`}
+								class="btn blog-write-cancel-btn"
+							>
+								取消
+							</a>
+							<button
+								class="btn btn-primary blog-write-publish-btn"
+								id="blog-edit-save"
+							>
+								保存修改
+							</button>
+						</div>
+					</div>
+					<div class="blog-write-doc" data-max-length={POST_CONTENT_MAX_LENGTH}>
 						<input
 							type="text"
-							class="form-input"
+							class="blog-write-title"
 							id="blog-edit-title"
 							value={post.title || ''}
+							placeholder="文章标题"
 							maxlength="200"
 						/>
-					</div>
-					<div class="form-group">
-						<label class="form-label">内容</label>
-						<BlogEditor client:load initialContent={post.content} />
-					</div>
-					<div class="form-group">
-						<label class="form-label" for="blog-edit-visibility">
-							可见度
-						</label>
-						<select class="form-input" id="blog-edit-visibility">
-							<option value="public" selected={post.visibility === 'public'}>
-								🌐 公开
-							</option>
-							<option value="logged_in" selected={post.visibility === 'logged_in'}>
-								🔐 登录用户可见
-							</option>
-							<option value="followers" selected={post.visibility === 'followers'}>
-								👥 粉丝可见
-							</option>
-							<option value="following" selected={post.visibility === 'following'}>
-								🤝 我关注的人可见
-							</option>
-							<option value="private" selected={post.visibility === 'private'}>
-								🔒 仅自己可见
-							</option>
-						</select>
+						<BlogEditor
+							client:load
+							initialContent={post.content}
+							containerId="blog-edit-container"
+							draftKey={`blog-draft-${post.id}`}
+							titleInputId="blog-edit-title"
+							categorySelectId="blog-edit-category"
+							visibilitySelectId="blog-edit-visibility"
+						/>
 					</div>
 					<p class="form-error" id="blog-edit-error" style="display:none" />
 				</div>
@@ -306,7 +355,11 @@ const isBlog = post.mode === 'blog';
 		const visibilitySelect = document.getElementById(
 			'blog-edit-visibility'
 		) as HTMLSelectElement;
+		const categorySelect = document.getElementById(
+			'blog-edit-category'
+		) as HTMLSelectElement | null;
 		const formError = document.getElementById('blog-edit-error') as HTMLParagraphElement;
+		const saveBtn = document.getElementById('blog-edit-save') as HTMLButtonElement;
 		let loading = false;
 
 		/**
@@ -329,26 +382,43 @@ const isBlog = post.mode === 'blog';
 
 			if (!content) {
 				showError('请输入文章内容');
+				blogContainer.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
+				return;
+			}
+			if (!title) {
+				showError('请输入文章标题');
+				titleInput.focus();
+				blogContainer.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
 				return;
 			}
 
 			loading = true;
 			formError.style.display = 'none';
+			saveBtn.disabled = true;
+			saveBtn.textContent = '保存中...';
 
 			const result = await actions.updatePost({
 				postId,
 				content,
 				visibility: visibilitySelect.value,
-				title: title || undefined
+				title,
+				categoryId: categorySelect?.value || ''
 			} as any);
 
 			if (result.error) {
 				showError(result.error.message || '保存失败');
+				blogContainer.dispatchEvent(new CustomEvent('blog-editor-submit-done'));
+				saveBtn.disabled = false;
+				saveBtn.textContent = '保存修改';
 			} else {
 				window.location.href = `/${username}/${postId}`;
 			}
 
 			loading = false;
+		});
+
+		saveBtn.addEventListener('click', () => {
+			blogContainer.dispatchEvent(new CustomEvent('blog-editor-do-submit'));
 		});
 	}
 </script>

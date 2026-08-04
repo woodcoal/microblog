@@ -36,12 +36,33 @@ interface ImportMetaEnv {
 	readonly MAX_USER_PINNED_POSTS?: string;
 	/** 热门排序公式配置 */
 	readonly TRENDING_FORMULA?: string;
+	/** API CORS 来源白名单，self 表示同源 */
+	readonly API_CORS_ORIGINS?: string;
+	/** API 限流窗口（秒） */
+	readonly API_RATE_LIMIT_WINDOW_SECONDS?: string;
+	/** API 读请求限流上限 */
+	readonly API_RATE_LIMIT_READ?: string;
+	/** API 写请求限流上限 */
+	readonly API_RATE_LIMIT_WRITE?: string;
+	/** API 上传请求限流上限 */
+	readonly API_RATE_LIMIT_UPLOAD?: string;
+	/** API 普通请求体上限（字节） */
+	readonly API_BODY_LIMIT_BYTES?: string;
+	/** API 上传请求体上限（字节） */
+	readonly API_UPLOAD_BODY_LIMIT_BYTES?: string;
 	/** 额外保留用户名（逗号分隔） */
 	readonly EXTRA_RESERVED_USERNAMES?: string;
 }
 
 interface ImportMeta {
 	readonly env: ImportMetaEnv;
+}
+
+declare namespace App {
+	interface Locals {
+		/** SSR 注入并由客户端提交的同步器 CSRF token */
+		csrfToken?: string;
+	}
 }
 
 interface MutanDialogOptions {

@@ -27,6 +27,12 @@ interface CommentData {
 		displayName: string;
 	};
 	postContent: string;
+	post: {
+		id: string;
+		user: {
+			username: string;
+		};
+	};
 }
 
 interface Props {
@@ -115,9 +121,23 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 									data-id={comment.id}
 								/>
 							</td>
-							<td class="admin-id-cell">{shortId}</td>
+							<td class="admin-id-cell">
+								<a
+									href={`/${comment.post.user.username}/${comment.post.id}/#comment-${comment.id}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{shortId}
+								</a>
+							</td>
 							<td>
-								<a href={`/${comment.user.username}`}>{authorName}</a>
+								<a
+									href={`/${comment.user.username}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{authorName}
+								</a>
 							</td>
 							<td>
 								<div class="admin-text-truncate" title={comment.content}>

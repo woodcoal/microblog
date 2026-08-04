@@ -84,7 +84,7 @@ const relativeTime = formatRelativeTime(new Date(comment.createdAt));
 const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 ---
 
-<div class="comment-item" data-comment-id={comment.id}>
+<div class="comment-item" id={`comment-${comment.id}`} data-comment-id={comment.id}>
 	<div class="comment-item-header">
 		<a href={`/${comment.user.username}`} class="comment-item-author">
 			{
@@ -179,7 +179,11 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 					const replyHtml = replyIsDeleted ? '' : renderMarkdown(reply.content);
 
 					return (
-						<div class="comment-item" data-comment-id={reply.id}>
+						<div
+							class="comment-item"
+							id={`comment-${reply.id}`}
+							data-comment-id={reply.id}
+						>
 							<div class="comment-item-header">
 								<a href={`/${reply.user.username}`} class="comment-item-author">
 									{replyHasAvatar ? (
