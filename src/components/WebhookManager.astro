@@ -95,6 +95,7 @@ const EVENT_OPTIONS = [
 	 * 使用 Astro Actions 替代 REST API 调用。
 	 */
 	import { actions } from 'astro:actions';
+	import { escapeHtml } from '@/lib/html';
 
 	/** 允许的 Webhook 事件选项 */
 	const EVENT_OPTIONS = [
@@ -155,9 +156,9 @@ const EVENT_OPTIONS = [
 								return [];
 							}
 						})();
-						return `<div class="item-card" data-webhook-id="${webhook.id}">
+						return `<div class="item-card" data-webhook-id="${escapeHtml(String(webhook.id))}">
 					<div class="edit-form">
-						<input type="url" value="${webhook.url}" class="input" placeholder="Webhook URL" data-edit-url />
+						<input type="url" value="${escapeHtml(String(webhook.url))}" class="input" placeholder="Webhook URL" data-edit-url />
 						<div class="event-checkboxes">
 							${EVENT_OPTIONS.map((option) => {
 								const checked = currentEvents.includes(option.value);
@@ -183,11 +184,11 @@ const EVENT_OPTIONS = [
 						: 'btn btn-primary btn-sm';
 					const toggleBtnText = webhook.isActive ? '禁用' : '启用';
 
-					return `<div class="item-card" data-webhook-id="${webhook.id}">
+					return `<div class="item-card" data-webhook-id="${escapeHtml(String(webhook.id))}">
 				<div class="item-info">
-					<strong class="webhook-url">${webhook.url}</strong>
+					<strong class="webhook-url">${escapeHtml(String(webhook.url))}</strong>
 					<span class="item-meta">
-						事件：${eventLabels} · Secret：${webhook.secret} · 状态：${statusText}
+						事件：${escapeHtml(eventLabels)} · Secret：${escapeHtml(String(webhook.secret))} · 状态：${statusText}
 					</span>
 				</div>
 				<div class="item-actions">

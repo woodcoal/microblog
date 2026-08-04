@@ -192,6 +192,46 @@ export function findMediaByPostId(postId: string) {
 	});
 }
 
+/** 查询 Agent 帖子列表所需的轻量字段。 */
+export function findAgentPosts(
+	where: Prisma.PostWhereInput,
+	options: {
+		take: number;
+		skip?: number;
+		orderBy?: Prisma.PostOrderByWithRelationInput;
+		includeCounts?: boolean;
+	}
+) {
+	return prisma.post.findMany({
+		where,
+		take: options.take,
+		...(options.skip !== undefined ? { skip: options.skip } : {}),
+		...(options.orderBy ? { orderBy: options.orderBy } : {}),
+		select: {
+			id: true,
+			content: true,
+			createdAt: true,
+			...(options.includeCounts
+				? { _count: { select: { likes: true, comments: true } } }
+				: {})
+		}
+	});
+}
+
+/** 查询 Agent 帖子详情及其作者和附件。 */
+export function findAgentPostDetail(postId: string) {
+	return prisma.post.findUnique({
+		where: { id: postId },
+		include: {
+			user: { select: { username: true, displayName: true } },
+			media: {
+				orderBy: { sortOrder: 'asc' },
+				include: { fileStorage: { select: { filePath: true, fileType: true } } }
+			}
+		}
+	});
+}
+
 // ── 更新 ──
 
 /**

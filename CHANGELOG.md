@@ -2,12 +2,15 @@
 
 ### 2026-08-05
 
-**变更类型**: 重构
+**变更类型**: 重构 / 优化 / 安全加固
 
 - 移除 DaLi.Lens 外部推荐依赖，改用本地热门排序、标签/分类匹配及本地阅读历史。
 - 修复本地推荐的分层架构、候选查询数据放大、永久排除已读和相似源帖权限校验问题。
 - 修复 Markdown URL、搜索建议和通知动态内容的持久型 XSS 风险。
 - 新增 `lint` 与 `typecheck` 工程脚本，统一格式和 Astro 类型检查入口。
+- 将 `content.service.ts` 与 `user.service.ts` 的 Prisma 查询下沉至 `lib/post.ts`、`lib/comment.ts` 与 `lib/user.ts`，保持既有 Service 接口不变。
+- 新增公共 `escapeHtml` 工具，并用于 Token、Webhook 及编辑器上传文件预览中的动态 HTML 值。
+- 新增 `HOT_SORT_CANDIDATE_WINDOW` 配置，默认保留 200 条热门排序候选（必须为正数，无效值回退默认值 200）。
 
 ### 2026-06-21 19:30
 

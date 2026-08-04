@@ -30,6 +30,23 @@ export function findCommentByIdSelect<T extends Prisma.CommentSelect>(id: string
 	return prisma.comment.findUnique({ where: { id }, select });
 }
 
+/** 查询 Agent 帖子详情展示的一级评论及回复。 */
+export function findAgentPostComments(postId: string, take?: number) {
+	return prisma.comment.findMany({
+		where: { postId, parentId: null, isDeleted: false },
+		orderBy: { createdAt: 'desc' },
+		...(take ? { take } : {}),
+		include: {
+			user: { select: { username: true, displayName: true } },
+			replies: {
+				where: { isDeleted: false },
+				orderBy: { createdAt: 'desc' },
+				include: { user: { select: { username: true, displayName: true } } }
+			}
+		}
+	});
+}
+
 // ── 创建 ──
 
 /**
