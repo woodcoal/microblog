@@ -63,7 +63,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
 <!-- 添加用户对话框 -->
 <dialog id="create-user-dialog" class="admin-modal" aria-labelledby="create-user-title">
-	<form id="create-user-form">
+	<form id="create-user-form" novalidate>
 		<h2 class="admin-modal-title" id="create-user-title">添加用户</h2>
 		<div class="form-group">
 			<label class="form-label" for="create-user-username">用户名</label>
@@ -282,7 +282,23 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		const email = String(formData.get('email') || '').trim();
 		const password = String(formData.get('password') || '');
 		const role = formData.get('role');
-		if (role !== 'user' && role !== 'admin') return;
+
+		if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+			await MutanDialog.alert('用户名只能包含字母、数字和下划线，长度 3-20 个字符');
+			return;
+		}
+		if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+			await MutanDialog.alert('邮箱格式无效');
+			return;
+		}
+		if (password.length < 8) {
+			await MutanDialog.alert('密码长度不能少于 8 个字符');
+			return;
+		}
+		if (role !== 'user' && role !== 'admin') {
+			await MutanDialog.alert('角色无效，请重新选择');
+			return;
+		}
 
 		createUserSubmit.disabled = true;
 		createUserSubmit.setAttribute('aria-busy', 'true');
@@ -301,6 +317,9 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
 			createUserDialog.close();
 			window.location.reload();
+		} catch (error) {
+			const message = error instanceof Error ? error.message : '创建用户失败，请稍后重试';
+			await MutanDialog.alert(message || '创建用户失败，请稍后重试');
 		} finally {
 			createUserSubmit.disabled = false;
 			createUserSubmit.removeAttribute('aria-busy');
@@ -403,18 +422,6 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	}
 	.admin-user-toolbar .admin-search-bar {
 		flex: 1;
-	}
-	.admin-modal {
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		padding: var(--spacing-6);
-		max-width: 480px;
-		width: calc(100% - 2rem);
-		background: var(--color-card-bg);
-		color: var(--color-text);
-	}
-	.admin-modal::backdrop {
-		background: rgb(0 0 0 / 0.5);
 	}
 	.admin-batch-bar {
 		display: flex;
