@@ -427,7 +427,9 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		};
 		reader.readAsDataURL(file);
 
-		const result = await actions.uploadAvatar({ image: file });
+		const formData = new FormData();
+		formData.append('image', file);
+		const result = await actions.uploadAvatar(formData);
 		if (result.error) {
 			await MutanDialog.alert(result.error.message || '头像上传失败');
 			avatarFileInput.value = '';

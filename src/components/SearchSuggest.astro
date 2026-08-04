@@ -93,18 +93,18 @@ const modeLabels = JSON.stringify({
 		const modeLabels: Record<string, string> = JSON.parse(container.dataset.modeLabels || '{}');
 		const loadingEl = container.querySelector<HTMLElement>('.search-suggest-loading');
 		const resultsEl = container.querySelector<HTMLElement>('.search-suggest-results');
-		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]');
-		const postsSection = container.querySelector<HTMLElement>('[data-section="posts"]');
+		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]')!;
+		const postsSection = container.querySelector<HTMLElement>('[data-section="posts"]')!;
 		const categoriesSection = container.querySelector<HTMLElement>(
 			'[data-section="categories"]'
-		);
-		const usersSection = container.querySelector<HTMLElement>('[data-section="users"]');
-		const tagsContainer = container.querySelector<HTMLElement>('.search-suggest-tags');
-		const postsContainer = container.querySelector<HTMLElement>('.search-suggest-posts');
+		)!;
+		const usersSection = container.querySelector<HTMLElement>('[data-section="users"]')!;
+		const tagsContainer = container.querySelector<HTMLElement>('.search-suggest-tags')!;
+		const postsContainer = container.querySelector<HTMLElement>('.search-suggest-posts')!;
 		const categoriesContainer = container.querySelector<HTMLElement>(
 			'.search-suggest-categories'
-		);
-		const usersContainer = container.querySelector<HTMLElement>('.search-suggest-users');
+		)!;
+		const usersContainer = container.querySelector<HTMLElement>('.search-suggest-users')!;
 
 		if (
 			!loadingEl ||
@@ -245,7 +245,7 @@ const modeLabels = JSON.stringify({
 		 * @param users - 用户数组
 		 */
 		function renderUsers(
-			users: Array<{ id: string; username: string; displayName: string; avatarUrl: string }>
+			users: Array<{ id: string; username: string; displayName: string; avatarUrl: string | null }>
 		) {
 			if (users.length === 0) {
 				usersSection.style.display = 'none';

@@ -15,6 +15,8 @@
 	},
 	"private": true,
 	"scripts": {
+		"typecheck": "astro check",
+		"lint": "eslint .",
 		"dev": "astro dev",
 		"build": "astro build",
 		"preview": "astro preview",
@@ -31,7 +33,6 @@
 		"typecheck": "astro check"
 	},
 	"dependencies": {
-		"@astrojs/check": "^0.9.9",
 		"@astrojs/node": "^10.1.4",
 		"@astrojs/react": "^5.0.7",
 		"@libsql/client": "^0.17.4",
@@ -63,15 +64,20 @@
 		"tiptap-markdown": "^0.9.0"
 	},
 	"devDependencies": {
+		"@astrojs/check": "^0.9.10",
+		"@eslint/js": "^9.39.1",
 		"@prisma/config": "^7.8.0",
 		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
+		"eslint": "^9.39.1",
+		"eslint-plugin-astro": "^1.5.0",
 		"prettier": "^3.8.4",
 		"prettier-plugin-astro": "^0.14.1",
 		"prisma": "^7.8.0",
 		"puppeteer": "^25.1.0",
 		"tsx": "^4.22.4",
-		"typescript": "^6.0.3"
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.46.4"
 	},
 	"allowScripts": {
 		"@prisma/engines@7.8.0": true,

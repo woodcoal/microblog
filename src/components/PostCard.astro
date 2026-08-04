@@ -58,11 +58,11 @@ interface PostData {
 	/** 帖子模式：weibo/forum/blog */
 	mode?: string;
 	/** 帖子标题 */
-	title?: string;
+	title?: string | null;
 	/** 分类 ID */
-	categoryId?: string;
+	categoryId?: string | null;
 	/** 关联的分类信息 */
-	category?: PostCategory;
+	category?: PostCategory | null;
 }
 
 /** 帖子标签信息 */
@@ -116,7 +116,8 @@ const isWeibo = postMode === 'weibo';
 const isForum = postMode === 'forum';
 const isBlog = postMode === 'blog';
 const hasTitle = !!post.title;
-const hasCategory = !!post.category;
+const category = post.category ?? undefined;
+const hasCategory = category !== undefined;
 
 /** 模式标签映射 */
 const modeBadge = (() => {
@@ -224,7 +225,7 @@ const blogDate = isBlog
 				{hasCategory && (
 					<div class="post-card-category">
 						<span class="post-card-category-label">版块：</span>
-						<span class="post-card-category-name">{post.category.name}</span>
+						<span class="post-card-category-name">{category.name}</span>
 					</div>
 				)}
 			</a>
@@ -239,7 +240,7 @@ const blogDate = isBlog
 				<div class="post-card-content post-card-content-blog" set:html={htmlContent} />
 				{hasCategory && (
 					<div class="post-card-category">
-						<span class="post-card-category-name">{post.category.name}</span>
+						<span class="post-card-category-name">{category.name}</span>
 					</div>
 				)}
 			</a>

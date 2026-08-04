@@ -5,7 +5,7 @@
  * 薄适配层：鉴权 → zod 校验 → 调用 service → handleServiceError 转换。
  */
 import { defineAction, ActionError } from 'astro:actions';
-import { z } from 'astro:schema';
+import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import { updateTheme as updateThemeService } from '@/services/config.service';

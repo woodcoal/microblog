@@ -67,6 +67,16 @@ interface DraftData {
 	savedAt: string;
 }
 
+interface MarkdownStorage {
+	markdown: {
+		getMarkdown(): string;
+	};
+}
+
+function getMarkdown(editor: Editor): string {
+	return (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown();
+}
+
 /**
  * 上传图片到服务器
  *
@@ -232,7 +242,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	 */
 	const saveDraft = useCallback((ed: Editor) => {
 		try {
-			const markdown = ed.storage.markdown.getMarkdown();
+			const markdown = getMarkdown(ed);
 			// 从页面 DOM 获取标题、分类、可见度等字段
 			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');
 			const categorySelect =
@@ -267,7 +277,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 
 			const draft: DraftData = JSON.parse(raw);
 			// 仅在编辑器内容为空时恢复草稿（避免覆盖已有内容）
-			const currentMarkdown = editor.storage.markdown.getMarkdown();
+			const currentMarkdown = getMarkdown(editor);
 			if (currentMarkdown.trim()) return;
 
 			// 恢复编辑器内容
@@ -340,7 +350,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 
 		const handleDoSubmit = () => {
 			if (loading) return;
-			const markdown = editor.storage.markdown.getMarkdown();
+			const markdown = getMarkdown(editor);
 
 			if (onSubmit) {
 				onSubmit(markdown);

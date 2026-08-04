@@ -266,15 +266,15 @@ const existingMediaJson = JSON.stringify(initialMedia);
 
 	// 为所有编辑表单绑定事件
 	document.querySelectorAll<HTMLFormElement>('.post-edit-form').forEach((form) => {
-		const textarea = form.querySelector<HTMLTextAreaElement>('.post-edit-textarea');
+		const textarea = form.querySelector<HTMLTextAreaElement>('.post-edit-textarea')!;
 		const visibilitySelect = form.querySelector<HTMLSelectElement>(
 			'.post-edit-visibility-select'
-		);
+		)!;
 		const passwordField = form.querySelector<HTMLDivElement>('.post-edit-password-field');
 		const usersField = form.querySelector<HTMLDivElement>('.post-edit-users-field');
-		const countDisplay = form.querySelector<HTMLSpanElement>('[data-count-display]');
-		const errorDisplay = form.querySelector<HTMLParagraphElement>('[data-error-display]');
-		const submitBtn = form.querySelector<HTMLButtonElement>('.btn-primary');
+		const countDisplay = form.querySelector<HTMLSpanElement>('[data-count-display]')!;
+		const errorDisplay = form.querySelector<HTMLParagraphElement>('[data-error-display]')!;
+		const submitBtn = form.querySelector<HTMLButtonElement>('.btn-primary')!;
 		const uploadCount = form.querySelector<HTMLSpanElement>('.post-edit-upload-count');
 		const newImagesSection = form.querySelector<HTMLElement>('[data-section="new-images"]');
 		const newImagesContainer =
@@ -377,7 +377,10 @@ const existingMediaJson = JSON.stringify(initialMedia);
 		 * @param fileType - 文件类型：'image' 或 'attachment'
 		 */
 		async function uploadFile(file: File, fileType: 'image' | 'attachment') {
-			const result = await actions.uploadMedia({ file, fileType });
+			const formData = new FormData();
+			formData.append('file', file);
+			formData.append('fileType', fileType);
+			const result = await actions.uploadMedia(formData);
 
 			if (result.data) {
 				newFiles.push(result.data);

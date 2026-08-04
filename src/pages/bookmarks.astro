@@ -136,14 +136,13 @@ const hasBookmarks = validItems.length > 0;
 									mode: post.mode,
 									title: post.title,
 									categoryId: post.categoryId,
-									category: post.category
+								category: post.category
 								}}
 								htmlContent={renderMarkdown(post.content)}
 								likeCount={postLikeCount}
 								liked={postLiked}
 								commentCount={postCommentCount}
 								tags={postTags}
-								visibility={post.visibility}
 								isRestricted={isPostRestricted}
 							/>
 							<div class="bookmark-post-actions">

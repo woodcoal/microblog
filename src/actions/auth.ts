@@ -5,7 +5,7 @@
  * 业务逻辑委托 auth.service，本层仅负责鉴权 + 输入校验。
  */
 import { defineAction, ActionError } from 'astro:actions';
-import { z } from 'astro:schema';
+import { z } from 'astro/zod';
 import { generateToken, setTokenCookie, clearTokenCookie } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {

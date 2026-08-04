@@ -317,7 +317,7 @@ const hasForumCategories = forumCategories.length > 0;
 					forumVisibilitySelect.value = data.visibility;
 				}
 				// 显示草稿恢复提示
-				const hint = forumModal?.querySelector('.forum-editor-draft-hint');
+				const hint = forumModal?.querySelector<HTMLElement>('.forum-editor-draft-hint');
 				if (hint) {
 					hint.style.display = '';
 					setTimeout(() => {

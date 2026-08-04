@@ -43,3 +43,23 @@ interface ImportMetaEnv {
 interface ImportMeta {
 	readonly env: ImportMetaEnv;
 }
+
+interface MutanDialogOptions {
+	title?: string;
+	danger?: boolean;
+}
+
+interface MutanDialogApi {
+	alert(message: string, options?: MutanDialogOptions): Promise<void>;
+	confirm(message: string, options?: MutanDialogOptions): Promise<boolean>;
+}
+
+declare const MutanDialog: MutanDialogApi;
+
+declare const Scalar: {
+	createApiReference(target: string, options: object): void;
+};
+
+interface Window {
+	MutanDialog: MutanDialogApi;
+}

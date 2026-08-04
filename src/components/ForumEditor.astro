@@ -443,10 +443,10 @@ const hasInitialContent = initialContent.length > 0;
 
 	// 为所有论坛编辑器绑定事件
 	document.querySelectorAll<HTMLElement>('.forum-editor').forEach((editor) => {
-		const textarea = editor.querySelector<HTMLTextAreaElement>('.forum-editor-textarea');
-		const preview = editor.querySelector<HTMLElement>('.forum-editor-preview');
+		const textarea = editor.querySelector<HTMLTextAreaElement>('.forum-editor-textarea')!;
+		const preview = editor.querySelector<HTMLElement>('.forum-editor-preview')!;
 		const body = editor.querySelector<HTMLElement>('.forum-editor-body');
-		const countDisplay = editor.querySelector<HTMLSpanElement>('[data-count-display]');
+		const countDisplay = editor.querySelector<HTMLSpanElement>('[data-count-display]')!;
 		const errorDisplay = editor.querySelector<HTMLParagraphElement>('[data-error-display]');
 		const submitBtn = editor.querySelector<HTMLButtonElement>('.btn-primary');
 		const fileInput = editor.querySelector<HTMLInputElement>('.forum-editor-file-input');

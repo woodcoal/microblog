@@ -633,7 +633,7 @@ const resolvedOgType = ogType || 'website';
 			const userMenu = document.querySelector('.nav-dropdown-menu');
 			userTrigger?.addEventListener('click', () => {
 				const expanded = userTrigger.getAttribute('aria-expanded') === 'true';
-				userTrigger.setAttribute('aria-expanded', !expanded);
+		userTrigger.setAttribute('aria-expanded', String(!expanded));
 				userMenu?.classList.toggle('nav-dropdown-open');
 			});
 			// 点击外部关闭下拉

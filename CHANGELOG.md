@@ -11,6 +11,10 @@
 - 将 `content.service.ts` 与 `user.service.ts` 的 Prisma 查询下沉至 `lib/post.ts`、`lib/comment.ts` 与 `lib/user.ts`，保持既有 Service 接口不变。
 - 新增公共 `escapeHtml` 工具，并用于 Token、Webhook 及编辑器上传文件预览中的动态 HTML 值。
 - 新增 `HOT_SORT_CANDIDATE_WINDOW` 配置，默认保留 200 条热门排序候选（必须为正数，无效值回退默认值 200）。
+- 新增 ESLint flat config；Actions 统一从 `astro:schema` 迁移到 `astro/zod`。
+- 补齐认证 helper、浏览器全局、FormData、可空 DOM 节点和帖子卡片的类型契约。
+
+**残余事项**：后台列表旧 Action 名称与现有批量 Action 契约不一致；其余为未使用声明、可空对象访问和显式 `any` 的既存治理项。
 
 ### 2026-06-21 19:30
 

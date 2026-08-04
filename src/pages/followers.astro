@@ -166,14 +166,15 @@ const likedPostIds = await getLikedPostIds(
 										displayName: post.user.displayName,
 										avatarUrl: post.user.avatarUrl
 									},
-									media: post.media
+								media: post.media
+								,
+								visibility: post.visibility
 								}}
 								htmlContent={renderMarkdown(post.content)}
 								likeCount={postLikeCount}
 								liked={postLiked}
 								commentCount={postCommentCount}
 								tags={postTags}
-								visibility={post.visibility}
 								isRestricted={isPostRestricted}
 							/>
 						);
