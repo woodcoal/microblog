@@ -24,6 +24,7 @@ import {
 } from '@/lib/config';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
+import { getOrCreateCsrfToken } from '@/lib/csrf';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 
@@ -65,6 +66,9 @@ const {
 	narrow,
 	jsonLd
 } = Astro.props;
+
+// 由全局 middleware 首次生成，SSR 页面将 token 注入 HTML，供 Actions 和表单回传。
+const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
 
 // 从 cookie 获取当前登录用户（SSR）
 const currentUser = await getUserFromRequest(Astro);
@@ -133,6 +137,60 @@ const resolvedOgType = ogType || 'website';
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="csrf-token" content={csrfToken} />
+		<!-- 为同源 Action/fetch 自动加入 CSRF header，并为原生表单补充隐藏字段。 -->
+		<script is:inline>
+			(function () {
+				var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+				var token = tokenMeta && tokenMeta.getAttribute('content');
+				if (!token) return;
+
+				var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+				var originalFetch = window.fetch.bind(window);
+				window.fetch = function (input, init) {
+					var request = input instanceof Request ? input : null;
+					var targetUrl = new URL(
+						request ? request.url : String(input),
+						window.location.href
+					);
+					var method = String(
+						(init && init.method) || (request && request.method) || 'GET'
+					).toUpperCase();
+					if (targetUrl.origin !== window.location.origin || !unsafeMethods[method]) {
+						return originalFetch(input, init);
+					}
+
+					var headers = new Headers(request ? request.headers : undefined);
+					if (init && init.headers) {
+						new Headers(init.headers).forEach(function (value, key) {
+							headers.set(key, value);
+						});
+					}
+					if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', token);
+					var nextInit = Object.assign({}, init || {}, { headers: headers });
+					return originalFetch(input, nextInit);
+				};
+
+				document.addEventListener('submit', function (event) {
+					var form = event.target;
+					if (!(form instanceof HTMLFormElement)) return;
+					var method = (form.method || 'GET').toUpperCase();
+					if (!unsafeMethods[method]) return;
+					var action = new URL(
+						form.getAttribute('action') || window.location.href,
+						window.location.href
+					);
+					if (action.origin !== window.location.origin) return;
+					if (!form.querySelector('input[name="csrf_token"]')) {
+						var input = document.createElement('input');
+						input.type = 'hidden';
+						input.name = 'csrf_token';
+						input.value = token;
+						form.appendChild(input);
+					}
+				});
+			})();
+		</script>
 		<meta name="description" content={siteDesc} />
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />

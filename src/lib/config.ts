@@ -68,6 +68,34 @@ export const UPLOAD_DIR = getEnv('UPLOAD_DIR') ?? './uploads';
 /** 站点 URL，用于生成绝对链接 */
 export const SITE_URL = getEnv('SITE_URL') ?? 'http://localhost:4321';
 
+/** API CORS 白名单；self 表示当前请求的同源地址。 */
+export const API_CORS_ORIGINS = (getEnv('API_CORS_ORIGINS') || 'self')
+	.split(',')
+	.map((origin) => origin.trim())
+	.filter(Boolean);
+
+/** API 限流窗口（秒）及按请求类型区分的上限。 */
+export const API_RATE_LIMIT_WINDOW_SECONDS = Math.max(
+	1,
+	Math.floor(envNumber('API_RATE_LIMIT_WINDOW_SECONDS', 60))
+);
+export const API_RATE_LIMIT_READ = Math.max(1, Math.floor(envNumber('API_RATE_LIMIT_READ', 60)));
+export const API_RATE_LIMIT_WRITE = Math.max(1, Math.floor(envNumber('API_RATE_LIMIT_WRITE', 20)));
+export const API_RATE_LIMIT_UPLOAD = Math.max(
+	1,
+	Math.floor(envNumber('API_RATE_LIMIT_UPLOAD', 10))
+);
+
+/** API 请求体限制；上传接口单独放宽。 */
+export const API_BODY_LIMIT_BYTES = Math.max(
+	1024,
+	Math.floor(envNumber('API_BODY_LIMIT_BYTES', 1024 * 1024))
+);
+export const API_UPLOAD_BODY_LIMIT_BYTES = Math.max(
+	API_BODY_LIMIT_BYTES,
+	Math.floor(envNumber('API_UPLOAD_BODY_LIMIT_BYTES', 10 * 1024 * 1024))
+);
+
 /** Agent 帖子热门排序时参与评分的最新候选数量。 */
 export const HOT_SORT_CANDIDATE_WINDOW = Math.max(
 	1,
