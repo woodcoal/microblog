@@ -1,5 +1,21 @@
 # 更新日志
 
+### 2026-08-05
+
+**提交人**: 林冲
+**影响范围**: Service/Lib 分层、账户设置组件、编辑器预览、环境配置
+**变更类型**: 优化 / 安全加固
+
+**详细描述**:
+
+- 将 `content.service.ts` 与 `user.service.ts` 的 Prisma 查询下沉至 `lib/post.ts`、`lib/comment.ts` 与 `lib/user.ts`，保持既有 Service 接口不变。
+- 新增公共 `escapeHtml` 工具，并用于 Token、Webhook 及编辑器上传文件预览中的动态 HTML 值。
+- 新增 `HOT_SORT_CANDIDATE_WINDOW` 配置，默认保留 200 条热门排序候选。
+
+**注意事项**:
+
+- `HOT_SORT_CANDIDATE_WINDOW` 必须为正数；无效值会回退至默认值 200。
+
 ### 2026-06-21 19:30
 
 **提交人**: AI

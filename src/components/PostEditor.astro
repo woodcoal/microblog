@@ -153,6 +153,7 @@ const MAX_IMAGES = 9;
 	 * - Emoji 选择器 → 原生 dialog + 分类浏览
 	 */
 	import { actions } from 'astro:actions';
+	import { escapeHtml } from '@/lib/html';
 
 	/** Emoji 分类数据（约 200 个常用 emoji） */
 	const EMOJI_CATEGORIES = [
@@ -594,8 +595,8 @@ const MAX_IMAGES = 9;
 				.map(
 					(file) =>
 						`<div class="post-editor-preview-item">
-						<img src="${file.url}" alt="${file.originalName}" />
-						<button type="button" class="post-editor-preview-remove" data-file-id="${file.id}">×</button>
+						<img src="${escapeHtml(file.url)}" alt="${escapeHtml(file.originalName)}" />
+						<button type="button" class="post-editor-preview-remove" data-file-id="${escapeHtml(file.id)}">×</button>
 					</div>`
 				)
 				.join('');

@@ -156,3 +156,52 @@ export async function searchUsers<T extends Prisma.UserSelect>(
 		...(select ? { select } : {})
 	});
 }
+
+/** 查询提及的有效用户 ID，排除当前用户。 */
+export function findMentionedUserIds(usernames: string[], currentUserId: string) {
+	return prisma.user.findMany({
+		where: { username: { in: usernames }, id: { not: currentUserId } },
+		select: { id: true }
+	});
+}
+
+/** Agent 用户列表查询。 */
+export function findAgentUsers(input: {
+	keyword?: string;
+	userScope?: string;
+	skip?: number;
+	limit?: number;
+	followingIds?: string[];
+	followerIds?: string[];
+	currentUserId?: string;
+	sort?: string;
+}) {
+	const where: Prisma.UserWhereInput = { isDisabled: false };
+	if (input.keyword) {
+		where.OR = [
+			{ username: { contains: input.keyword } },
+			{ displayName: { contains: input.keyword } }
+		];
+	}
+	if (input.userScope === 'following' && input.followingIds) {
+		where.id = {
+			in: [...input.followingIds, input.currentUserId].filter(
+				(id): id is string => typeof id === 'string'
+			)
+		};
+	} else if (input.userScope === 'followers' && input.followerIds) {
+		where.id = {
+			in: [...input.followerIds, input.currentUserId].filter(
+				(id): id is string => typeof id === 'string'
+			)
+		};
+	}
+
+	return prisma.user.findMany({
+		where,
+		orderBy: input.sort === 'earliest' ? { createdAt: 'asc' } : { createdAt: 'desc' },
+		skip: input.skip,
+		take: input.limit,
+		select: { id: true, username: true, displayName: true }
+	});
+}

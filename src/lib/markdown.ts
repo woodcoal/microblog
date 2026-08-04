@@ -10,6 +10,7 @@
  * 3. 自定义 renderer 限制输出标签
  */
 import { marked, Marked } from 'marked';
+import { escapeHtml } from '@/lib/html';
 
 /** 允许的 HTML 标签白名单 */
 const ALLOWED_TAGS = new Set(['strong', 'em', 'del', 'code', 'a', 'p', 'br', 'span']);
@@ -118,15 +119,6 @@ marked.use({
  * @param str - 待转义的字符串
  * @returns 转义后的安全字符串
  */
-function escapeHtml(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#039;');
-}
-
 /**
  * 将文本节点中的 @提及 和 #标签# 转为链接
  *

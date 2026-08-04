@@ -262,6 +262,7 @@ const existingMediaJson = JSON.stringify(initialMedia);
 	 * - 保存成功后跳转到帖子详情页
 	 */
 	import { actions } from 'astro:actions';
+	import { escapeHtml } from '@/lib/html';
 
 	// 为所有编辑表单绑定事件
 	document.querySelectorAll<HTMLFormElement>('.post-edit-form').forEach((form) => {
@@ -399,8 +400,8 @@ const existingMediaJson = JSON.stringify(initialMedia);
 					newImagesContainer.innerHTML = newImages
 						.map(
 							(file) => `
-						<div class="post-edit-preview-item" data-new-file-id="${file.id}" data-file-type="${file.fileType}">
-							<img src="${file.url}" alt="${file.originalName}" />
+						<div class="post-edit-preview-item" data-new-file-id="${escapeHtml(file.id)}" data-file-type="${escapeHtml(file.fileType)}">
+							<img src="${escapeHtml(file.url)}" alt="${escapeHtml(file.originalName)}" />
 							<button type="button" class="post-edit-preview-remove" data-action="remove-new">×</button>
 						</div>
 					`
@@ -420,8 +421,8 @@ const existingMediaJson = JSON.stringify(initialMedia);
 					newAttachmentsContainer.innerHTML = newAttachments
 						.map(
 							(file) => `
-						<div class="post-edit-attachment-item" data-new-file-id="${file.id}" data-file-type="${file.fileType}">
-							<span>📎 ${file.originalName}</span>
+						<div class="post-edit-attachment-item" data-new-file-id="${escapeHtml(file.id)}" data-file-type="${escapeHtml(file.fileType)}">
+							<span>📎 ${escapeHtml(file.originalName)}</span>
 							<button type="button" class="post-edit-attachment-remove" data-action="remove-new">删除</button>
 						</div>
 					`

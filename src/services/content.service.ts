@@ -8,15 +8,23 @@ import {
 	findPostById,
 	findPostWithRelations,
 	findMediaByPostId,
+	findAgentPosts,
+	findAgentPostDetail,
 	createPostTransaction,
 	updatePostTransaction,
 	softDeletePost
 } from '@/lib/post';
-import { findCommentById, createCommentRecord, softDeleteComment } from '@/lib/comment';
+import {
+	findCommentById,
+	findAgentPostComments,
+	createCommentRecord,
+	softDeleteComment
+} from '@/lib/comment';
 import { findFileStoragesByIds, deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
 import { findTagByName, findPostIdsByTagId } from '@/lib/tag';
-import { findUserByUsername } from '@/lib/user';
+import { findMentionedUserIds, findUserByUsername } from '@/lib/user';
 import { findCategoryById } from '@/lib/category';
+import { findFollow } from '@/lib/social';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
 import {
@@ -36,8 +44,8 @@ import {
 	checkPostVisibility,
 	getVisibilityFilter
 } from '@/lib/visibility';
-import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
-import { prisma } from '@/lib/db';
+import { HOT_SORT_CANDIDATE_WINDOW, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import type { Prisma } from '../../generated/prisma/client';
 import { calculateTrendingScore } from '@/lib/trending';
 import { hashPassword } from '@/lib/auth';
 
@@ -45,8 +53,6 @@ import { hashPassword } from '@/lib/auth';
 const COMMENT_MAX_LENGTH = 1000;
 
 const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
-
-const HOT_SORT_MAX = 200;
 
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
 
@@ -420,10 +426,7 @@ export async function createPost(input: CreatePostInput) {
 	const fullPost = await findPostWithRelations(id);
 
 	if (mentionUsernames.length > 0) {
-		const mentionedUsers = await prisma.user.findMany({
-			where: { username: { in: mentionUsernames }, id: { not: userId } },
-			select: { id: true }
-		});
+		const mentionedUsers = await findMentionedUserIds(mentionUsernames, userId);
 		for (const u of mentionedUsers) {
 			createNotification('mention', userId, u.id, id).catch(() => {});
 		}
@@ -719,7 +722,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 	const visibilityFilter = getVisibilityFilter({ userId }, { followingIds, followerIds });
 
 	// 构建 where 条件
-	const where: Record<string, unknown> = {
+	const where: Prisma.PostWhereInput = {
 		isDeleted: false,
 		...visibilityFilter
 	};
@@ -774,15 +777,9 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 
 	if (sort === 'hot') {
 		// hot 排序：查询满足条件的帖子，内存排序
-		const hotPosts = await prisma.post.findMany({
-			where,
-			take: HOT_SORT_MAX,
-			select: {
-				id: true,
-				content: true,
-				createdAt: true,
-				_count: { select: { likes: true, comments: true } }
-			}
+		const hotPosts = await findAgentPosts(where, {
+			take: HOT_SORT_CANDIDATE_WINDOW,
+			includeCounts: true
 		});
 
 		// 计算热门分数并排序
@@ -804,13 +801,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 		const orderBy =
 			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
 
-		posts = await prisma.post.findMany({
-			where,
-			orderBy,
-			skip,
-			take: limit,
-			select: { id: true, content: true, createdAt: true }
-		});
+		posts = await findAgentPosts(where, { orderBy, skip, take: limit });
 	}
 
 	// 格式化输出
@@ -832,22 +823,7 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 	const { userId, postId, commentsParam } = input;
 
 	// 1. 查询帖子
-	const post = await prisma.post.findUnique({
-		where: { id: postId },
-		include: {
-			user: {
-				select: { username: true, displayName: true }
-			},
-			media: {
-				orderBy: { sortOrder: 'asc' },
-				include: {
-					fileStorage: {
-						select: { filePath: true, fileType: true }
-					}
-				}
-			}
-		}
-	});
+	const post = await findAgentPostDetail(postId);
 
 	if (!post) {
 		return { error: '帖子不存在', status: 404 };
@@ -861,23 +837,13 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 	let isFollower = false;
 	let isFollowing = false;
 	if (userId !== post.userId) {
-		const followRecord = await prisma.follow.findUnique({
-			where: {
-				followerId_followingId: {
-					followerId: userId,
-					followingId: post.userId
-				}
-			}
+		const followRecord = await findFollow({
+			followerId_followingId: { followerId: userId, followingId: post.userId }
 		});
 		isFollower = !!followRecord;
 
-		const reverseFollowRecord = await prisma.follow.findUnique({
-			where: {
-				followerId_followingId: {
-					followerId: post.userId,
-					followingId: userId
-				}
-			}
+		const reverseFollowRecord = await findFollow({
+			followerId_followingId: { followerId: post.userId, followingId: userId }
 		});
 		isFollowing = !!reverseFollowRecord;
 	}
@@ -923,29 +889,7 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 	if (commentsParam !== -1) {
 		const takeCount = commentsParam > 0 ? commentsParam : undefined;
 
-		const rawComments = await prisma.comment.findMany({
-			where: {
-				postId,
-				parentId: null,
-				isDeleted: false
-			},
-			orderBy: { createdAt: 'desc' },
-			...(takeCount && { take: takeCount }),
-			include: {
-				user: {
-					select: { username: true, displayName: true }
-				},
-				replies: {
-					where: { isDeleted: false },
-					orderBy: { createdAt: 'desc' },
-					include: {
-						user: {
-							select: { username: true, displayName: true }
-						}
-					}
-				}
-			}
-		});
+		const rawComments = await findAgentPostComments(postId, takeCount);
 
 		comments = rawComments.map((c) => ({
 			id: c.id,
