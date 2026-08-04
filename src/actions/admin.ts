@@ -12,8 +12,10 @@ import {
 	batchUsers as batchUsersService,
 	batchPosts as batchPostsService,
 	batchComments as batchCommentsService,
-	toggleTagVisibility as toggleTagVisibilityService
+	toggleTagVisibility as toggleTagVisibilityService,
+	createUser as createUserService
 } from '@/services/admin.service';
+import { PASSWORD_MIN_LENGTH, USERNAME_PATTERN } from '@/lib/config';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -49,6 +51,40 @@ const batchUsers = defineAction({
 
 		try {
 			return await batchUsersService(input);
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+/**
+ * 创建用户 Action。
+ *
+ * 仅管理员可调用；创建规则由 Service 层统一执行，因此不受前台注册开关影响。
+ */
+const createUser = defineAction({
+	input: z.object({
+		username: z
+			.string()
+			.regex(USERNAME_PATTERN, '用户名只能包含字母、数字和下划线，长度 3-20 个字符'),
+		displayName: z.string().optional(),
+		email: z.email('邮箱格式无效'),
+		password: z
+			.string()
+			.min(PASSWORD_MIN_LENGTH, `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`),
+		role: z.enum(['user', 'admin']).optional()
+	}),
+	handler: async (input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) {
+			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		}
+		if (currentUser.role !== 'admin') {
+			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+		}
+
+		try {
+			return await createUserService(input);
 		} catch (e) {
 			handleServiceError(e);
 		}
@@ -155,4 +191,4 @@ const toggleTagVisibility = defineAction({
 	}
 });
 
-export { batchUsers, batchPosts, batchComments, toggleTagVisibility };
+export { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility };
