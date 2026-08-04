@@ -712,8 +712,24 @@ const hasInitialContent = initialEditorContent.length > 0;
 			});
 		}
 
-		// 暴露 getContent 方法供外部表单获取内容
-		(editor as any).getContent = (): string => textarea.value.trim();
+		// 暴露给外部表单的编辑器能力
+		type ForumEditorElement = HTMLElement & {
+			getContent: () => string;
+			resetContent: () => void;
+		};
+		const forumEditor = editor as ForumEditorElement;
+		forumEditor.getContent = (): string => textarea.value.trim();
+		forumEditor.resetContent = (): void => {
+			textarea.value = '';
+			if (previewTimer) {
+				clearTimeout(previewTimer);
+				previewTimer = null;
+			}
+			preview.innerHTML = '<p style="color:var(--color-muted)">暂无内容</p>';
+			if (fileInput) fileInput.value = '';
+			if (errorDisplay) errorDisplay.style.display = 'none';
+			updateCount();
+		};
 
 		// 初始化
 		updateCount();

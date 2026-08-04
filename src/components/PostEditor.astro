@@ -775,7 +775,36 @@ const MAX_IMAGES = 9;
 		 * 清除草稿
 		 */
 		function clearDraft(): void {
+			if (draftTimer) {
+				clearTimeout(draftTimer);
+				draftTimer = null;
+			}
 			localStorage.removeItem(draftKey);
+		}
+
+		/**
+		 * 将编辑器恢复为创建时的空状态。
+		 *
+		 * 成功提交后同步清空界面，避免跳转前残留内容，也避免已上传媒体
+		 * 被下一次草稿保存重新写入。
+		 */
+		function resetEditor(): void {
+			textarea.value = '';
+			visibilitySelect.value = 'public';
+			passwordInput.value = '';
+			usernamesInput.value = '';
+			existingMedia = [];
+			uploadedFiles = [];
+			fileInput.value = '';
+			attachmentInput.value = '';
+			uploadProgress = 0;
+			progressBar.style.width = '0%';
+			progressWrap.style.display = 'none';
+			hideError();
+			handleVisibilityChange();
+			renderPreviews();
+			updateUploadUI();
+			updateCharCount();
 		}
 
 		/**
@@ -1051,6 +1080,7 @@ const MAX_IMAGES = 9;
 					window.removeEventListener('beforeunload', beforeUnloadHandler);
 				}
 				clearDraft();
+				resetEditor();
 				if (isEdit) {
 					window.location.href = `/${form.dataset.username}/${form.dataset.postId}`;
 				} else if (result.data) {

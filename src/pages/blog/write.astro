@@ -293,6 +293,10 @@ const hasCategories = categories.length > 0;
 		 * 清除博客草稿
 		 */
 		function clearBlogDraft(): void {
+			if (draftTimer) {
+				clearTimeout(draftTimer);
+				draftTimer = null;
+			}
 			localStorage.removeItem(BLOG_DRAFT_KEY);
 		}
 
@@ -375,6 +379,7 @@ const hasCategories = categories.length > 0;
 
 			// 发布成功，清除草稿
 			clearBlogDraft();
+			container.dispatchEvent(new CustomEvent('blog-editor-clear-draft'));
 
 			// 跳转到文章详情页
 			const post = result.data;

@@ -411,6 +411,7 @@ const hasBlogCategories = blogCategories.length > 0;
 				saveBtn.disabled = false;
 				saveBtn.textContent = '保存修改';
 			} else {
+				blogContainer.dispatchEvent(new CustomEvent('blog-editor-clear-draft'));
 				window.location.href = `/${username}/${postId}`;
 			}
 

@@ -348,12 +348,28 @@ export default function BlogEditor({
 	 * 从 localStorage 中删除草稿数据。
 	 */
 	const clearDraft = useCallback(() => {
+		if (draftTimerRef.current) {
+			clearTimeout(draftTimerRef.current);
+			draftTimerRef.current = null;
+		}
 		try {
 			localStorage.removeItem(draftKey);
+			editor?.commands.setContent('', { emitUpdate: false });
+
+			const titleInput = document.getElementById(titleInputId) as HTMLInputElement | null;
+			const categorySelect = document.getElementById(
+				categorySelectId
+			) as HTMLSelectElement | null;
+			const visibilitySelect = document.getElementById(
+				visibilitySelectId
+			) as HTMLSelectElement | null;
+			if (titleInput) titleInput.value = '';
+			if (categorySelect) categorySelect.value = '';
+			if (visibilitySelect) visibilitySelect.value = 'public';
 		} catch {
 			// 清除失败静默处理
 		}
-	}, [draftKey]);
+	}, [categorySelectId, draftKey, editor, titleInputId, visibilitySelectId]);
 
 	// 挂载时恢复草稿
 	useEffect(() => {
@@ -397,8 +413,6 @@ export default function BlogEditor({
 					bubbles: true
 				})
 			);
-			// 发布成功后清除草稿
-			clearDraft();
 		};
 
 		container.addEventListener('blog-editor-do-submit', handleDoSubmit);
