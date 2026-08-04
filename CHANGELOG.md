@@ -6,6 +6,8 @@
 
 - 新增 `/api/v1` 版本化 JSON REST API，覆盖认证、帖子、评论、点赞、关注、时间线、搜索和标签读取；复用既有认证、Service 与全局 API 安全中间件。
 
+- 修复 `/api/v1` 可见性读取、重复删除 404 语义与 Bearer-only 鉴权；password 列表正文脱敏、详情支持 `password` 查询参数，并补齐迁移说明与 HTTP 验收矩阵。
+
 - 将外部 OpenAPI 契约收敛到版本化 `/api/v1` MVP，明确公开读与 Bearer 写操作边界、统一错误响应、DTO 适配规则及切换操作的重试风险；管理后台继续仅使用 Astro Actions。
 - 管理后台用户管理新增「添加用户」对话框与 `createUser` Action；管理员可绕过前台注册开关创建 user 或 admin，且沿用注册的用户名、邮箱、密码与唯一性校验。
 - 移除 DaLi.Lens 外部推荐依赖，改用本地热门排序、标签/分类匹配及本地阅读历史。

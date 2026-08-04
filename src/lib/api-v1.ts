@@ -1,6 +1,6 @@
 /** /api/v1 的 JSON transport 辅助函数。 */
 import type { APIContext } from 'astro';
-import { getUserFromRequest, type JwtPayload } from '@/lib/auth';
+import { getUserFromBearerRequest, type JwtPayload } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 
 const statusByCode = {
@@ -27,10 +27,15 @@ export function jsonError(
 }
 
 export async function requireApiAuth(
-	context: Pick<APIContext, 'request' | 'cookies'>
+	context: Pick<APIContext, 'request'>
 ): Promise<JwtPayload | Response> {
-	const user = await getUserFromRequest(context);
+	const user = await getUserFromBearerRequest(context.request);
 	return user ?? jsonError('请先登录', 'UNAUTHORIZED');
+}
+
+/** 公开读取端点可选的 Bearer 身份；不会读取 cookie。 */
+export function optionalApiAuth(context: Pick<APIContext, 'request'>): Promise<JwtPayload | null> {
+	return getUserFromBearerRequest(context.request);
 }
 
 export async function parseJsonObject(request: Request): Promise<Record<string, unknown>> {

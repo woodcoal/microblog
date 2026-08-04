@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import {
 	handleApiError,
 	jsonResponse,
+	optionalApiAuth,
 	parseJsonObject,
 	requireApiAuth,
 	stringValue
@@ -9,9 +10,11 @@ import {
 import { deletePost, updatePost } from '@/services/content.service';
 import { getPostForApi, getPublicPost } from '@/services/api-v1.service';
 
-export const GET: APIRoute = async ({ params }) => {
+export const GET: APIRoute = async (context) => {
 	try {
-		return jsonResponse(await getPublicPost(params.id ?? '', undefined));
+		const viewer = await optionalApiAuth(context);
+		const password = new URL(context.request.url).searchParams.get('password') ?? undefined;
+		return jsonResponse(await getPublicPost(context.params.id ?? '', viewer?.userId, password));
 	} catch (error) {
 		return handleApiError(error);
 	}

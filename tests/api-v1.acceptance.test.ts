@@ -24,6 +24,7 @@ let bobToken = '';
 let postId = '';
 let aliceId = '';
 let apiToken = '';
+const visibilityPostIds: Partial<Record<string, string>> = {};
 const prisma = new PrismaClient({
 	adapter: new PrismaLibSql({ url: 'file:./prisma/api-v1-acceptance.db' })
 });
@@ -197,6 +198,13 @@ test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async 
 		assert.equal(response.status, 401);
 		assert.equal((await json(response)).error.code, 'UNAUTHORIZED');
 	}
+	const cookieOnly = await request('/api/v1/posts', {
+		method: 'POST',
+		headers: { cookie: `token=${aliceToken}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ content: 'cookie must not authenticate v1 writes' })
+	});
+	assert.equal(cookieOnly.status, 401);
+	assert.equal((await json(cookieOnly)).error.code, 'UNAUTHORIZED');
 });
 
 test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除语义', async () => {
@@ -272,6 +280,18 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 	});
 	assert.equal(repeatDelete.status, 404);
 	assert.equal((await json(repeatDelete)).error.code, 'NOT_FOUND');
+
+	const deletePost = await request(`/api/v1/posts/${postId}`, {
+		method: 'DELETE',
+		headers: auth
+	});
+	assert.equal(deletePost.status, 204);
+	const repeatPostDelete = await request(`/api/v1/posts/${postId}`, {
+		method: 'DELETE',
+		headers: auth
+	});
+	assert.equal(repeatPostDelete.status, 404);
+	assert.equal((await json(repeatPostDelete)).error.code, 'NOT_FOUND');
 });
 
 test('mt_ Bearer token 与 JWT token 均可通过 /api/v1 认证', async () => {
@@ -351,16 +371,90 @@ test('所有 7 种产品可见性均可被创建端点接受，并保留到 DTO'
 			body: JSON.stringify(payload)
 		});
 		assert.equal(response.status, 201, visibility);
-		assert.equal((await json(response)).visibility, visibility);
+		const created = await json(response);
+		assert.equal(created.visibility, visibility);
+		visibilityPostIds[visibility] = created.id;
 	}
 });
 
-test.todo(
-	'可见性读取矩阵：/api/v1 需允许 Bearer 访问者按 public/logged_in/followers/following/private/password/users 规则读取；当前公开读取实现固定过滤为 public，且没有 password 传参协议。'
-);
-test.todo(
-	'CSRF 缺失：验收需求要求拒绝未携带 CSRF token 的写操作；当前 /api/v1 由 Bearer 认证且中间件显式跳过 CSRF，需产品/安全负责人明确契约后实现或调整验收标准。'
-);
-test.todo(
-	'置顶切换：OpenAPI 列为后续迭代的 PUT /posts/{id}/pin 尚无实际 /api/v1 路由，无法验收切换语义。'
-);
+test('7 种可见性按 Bearer 身份读取，password 支持详情密码传递', async () => {
+	const id = (visibility: string) => {
+		const postId = visibilityPostIds[visibility];
+		assert.ok(postId, `${visibility} post should have been created`);
+		return postId;
+	};
+	const aliceHeaders = { authorization: `Bearer ${aliceToken}` };
+	const bobHeaders = { authorization: `Bearer ${bobToken}` };
+
+	assert.equal((await request(`/api/v1/posts/${id('public')}`)).status, 200);
+	assert.equal((await request(`/api/v1/posts/${id('logged_in')}`)).status, 404);
+	assert.equal(
+		(await request(`/api/v1/posts/${id('logged_in')}`, { headers: bobHeaders })).status,
+		200
+	);
+
+	assert.equal(
+		(await request(`/api/v1/users/${alice}/follow`, { method: 'PUT', headers: bobHeaders }))
+			.status,
+		200
+	);
+	assert.equal(
+		(await request(`/api/v1/posts/${id('followers')}`, { headers: bobHeaders })).status,
+		200
+	);
+
+	assert.equal(
+		(await request(`/api/v1/users/${bob}/follow`, { method: 'PUT', headers: aliceHeaders }))
+			.status,
+		200
+	);
+	assert.equal(
+		(await request(`/api/v1/posts/${id('following')}`, { headers: bobHeaders })).status,
+		200
+	);
+
+	assert.equal(
+		(await request(`/api/v1/posts/${id('private')}`, { headers: bobHeaders })).status,
+		404
+	);
+	assert.equal(
+		(await request(`/api/v1/posts/${id('private')}`, { headers: aliceHeaders })).status,
+		200
+	);
+	assert.equal(
+		(
+			await request(`/api/v1/posts/${id('private')}`, {
+				headers: { cookie: `token=${aliceToken}` }
+			})
+		).status,
+		404
+	);
+
+	const passwordListResponse = await request('/api/v1/posts', {
+		headers: { ...bobHeaders, 'x-forwarded-for': '10.10.10.10' }
+	});
+	assert.equal(passwordListResponse.status, 200);
+	const passwordList = await json(passwordListResponse);
+	const passwordPost = passwordList.items.find(
+		(post: { id: string }) => post.id === id('password')
+	);
+	assert.equal(passwordPost.content, '[受限内容]');
+	assert.equal(passwordPost.isPasswordProtected, true);
+	assert.equal(
+		(await request(`/api/v1/posts/${id('password')}`, { headers: bobHeaders })).status,
+		404
+	);
+	const passwordDetail = await request(
+		`/api/v1/posts/${id('password')}?password=visibility-secret`,
+		{
+			headers: bobHeaders
+		}
+	);
+	assert.equal(passwordDetail.status, 200);
+	assert.equal((await json(passwordDetail)).content, 'visibility password');
+
+	assert.equal(
+		(await request(`/api/v1/posts/${id('users')}`, { headers: bobHeaders })).status,
+		200
+	);
+});

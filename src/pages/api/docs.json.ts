@@ -79,6 +79,14 @@ const idParam = {
 	schema: { type: 'string' }
 };
 
+const passwordParam = {
+	name: 'password',
+	in: 'query',
+	description: 'password 可见性帖子详情的访问密码；仅用于本次请求，不得记录或缓存',
+	required: false,
+	schema: { type: 'string' }
+};
+
 const usernameParam = {
 	name: 'username',
 	in: 'path',
@@ -137,13 +145,15 @@ const spec = {
 				type: 'http',
 				scheme: 'bearer',
 				bearerFormat: 'JWT',
-				description: '短期 JWT，供外部客户端写操作使用'
+				description:
+					'短期 JWT。/api/v1 仅从 Authorization: Bearer 读取凭证，不支持 Cookie 鉴权。'
 			},
 			BearerAPIToken: {
 				type: 'http',
 				scheme: 'bearer',
 				bearerFormat: 'mt_',
-				description: 'mt_ 前缀长期 API Token，仅供外部客户端；不得存入浏览器'
+				description:
+					'mt_ 前缀长期 API Token。/api/v1 仅从 Authorization: Bearer 读取凭证；不得存入浏览器。'
 			}
 		},
 		schemas: {
@@ -218,10 +228,10 @@ const spec = {
 						type: 'string',
 						enum: [
 							'public',
-							'private',
+							'logged_in',
 							'followers',
 							'following',
-							'mutual',
+							'private',
 							'password',
 							'users'
 						]
@@ -323,10 +333,10 @@ const spec = {
 						type: 'string',
 						enum: [
 							'public',
-							'private',
+							'logged_in',
 							'followers',
 							'following',
-							'mutual',
+							'private',
 							'password',
 							'users'
 						],
@@ -463,9 +473,9 @@ const spec = {
 		'/posts/{id}': {
 			get: {
 				tags: ['帖子'],
-				summary: '帖子详情',
+				summary: '帖子详情（可选 Bearer 用于可见性判定）',
 				security: [],
-				parameters: [idParam],
+				parameters: [idParam, passwordParam],
 				responses: {
 					200: successResponse('帖子详情', '#/components/schemas/Post'),
 					404: commonResponses[404],

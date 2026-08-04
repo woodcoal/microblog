@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import {
 	handleApiError,
 	jsonResponse,
+	optionalApiAuth,
 	parseJsonObject,
 	parsePage,
 	requireApiAuth,
@@ -10,10 +11,11 @@ import {
 import { createPost } from '@/services/content.service';
 import { getPostForApi, getPublicPosts } from '@/services/api-v1.service';
 
-export const GET: APIRoute = async ({ request }) => {
+export const GET: APIRoute = async (context) => {
 	try {
-		const url = new URL(request.url);
+		const url = new URL(context.request.url);
 		const { page, pageSize } = parsePage(url);
+		const viewer = await optionalApiAuth(context);
 		const sort = url.searchParams.get('sort');
 		if (sort && sort !== 'latest' && sort !== 'hot')
 			return handleApiError(new Error('invalid sort'));
@@ -21,6 +23,7 @@ export const GET: APIRoute = async ({ request }) => {
 			await getPublicPosts({
 				page,
 				pageSize,
+				viewerId: viewer?.userId,
 				sort: (sort as 'latest' | 'hot' | null) ?? undefined
 			})
 		);

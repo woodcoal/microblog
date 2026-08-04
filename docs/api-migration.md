@@ -8,7 +8,7 @@
 - 过渡期（一个迭代）：新客户端只接入 `/api/v1`；保留 `/api/agent/*` 兼容，逐周检查调用量与错误率。对现有调用方提供本文映射及双写/回归窗口。
 - 迭代结束：调用量为零、契约/认证/可见性回归测试通过后，删除 `@deprecated M6` 端点、其文档和兼容代码；保留 410 或网关迁移提示至少一个发布周期（若网关能力支持）。
 
-**目前不得进入删除阶段。** 详见「已知阻断项」。
+**目前不得进入删除阶段。** 详见「已知差距与后续迭代」。
 
 ## 端点映射
 
@@ -73,20 +73,16 @@ Content-Type: application/json
 { "error": { "code": "BAD_REQUEST|UNAUTHORIZED|FORBIDDEN|NOT_FOUND", "message": "..." } }
 ```
 
-分页列表统一为 `{ "items": [], "total": 0, "page": 1, "pageSize": 20 }`。外部客户端使用 `Authorization: Bearer <JWT>` 或 `Authorization: Bearer <mt_...>`；不要把长期 `mt_` token 写入浏览器存储、前端代码或日志。
+分页列表统一为 `{ "items": [], "total": 0, "page": 1, "pageSize": 20 }`。外部客户端使用 `Authorization: Bearer <JWT>` 或 `Authorization: Bearer <mt_...>`；v1 **只**读取该请求头，不接受 Cookie JWT（包括写操作）。不要把长期 `mt_` token 写入浏览器存储、前端代码或日志。
 
 ## 可见性差异
 
 产品规则共有 7 种：`public`、`logged_in`、`followers`、`following`、`private`、`password`、`users`。旧 Agent API 不支持 `password` 与 `users` 的创建；v1 创建请求可传 `password` 和 `allowedUserIds`，因此迁移时应优先使用 v1。
 
-当前 v1 有两项必须修正的契约缺口：OpenAPI schema 将 `logged_in` 错写为不存在的 `mutual`；并且详情/列表查询固定为 `public`，没有按 Bearer 身份、密码或指定用户执行读取判断。迁移客户端不得依赖受限内容读取，直到修复并通过 7 种可见性矩阵测试。
+列表读取会按可选 Bearer 身份过滤 7 种可见性。`password` 帖子可出现在列表中，但非作者正文会返回受限占位并保留 `isPasswordProtected: true`；详情使用 `GET /api/v1/posts/{id}?password=...`，密码正确后才返回完整内容。`users` 帖子对未获授权者同样不暴露正文。
 
-## 已知阻断项
+## 已知差距与后续迭代
 
-1. `GET /api/v1/posts/{id}` 与列表端点未应用 7 种可见性规则，认证访问者也无法读取非公开帖子；password 缺少传递密码的契约。
-2. OpenAPI `Post.visibility` 与 `PostWrite.visibility` 包含 `mutual`，却遗漏实际支持的 `logged_in`。
-3. v1 无上传、通知、profile、note 的等价端点；用户列表也不是旧 Agent 查询的全量等价物。
-4. `/posts/{id}/pin` 仅在 OpenAPI 标为后续迭代，未实际实现；若客户端依赖置顶，不能迁移。
-5. 需求要求 v1 写操作缺少 CSRF 时拒绝，但当前中间件对 API 统一采用 Bearer 认证并跳过 CSRF。需由安全负责人确认最终威胁模型并使实现、OpenAPI 和验收标准一致。
+pin/upload/notifications/profile/note 端点将在下一迭代补齐；过渡期内旧 Agent 客户端的这些能力仍走 `/api/agent/*`。用户列表也不是旧 Agent 查询能力的全量等价物。`PUT /posts/{id}/pin` 已在 OpenAPI 标注为后续迭代，当前不可迁移。
 
-在以上阻断项关闭前，保留旧接口，且不要删除 `@deprecated M6` 路由。
+在上述能力补齐前，保留旧接口，且不要删除 `@deprecated M6` 路由。

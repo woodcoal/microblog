@@ -194,7 +194,7 @@ export async function deleteComment(input: DeleteCommentInput): Promise<{ id: st
 
 	// 3. 已删除的评论
 	if (comment.isDeleted) {
-		throw new ServiceError('BAD_REQUEST', '评论已被删除');
+		throw new ServiceError('NOT_FOUND', '评论不存在');
 	}
 
 	// 4. 软删除
@@ -657,7 +657,7 @@ export async function deletePost(input: DeletePostInput) {
 
 	// 已经删除的帖子
 	if (post.isDeleted) {
-		throw new ServiceError('BAD_REQUEST', '帖子已被删除');
+		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
 
 	// 4. 软删除

@@ -4,8 +4,9 @@ import { ServiceError } from '@/lib/errors';
 import { countPosts, findApiPost, findApiPosts } from '@/lib/post';
 import { countApiComments, findApiComments } from '@/lib/comment';
 import { countApiUsers, findApiUser, findApiUsers } from '@/lib/user';
-import { findFollowingIds } from '@/lib/social';
+import { findFollowerIds, findFollowingIds } from '@/lib/social';
 import { findTagByName } from '@/lib/tag';
+import { checkPostVisibility, getVisibilityFilter } from '@/lib/visibility';
 import type { Prisma } from '../../generated/prisma/client';
 import type { CommentDto, PageDto, PostDto, UserDto } from '@/types/dto';
 
@@ -34,13 +35,13 @@ function toUserDto(user: ApiUser): UserDto {
 	};
 }
 
-function toPostDto(post: ApiPost): PostDto {
+function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 	const mode = post.mode === 'forum' || post.mode === 'blog' ? post.mode : 'weibo';
 	return {
 		id: post.id,
 		title: post.title,
-		content: post.content,
-		contentHtml: renderMarkdown(post.content),
+		content: contentRestricted ? '[受限内容]' : post.content,
+		contentHtml: contentRestricted ? '' : renderMarkdown(post.content),
 		mode,
 		visibility: post.visibility,
 		author: toUserDto(post.user),
@@ -61,6 +62,26 @@ function toPostDto(post: ApiPost): PostDto {
 		createdAt: post.createdAt.toISOString(),
 		updatedAt: post.updatedAt.toISOString()
 	};
+}
+
+/** password 帖子在列表中只暴露受保护标记和非正文元数据。 */
+async function toListPostDto(post: ApiPost, viewerId?: string): Promise<PostDto> {
+	if (post.visibility === 'password' && post.userId !== viewerId) return toPostDto(post, true);
+
+	// users 帖子保留在列表中作为受限内容提示，但不向未获授权者泄露正文。
+	if (post.visibility === 'users' && post.userId !== viewerId) {
+		const visible = await checkPostVisibility(
+			{
+				visibility: post.visibility,
+				userId: post.userId,
+				allowedUserIds: post.allowedUserIds
+			},
+			viewerId ? { userId: viewerId } : null
+		);
+		return toPostDto(post, !visible);
+	}
+
+	return toPostDto(post);
 }
 
 function toCommentDto(comment: ApiComment): CommentDto {
@@ -92,19 +113,61 @@ async function getPostPage(
 		}),
 		countPosts(where)
 	]);
-	return { items: posts.map(toPostDto), total, page: input.page, pageSize: input.pageSize };
+	return {
+		items: await Promise.all(posts.map((post) => toListPostDto(post, input.viewerId))),
+		total,
+		page: input.page,
+		pageSize: input.pageSize
+	};
 }
 
-const publicPostWhere = (): Prisma.PostWhereInput => ({ isDeleted: false, visibility: 'public' });
+async function visiblePostWhere(viewerId?: string): Promise<Prisma.PostWhereInput> {
+	if (!viewerId) return { isDeleted: false, ...getVisibilityFilter(null) };
 
-export function getPublicPosts(input: PageInput & { sort?: 'latest' | 'hot' }) {
-	return getPostPage(publicPostWhere(), input, input.sort);
+	const [followingIds, followerIds] = await Promise.all([
+		findFollowingIds(viewerId),
+		findFollowerIds(viewerId)
+	]);
+	return {
+		isDeleted: false,
+		...getVisibilityFilter({ userId: viewerId }, { followingIds, followerIds })
+	};
 }
 
-export async function getPublicPost(postId: string, viewerId?: string): Promise<PostDto> {
+export async function getPublicPosts(input: PageInput & { sort?: 'latest' | 'hot' }) {
+	return getPostPage(await visiblePostWhere(input.viewerId), input, input.sort);
+}
+
+export async function getPublicPost(
+	postId: string,
+	viewerId?: string,
+	password?: string
+): Promise<PostDto> {
 	const post = await findApiPost(postId, viewerId);
-	if (!post || post.isDeleted || post.visibility !== 'public')
-		throw new ServiceError('NOT_FOUND', '帖子不存在');
+	if (!post || post.isDeleted) throw new ServiceError('NOT_FOUND', '帖子不存在');
+
+	let isFollower = false;
+	let isFollowing = false;
+	if (viewerId && viewerId !== post.userId) {
+		const [followingIds, followerIds] = await Promise.all([
+			findFollowingIds(viewerId),
+			findFollowerIds(viewerId)
+		]);
+		isFollower = followingIds.includes(post.userId);
+		isFollowing = followerIds.includes(post.userId);
+	}
+
+	const visible = await checkPostVisibility(
+		{
+			visibility: post.visibility,
+			userId: post.userId,
+			passwordHash: post.passwordHash,
+			allowedUserIds: post.allowedUserIds
+		},
+		viewerId ? { userId: viewerId } : null,
+		{ password, isFollower, isFollowing }
+	);
+	if (!visible) throw new ServiceError('NOT_FOUND', '帖子不存在');
 	return toPostDto(post);
 }
 
@@ -117,9 +180,9 @@ export async function getPostForApi(postId: string, viewerId?: string): Promise<
 
 export async function getPostComments(
 	postId: string,
-	input: PageInput
+	input: PageInput & { password?: string }
 ): Promise<PageDto<CommentDto>> {
-	await getPublicPost(postId, input.viewerId);
+	await getPublicPost(postId, input.viewerId, input.password);
 	const skip = (input.page - 1) * input.pageSize;
 	const [comments, total] = await Promise.all([
 		findApiComments(postId, skip, input.pageSize, input.viewerId),
@@ -137,23 +200,25 @@ export async function getUser(username: string, viewerId?: string): Promise<User
 export async function getUserPosts(username: string, input: PageInput) {
 	const user = await findApiUser(username, input.viewerId);
 	if (!user) throw new ServiceError('NOT_FOUND', '用户不存在');
-	return getPostPage({ ...publicPostWhere(), userId: user.id }, input);
+	return getPostPage({ ...(await visiblePostWhere(input.viewerId)), userId: user.id }, input);
 }
 
 export async function getFollowingTimeline(userId: string, input: Omit<PageInput, 'viewerId'>) {
 	const followingIds = await findFollowingIds(userId);
 	return getPostPage(
-		{ ...publicPostWhere(), userId: { in: [userId, ...followingIds] } },
+		{ ...(await visiblePostWhere(userId)), userId: { in: [userId, ...followingIds] } },
 		{ ...input, viewerId: userId }
 	);
 }
 
-export function searchPublicPosts(query: string, input: PageInput) {
+export async function searchPublicPosts(query: string, input: PageInput) {
 	if (!query.trim()) throw new ServiceError('BAD_REQUEST', 'q 不能为空');
 	return getPostPage(
 		{
-			...publicPostWhere(),
-			OR: [{ content: { contains: query } }, { title: { contains: query } }]
+			AND: [
+				await visiblePostWhere(input.viewerId),
+				{ OR: [{ content: { contains: query } }, { title: { contains: query } }] }
+			]
 		},
 		input
 	);
@@ -175,7 +240,10 @@ export async function searchPublicUsers(
 export async function getTagPosts(name: string, input: PageInput) {
 	const tag = await findTagByName(name);
 	if (!tag || tag.isHidden) throw new ServiceError('NOT_FOUND', '标签不存在');
-	return getPostPage({ ...publicPostWhere(), tags: { some: { tagId: tag.id } } }, input);
+	return getPostPage(
+		{ ...(await visiblePostWhere(input.viewerId)), tags: { some: { tagId: tag.id } } },
+		input
+	);
 }
 
 export function toCreatedPostDto(post: ApiPost): PostDto {

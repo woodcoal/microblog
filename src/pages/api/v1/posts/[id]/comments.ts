@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import {
 	handleApiError,
 	jsonResponse,
+	optionalApiAuth,
 	parseJsonObject,
 	parsePage,
 	requireApiAuth,
@@ -10,10 +11,18 @@ import {
 import { createComment } from '@/services/content.service';
 import { getPostComments, toCreatedCommentDto } from '@/services/api-v1.service';
 
-export const GET: APIRoute = async ({ params, request }) => {
+export const GET: APIRoute = async (context) => {
 	try {
-		const page = parsePage(new URL(request.url));
-		return jsonResponse(await getPostComments(params.id ?? '', page));
+		const url = new URL(context.request.url);
+		const viewer = await optionalApiAuth(context);
+		const page = parsePage(url);
+		return jsonResponse(
+			await getPostComments(context.params.id ?? '', {
+				...page,
+				viewerId: viewer?.userId,
+				password: url.searchParams.get('password') ?? undefined
+			})
+		);
 	} catch (error) {
 		return handleApiError(error);
 	}

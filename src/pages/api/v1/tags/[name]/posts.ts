@@ -1,9 +1,15 @@
 import type { APIRoute } from 'astro';
-import { handleApiError, jsonResponse, parsePage } from '@/lib/api-v1';
+import { handleApiError, jsonResponse, optionalApiAuth, parsePage } from '@/lib/api-v1';
 import { getTagPosts } from '@/services/api-v1.service';
-export const GET: APIRoute = async ({ params, request }) => {
+export const GET: APIRoute = async (context) => {
 	try {
-		return jsonResponse(await getTagPosts(params.name ?? '', parsePage(new URL(request.url))));
+		const viewer = await optionalApiAuth(context);
+		return jsonResponse(
+			await getTagPosts(context.params.name ?? '', {
+				...parsePage(new URL(context.request.url)),
+				viewerId: viewer?.userId
+			})
+		);
 	} catch (error) {
 		return handleApiError(error);
 	}
