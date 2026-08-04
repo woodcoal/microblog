@@ -35,8 +35,10 @@ const {
 	submitLabel = '发布'
 } = Astro.props;
 
+// 防止历史回显内容或模板缩进在编辑器开头留下空白字符。
+const initialEditorContent = initialContent.trimStart();
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
-const hasInitialContent = initialContent.length > 0;
+const hasInitialContent = initialEditorContent.length > 0;
 ---
 
 <div class="forum-editor" id={formId} data-max-length={maxLength} data-category-id={categoryId}>
@@ -127,8 +129,9 @@ const hasInitialContent = initialContent.length > 0;
 				class="form-input forum-editor-textarea"
 				placeholder="使用 Markdown 编写内容..."
 				maxlength={maxLength}
-				rows="10">{hasInitialContent ? initialContent : ''}</textarea
-			>
+				rows="10"
+				set:text={initialEditorContent}
+			/>
 		</div>
 		<div class="forum-editor-preview"></div>
 	</div>
@@ -136,7 +139,7 @@ const hasInitialContent = initialContent.length > 0;
 	{/* 底部：字数统计 + 提交按钮 */}
 	<div class="forum-editor-footer">
 		<span class="forum-editor-count" data-count-display>
-			{initialContent.length}/{maxLength}
+			{initialEditorContent.length}/{maxLength}
 		</span>
 		<div class="forum-editor-actions">
 			<input

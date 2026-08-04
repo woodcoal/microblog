@@ -45,6 +45,8 @@ const {
 	initialMedia = []
 } = Astro.props;
 const isEdit = Boolean(postId);
+// 兼容修复前保存的内容，并通过 set:text 避免 Astro 模板缩进成为 textarea 值。
+const initialEditorContent = initialContent.trimStart();
 
 /** 图片最大数量 */
 const MAX_IMAGES = 9;
@@ -69,8 +71,9 @@ const MAX_IMAGES = 9;
 			id="post-content"
 			placeholder="分享你的想法..."
 			maxlength={POST_CONTENT_MAX_LENGTH}
-			rows="4">{initialContent}</textarea
-		>
+			rows="4"
+			set:text={initialEditorContent}
+		/>
 
 		{/* 可见度选择器 */}
 		<div class="post-editor-visibility">
@@ -784,7 +787,8 @@ const MAX_IMAGES = 9;
 				if (saved) {
 					const draft = JSON.parse(saved);
 					if (draft.content) {
-						textarea.value = draft.content;
+						// 兼容修复前保存的草稿，避免历史缩进再次显示在输入开头。
+						textarea.value = draft.content.trimStart();
 						if (draft.visibility) visibilitySelect.value = draft.visibility;
 						// 触发可见度切换逻辑
 						handleVisibilityChange();

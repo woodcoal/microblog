@@ -130,6 +130,8 @@ export default function BlogEditor({
 	categorySelectId = 'blog-compose-category',
 	visibilitySelectId = 'blog-compose-visibility'
 }: BlogEditorProps) {
+	// 服务端已在写入时清理空白；这里兼容修复前保存的内容和草稿。
+	const initialEditorContent = initialContent.trimStart();
 	/** 加载状态 */
 	const [loading, setLoading] = useState(false);
 	/** 图片上传错误信息 */
@@ -169,7 +171,7 @@ export default function BlogEditor({
 				transformCopiedText: true
 			})
 		],
-		content: initialContent,
+		content: initialEditorContent,
 		editorProps: {
 			attributes: {
 				class: 'blog-editor-content'
@@ -310,7 +312,7 @@ export default function BlogEditor({
 			if (currentMarkdown.trim()) return;
 
 			// 恢复编辑器内容
-			editor.commands.setContent(draft.content);
+			editor.commands.setContent(draft.content.trimStart());
 
 			// 恢复页面表单字段
 			const titleInput = document.getElementById(titleInputId) as HTMLInputElement | null;

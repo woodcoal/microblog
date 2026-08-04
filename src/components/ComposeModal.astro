@@ -305,7 +305,8 @@ const hasForumCategories = forumCategories.length > 0;
 						'.forum-editor-textarea'
 					) as HTMLTextAreaElement | null;
 					if (textarea) {
-						textarea.value = data.content;
+						// 兼容修复前保存的草稿，避免历史缩进再次显示在输入开头。
+						textarea.value = data.content.trimStart();
 						// 触发字数统计更新
 						textarea.dispatchEvent(new Event('input'));
 					}
