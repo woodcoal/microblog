@@ -14,6 +14,7 @@ import {
 	handleCorsPreflight,
 	isAllowedCorsOrigin,
 	isApiRoute,
+	isV1ApiRoute,
 	rateLimitExceededResponse,
 	withCorsHeaders,
 	withRateLimitHeaders
@@ -28,18 +29,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	context.locals.csrfToken = csrfToken;
 
 	if (isApiRoute(url.pathname)) {
+		const isV1 = isV1ApiRoute(url.pathname);
 		if (!isAllowedCorsOrigin(request)) {
-			return withCorsHeaders(corsRejectedResponse(), request);
+			return withCorsHeaders(corsRejectedResponse(isV1), request);
 		}
 
 		if (request.method.toUpperCase() === 'OPTIONS') {
-			return withCorsHeaders(handleCorsPreflight(request), request);
+			return withCorsHeaders(handleCorsPreflight(request, isV1), request);
 		}
 
 		const rateLimitInfo = consumeRateLimit(request, url.pathname);
 		if (!rateLimitInfo.allowed) {
 			return withCorsHeaders(
-				withRateLimitHeaders(rateLimitExceededResponse(rateLimitInfo), rateLimitInfo),
+				withRateLimitHeaders(rateLimitExceededResponse(rateLimitInfo, isV1), rateLimitInfo),
 				request
 			);
 		}
@@ -48,7 +50,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
 			if (!bodyResult.allowed) {
 				return withCorsHeaders(
-					withRateLimitHeaders(bodyLimitResponse(bodyResult), rateLimitInfo),
+					withRateLimitHeaders(bodyLimitResponse(bodyResult, isV1), rateLimitInfo),
 					request
 				);
 			}

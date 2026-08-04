@@ -4,7 +4,7 @@
  * 编排用户查询的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findAgentUsers, findUserByUsername } from '@/lib/user';
+import { findAgentUsers, findUserDetailByUsername } from '@/lib/user';
 
 // ── Agent API 专用查询函数 ──
 
@@ -17,7 +17,7 @@ import { findAgentUsers, findUserByUsername } from '@/lib/user';
  * @param input - 查询参数
  * @returns 用户列表
  */
-export async function getAgentUserList(input: {
+export async function getUserList(input: {
 	keyword?: string;
 	userScope?: string;
 	sort?: string;
@@ -51,22 +51,7 @@ export async function getAgentUserList(input: {
  * @param input - { username }
  * @returns 用户详情；用户不存在时返回 null
  */
-export async function getAgentUserDetail(input: { username: string }): Promise<any | null> {
+export async function getUserDetail(input: { username: string }) {
 	const { username } = input;
-	return findUserByUsername(username, {
-		id: true,
-		username: true,
-		displayName: true,
-		bio: true,
-		avatarUrl: true,
-		createdAt: true,
-		isDisabled: true,
-		_count: {
-			select: {
-				posts: { where: { isDeleted: false } },
-				following: true,
-				followers: true
-			}
-		}
-	});
+	return findUserDetailByUsername(username);
 }

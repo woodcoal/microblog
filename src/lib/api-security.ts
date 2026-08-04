@@ -32,6 +32,11 @@ export function isApiRoute(pathname: string): boolean {
 	return API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
+/** v1 路由使用与 OpenAPI 一致的错误体；旧 Agent API 保持兼容格式。 */
+export function isV1ApiRoute(pathname: string): boolean {
+	return pathname === '/api/v1' || pathname.startsWith('/api/v1/');
+}
+
 export function isUploadRoute(pathname: string): boolean {
 	return pathname === '/api/agent/upload' || pathname.startsWith('/api/v1/upload');
 }
@@ -78,18 +83,25 @@ export function withCorsHeaders(response: Response, request: Request): Response 
 	});
 }
 
-export function corsRejectedResponse(): Response {
-	return new Response('Origin not allowed', {
-		status: 403,
-		headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-	});
+export function corsRejectedResponse(v1 = false): Response {
+	return new Response(
+		v1
+			? JSON.stringify({ error: { code: 'FORBIDDEN', message: 'Origin not allowed' } })
+			: 'Origin not allowed',
+		{
+			status: 403,
+			headers: {
+				'Content-Type': v1 ? 'application/json; charset=utf-8' : 'text/plain; charset=utf-8'
+			}
+		}
+	);
 }
 
 /** 处理预检请求，并拒绝未声明的方法或请求头。 */
-export function handleCorsPreflight(request: Request): Response {
+export function handleCorsPreflight(request: Request, v1 = false): Response {
 	const requestedMethod = request.headers.get('access-control-request-method');
 	if (requestedMethod && !API_METHODS.includes(requestedMethod.toUpperCase())) {
-		return corsRejectedResponse();
+		return corsRejectedResponse(v1);
 	}
 
 	const requestedHeaders = (request.headers.get('access-control-request-headers') || '')
@@ -97,7 +109,7 @@ export function handleCorsPreflight(request: Request): Response {
 		.map((header) => header.trim().toLowerCase())
 		.filter(Boolean);
 	if (requestedHeaders.some((header) => !API_CORS_HEADERS.includes(header))) {
-		return corsRejectedResponse();
+		return corsRejectedResponse(v1);
 	}
 
 	return new Response(null, {
@@ -174,12 +186,13 @@ export function withRateLimitHeaders(response: Response, info: RateLimitInfo): R
 	});
 }
 
-export function rateLimitExceededResponse(info: RateLimitInfo): Response {
+export function rateLimitExceededResponse(info: RateLimitInfo, v1 = false): Response {
 	return new Response(
-		JSON.stringify({
-			success: false,
-			error: { message: '请求过于频繁，请稍后再试', status: 429 }
-		}),
+		JSON.stringify(
+			v1
+				? { error: { code: 'BAD_REQUEST', message: '请求过于频繁，请稍后再试' } }
+				: { success: false, error: { message: '请求过于频繁，请稍后再试', status: 429 } }
+		),
 		{
 			status: 429,
 			headers: {
@@ -231,15 +244,14 @@ export async function checkBodyLimit(request: Request, limit: number): Promise<B
 	}
 }
 
-export function bodyLimitResponse(result: BodyLimitResult): Response {
+export function bodyLimitResponse(result: BodyLimitResult, v1 = false): Response {
+	const message = result.malformedLength ? 'Content-Length 无效' : '请求体超过大小限制';
 	return new Response(
-		JSON.stringify({
-			success: false,
-			error: {
-				message: result.malformedLength ? 'Content-Length 无效' : '请求体超过大小限制',
-				status: result.malformedLength ? 400 : 413
-			}
-		}),
+		JSON.stringify(
+			v1
+				? { error: { code: 'BAD_REQUEST', message } }
+				: { success: false, error: { message, status: result.malformedLength ? 400 : 413 } }
+		),
 		{
 			status: result.malformedLength ? 400 : 413,
 			headers: {

@@ -244,7 +244,7 @@ export interface DeletePostInput {
 }
 
 /** Agent 帖子列表查询参数 */
-export interface GetAgentPostsInput {
+export interface GetPostsInput {
 	userId: string;
 	keyword?: string;
 	tag?: string;
@@ -260,7 +260,7 @@ export interface GetAgentPostsInput {
 }
 
 /** Agent 帖子详情查询参数 */
-export interface GetAgentPostDetailInput {
+export interface GetPostDetailInput {
 	userId: string;
 	postId: string;
 	commentsParam: number;
@@ -678,7 +678,7 @@ export async function deletePost(input: DeletePostInput) {
  * @param input - 查询参数
  * @returns 格式化后的帖子列表文本
  */
-export async function getAgentPosts(input: GetAgentPostsInput) {
+export async function getPosts(input: GetPostsInput) {
 	const {
 		userId,
 		keyword,
@@ -721,11 +721,11 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 		const tagRecord = await findTagByName(tag);
 		if (!tagRecord) {
 			// 标签不存在，返回空列表
-			return '';
+			return [];
 		}
 		const postIdsByTag = await findPostIdsByTagId(tagRecord.id);
 		if (postIdsByTag.length === 0) {
-			return '';
+			return [];
 		}
 		where.id = { in: postIdsByTag };
 	}
@@ -734,7 +734,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 	if (targetUsername) {
 		const targetUser = await findUserByUsername(targetUsername);
 		if (!targetUser) {
-			return '';
+			return [];
 		}
 		where.userId = targetUser.id;
 	} else if (userScope === 'following') {
@@ -780,10 +780,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 		posts = await findAgentPosts(where, { orderBy, skip, take: limit });
 	}
 
-	// 格式化输出
-	const { formatPostListItem } = await import('@/lib/agent');
-	const lines = posts.map((p) => formatPostListItem(p));
-	return lines.join('\n');
+	return posts;
 }
 
 /**
@@ -795,7 +792,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
  * @param input - 查询参数
  * @returns 格式化后的帖子详情文本，或错误信息对象
  */
-export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
+export async function getPostDetail(input: GetPostDetailInput) {
 	const { userId, postId, commentsParam } = input;
 
 	// 1. 查询帖子
@@ -884,7 +881,5 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 		}));
 	}
 
-	// 4. 格式化输出
-	const { formatPostDetail } = await import('@/lib/agent');
-	return { data: formatPostDetail(post, comments) };
+	return { data: { post, comments } };
 }

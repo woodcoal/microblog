@@ -6,7 +6,7 @@
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse, formatUserDetail } from '@/lib/agent';
-import { getAgentUserDetail } from '@/services/user.service';
+import { getUserDetail } from '@/services/user.service';
 
 /**
  * 获取用户详情
@@ -27,7 +27,7 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 通过 service 查询用户
-		const user = await getAgentUserDetail({ username });
+		const user = await getUserDetail({ username });
 
 		if (!user) {
 			return textErrorResponse('用户不存在', 404);

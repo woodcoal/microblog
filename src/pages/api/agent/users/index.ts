@@ -13,7 +13,7 @@ import {
 	getFollowIds,
 	formatUserListItem
 } from '@/lib/agent';
-import { getAgentUserList } from '@/services/user.service';
+import { getUserList } from '@/services/user.service';
 
 /**
  * 获取用户列表
@@ -45,7 +45,7 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 通过 service 查询用户列表
-		const users = await getAgentUserList({
+		const users = await getUserList({
 			keyword,
 			userScope,
 			sort,

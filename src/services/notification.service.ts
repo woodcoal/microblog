@@ -33,7 +33,7 @@ const VALID_TYPES = ['follow', 'comment', 'like', 'mention'];
  * @param input - 查询参数
  * @returns 通知列表（含 actor 信息）
  */
-export async function getAgentNotifications(input: {
+export async function getNotificationList(input: {
 	recipientId: string;
 	status?: string;
 	type?: string;

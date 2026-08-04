@@ -47,6 +47,45 @@ export function findAgentPostComments(postId: string, take?: number) {
 	});
 }
 
+/** 查询 v1 API 评论列表及 DTO 所需关联数据。 */
+export function findApiComments(postId: string, skip: number, take: number, viewerId?: string) {
+	const viewerLikeFilter = viewerId ? { userId: viewerId } : { userId: '' };
+	const viewerFollowFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
+	return prisma.comment.findMany({
+		where: { postId, isDeleted: false },
+		skip,
+		take,
+		orderBy: { createdAt: 'asc' },
+		include: {
+			user: {
+				select: {
+					id: true,
+					username: true,
+					displayName: true,
+					avatarUrl: true,
+					bio: true,
+					createdAt: true,
+					_count: {
+						select: {
+							posts: { where: { isDeleted: false } },
+							followers: true,
+							following: true
+						}
+					},
+					followers: { where: viewerFollowFilter, select: { id: true } }
+				}
+			},
+			likes: { where: viewerLikeFilter, select: { id: true } },
+			_count: { select: { likes: true } }
+		}
+	});
+}
+
+/** 统计未删除评论数量。 */
+export function countApiComments(postId: string) {
+	return prisma.comment.count({ where: { postId, isDeleted: false } });
+}
+
 // ── 创建 ──
 
 /**

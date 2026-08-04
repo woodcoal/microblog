@@ -5,8 +5,8 @@
  * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
  */
 import type { APIRoute } from 'astro';
-import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
-import { getAgentPostDetail } from '@/services/content.service';
+import { requireAgentAuth, textResponse, textErrorResponse, formatPostDetail } from '@/lib/agent';
+import { getPostDetail } from '@/services/content.service';
 
 /**
  * 获取帖子详情
@@ -34,7 +34,7 @@ export const GET: APIRoute = async (context) => {
 		const commentsParam = Number(url.searchParams.get('comments')) || 0;
 
 		// 委托 service 层查询
-		const result = await getAgentPostDetail({
+		const result = await getPostDetail({
 			userId: currentUser.userId,
 			postId: id,
 			commentsParam
@@ -45,7 +45,7 @@ export const GET: APIRoute = async (context) => {
 			return textErrorResponse(result.error ?? '未知错误', result.status);
 		}
 
-		return textResponse(result.data);
+		return textResponse(formatPostDetail(result.data.post, result.data.comments));
 	} catch (error) {
 		console.error('获取帖子详情失败:', error);
 		return textErrorResponse('服务器错误', 500);

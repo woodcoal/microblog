@@ -12,7 +12,7 @@ import {
 	parsePagination,
 	formatNotificationItem
 } from '@/lib/agent';
-import { getAgentNotifications } from '@/services/notification.service';
+import { getNotificationList } from '@/services/notification.service';
 
 /** 合法的通知类型 */
 const VALID_TYPES = ['comment', 'like', 'follow', 'mention'];
@@ -62,7 +62,7 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 通过 service 查询通知
-		const notifications = await getAgentNotifications({
+		const notifications = await getNotificationList({
 			recipientId: currentUser.userId,
 			status,
 			type,

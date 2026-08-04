@@ -11,10 +11,11 @@ import {
 	textResponse,
 	textErrorResponse,
 	parsePagination,
-	getFollowIds
+	getFollowIds,
+	formatPostListItem
 } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { getAgentPosts, createPost } from '@/services/content.service';
+import { getPosts, createPost } from '@/services/content.service';
 
 /** Agent API 不支持的可见度类型 */
 const AGENT_UNSUPPORTED_VISIBILITIES = ['password', 'users'];
@@ -64,7 +65,7 @@ export const GET: APIRoute = async (context) => {
 		const { followingIds, followerIds } = await getFollowIds(currentUser.userId);
 
 		// 委托 service 层查询
-		const result = await getAgentPosts({
+		const result = await getPosts({
 			userId: currentUser.userId,
 			keyword,
 			tag,
@@ -79,7 +80,7 @@ export const GET: APIRoute = async (context) => {
 			followerIds
 		});
 
-		return textResponse(result);
+		return textResponse(result.map((post) => formatPostListItem(post)).join('\n'));
 	} catch (error) {
 		console.error('获取帖子列表失败:', error);
 		return textErrorResponse('服务器错误', 500);
