@@ -151,9 +151,8 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 									maxlength="160"
 									rows="3"
 									placeholder="介绍一下自己"
-								>
-									{initialBio}
-								</textarea>
+									set:text={initialBio}
+								/>
 								<span class="form-hint">最多 160 个字符</span>
 							</div>
 							<div class="form-group">
@@ -369,9 +368,8 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 									class="form-input form-textarea note-textarea"
 									maxlength="2000"
 									placeholder="记录一些私人信息，仅自己可见"
-								>
-									{initialNote}
-								</textarea>
+									set:text={initialNote}
+								/>
 								<span class="form-hint">最多 2000 个字符，仅自己可见</span>
 							</div>
 							<div class="form-actions">

@@ -83,8 +83,9 @@ const existingMediaJson = JSON.stringify(initialMedia);
 			placeholder="编辑你的帖子..."
 			maxlength={POST_CONTENT_MAX_LENGTH}
 			rows="6"
-			aria-label="帖子内容">{initialEditorContent}</textarea
-		>
+			aria-label="帖子内容"
+			set:text={initialEditorContent}
+		/>
 
 		<!-- 可见度选择器 -->
 		<div class="post-edit-visibility">
