@@ -116,6 +116,8 @@ async function uploadImage(file: File): Promise<string | null> {
  * @returns 编辑器 JSX
  */
 export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditorProps) {
+	// 服务端已在写入时清理空白；这里兼容修复前保存的内容和草稿。
+	const initialEditorContent = initialContent.trimStart();
 	/** 加载状态 */
 	const [loading, setLoading] = useState(false);
 	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
@@ -153,7 +155,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 				transformCopiedText: true
 			})
 		],
-		content: initialContent,
+		content: initialEditorContent,
 		editorProps: {
 			attributes: {
 				class: 'blog-editor-content'
@@ -281,7 +283,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			if (currentMarkdown.trim()) return;
 
 			// 恢复编辑器内容
-			editor.commands.setContent(draft.content);
+			editor.commands.setContent(draft.content.trimStart());
 
 			// 恢复页面表单字段
 			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');

@@ -48,6 +48,9 @@ const {
 	initialVisibility = 'public'
 } = Astro.props;
 
+// 编辑框不应显示历史模板或回显数据带入的前导空白。
+const initialEditorContent = initialContent.trimStart();
+
 /** 图片最大数量 */
 const MAX_IMAGES = 9;
 
@@ -80,7 +83,7 @@ const existingMediaJson = JSON.stringify(initialMedia);
 			placeholder="编辑你的帖子..."
 			maxlength={POST_CONTENT_MAX_LENGTH}
 			rows="6"
-			aria-label="帖子内容">{initialContent}</textarea
+			aria-label="帖子内容">{initialEditorContent}</textarea
 		>
 
 		<!-- 可见度选择器 -->
@@ -237,11 +240,15 @@ const existingMediaJson = JSON.stringify(initialMedia);
 
 		<div class="post-edit-footer">
 			<span class="post-edit-count" data-count-display>
-				{initialContent.length}/{POST_CONTENT_MAX_LENGTH}
+				{initialEditorContent.length}/{POST_CONTENT_MAX_LENGTH}
 			</span>
 			<div class="post-edit-actions">
 				<a href={`/${username}/${postId}`} class="btn btn-outline">取消</a>
-				<button class="btn btn-primary" type="submit" disabled={!initialContent.trim()}>
+				<button
+					class="btn btn-primary"
+					type="submit"
+					disabled={!initialEditorContent.trim()}
+				>
 					保存修改
 				</button>
 			</div>
