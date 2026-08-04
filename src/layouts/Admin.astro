@@ -123,6 +123,87 @@ const navItems = [
 			<slot />
 		</main>
 
+		<!-- 管理后台 Actions 使用的统一提示对话框 -->
+		<script is:inline>
+			window.MutanDialog = {
+				alert: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn dialog-btn-primary" data-role="ok">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close() {
+							overlay.remove();
+							resolve();
+						}
+
+						overlay.querySelector('[data-role="ok"]').addEventListener('click', close);
+						overlay.addEventListener('click', function (event) {
+							if (event.target === overlay) close();
+						});
+						overlay.querySelector('[data-role="ok"]').focus();
+					});
+				},
+				confirm: function (message, options) {
+					options = options || {};
+					return new Promise(function (resolve) {
+						var overlay = document.createElement('div');
+						var confirmClass = options.danger
+							? 'dialog-btn dialog-btn-danger'
+							: 'dialog-btn dialog-btn-primary';
+						overlay.className = 'dialog-overlay';
+						overlay.innerHTML =
+							'<div class="dialog-box">' +
+							(options.title
+								? '<div class="dialog-title">' + options.title + '</div>'
+								: '') +
+							'<div class="dialog-message">' +
+							message +
+							'</div>' +
+							'<div class="dialog-actions">' +
+							'<button class="dialog-btn" data-role="cancel">取消</button>' +
+							'<button class="' +
+							confirmClass +
+							'" data-role="confirm">确定</button>' +
+							'</div></div>';
+						document.body.appendChild(overlay);
+
+						function close(result) {
+							overlay.remove();
+							resolve(result);
+						}
+
+						overlay
+							.querySelector('[data-role="confirm"]')
+							.addEventListener('click', function () {
+								close(true);
+							});
+						overlay
+							.querySelector('[data-role="cancel"]')
+							.addEventListener('click', function () {
+								close(false);
+							});
+						overlay.addEventListener('click', function (event) {
+							if (event.target === overlay) close(false);
+						});
+						overlay.querySelector('[data-role="cancel"]').focus();
+					});
+				}
+			};
+		</script>
+
 		<script>
 			/**
 			 * 侧边栏折叠/展开交互
