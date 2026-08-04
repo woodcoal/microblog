@@ -184,7 +184,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 								<input type="checkbox" class="batch-checkbox" data-id={user.id} />
 							</td>
 							<td>
-								<a href={`/${user.username}`}>{user.username}</a>
+								<a
+									href={`/${user.username}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{user.username}
+								</a>
 							</td>
 							<td>{user.displayName}</td>
 							<td>{user.email}</td>

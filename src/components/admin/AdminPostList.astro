@@ -117,10 +117,22 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 								<input type="checkbox" class="batch-checkbox" data-id={post.id} />
 							</td>
 							<td>
-								<a href={`/post/${post.id}`}>{post.id}</a>
+								<a
+									href={`/post/${post.id}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{post.id}
+								</a>
 							</td>
 							<td>
-								<a href={`/${post.user.username}`}>{authorName}</a>
+								<a
+									href={`/${post.user.username}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{authorName}
+								</a>
 							</td>
 							<td>
 								<div class="admin-text-truncate" title={post.content}>
