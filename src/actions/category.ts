@@ -74,6 +74,7 @@ export const updateCategory = defineAction({
 		id: z.string().min(1, '分类 ID 不能为空'),
 		name: z.string().optional(),
 		slug: z.string().optional(),
+		parentId: z.string().nullable().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
 		sortOrder: z.number().optional()

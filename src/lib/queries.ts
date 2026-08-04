@@ -50,7 +50,8 @@ export const POST_CARD_INCLUDE = {
 			id: true,
 			name: true,
 			slug: true,
-			mode: true
+			mode: true,
+			icon: true
 		}
 	},
 	_count: {

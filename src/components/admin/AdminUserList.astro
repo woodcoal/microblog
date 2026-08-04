@@ -193,16 +193,17 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	 */
 	document.querySelectorAll('[data-action="disable"], [data-action="enable"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
-			const action = (btn as HTMLElement).dataset.action || '';
+			const action = (btn as HTMLElement).dataset.action;
 			const userId = (btn as HTMLElement).dataset.userId || '';
+			if ((action !== 'disable' && action !== 'enable') || !userId) return;
 
-			const result = await actions.adminToggleUser({ action, userId });
+			const result = await actions.batchUsers({ action, ids: [userId] });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data?.success) {
+			} else if (result.data && result.data.affected > 0) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(result.data?.message || '操作失败');
+				await MutanDialog.alert('没有用户被更新');
 			}
 		});
 	});
@@ -239,9 +240,10 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	document.querySelectorAll('[data-batch]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.batch;
+			if (action !== 'disable' && action !== 'enable') return;
 			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
 				.map((cb) => (cb as HTMLInputElement).dataset.id)
-				.filter(Boolean);
+				.filter((id): id is string => Boolean(id));
 
 			if (checkedIds.length === 0) {
 				await MutanDialog.alert('请先选择项目', { title: '提示' });
@@ -259,10 +261,10 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const result = await actions.batchUsers({ action, ids: checkedIds });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data?.success) {
+			} else if (result.data && result.data.affected > 0) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(result.data?.message || '操作失败');
+				await MutanDialog.alert('没有用户被更新');
 			}
 		});
 	});

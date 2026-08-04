@@ -419,6 +419,7 @@ const EVENT_OPTIONS = [
 			// 确认删除
 			if (target.closest('[data-confirm-delete-btn]')) {
 				if (deleting) return;
+				if (!deletingId) return;
 				deleting = true;
 				hideError();
 

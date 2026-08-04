@@ -13,8 +13,10 @@
 - 新增 `HOT_SORT_CANDIDATE_WINDOW` 配置，默认保留 200 条热门排序候选（必须为正数，无效值回退默认值 200）。
 - 新增 ESLint flat config；Actions 统一从 `astro:schema` 迁移到 `astro/zod`。
 - 补齐认证 helper、浏览器全局、FormData、可空 DOM 节点和帖子卡片的类型契约。
+- 修复管理端单条用户、帖子、评论操作仍调用已移除 Action 的功能错误，统一复用管理员批量 Action 的单项调用。
+- 修复分类父级更新契约、帖子分类空值收窄、DOM 查询类型及 Markdown renderer 的新版类型兼容。
 
-**残余事项**：后台列表旧 Action 名称与现有批量 Action 契约不一致；其余为未使用声明、可空对象访问和显式 `any` 的既存治理项。
+**残余事项**：其余为未使用声明、弃用 API 和 ESLint 存量规则治理项。
 
 ### 2026-06-21 19:30
 

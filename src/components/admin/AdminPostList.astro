@@ -111,8 +111,6 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 						minute: '2-digit'
 					});
 					const authorName = post.user.displayName || post.user.username;
-					const pinLabel = post.isGlobalPinned ? '取消置顶' : '置顶';
-
 					return (
 						<tr>
 							<td>
@@ -158,25 +156,6 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 											删除
 										</button>
 									)}
-									{post.isDeleted && (
-										<button
-											type="button"
-											class="admin-btn-sm admin-btn-sm-primary"
-											data-action="restore"
-											data-post-id={post.id}
-										>
-											恢复
-										</button>
-									)}
-									{/* 置顶/取消置顶：通过 fetch 请求 */}
-									<button
-										type="button"
-										class="admin-btn-sm admin-btn-sm-primary"
-										data-action="global-pin"
-										data-post-id={post.id}
-									>
-										{pinLabel}
-									</button>
 									{!post.isLocked && (
 										<button
 											type="button"
@@ -325,25 +304,20 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	/**
 	 * 操作类型到标题的映射
 	 *
-	 * delete/restore/lock 需弹窗填写理由；
-	 * global-pin/unlock 直接发送请求无需理由。
+	 * delete/lock 需弹窗填写理由；
+	 * unlock 直接发送请求无需理由。
 	 */
-	const actionConfig: Record<string, { title: string; needReason: boolean }> = {
+	const actionConfig: Record<
+		'delete' | 'lock' | 'unlock',
+		{ title: string; needReason: boolean }
+	> = {
 		delete: {
 			title: '删除帖子',
-			needReason: true
-		},
-		restore: {
-			title: '恢复帖子',
 			needReason: true
 		},
 		lock: {
 			title: '锁定帖子',
 			needReason: true
-		},
-		'global-pin': {
-			title: '置顶/取消置顶',
-			needReason: false
 		},
 		unlock: {
 			title: '解锁帖子',
@@ -354,20 +328,22 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	// 为所有带 data-action 的按钮绑定点击事件
 	document.querySelectorAll('[data-action]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
-			const action = (btn as HTMLElement).dataset.action || '';
+			const action = (btn as HTMLElement).dataset.action;
 			const postId = (btn as HTMLElement).dataset.postId || '';
+			if ((action !== 'delete' && action !== 'lock' && action !== 'unlock') || !postId)
+				return;
 			const config = actionConfig[action];
 			if (!config) return;
 
-			// 不需要理由的操作（置顶/解锁）：直接调用 Actions
+			// 不需要理由的操作（解锁）：直接调用 Action
 			if (!config.needReason) {
-				const result = await actions.adminPostAction({ action, postId });
+				const result = await actions.batchPosts({ action, ids: [postId] });
 				if (result.error) {
 					await MutanDialog.alert(result.error.message || '操作失败');
-				} else if (result.data?.success) {
+				} else if (result.data && result.data.affected > 0) {
 					window.location.reload();
 				} else {
-					await MutanDialog.alert(result.data?.message || '操作失败');
+					await MutanDialog.alert('没有帖子被更新');
 				}
 				return;
 			}
@@ -394,20 +370,21 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			return;
 		}
 
+		if (currentAction !== 'delete' && currentAction !== 'lock') return;
 		const config = actionConfig[currentAction];
 		if (!config) return;
 
-		const result = await actions.adminPostAction({
+		const result = await actions.batchPosts({
 			action: currentAction,
-			postId: currentPostId,
+			ids: [currentPostId],
 			reason
 		});
 		if (result.error) {
 			await MutanDialog.alert(result.error.message || '操作失败');
-		} else if (result.data?.success) {
+		} else if (result.data && result.data.affected > 0) {
 			window.location.reload();
 		} else {
-			await MutanDialog.alert(result.data?.message || '操作失败');
+			await MutanDialog.alert('没有帖子被更新');
 		}
 	});
 
@@ -450,9 +427,10 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	document.querySelectorAll('[data-batch]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.batch;
+			if (action !== 'delete' && action !== 'lock' && action !== 'unlock') return;
 			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
 				.map((cb) => (cb as HTMLInputElement).dataset.id)
-				.filter(Boolean);
+				.filter((id): id is string => Boolean(id));
 
 			if (checkedIds.length === 0) {
 				await MutanDialog.alert('请先选择项目', { title: '提示' });
@@ -480,10 +458,10 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const result = await actions.batchPosts({ action, ids: checkedIds, reason });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data?.success) {
+			} else if (result.data && result.data.affected > 0) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(result.data?.message || '操作失败');
+				await MutanDialog.alert('没有帖子被更新');
 			}
 		});
 	});

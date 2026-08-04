@@ -76,7 +76,8 @@ const post = await prisma.post.findUnique({
 				id: true,
 				name: true,
 				slug: true,
-				mode: true
+				mode: true,
+				icon: true
 			}
 		}
 	}
@@ -314,7 +315,6 @@ const htmlContent = isDeleted
 		? renderFullMarkdown(post.content)
 		: renderMarkdown(post.content);
 const hasTitle = !!post.title;
-const hasCategory = !!post.category;
 
 // 页面标题：根据模式不同显示不同格式
 const seoTitle = isDeleted
@@ -373,7 +373,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			isForum && !isDeleted ? (
 				/* 论坛模式：标题大字 + 版块面包屑 */
 				<div class="post-detail-forum-header">
-					{hasCategory && (
+					{post.category && (
 						<div class="post-detail-breadcrumb">
 							<a href="/" class="post-detail-breadcrumb-link">
 								首页
@@ -420,7 +420,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			) : isBlog && !isDeleted ? (
 				/* 博客模式：文章标题 + 分类 + 发布日期 */
 				<div class="post-detail-blog-header">
-					{hasCategory && (
+					{post.category && (
 						<div class="post-detail-blog-category">
 							<span class="post-detail-blog-category-name">{post.category.name}</span>
 						</div>
@@ -1116,6 +1116,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			}
 
 			try {
+				if (!postId) return;
 				const result = await actions.deletePost({ postId });
 				if (result.error) {
 					const errMsg = result.error.message || '删除失败';
@@ -1299,9 +1300,14 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			const postId = (pinBtn as HTMLElement).dataset.postId;
 
 			try {
+				if (!postId) return;
 				const result = await actions.togglePin({ postId });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+					return;
+				}
 				// 更新按钮文字和状态
-				const isNowPinned = result.pinned;
+				const isNowPinned = result.data.pinned;
 				(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
 				pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
 			} catch (e: any) {

@@ -117,8 +117,8 @@ marked.use({
 			return `<p>${text}</p>`;
 		},
 		// 禁用列表
-		list({ body }) {
-			return `<p>${body}</p>`;
+		list({ items }) {
+			return `<p>${items.map((item) => item.text).join('<br>')}</p>`;
 		},
 		listitem({ text }) {
 			return `${text}<br>`;

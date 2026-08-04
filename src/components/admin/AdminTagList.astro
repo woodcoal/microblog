@@ -63,9 +63,6 @@ const nextPage = page + 1;
 					const actionBtnClass = tag.isHidden
 						? 'admin-btn-sm-primary'
 						: 'admin-btn-sm-warning';
-					const actionEndpoint = tag.isHidden
-						? `/api/admin/tags/${tag.id}/show`
-						: `/api/admin/tags/${tag.id}/hide`;
 					const formattedDate = new Date(tag.createdAt).toLocaleDateString('zh-CN', {
 						year: 'numeric',
 						month: '2-digit',
@@ -152,8 +149,9 @@ const nextPage = page + 1;
 	 */
 	document.querySelectorAll('[data-action="hide"], [data-action="show"]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
-			const action = (btn as HTMLElement).dataset.action || '';
+			const action = (btn as HTMLElement).dataset.action;
 			const tagId = (btn as HTMLElement).dataset.tagId || '';
+			if ((action !== 'hide' && action !== 'show') || !tagId) return;
 
 			const result = await actions.toggleTagVisibility({ tagId, action });
 			if (result.error) {

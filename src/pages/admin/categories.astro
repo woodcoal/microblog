@@ -60,21 +60,16 @@ const serializedTree = categoryTree.map((parent) => ({
 	}))
 }));
 
-// 独立的子分类（parentId 指向的分类不存在时的容错）
-const orphanChildren = childCategories.filter(
-	(c) => !parentCategories.find((p) => p.id === c.parentId)
-);
-
 // 父分类选项（用于创建子分类时选择）
 const parentOptions = parentCategories.map((p) => ({
 	id: p.id,
 	name: p.name,
-	mode: p.mode
+	mode: p.mode,
+	icon: p.icon
 }));
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasCategories = serializedTree.length > 0;
-const hasOrphans = orphanChildren.length > 0;
 ---
 
 <AdminLayout title="分类管理">
@@ -368,7 +363,7 @@ const hasOrphans = orphanChildren.length > 0;
 			name: formName.value,
 			slug: formSlug.value,
 			mode: formMode.value,
-			parentId: formParentId.value || undefined,
+			parentId: formParentId.value || null,
 			description: formDescription.value,
 			icon: formIcon.value,
 			sortOrder: Number(formSortOrder.value)
@@ -392,7 +387,10 @@ const hasOrphans = orphanChildren.length > 0;
 				}
 			} else {
 				// 创建模式：调用 createCategory
-				const result = await actions.createCategory(data);
+				const result = await actions.createCategory({
+					...data,
+					parentId: data.parentId ?? undefined
+				});
 				if (result.error) {
 					await MutanDialog.alert(result.error.message || '操作失败');
 					return;
@@ -474,7 +472,7 @@ const hasOrphans = orphanChildren.length > 0;
 
 		if (action === 'move-up' || action === 'move-down') {
 			// 获取同级分类列表，计算新排序
-			const row = target.closest('tr');
+			const row = target.closest<HTMLTableRowElement>('tr');
 			if (!row) return;
 			const isParent = row.dataset.isParent === 'true';
 
@@ -482,26 +480,28 @@ const hasOrphans = orphanChildren.length > 0;
 			let siblings: { id: string; sortOrder: number }[] = [];
 			if (isParent) {
 				// 一级分组：所有 parentId 为 null 的行
-				document.querySelectorAll('tr[data-is-parent="true"]').forEach((tr) => {
-					const catId = tr.dataset.categoryId || '';
-					const sortEl = tr.querySelector('td:nth-child(5)');
-					siblings.push({
-						id: catId,
-						sortOrder: Number(sortEl?.textContent?.trim() || '0')
+				document
+					.querySelectorAll<HTMLTableRowElement>('tr[data-is-parent="true"]')
+					.forEach((tr) => {
+						const catId = tr.dataset.categoryId || '';
+						const sortEl = tr.querySelector('td:nth-child(5)');
+						siblings.push({
+							id: catId,
+							sortOrder: Number(sortEl?.textContent?.trim() || '0')
+						});
 					});
-				});
 			} else {
 				// 二级分类：向上查找父分类行
-				let parentRow: Element | null = row;
+				let parentRow: HTMLTableRowElement | null = row;
 				while (parentRow && parentRow.dataset.isParent !== 'true') {
-					parentRow = parentRow.previousElementSibling;
+					parentRow = parentRow.previousElementSibling as HTMLTableRowElement | null;
 				}
 				// 从父分类行开始收集所有后续子分类
-				const childRows: Element[] = [];
-				let sibling: Element | null = parentRow?.nextElementSibling;
+				const childRows: HTMLTableRowElement[] = [];
+				let sibling = parentRow?.nextElementSibling as HTMLTableRowElement | null;
 				while (sibling?.classList.contains('admin-category-child')) {
 					childRows.push(sibling);
-					sibling = sibling.nextElementSibling;
+					sibling = sibling.nextElementSibling as HTMLTableRowElement | null;
 				}
 				siblings = childRows.map((tr) => ({
 					id: tr.dataset.categoryId || '',

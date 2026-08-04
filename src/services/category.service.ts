@@ -48,6 +48,7 @@ export interface UpdateCategoryInput {
 	id: string;
 	name?: string;
 	slug?: string;
+	parentId?: string | null;
 	description?: string;
 	icon?: string;
 	sortOrder?: number;
@@ -132,7 +133,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
  * @returns 更新后的分类数据
  */
 export async function updateCategory(input: UpdateCategoryInput): Promise<CategoryResult> {
-	const { id, name, slug, description, icon, sortOrder } = input;
+	const { id, name, slug, parentId, description, icon, sortOrder } = input;
 
 	// 查询分类是否存在
 	const category = await findCategoryById(id);
@@ -147,11 +148,28 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 			throw new ServiceError('BAD_REQUEST', 'slug 已存在');
 		}
 	}
+	if (parentId !== undefined && parentId !== null) {
+		if (parentId === id) {
+			throw new ServiceError('BAD_REQUEST', '分类不能设为自身的父分类');
+		}
+		const childCount = await countChildCategories(id);
+		if (childCount > 0) {
+			throw new ServiceError('BAD_REQUEST', '包含子分类的分类不能设为二级分类');
+		}
+		const parent = await findCategoryById(parentId);
+		if (!parent) {
+			throw new ServiceError('NOT_FOUND', '父分类不存在');
+		}
+		if (parent.parentId) {
+			throw new ServiceError('BAD_REQUEST', '不支持三级分类');
+		}
+	}
 
 	// 构建更新数据
 	const updateData: Record<string, unknown> = {};
 	if (name !== undefined) updateData.name = name.trim();
 	if (slug !== undefined) updateData.slug = slug.trim();
+	if (parentId !== undefined) updateData.parentId = parentId;
 	if (description !== undefined) updateData.description = description;
 	if (icon !== undefined) updateData.icon = icon;
 	if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
