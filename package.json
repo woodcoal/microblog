@@ -26,7 +26,9 @@
 		"db:seed": "npx tsx prisma/seed.ts",
 		"db:setup": "prisma generate && prisma migrate dev && npx tsx prisma/seed.ts",
 		"format": "prettier --write .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"lint": "npm run format:check",
+		"typecheck": "astro check"
 	},
 	"dependencies": {
 		"@astrojs/check": "^0.9.9",

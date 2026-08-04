@@ -3,14 +3,19 @@
  *
  * 使用站内热门分数、标签和分类生成推荐结果，不依赖外部推荐服务。
  */
-import { prisma } from '@/lib/db';
 import { calculateTrendingScore } from '@/lib/trending';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { getLikedPostIds } from '@/lib/queries';
 import { findFollowingIds, findFollowerIds } from '@/lib/social';
+import {
+	findRecommendationCandidates,
+	findRecommendationSource,
+	upsertPostRead
+} from '@/lib/recommend';
 import type { Prisma } from '../../generated/prisma/client';
 
 const CANDIDATE_LIMIT = 200;
+const READ_EXCLUSION_DAYS = 30;
 
 export interface GetRecommendInput {
 	userId: string;
@@ -57,20 +62,14 @@ async function getVisibleCandidates(userId: string, where: Prisma.PostWhereInput
 		findFollowerIds(userId)
 	]);
 	const visibilityFilter = getVisibilityFilter({ userId }, { followingIds, followerIds });
-	const posts = await prisma.post.findMany({
-		where: {
-			isDeleted: false,
-			AND: [visibilityFilter, where],
-			reads: { none: { userId } }
-		},
-		orderBy: { createdAt: 'desc' },
-		take: CANDIDATE_LIMIT,
-		include: {
-			...POST_CARD_INCLUDE,
-			likes: { select: { id: true, userId: true } },
-			comments: { select: { id: true } }
-		}
-	});
+	const readAfter = new Date(Date.now() - READ_EXCLUSION_DAYS * 24 * 60 * 60 * 1000);
+	const posts = await findRecommendationCandidates(
+		userId,
+		visibilityFilter,
+		where,
+		readAfter,
+		CANDIDATE_LIMIT
+	);
 
 	const visiblePosts: typeof posts = [];
 	for (const post of posts) {
@@ -137,11 +136,27 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 /** 按共享标签、相同分类和热门度查找未读相关推荐。 */
 export async function getSimilarPosts(input: GetSimilarPostsInput): Promise<GetRecommendResult> {
 	const count = input.n ?? 5;
-	const source = await prisma.post.findUnique({
-		where: { id: input.postId },
-		select: { categoryId: true, tags: { select: { tagId: true } } }
-	});
-	if (!source) return { items: [] };
+	const [source, followingIds, followerIds] = await Promise.all([
+		findRecommendationSource(input.postId),
+		findFollowingIds(input.userId),
+		findFollowerIds(input.userId)
+	]);
+	if (!source || source.isDeleted) return { items: [] };
+
+	const sourceVisible = await checkPostVisibility(
+		{
+			visibility: source.visibility,
+			userId: source.userId,
+			passwordHash: source.passwordHash,
+			allowedUserIds: source.allowedUserIds
+		},
+		{ userId: input.userId },
+		{
+			isFollower: followingIds.includes(source.userId),
+			isFollowing: followerIds.includes(source.userId)
+		}
+	);
+	if (!sourceVisible) return { items: [] };
 
 	const tagIds = source.tags.map((tag) => tag.tagId);
 	const similarity: Prisma.PostWhereInput[] = [];
@@ -168,10 +183,6 @@ export async function getSimilarPosts(input: GetSimilarPostsInput): Promise<GetR
 
 /** 本地记录浏览历史，供热门推荐排除已读帖子。 */
 export async function recordRead(input: RecordReadInput): Promise<{ recorded: true }> {
-	await prisma.postRead.upsert({
-		where: { userId_postId: input },
-		create: input,
-		update: {}
-	});
+	await upsertPostRead(input.userId, input.postId);
 	return { recorded: true };
 }

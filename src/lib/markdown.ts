@@ -22,6 +22,37 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 };
 
 /**
+ * 仅允许可安全导航或加载的 URL 协议。
+ * 相对 URL 会以站点根地址解析；图片额外允许常见位图 data URL。
+ */
+function isSafeUrl(value: string, image = false): boolean {
+	const normalized = value
+		.trim()
+		.replace(/&#(?:0*58|x0*3a);|&colon;/gi, ':')
+		.replace(/[\u0000-\u001f\u007f]/g, '');
+
+	if (image && /^data:image\/(?:png|gif|jpe?g|webp);base64,/i.test(normalized)) {
+		return true;
+	}
+
+	try {
+		const url = new URL(normalized, 'https://local.invalid');
+		return image
+			? url.protocol === 'http:' || url.protocol === 'https:'
+			: ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol);
+	} catch {
+		return false;
+	}
+}
+
+/** 判断标签属性值是否可安全保留。 */
+function isSafeAttribute(tag: string, name: string, value: string): boolean {
+	if (name === 'href') return tag === 'a' && isSafeUrl(value);
+	if (name === 'src') return tag === 'img' && isSafeUrl(value, true);
+	return true;
+}
+
+/**
  * 清理 HTML，移除白名单之外的标签和属性
  *
  * @param html - 待清理的 HTML 字符串
@@ -53,8 +84,9 @@ function sanitizeHtml(html: string): string {
 		let attrMatch;
 		while ((attrMatch = attrRegex.exec(match)) !== null) {
 			const attrName = attrMatch[1].toLowerCase();
-			if (allowedAttrSet.has(attrName)) {
-				filteredAttrs += ` ${attrName}="${attrMatch[3] ?? attrMatch[4]}"`;
+			const attrValue = attrMatch[3] ?? attrMatch[4];
+			if (allowedAttrSet.has(attrName) && isSafeAttribute(tag, attrName, attrValue)) {
+				filteredAttrs += ` ${attrName}="${attrValue}"`;
 			}
 		}
 
@@ -263,8 +295,9 @@ function sanitizeFullHtml(html: string): string {
 		let attrMatch;
 		while ((attrMatch = attrRegex.exec(match)) !== null) {
 			const attrName = attrMatch[1].toLowerCase();
-			if (allowedAttrSet.has(attrName)) {
-				filteredAttrs += ` ${attrName}="${attrMatch[3] ?? attrMatch[4]}"`;
+			const attrValue = attrMatch[3] ?? attrMatch[4];
+			if (allowedAttrSet.has(attrName) && isSafeAttribute(tag, attrName, attrValue)) {
+				filteredAttrs += ` ${attrName}="${attrValue}"`;
 			}
 		}
 

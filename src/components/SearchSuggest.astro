@@ -77,6 +77,16 @@ const modeLabels = JSON.stringify({
 	/** 防抖延迟时间（毫秒） */
 	const DEBOUNCE_MS = 300;
 
+	/** 转义插入 innerHTML 的用户可控文本。 */
+	function escapeHtml(value: unknown): string {
+		return String(value ?? '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#039;');
+	}
+
 	// 为所有搜索建议组件绑定事件
 	document.querySelectorAll<HTMLElement>('.search-suggest').forEach((container) => {
 		/** 从 data 属性读取模式标签映射 */
@@ -148,7 +158,7 @@ const modeLabels = JSON.stringify({
 			tagsContainer.innerHTML = tags
 				.map(
 					(tag) =>
-						`<a href="/tags/${encodeURIComponent(tag.name)}" class="search-suggest-tag">#${tag.name}#</a>`
+						`<a href="/tags/${encodeURIComponent(tag.name)}" class="search-suggest-tag">#${escapeHtml(tag.name)}#</a>`
 				)
 				.join('');
 		}
@@ -184,14 +194,14 @@ const modeLabels = JSON.stringify({
 			postsContainer.innerHTML = posts
 				.map((post) => {
 					/** 显示标题：有标题用标题，无标题截取内容前 50 字符 */
-					const displayTitle = post.title || post.content.slice(0, 50);
+					const displayTitle = escapeHtml(post.title || post.content.slice(0, 50));
 					/** 模式标签文本 */
-					const modeLabel = modeLabels[post.mode] || post.mode;
+					const modeLabel = escapeHtml(modeLabels[post.mode] || post.mode);
 					return (
-						`<a href="/${post.user.username}/${post.id}" class="search-suggest-post">` +
+						`<a href="/${encodeURIComponent(post.user.username)}/${encodeURIComponent(post.id)}" class="search-suggest-post">` +
 						`<span class="search-suggest-post-title">${displayTitle}</span>` +
 						`<span class="search-suggest-post-meta">` +
-						`<span class="search-suggest-post-author">@${post.user.username}</span>` +
+						`<span class="search-suggest-post-author">@${escapeHtml(post.user.username)}</span>` +
 						`<span class="search-suggest-post-mode">${modeLabel}</span>` +
 						`</span></a>`
 					);
@@ -222,9 +232,9 @@ const modeLabels = JSON.stringify({
 			categoriesContainer.innerHTML = categories
 				.map((cat) => {
 					/** 分类模式标签 */
-					const modeLabel = modeLabels[cat.mode] || cat.mode;
-					const icon = cat.icon ? cat.icon + ' ' : '';
-					return `<a href="/search?q=&tab=posts&mode=${cat.mode}&categoryId=${cat.id}" class="search-suggest-category">${icon}${cat.name} <span class="search-suggest-category-mode">${modeLabel}</span></a>`;
+					const modeLabel = escapeHtml(modeLabels[cat.mode] || cat.mode);
+					const icon = cat.icon ? escapeHtml(cat.icon) + ' ' : '';
+					return `<a href="/search?q=&tab=posts&mode=${encodeURIComponent(cat.mode)}&categoryId=${encodeURIComponent(cat.id)}" class="search-suggest-category">${icon}${escapeHtml(cat.name)} <span class="search-suggest-category-mode">${modeLabel}</span></a>`;
 				})
 				.join('');
 		}
@@ -245,13 +255,13 @@ const modeLabels = JSON.stringify({
 			usersContainer.innerHTML = users
 				.map(
 					(user) =>
-						`<a href="/${user.username}" class="search-suggest-user">` +
+						`<a href="/${encodeURIComponent(user.username)}" class="search-suggest-user">` +
 						(user.avatarUrl
-							? `<img src="${user.avatarUrl}" alt="${user.displayName}" class="search-suggest-user-avatar" />`
+							? `<img src="${escapeHtml(user.avatarUrl)}" alt="${escapeHtml(user.displayName)}" class="search-suggest-user-avatar" />`
 							: '') +
 						`<span class="search-suggest-user-info">` +
-						`<span class="search-suggest-user-name">${user.displayName}</span>` +
-						`<span class="search-suggest-user-handle">@${user.username}</span>` +
+						`<span class="search-suggest-user-name">${escapeHtml(user.displayName)}</span>` +
+						`<span class="search-suggest-user-handle">@${escapeHtml(user.username)}</span>` +
 						`</span></a>`
 				)
 				.join('');
