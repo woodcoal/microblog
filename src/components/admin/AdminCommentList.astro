@@ -117,7 +117,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 							</td>
 							<td class="admin-id-cell">{shortId}</td>
 							<td>
-								<a href={`/${comment.user.username}`}>{authorName}</a>
+								<a
+									href={`/${comment.user.username}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{authorName}
+								</a>
 							</td>
 							<td>
 								<div class="admin-text-truncate" title={comment.content}>
