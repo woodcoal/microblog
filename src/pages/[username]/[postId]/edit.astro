@@ -4,12 +4,12 @@
  *
  * 需要认证，仅作者可访问。
  * 根据 post.mode 使用不同的编辑器：
- * - weibo：简单 textarea（现有 PostEditForm.astro）
+ * - weibo：PostEditor.astro（与创建场景复用）
  * - forum：ForumEditor.astro（Markdown 工具栏 + 预览）
  * - blog：BlogEditor.tsx（Tiptap 所见即所得编辑器）
  */
 import UserLayout from '@/layouts/UserLayout.astro';
-import PostEditForm from '@/components/PostEditForm.astro';
+import PostEditor from '@/components/PostEditor.astro';
 import ForumEditor from '@/components/ForumEditor.astro';
 import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
@@ -89,10 +89,10 @@ const isBlog = post.mode === 'blog';
 	<div class="edit-page">
 		<h1 class="edit-page-title">编辑帖子</h1>
 
-		{/* weibo 模式：使用原有 PostEditForm */}
+		{/* weibo 模式：与创建场景复用 PostEditor */}
 		{
 			isWeibo && (
-				<PostEditForm
+				<PostEditor
 					postId={post.id}
 					initialContent={post.content}
 					username={post.user.username}

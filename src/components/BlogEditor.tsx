@@ -32,6 +32,7 @@ import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/core';
+import { actions } from 'astro:actions';
 
 /** lowlight 实例，用于代码块语法高亮 */
 const lowlight = createLowlight(common);
@@ -80,29 +81,24 @@ function getMarkdown(editor: Editor): string {
 /**
  * 上传图片到服务器
  *
- * 使用原生 FormData + fetch 调用 /api/upload 端点，
- * 返回标准 JSON 格式，无需 SuperJSON 反序列化。
+ * 使用 Astro Action 调用统一的上传接口。
  *
  * @param file - 要上传的图片文件
- * @returns 上传成功后的图片 URL，失败返回 null
+ * @returns 上传成功后的图片 URL 或错误信息
  */
-async function uploadImage(file: File): Promise<string | null> {
+async function uploadImage(file: File): Promise<{ url?: string; error?: string }> {
 	const formData = new FormData();
 	formData.append('file', file);
 	formData.append('fileType', 'image');
 
 	try {
-		const res = await fetch('/api/upload', {
-			method: 'POST',
-			body: formData
-		});
-		const json = await res.json();
-		if (json.success && json.data && json.data.url) {
-			return json.data.url as string;
+		const result = await actions.uploadMedia(formData);
+		if (result.data?.url) {
+			return { url: result.data.url };
 		}
-		return null;
-	} catch {
-		return null;
+		return { error: result.error?.message || '图片上传失败，请重试' };
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : '图片上传失败，请重试' };
 	}
 }
 
@@ -118,6 +114,8 @@ async function uploadImage(file: File): Promise<string | null> {
 export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditorProps) {
 	/** 加载状态 */
 	const [loading, setLoading] = useState(false);
+	/** 图片上传错误信息 */
+	const [uploadError, setUploadError] = useState<string | null>(null);
 	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
 	const editorRef = useRef<Editor | null>(null);
 	/** 图片上传文件输入引用 */
@@ -191,12 +189,20 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 					(async () => {
 						for (const file of imageFiles) {
 							try {
-								const url = await uploadImage(file);
-								if (url) {
-									currentEditor.chain().focus().setImage({ src: url }).run();
+								const upload = await uploadImage(file);
+								if (upload.url) {
+									currentEditor
+										.chain()
+										.focus()
+										.setImage({ src: upload.url })
+										.run();
+								} else {
+									setUploadError(upload.error || '图片上传失败，请重试');
 								}
-							} catch {
-								// 上传失败静默处理
+							} catch (error) {
+								setUploadError(
+									error instanceof Error ? error.message : '图片上传失败，请重试'
+								);
 							}
 						}
 					})();
@@ -403,14 +409,13 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			const files = e.target.files;
 			if (!files || !editor) return;
 
+			setUploadError(null);
 			for (const file of Array.from(files)) {
-				try {
-					const url = await uploadImage(file);
-					if (url) {
-						editor.chain().focus().setImage({ src: url }).run();
-					}
-				} catch {
-					// 上传失败静默处理
+				const upload = await uploadImage(file);
+				if (upload.url) {
+					editor.chain().focus().setImage({ src: upload.url }).run();
+				} else {
+					setUploadError(upload.error || '图片上传失败，请重试');
 				}
 			}
 			e.target.value = '';
@@ -579,6 +584,11 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			<div className="blog-editor-body">
 				<EditorContent editor={editor} />
 			</div>
+			{uploadError && (
+				<p className="form-error" role="alert" aria-live="polite">
+					{uploadError}
+				</p>
+			)}
 
 			{/* 隐藏的文件输入 */}
 			<input
