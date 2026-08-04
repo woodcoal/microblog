@@ -40,7 +40,7 @@ npm run format:check   # 格式化检查
 - **数据库**: SQLite（@libsql/client + @prisma/adapter-libsql，纯 JS 实现，无需 C++ 编译）
 - **ORM**: Prisma 7，client 输出到 `generated/prisma`
 - **认证**: JWT（jose）+ bcryptjs，双认证方式（JWT cookie + API Token）
-- **推荐**: DaLi.Lens 推荐中间件（可选，未配置 LENS_ENDPOINT 则停用）
+- **推荐**: 本地热门排序 + 标签/分类匹配（无外部服务依赖）
 - **部署**: Node.js standalone（默认），预留 Cloudflare 适配器切换
 
 ## 项目结构
@@ -86,7 +86,6 @@ src/
     theme.ts        # 主题/强调色管理
     errors.ts       # ServiceError 类
     queries.ts      # 通用 Prisma include/select
-    lens.ts         # DaLi.Lens 推荐中间件集成
     trending.ts     # 热门分数计算
     activity.ts     # 操作日志
     notification.ts # 通知系统
@@ -173,7 +172,6 @@ Prisma 7 使用 driver adapter 模式，`@prisma/adapter-libsql` 连接 SQLite�
 - `JWT_SECRET` — JWT 签名密钥
 - `SITE_MODES` — 启用的模式（默认 `weibo`）
 - `SITE_MODE_WEIBO` / `SITE_MODE_FORUM` / `SITE_MODE_BLOG` — 模式显示别名
-- `LENS_ENDPOINT` / `LENS_API_KEY` — DaLi.Lens 推荐中间件（未设置则停用）
 - `ALLOW_REGISTRATION` — 是否允许注册（默认 `true`）
 - `EXTRA_RESERVED_USERNAMES` — 额外保留用户名（逗号分隔）
 

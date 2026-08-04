@@ -27,7 +27,6 @@ import {
 	COMMENT_CREATE,
 	COMMENT_DELETE
 } from '@/lib/activity';
-import { ingestDocument, updateDocument, deleteDocument } from '@/lib/lens';
 import { generateShortId } from '@/lib/shortid';
 import { parseMentions, parseTags } from '@/lib/parser';
 import {
@@ -89,7 +88,7 @@ export interface DeleteCommentInput {
  * 创建评论
  *
  * 校验帖子存在/未删除/未锁定，校验内容，校验 parentId，
- * 创建评论记录，异步发送通知+活动日志+Lens 反馈。
+ * 创建评论记录，异步发送通知和活动日志。
  */
 export async function createComment(input: CreateCommentInput): Promise<CreateCommentResult> {
 	const { userId, postId, content, parentId } = input;
@@ -149,14 +148,9 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 		}
 	);
 
-	// 5. 异步通知 + 活动日志 + Lens 反馈
+	// 5. 异步通知和活动日志
 	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
 	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => {});
-	ingestDocument({
-		externalId: postId,
-		title: content.trim().slice(0, 100),
-		content: content.trim()
-	}).catch(() => {});
 
 	return {
 		id: comment.id,
@@ -286,7 +280,7 @@ function sanitizePost<T extends Record<string, unknown>>(post: T): T {
  * 创建帖子
  *
  * 校验输入参数，委托 lib 层事务创建帖子，
- * 异步发送通知、活动日志、Lens 文档入库。
+ * 异步发送通知和活动日志。
  *
  * @param input - 创建帖子参数
  * @returns 创建的帖子完整数据（含关联）
@@ -431,13 +425,6 @@ export async function createPost(input: CreatePostInput) {
 
 	logActivity(POST_CREATE, userId, 'post', id, userId, id).catch(() => {});
 
-	ingestDocument({
-		externalId: id,
-		title: title?.trim() || content.trim().slice(0, 100),
-		content: content.trim(),
-		category: fullPost?.category?.name
-	}).catch(() => {});
-
 	return sanitizePost(fullPost!);
 }
 
@@ -446,7 +433,7 @@ export async function createPost(input: CreatePostInput) {
  *
  * 校验帖子存在/作者/锁定/删除状态，校验输入参数，
  * 委托 lib 层事务更新帖子（含 revision、media diff、mention/tag 重建），
- * 事务后处理 refCount、活动日志、Lens 文档更新。
+ * 事务后处理 refCount 和活动日志。
  *
  * @param input - 更新帖子参数
  * @returns 更新后的帖子完整数据（含关联）
@@ -634,14 +621,6 @@ export async function updatePost(input: UpdatePostInput) {
 	// 13. 记录编辑帖子活动（异步，不阻塞主流程）
 	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => {});
 
-	// 14. 同步更新帖子到 DaLi.Lens 推荐引擎（异步，不阻塞）
-	updateDocument(postId, {
-		externalId: postId,
-		title: updated.title || updated.content.slice(0, 100),
-		content: updated.content,
-		category: updated.category?.name
-	}).catch(() => {});
-
 	return sanitizePost(updated);
 }
 
@@ -649,7 +628,7 @@ export async function updatePost(input: UpdatePostInput) {
  * 删除帖子（软删除）
  *
  * 校验帖子存在/作者/锁定/删除状态，标记 isDeleted = true，
- * 异步记录活动日志、Lens 文档删除。
+ * 异步记录活动日志。
  *
  * @param input - 删除帖子参数
  * @returns 被删除的帖子 ID
@@ -683,9 +662,6 @@ export async function deletePost(input: DeletePostInput) {
 
 	// 5. 记录删除帖子活动（异步，不阻塞主流程）
 	logActivity(POST_DELETE, userId, 'post', postId, post.userId, postId).catch(() => {});
-
-	// 6. 从 DaLi.Lens 删除帖子（异步，不阻塞）
-	deleteDocument(postId).catch(() => {});
 
 	return { id: postId };
 }

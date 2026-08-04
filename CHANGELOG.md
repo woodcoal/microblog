@@ -1,5 +1,11 @@
 # 更新日志
 
+### 2026-08-05
+
+**变更类型**: 重构
+
+- 移除 DaLi.Lens 外部推荐依赖，改用本地热门排序、标签/分类匹配及本地阅读历史。
+
 ### 2026-06-21 19:30
 
 **提交人**: AI
@@ -8,6 +14,7 @@
 **变更类型**: 重构
 
 **详细描述**:
+
 - 重构 actions/content.ts：createPost/updatePost/deletePost 业务逻辑下沉到 content.service.ts
 - 重构 actions/settings.ts：changePassword/uploadAvatar/updateCommentSort 下沉到 settings.service.ts
 - 重构 actions/misc.ts：renderMarkdown 下沉到 misc.service.ts
@@ -19,6 +26,7 @@
 - settings.service.ts 新增 changePassword/uploadAvatar/updateCommentSort
 
 **注意事项**:
+
 - actions/api 层不再直接 import prisma 或跨层调用 lib
 - 业务逻辑完全不变，纯架构调整
 

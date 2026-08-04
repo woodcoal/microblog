@@ -712,7 +712,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		)
 	}
 
-	{/* 相关推荐 - DaLi.Lens 相似文档推荐（仅登录用户） */}
+	{/* 相关推荐 - 本地标签和分类匹配（仅登录用户） */}
 	{
 		currentUser && !isDeleted && !needPassword && (
 			<section class="post-detail-similar" id="similar-section" style="display:none">
@@ -1315,10 +1315,9 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 
 	/**
-	 * 浏览行为追踪（DaLi.Lens view feedback）
+	 * 浏览行为追踪（本地阅读历史）
 	 *
-	 * 用户查看帖子详情页时，异步发送浏览记录到 DaLi.Lens 推荐引擎。
-	 * 浏览反馈（view）作为弱正向信号，帮助推荐系统理解用户兴趣。
+	 * 用户查看帖子详情页时，异步记录阅读历史，供推荐排除已读内容。
 	 * 仅登录用户触发，失败静默不影响页面。
 	 */
 	(async () => {
