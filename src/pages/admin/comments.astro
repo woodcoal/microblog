@@ -40,7 +40,10 @@ const [comments, total] = await Promise.all([
 			post: {
 				select: {
 					id: true,
-					content: true
+					content: true,
+					user: {
+						select: { username: true }
+					}
 				}
 			}
 		},
@@ -61,6 +64,10 @@ const serializedComments = comments.map((c) => ({
 	...c,
 	content: c.content,
 	postContent: c.post.content.length > 50 ? c.post.content.slice(0, 50) + '...' : c.post.content,
+	post: {
+		id: c.post.id,
+		user: c.post.user
+	},
 	createdAt: c.createdAt.toISOString()
 }));
 ---

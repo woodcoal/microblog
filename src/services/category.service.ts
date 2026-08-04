@@ -24,7 +24,7 @@ const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
 export interface CreateCategoryInput {
 	name: string;
 	slug: string;
-	mode: string;
+	mode?: string;
 	parentId?: string;
 	description?: string;
 	icon?: string;
@@ -76,11 +76,6 @@ export interface ReorderCategoriesInput {
 export async function createCategory(input: CreateCategoryInput): Promise<CategoryResult> {
 	const { name, slug, mode, parentId, description, icon, sortOrder } = input;
 
-	// 校验 mode 必须是合法值
-	if (!VALID_MODES.includes(mode as (typeof VALID_MODES)[number])) {
-		throw new ServiceError('BAD_REQUEST', `无效的模式，仅支持: ${VALID_MODES.join(', ')}`);
-	}
-
 	// 校验 slug 唯一
 	const existing = await findCategoryBySlug(slug);
 	if (existing) {
@@ -88,6 +83,7 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 	}
 
 	// 如果有 parentId，校验父分类存在
+	let effectiveMode = mode;
 	if (parentId) {
 		const parent = await findCategoryById(parentId);
 		if (!parent) {
@@ -97,13 +93,19 @@ export async function createCategory(input: CreateCategoryInput): Promise<Catego
 		if (parent.parentId) {
 			throw new ServiceError('BAD_REQUEST', '不支持三级分类');
 		}
+		// 二级分类必须继承父分类模式，不信任客户端传入的 mode。
+		effectiveMode = parent.mode;
+	}
+
+	if (!effectiveMode || !VALID_MODES.includes(effectiveMode as (typeof VALID_MODES)[number])) {
+		throw new ServiceError('BAD_REQUEST', `无效的模式，仅支持: ${VALID_MODES.join(', ')}`);
 	}
 
 	// 创建分类
 	const category = await createCategoryRecord({
 		name: name.trim(),
 		slug: slug.trim(),
-		mode,
+		mode: effectiveMode,
 		parentId: parentId || null,
 		description: description || '',
 		icon: icon || '',
@@ -148,6 +150,7 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 			throw new ServiceError('BAD_REQUEST', 'slug 已存在');
 		}
 	}
+	let inheritedMode: string | undefined;
 	if (parentId !== undefined && parentId !== null) {
 		if (parentId === id) {
 			throw new ServiceError('BAD_REQUEST', '分类不能设为自身的父分类');
@@ -163,6 +166,7 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 		if (parent.parentId) {
 			throw new ServiceError('BAD_REQUEST', '不支持三级分类');
 		}
+		inheritedMode = parent.mode;
 	}
 
 	// 构建更新数据
@@ -170,6 +174,7 @@ export async function updateCategory(input: UpdateCategoryInput): Promise<Catego
 	if (name !== undefined) updateData.name = name.trim();
 	if (slug !== undefined) updateData.slug = slug.trim();
 	if (parentId !== undefined) updateData.parentId = parentId;
+	if (inheritedMode !== undefined) updateData.mode = inheritedMode;
 	if (description !== undefined) updateData.description = description;
 	if (icon !== undefined) updateData.icon = icon;
 	if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
