@@ -72,6 +72,8 @@ const displayName = user?.displayName ?? '';
 const bio = user?.bio ?? '';
 const avatarUrl = user?.avatarUrl ?? '';
 const note = user?.note ?? '';
+const initialBio = bio.trimStart();
+const initialNote = note.trimStart();
 
 // 序列化数据（将 Date 对象转为字符串，供 React 组件使用）
 const serializedTokens = tokens.map((t: any) => ({
@@ -150,7 +152,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 									rows="3"
 									placeholder="介绍一下自己"
 								>
-									{bio}
+									{initialBio}
 								</textarea>
 								<span class="form-hint">最多 160 个字符</span>
 							</div>
@@ -368,7 +370,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 									maxlength="2000"
 									placeholder="记录一些私人信息，仅自己可见"
 								>
-									{note}
+									{initialNote}
 								</textarea>
 								<span class="form-hint">最多 2000 个字符，仅自己可见</span>
 							</div>

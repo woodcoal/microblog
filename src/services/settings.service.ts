@@ -138,9 +138,9 @@ export async function updateProfile(input: UpdateProfileInput): Promise<UpdatePr
 		note?: string;
 	} = {};
 	if (displayName !== undefined) updateData.displayName = displayName;
-	if (bio !== undefined) updateData.bio = bio;
+	if (bio !== undefined) updateData.bio = bio.trim();
 	if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
-	if (note !== undefined) updateData.note = note;
+	if (note !== undefined) updateData.note = note.trim();
 
 	// 更新 User 表
 	const updatedUser = await updateUser(userId, updateData, {
