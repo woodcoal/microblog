@@ -4,14 +4,35 @@
  * 编排管理员对用户、帖子、评论的批量操作和标签管理业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { batchDisableUsers, batchEnableUsers } from '@/lib/user';
+import {
+	batchDisableUsers,
+	batchEnableUsers,
+	createUser as createUserRecord,
+	findUserByEmail,
+	findUserByUsername
+} from '@/lib/user';
+import { hashPassword } from '@/lib/auth';
 import { batchSoftDeletePosts, batchLockPosts, batchUnlockPosts } from '@/lib/post';
 import { batchSoftDeleteComments } from '@/lib/comment';
 import { findTagById, updateTagVisibility } from '@/lib/tag';
 import { ServiceError } from '@/lib/errors';
+import { PASSWORD_MIN_LENGTH, RESERVED_USERNAMES, USERNAME_PATTERN } from '@/lib/config';
 
 /** 单次批量操作最大数量 */
 const MAX_BATCH_SIZE = 100;
+
+/** 邮箱格式正则，与前台注册保持一致。 */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** Prisma 唯一约束错误（P2002）的最小结构，避免泄露底层错误信息。 */
+function isUniqueConstraintError(error: unknown): error is { code: string } {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		(error as { code: unknown }).code === 'P2002'
+	);
+}
 
 // ── 类型定义 ──
 
@@ -34,6 +55,23 @@ export interface BatchCommentsInput {
 export interface ToggleTagVisibilityInput {
 	tagId: string;
 	action: 'hide' | 'show';
+}
+
+export interface CreateUserInput {
+	username: string;
+	displayName?: string;
+	email: string;
+	password: string;
+	role?: 'user' | 'admin';
+}
+
+export interface CreateUserResult {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string | null;
+	role: string;
+	email: string;
 }
 
 // ── 业务函数 ──
@@ -66,6 +104,65 @@ export async function batchUsers(input: BatchUsersInput): Promise<{ affected: nu
 	}
 
 	return { affected: result.count };
+}
+
+/**
+ * 由管理员创建用户。
+ *
+ * 校验规则与前台注册一致，但不受 ALLOW_REGISTRATION 开关限制。
+ */
+export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
+	const { username, displayName, email, password, role = 'user' } = input;
+
+	if (!EMAIL_PATTERN.test(email)) {
+		throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
+	}
+
+	if (!USERNAME_PATTERN.test(username)) {
+		throw new ServiceError('BAD_REQUEST', '用户名只能包含字母、数字和下划线，长度 3-20 个字符');
+	}
+
+	if (RESERVED_USERNAMES.includes(username.toLowerCase())) {
+		throw new ServiceError('BAD_REQUEST', '该用户名为系统保留，无法使用');
+	}
+
+	if (password.length < PASSWORD_MIN_LENGTH) {
+		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
+	}
+
+	const [existingEmail, existingUsername] = await Promise.all([
+		findUserByEmail(email),
+		findUserByUsername(username)
+	]);
+	if (existingEmail || existingUsername) {
+		throw new ServiceError('BAD_REQUEST', '用户名或邮箱已被使用，请更换后重试');
+	}
+
+	const passwordHash = await hashPassword(password);
+	let user;
+	try {
+		user = await createUserRecord({
+			username,
+			displayName: displayName || username,
+			email,
+			passwordHash,
+			role
+		});
+	} catch (error) {
+		if (isUniqueConstraintError(error)) {
+			throw new ServiceError('BAD_REQUEST', '用户名或邮箱已被使用，请更换后重试');
+		}
+		throw error;
+	}
+
+	return {
+		id: user.id,
+		username: user.username,
+		displayName: user.displayName,
+		avatarUrl: user.avatarUrl,
+		role: user.role,
+		email: user.email
+	};
 }
 
 /**
