@@ -1,1 +1,163 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 微博 UX 原型</title><link rel="stylesheet" href="prototype.css"></head><body><a class="skip" href="#main">跳到内容</a><header class="topbar"><div class="topbar__in"><a class="brand" href="index.html">睦<b>谈</b></a><nav class="channels" aria-label="频道"><a href="index.html">首页</a><a href="weibo.html" aria-current="page">微博</a><a href="forum.html">论坛</a><a href="blog.html">博客</a></nav><div class="top-actions"><button class="btn primary" data-toast="发布框已展开">发布</button><button class="theme" data-theme-toggle aria-label="切换深浅色">◐</button><span class="avatar mini">林</span></div></div></header><main class="shell" id="main"><div class="app-grid"><aside class="sidebar" aria-label="微博导航"><a class="side-link active" href="#"><span>⌂</span>为你推荐</a><a class="side-link" href="#"><span>◷</span>最新动态</a><a class="side-link" href="#"><span>◎</span>我的关注</a><div class="side-rule"></div><a class="side-link" href="profile.html"><span>◉</span>我的主页</a><a class="side-link" href="user-center.html"><span>⚙</span>用户中心</a></aside><section><header class="page-head"><div><div class="eyebrow">浏览 · 内容流</div><h1>为你推荐</h1><p>按相关度排序；切换到最新可按时间查看。</p></div></header><div class="tabs" role="tablist"><button class="active" data-tab>为你推荐</button><button data-tab>最新</button><button data-tab>关注</button></div><section class="card composer"><textarea aria-label="发布内容" placeholder="此刻想聊点什么？"></textarea><div class="composer-foot"><span>图片　话题　可见范围</span><button class="btn primary" data-toast="已模拟发布一条动态">发布</button></div></section><article class="card post"><div class="pin">◆ 置顶 · 系统公告</div><div class="post-top"><span class="avatar a-slate">睦</span><div class="post-user"><span class="name">睦谈站务</span> <span class="handle">@mutan</span><span class="time"> · 2 小时前</span><p class="post-text">我们正在整理「内容发现」的改版意见：什么会让你愿意停下来读完一条动态？欢迎留下具体场景。</p><span class="tag">社区公告</span><div class="post-actions"><button data-like>♡ <span>38</span></button><button data-toast="已定位到 12 条评论">◌ 12</button><button data-toast="链接已复制">↗ 分享</button></div></div></div></article><article class="card post"><div class="post-top"><span class="avatar a-teal">周</span><div class="post-user"><span class="name">周末读物</span> <span class="handle">@weekend</span><span class="time"> · 18 分钟前</span><p class="post-text">我喜欢这里的一点是：一条短想法可以先开始，想清楚以后再沉淀成一篇文章。两种表达都不需要抢占彼此的位置。</p><span class="tag">写作</span><span class="tag">产品</span><div class="post-actions"><button data-like>♡ <span>16</span></button><button data-toast="已打开评论">◌ 4</button><button data-toast="已收藏">◇ 收藏</button></div></div></div></article></section><aside class="right-rail"><section class="card card-pad"><h2 class="rail-title">正在讨论</h2><a class="trend" href="#"># 让新成员获得回应<small>42 条动态</small></a><a class="trend" href="#"># 设计交付如何协作<small>27 条动态</small></a><a class="trend" href="#"># 本周阅读清单<small>19 条动态</small></a></section><section class="card card-pad"><h2 class="rail-title">推荐关注</h2><div class="compact-post"><span class="avatar mini a-amber">林</span><div><span class="name">林一</span><p>@lin · 产品记录</p></div></div><button class="btn" data-toast="已关注林一">关注</button></section></aside></div></main><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 微博</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html" aria-current="page">💬 微博</a>
+      <a href="forum.html">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="app-grid">
+
+  <aside class="sidebar">
+    <a class="side-link active" href="weibo.html"><span>🏠</span>微博首页</a>
+    <a class="side-link" href="#"><span>◐</span>为你推荐</a>
+    <a class="side-link" href="#"><span>◷</span>最新动态</a>
+    <a class="side-link" href="#"><span>◎</span>我的关注</a>
+    <div class="side-rule"></div>
+    <a class="side-link" href="profile.html"><span>◉</span>我的主页</a>
+  </aside>
+
+  <section>
+    <article class="card composer">
+      <span class="avatar a-indigo">林</span>
+      <div style="flex:1">
+        <textarea placeholder="分享你的想法……"></textarea>
+        <div class="composer-actions">
+          <span style="color:var(--muted);font-size:20px;cursor:pointer">🖼️</span>
+          <button class="btn primary" data-toast="微博已发布">发布</button>
+        </div>
+      </div>
+    </article>
+
+    <div class="tabs">
+      <button data-tab class="active">推荐</button>
+      <button data-tab>最新</button>
+      <button data-tab>关注</button>
+      <button data-tab>热门</button>
+    </div>
+
+    <div class="feed">
+      <article class="card post-card">
+        <div class="post-top">
+          <span class="avatar a-teal">周</span>
+          <div class="post-user">
+            <span class="name">周末读物</span>
+            <span class="handle">@weekend · 2 小时前</span>
+          </div>
+        </div>
+        <p class="post-text">一条短想法可以先开始，想清楚以后再沉淀成一篇文章。两种表达不该抢占彼此的位置，而应当成为同一段思考的不同阶段。</p>
+        <span class="tag">写作</span><span class="tag">产品</span>
+        <div class="post-actions">
+          <button data-like>💬 <span>12</span></button>
+          <button data-like>🔁 <span>8</span></button>
+          <button data-like>❤️ <span>47</span></button>
+          <button data-like>🔖 <span>5</span></button>
+        </div>
+      </article>
+
+      <article class="card post-card">
+        <div class="post-top">
+          <span class="avatar a-rose">苏</span>
+          <div class="post-user">
+            <span class="name">苏晚</span>
+            <span class="handle">@sora · 5 小时前</span>
+          </div>
+        </div>
+        <p class="post-text">好的交互不是让用户少点几下，而是让每一下都有预期。</p>
+        <div class="post-actions">
+          <button data-like>💬 <span>6</span></button>
+          <button data-like>🔁 <span>3</span></button>
+          <button data-like>❤️ <span>22</span></button>
+          <button data-like>🔖 <span>2</span></button>
+        </div>
+      </article>
+
+      <article class="card post-card">
+        <div class="post-top">
+          <span class="avatar a-amber">墨</span>
+          <div class="post-user">
+            <span class="name">墨墨</span>
+            <span class="handle">@momo · 8 小时前</span>
+          </div>
+        </div>
+        <p class="post-text">设计系统不是组件库，是团队对「一致性」的承诺。它由决策构成，不是由代码构成。</p>
+        <span class="tag">设计系统</span>
+        <div class="post-actions">
+          <button data-like>💬 <span>9</span></button>
+          <button data-like>🔁 <span>15</span></button>
+          <button data-like>❤️ <span>63</span></button>
+          <button data-like>🔖 <span>11</span></button>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <aside class="right-rail">
+    <article class="card card-pad">
+      <div class="section-title"><span>热门话题</span></div>
+      <a href="#" style="display:block;padding:6px 0">#设计系统</a>
+      <a href="#" style="display:block;padding:6px 0">#产品体验</a>
+      <a href="#" style="display:block;padding:6px 0">#开源协作</a>
+      <a href="#" style="display:block;padding:6px 0">#写作与表达</a>
+    </article>
+    <article class="card card-pad" style="margin-top:12px">
+      <div class="section-title"><span>可能感兴趣</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+        <span class="avatar a-slate">杨</span>
+        <div style="flex:1"><b style="font-size:13px">杨青</b><br><small class="handle">@yangqing</small></div>
+        <button class="btn" data-toast="已关注">关注</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+        <span class="avatar a-teal">潮</span>
+        <div style="flex:1"><b style="font-size:13px">潮汐</b><br><small class="handle">@tide</small></div>
+        <button class="btn" data-toast="已关注">关注</button>
+      </div>
+    </article>
+  </aside>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

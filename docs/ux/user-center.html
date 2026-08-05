@@ -1,1 +1,99 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 用户中心 UX 原型</title><link rel="stylesheet" href="prototype.css"></head><body><header class="topbar"><div class="topbar__in"><a class="brand" href="index.html">睦<b>谈</b></a><nav class="channels"><a href="index.html">首页</a><a href="weibo.html">微博</a><a href="forum.html">论坛</a><a href="blog.html">博客</a></nav><div class="top-actions"><button class="theme" data-theme-toggle aria-label="切换深浅色">◐</button><span class="avatar mini">林</span></div></div></header><main class="shell"><header class="page-head"><div><div class="eyebrow">配置 · 个人账户</div><h1>用户中心</h1><p>将账户、个人资料、外观和开发者能力按任务分组；保存操作始终清晰可见。</p></div></header><div class="setting-layout"><aside class="settings-nav" aria-label="设置分区"><button class="active" data-tab>个人资料</button><button data-tab>账户与安全</button><button data-tab>外观偏好</button><button data-tab>通知设置</button><button data-tab>API Token</button><button data-tab>Webhook</button></aside><section class="card card-pad"><div class="section-title"><span>个人资料</span><span class="handle">公开信息</span></div><div class="form-row"><div><label for="name">显示名称</label><small>会显示在帖子和评论旁。</small></div><input id="name" class="input" value="林一"></div><div class="form-row"><div><label for="bio">个人简介</label><small>最多 160 个字符。</small></div><textarea id="bio" class="input" rows="4">记录产品、写作与社区协作中的小发现。</textarea></div><div class="form-row"><div><label>头像</label><small>JPG、PNG，最大 2 MB。</small></div><div style="display:flex;gap:12px;align-items:center"><span class="avatar">林</span><button class="btn" data-toast="已打开头像选择器">更换头像</button></div></div><div class="settings-foot"><span class="handle">上次保存于今天 10:24</span><button class="btn primary" data-toast="个人资料已保存">保存更改</button></div></section></div></main><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 用户中心</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="setting-layout">
+
+  <aside class="sidebar">
+    <a class="side-link active" href="user-center.html"><span>⚙️</span>账户设置</a>
+    <a class="side-link" href="#"><span>🔔</span>通知偏好</a>
+    <a class="side-link" href="#"><span>🔒</span>隐私与可见度</a>
+    <a class="side-link" href="#"><span>🎨</span>外观主题</a>
+    <a class="side-link" href="#"><span>🔑</span>API Token</a>
+    <a class="side-link" href="#"><span>📦</span>数据导出</a>
+  </aside>
+
+  <section>
+    <h1 style="margin:0 0 4px;font-size:24px">账户设置</h1>
+    <p class="handle" style="margin:0 0 20px">管理你的个人资料与账户安全</p>
+
+    <div class="uc-grid" style="margin-bottom:20px">
+      <article class="card card-pad">
+        <div class="eyebrow">资料</div>
+        <div class="form-field"><label>显示名称</label><input value="林冲"></div>
+        <div class="form-field"><label>用户名</label><input value="linchong" disabled></div>
+        <div class="form-field"><label>简介</label><textarea rows="2">关注产品设计、工程化与团队协作。</textarea></div>
+        <button class="btn primary" data-toast="资料已保存">保存</button>
+      </article>
+
+      <article class="card card-pad">
+        <div class="eyebrow">安全</div>
+        <div class="form-field"><label>当前密码</label><input type="password" placeholder="••••••••"></div>
+        <div class="form-field"><label>新密码</label><input type="password"></div>
+        <div class="form-field"><label>确认新密码</label><input type="password"></div>
+        <button class="btn primary" data-toast="密码已更新">修改密码</button>
+      </article>
+
+      <article class="card card-pad">
+        <div class="eyebrow">偏好</div>
+        <div class="form-field"><label>默认频道</label>
+          <select><option>微博</option><option>论坛</option><option>博客</option></select>
+        </div>
+        <div class="form-field"><label>语言</label>
+          <select><option>简体中文</option><option>English</option></select>
+        </div>
+        <button class="btn primary" data-toast="偏好已保存">保存</button>
+      </article>
+    </div>
+  </section>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>
