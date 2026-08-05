@@ -8,7 +8,7 @@ import type { APIRoute } from 'astro';
 import { textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { loginUser, getUserApiTokenCount } from '@/services/auth.service';
-import { ServiceError } from '@/lib/errors';
+import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
 const statusCodeMap: Record<string, number> = {
@@ -54,9 +54,9 @@ export const POST: APIRoute = async (context) => {
 		return textResponse(
 			`ok: 该用户已有 ${tokenInfo.tokenCount} 个 API Token，但 Token 明文仅在创建时返回一次。请使用已保存的 Token，或通过 /api/tokens 创建新 Token`
 		);
-	} catch (error: any) {
-		if (error?.status === 400) {
-			return textErrorResponse(error.message, 400);
+	} catch (error) {
+		if (getErrorStatus(error) === 400) {
+			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);
 		}
 		console.error('Agent 登录失败:', error);
 		return textErrorResponse('服务器错误', 500);

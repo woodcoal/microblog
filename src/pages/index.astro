@@ -135,80 +135,148 @@ const canShowRecommendations = !!currentUser;
 ---
 
 <HomeLayout title="首页">
-	{/* 首页标题区 */}
-	<div class="home-header">
-		<h1 class="home-title">发现</h1>
-		<p class="home-desc">
-			{currentUser ? '为你精选的全站好内容' : '全站热门内容，登录后获取个性化推荐'}
-		</p>
-	</div>
-
-	{
-		!hasPosts ? (
-			<div class="empty-state">
-				<p>还没有任何动态，注册后发第一条吧！</p>
+	<section class="home-hero" aria-labelledby="home-title">
+		<div class="home-hero-copy">
+			<p class="home-eyebrow">轻量、多元、自在</p>
+			<h1 class="home-title" id="home-title">在同一个社区，聊聊你关心的事。</h1>
+			<p class="home-lede">
+				微博记录当下，论坛展开讨论，博客沉淀观点。发现值得停留的内容，也分享你的声音。
+			</p>
+			<div class="home-hero-actions">
+				{
+					currentUser ? (
+						<a class="btn btn-primary" href="#home-feed">
+							浏览热门内容
+						</a>
+					) : (
+						<a class="btn btn-primary" href="/register">
+							加入睦谈
+						</a>
+					)
+				}
+				<a class="btn btn-outline" href="#home-channels">探索频道</a>
 			</div>
-		) : (
-			<div class="post-list">
-				{posts.map(async (post) => {
-					// 提取标签列表
-					const postTags = post.tags.map((pt) => ({
-						id: pt.tag.id,
-						name: pt.tag.name
-					}));
-					// 点赞数和评论数
-					const postLikeCount = post._count.likes;
-					const postCommentCount = post._count.comments;
-					const postLiked = likedPostIds.has(post.id);
+		</div>
+		<div class="home-preview" aria-label="睦谈内容类型">
+			<div class="home-preview-chrome" aria-hidden="true">
+				<span></span><span></span><span></span>
+			</div>
+			<div class="home-preview-item">
+				<span class="home-preview-mark">微</span>
+				<div><strong>记录此刻的想法</strong><small>短内容与即时互动</small></div>
+			</div>
+			<div class="home-preview-item">
+				<span class="home-preview-mark">论</span>
+				<div><strong>把问题聊透</strong><small>主题讨论与楼层回复</small></div>
+			</div>
+			<div class="home-preview-item">
+				<span class="home-preview-mark">博</span>
+				<div><strong>留下一篇长文</strong><small>可持续阅读与沉淀</small></div>
+			</div>
+		</div>
+	</section>
 
-					// 检查当前用户是否有权查看帖子内容
-					const isPostRestricted = !(await checkPostVisibility(
-						{
-							visibility: post.visibility,
-							userId: post.userId,
-							passwordHash: post.passwordHash,
-							allowedUserIds: post.allowedUserIds
-						},
-						currentUser ? { userId: currentUser.userId } : null,
-						{
-							isFollower: followingIds.includes(post.userId),
-							isFollowing: followerIds.includes(post.userId)
-						}
-					));
+	<section class="home-channels" id="home-channels" aria-labelledby="home-channels-title">
+		<div class="home-section-heading">
+			<div>
+				<p class="home-eyebrow">三种表达方式</p><h2 id="home-channels-title">
+					从你喜欢的方式开始
+				</h2>
+			</div>
+			<a href="/weibo">查看全部频道 <span aria-hidden="true">→</span></a>
+		</div>
+		<div class="home-channel-grid">
+			<a class="home-channel home-channel-featured" href="/weibo"
+				><span>微博</span><strong>捕捉正在发生的事</strong><p>
+					短小、及时，和朋友保持同频。
+				</p></a
+			>
+			<a class="home-channel" href="/forum"
+				><span>论坛</span><strong>让每个话题继续生长</strong><p>
+					找到同好，把观点慢慢讲清楚。
+				</p></a
+			>
+			<a class="home-channel" href="/blog"
+				><span>博客</span><strong>为值得的想法留出篇幅</strong><p>
+					阅读与写作，都有安静的空间。
+				</p></a
+			>
+		</div>
+	</section>
 
-					return (
-						<PostCard
-							post={{
-								id: post.id,
-								content: post.content,
-								createdAt: post.createdAt.toISOString(),
-								isPinned: post.isPinned,
-								isGlobalPinned: post.isGlobalPinned,
-								user: {
-									id: post.user.id,
-									username: post.user.username,
-									displayName: post.user.displayName,
-									avatarUrl: post.user.avatarUrl
-								},
-								media: post.media,
+	<section class="home-feed" id="home-feed" aria-labelledby="home-feed-title">
+		<div class="home-header">
+			<h2 id="home-feed-title">正在被讨论</h2>
+			<p>{currentUser ? '为你精选的全站好内容' : '全站热门内容，登录后获取个性化推荐'}</p>
+		</div>
+
+		{
+			!hasPosts ? (
+				<div class="empty-state">
+					<p>还没有任何动态，注册后发第一条吧！</p>
+				</div>
+			) : (
+				<div class="post-list">
+					{posts.map(async (post) => {
+						// 提取标签列表
+						const postTags = post.tags.map((pt) => ({
+							id: pt.tag.id,
+							name: pt.tag.name
+						}));
+						// 点赞数和评论数
+						const postLikeCount = post._count.likes;
+						const postCommentCount = post._count.comments;
+						const postLiked = likedPostIds.has(post.id);
+
+						// 检查当前用户是否有权查看帖子内容
+						const isPostRestricted = !(await checkPostVisibility(
+							{
 								visibility: post.visibility,
-								mode: post.mode,
-								title: post.title,
-								categoryId: post.categoryId,
-								category: post.category
-							}}
-							htmlContent={renderMarkdown(post.content)}
-							likeCount={postLikeCount}
-							liked={postLiked}
-							commentCount={postCommentCount}
-							tags={postTags}
-							isRestricted={isPostRestricted}
-						/>
-					);
-				})}
-			</div>
-		)
-	}
+								userId: post.userId,
+								passwordHash: post.passwordHash,
+								allowedUserIds: post.allowedUserIds
+							},
+							currentUser ? { userId: currentUser.userId } : null,
+							{
+								isFollower: followingIds.includes(post.userId),
+								isFollowing: followerIds.includes(post.userId)
+							}
+						));
+
+						return (
+							<PostCard
+								post={{
+									id: post.id,
+									content: post.content,
+									createdAt: post.createdAt.toISOString(),
+									isPinned: post.isPinned,
+									isGlobalPinned: post.isGlobalPinned,
+									user: {
+										id: post.user.id,
+										username: post.user.username,
+										displayName: post.user.displayName,
+										avatarUrl: post.user.avatarUrl
+									},
+									media: post.media,
+									visibility: post.visibility,
+									mode: post.mode,
+									title: post.title,
+									categoryId: post.categoryId,
+									category: post.category
+								}}
+								htmlContent={renderMarkdown(post.content)}
+								likeCount={postLikeCount}
+								liked={postLiked}
+								commentCount={postCommentCount}
+								tags={postTags}
+								isRestricted={isPostRestricted}
+							/>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
 
 	{/* 猜你喜欢 - 本地热门推荐 */}
 	{
@@ -251,23 +319,186 @@ const canShowRecommendations = !!currentUser;
 </HomeLayout>
 
 <style>
-	/* 首页标题区 */
-	.home-header {
-		margin-bottom: var(--spacing-6);
-		padding-bottom: var(--spacing-4);
-		border-bottom: 1px solid var(--color-border);
+	.home-hero {
+		display: grid;
+		grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+		gap: clamp(2.5rem, 6vw, 5rem);
+		align-items: center;
+		padding: clamp(3.5rem, 8vw, 7rem) 0 clamp(3rem, 6vw, 5rem);
+	}
+
+	.home-eyebrow {
+		margin: 0 0 var(--spacing-3);
+		color: var(--color-primary);
+		font-size: 0.8125rem;
+		font-weight: 750;
+		letter-spacing: 0.06em;
 	}
 
 	.home-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		margin: 0 0 var(--spacing-1);
+		max-width: 740px;
+		font-size: clamp(2.625rem, 5.2vw, 4.75rem);
+		font-weight: 800;
+		letter-spacing: -0.075em;
+		line-height: 1.04;
+		text-wrap: balance;
 	}
 
-	.home-desc {
-		font-size: 0.875rem;
+	.home-lede {
+		max-width: 580px;
+		margin: var(--spacing-5) 0 var(--spacing-6);
 		color: var(--color-muted);
-		margin: 0;
+		font-size: 1.125rem;
+		line-height: 1.7;
+	}
+
+	.home-hero-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+
+	.home-preview {
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+		background: var(--color-card-bg);
+		box-shadow: var(--shadow-xl);
+	}
+
+	.home-preview-chrome {
+		display: flex;
+		gap: 6px;
+		margin-bottom: var(--spacing-4);
+	}
+	.home-preview-chrome span {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: var(--color-border);
+	}
+	.home-preview-item {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr);
+		gap: var(--spacing-3);
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	.home-preview-item:first-of-type {
+		border-top: 0;
+	}
+	.home-preview-mark {
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	.home-preview-item strong,
+	.home-preview-item small {
+		display: block;
+	}
+	.home-preview-item strong {
+		font-size: 0.9375rem;
+	}
+	.home-preview-item small {
+		margin-top: 2px;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+
+	.home-channels {
+		margin: 0 calc(50% - 50vw);
+		padding: var(--spacing-10) max(var(--spacing-6), calc((100vw - var(--layout-home)) / 2));
+		background: var(--color-surface);
+		border-block: 1px solid var(--color-border);
+	}
+	.home-section-heading,
+	.home-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: end;
+		gap: var(--spacing-4);
+	}
+	.home-section-heading {
+		max-width: var(--layout-home);
+		margin: 0 auto var(--spacing-5);
+	}
+	.home-section-heading h2,
+	.home-header h2 {
+		font-size: 1.5625rem;
+		font-weight: 800;
+		letter-spacing: -0.04em;
+	}
+	.home-section-heading a {
+		font-size: 0.875rem;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+	.home-channel-grid {
+		display: grid;
+		grid-template-columns: 1.25fr 1fr 1fr;
+		gap: var(--spacing-4);
+		max-width: var(--layout-home);
+		margin: 0 auto;
+	}
+	.home-channel {
+		display: flex;
+		min-height: 178px;
+		flex-direction: column;
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-card-bg);
+		color: var(--color-text);
+	}
+	.home-channel:hover {
+		color: var(--color-text);
+		border-color: var(--color-primary);
+	}
+	.home-channel > span {
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	.home-channel strong {
+		margin: auto 0 var(--spacing-1);
+		font-size: 1.25rem;
+		letter-spacing: -0.03em;
+	}
+	.home-channel p {
+		color: var(--color-muted);
+		font-size: 0.875rem;
+		line-height: 1.6;
+	}
+	.home-channel-featured {
+		border-color: var(--color-primary);
+		background: var(--color-primary);
+		color: #fff;
+	}
+	.home-channel-featured > span,
+	.home-channel-featured p {
+		color: #fff;
+	}
+
+	.home-feed {
+		max-width: 1000px;
+		margin: 0 auto;
+		padding: var(--spacing-10) 0 0;
+	}
+	/* 首页内容流标题 */
+	.home-header {
+		margin-bottom: var(--spacing-6);
+		padding-bottom: var(--spacing-3);
+		border-bottom: 1px solid var(--color-border);
+	}
+	.home-header p {
+		color: var(--color-muted);
+		font-size: 0.875rem;
 	}
 
 	/* 猜你喜欢 - 个性化推荐区域样式 */
@@ -337,6 +568,38 @@ const canShowRecommendations = !!currentUser;
 		color: var(--color-muted);
 		margin-top: 0.125rem;
 	}
+
+	@media (max-width: 767px) {
+		.home-hero {
+			grid-template-columns: 1fr;
+			gap: var(--spacing-8);
+			padding-block: var(--spacing-10);
+		}
+		.home-title {
+			font-size: clamp(2.5rem, 13vw, 3.5rem);
+		}
+		.home-lede {
+			font-size: 1rem;
+		}
+		.home-channels {
+			margin-inline: calc(50% - 50vw);
+			padding: var(--spacing-8) var(--spacing-4);
+		}
+		.home-section-heading,
+		.home-header {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+		.home-channel-grid {
+			grid-template-columns: 1fr;
+		}
+		.home-channel {
+			min-height: 152px;
+		}
+		.home-feed {
+			padding-top: var(--spacing-8);
+		}
+	}
 </style>
 
 <script>
@@ -391,7 +654,7 @@ const canShowRecommendations = !!currentUser;
 			titleDiv.className = 'recommend-item-title';
 			// 有标题用标题，否则用内容前 80 字符
 			titleDiv.textContent =
-				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
+				item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
 
 			const metaDiv = document.createElement('div');
 			metaDiv.className = 'recommend-item-meta';

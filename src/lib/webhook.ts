@@ -20,9 +20,6 @@ export const VALID_WEBHOOK_EVENTS = [
 	'notification.mention'
 ] as const;
 
-/** Webhook 事件类型 */
-type WebhookEventType = (typeof VALID_WEBHOOK_EVENTS)[number];
-
 /**
  * Webhook 记录类型（从数据库查询的结果）
  */

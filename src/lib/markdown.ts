@@ -30,6 +30,7 @@ function isSafeUrl(value: string, image = false): boolean {
 	const normalized = value
 		.trim()
 		.replace(/&#(?:0*58|x0*3a);|&colon;/gi, ':')
+		// eslint-disable-next-line no-control-regex -- 过滤所有不可见 ASCII 控制字符。
 		.replace(/[\u0000-\u001f\u007f]/g, '');
 
 	if (image && /^data:image\/(?:png|gif|jpe?g|webp);base64,/i.test(normalized)) {

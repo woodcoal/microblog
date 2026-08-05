@@ -112,7 +112,6 @@ const relativeTime = formatRelativeTime(new Date(post.createdAt));
 
 // 帖子模式相关变量
 const postMode = post.mode || 'weibo';
-const isWeibo = postMode === 'weibo';
 const isForum = postMode === 'forum';
 const isBlog = postMode === 'blog';
 const hasTitle = !!post.title;

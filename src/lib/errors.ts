@@ -15,3 +15,21 @@ export class ServiceError extends Error {
 		this.name = 'ServiceError';
 	}
 }
+
+/** 从未知错误中安全读取 HTTP 状态码。 */
+export function getErrorStatus(error: unknown): number | undefined {
+	if (
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		typeof error.status === 'number'
+	) {
+		return error.status;
+	}
+	return undefined;
+}
+
+/** 从未知错误中安全读取可展示的消息。 */
+export function getErrorMessage(error: unknown, fallback: string): string {
+	return error instanceof Error && error.message ? error.message : fallback;
+}

@@ -160,14 +160,16 @@ export async function searchSuggest(input: SearchSuggestInput): Promise<SearchSu
 	]);
 
 	// 格式化标签数据：将 _count.posts 映射为 postCount
-	const formattedTags = (tags as any[]).map((tag) => ({
+	const formattedTags = (
+		tags as Array<{ id: string; name: string; _count?: { posts: number } }>
+	).map((tag) => ({
 		id: tag.id,
 		name: tag.name,
 		postCount: tag._count?.posts ?? 0
 	}));
 
 	// 格式化帖子数据：将 content 截取前 100 字符，createdAt 转为 ISO 字符串
-	const formattedPosts = (posts as any[]).map((post) => ({
+	const formattedPosts = posts.map((post) => ({
 		id: post.id,
 		title: post.title ?? '',
 		content: post.content.slice(0, 100),

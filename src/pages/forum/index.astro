@@ -42,21 +42,6 @@ const groups = await prisma.category.findMany({
 	}
 });
 
-// 查询没有父分组的二级分类（直接挂在根级的分类）
-const rootCategories = await prisma.category.findMany({
-	where: {
-		mode: 'forum',
-		parentId: null,
-		children: { none: {} }
-	},
-	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-	include: {
-		_count: {
-			select: { posts: true }
-		}
-	}
-});
-
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasGroups = groups.length > 0;
 ---

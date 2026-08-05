@@ -50,32 +50,6 @@ export async function hashToken(token: string): Promise<string> {
 	return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * 验证 Token 是否匹配
- *
- * 计算传入 token 的 SHA-256 哈希，与存储的 tokenHash 进行比较。
- * 使用时间安全的字符串比较（逐字符比较，避免提前返回），
- * 防止时序攻击。
- *
- * @param tokenHash - 数据库中存储的 Token 哈希
- * @param token - 待验证的 Token 明文
- * @returns 是否匹配
- */
-async function verifyApiToken(tokenHash: string, token: string): Promise<boolean> {
-	const computedHash = await hashToken(token);
-
-	// 时间安全的字符串比较：逐字符比较，不提前返回
-	if (tokenHash.length !== computedHash.length) {
-		return false;
-	}
-
-	let result = 0;
-	for (let i = 0; i < tokenHash.length; i++) {
-		result |= tokenHash.charCodeAt(i) ^ computedHash.charCodeAt(i);
-	}
-	return result === 0;
-}
-
 // ── 数据库 CRUD 操作 ──
 
 /**

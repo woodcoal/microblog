@@ -96,7 +96,9 @@ export async function createWebhook(input: CreateWebhookInput): Promise<CreateWe
 	}
 
 	// 校验事件类型合法性
-	const invalidEvents = events.filter((e) => !VALID_WEBHOOK_EVENTS.includes(e as any));
+	const invalidEvents = events.filter(
+		(e) => !VALID_WEBHOOK_EVENTS.some((validEvent) => validEvent === e)
+	);
 	if (invalidEvents.length > 0) {
 		throw new ServiceError('BAD_REQUEST', `不合法的事件类型: ${invalidEvents.join(', ')}`);
 	}
@@ -178,7 +180,9 @@ export async function updateWebhook(input: UpdateWebhookInput): Promise<UpdateWe
 		if (events.length === 0) {
 			throw new ServiceError('BAD_REQUEST', 'events 必须是非空数组');
 		}
-		const invalidEvents = events.filter((e) => !VALID_WEBHOOK_EVENTS.includes(e as any));
+		const invalidEvents = events.filter(
+			(e) => !VALID_WEBHOOK_EVENTS.some((validEvent) => validEvent === e)
+		);
 		if (invalidEvents.length > 0) {
 			throw new ServiceError('BAD_REQUEST', `不合法的事件类型: ${invalidEvents.join(', ')}`);
 		}

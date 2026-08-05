@@ -97,6 +97,15 @@ const EVENT_OPTIONS = [
 	import { actions } from 'astro:actions';
 	import { escapeHtml } from '@/lib/html';
 
+	interface WebhookItem {
+		id: string;
+		url: string;
+		secret: string;
+		events: string;
+		isActive: boolean;
+		updatedAt: string;
+	}
+
 	/** 允许的 Webhook 事件选项 */
 	const EVENT_OPTIONS = [
 		{ value: 'notification.follow', label: '关注通知' },
@@ -132,7 +141,7 @@ const EVENT_OPTIONS = [
 	 */
 	function renderList(
 		container: HTMLElement,
-		webhooks: Array<Record<string, any>>,
+		webhooks: WebhookItem[],
 		state: { editingId: string | null; deletingId: string | null }
 	) {
 		if (webhooks.length === 0) {
@@ -213,7 +222,7 @@ const EVENT_OPTIONS = [
 	document.querySelectorAll<HTMLElement>('[data-webhook-manager]').forEach((manager) => {
 		// 从 data 属性解析初始 Webhook 列表
 		const webhooksJson = manager.dataset.webhooks || '[]';
-		let webhooks: Array<Record<string, any>> = JSON.parse(webhooksJson);
+		let webhooks = JSON.parse(webhooksJson) as WebhookItem[];
 
 		// 交互状态
 		let editingId: string | null = null;

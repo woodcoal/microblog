@@ -8,7 +8,6 @@
  * - 无 JS 时：form action 提交页面刷新
  * - 有 JS 时：拦截 submit，调用 actions.toggleLike，乐观更新 + 失败回滚
  */
-import { actions } from 'astro:actions';
 
 /**
  * 组件属性
@@ -131,7 +130,7 @@ const isLiked = initialLiked;
 				);
 			} else if (result.error) {
 				// 未登录时跳转登录页
-				const errStatus = (result.error as any).status;
+				const errStatus = (result.error as { status?: number }).status;
 				if (errStatus === 401) {
 					rollback(btn, countEl, svg, prevLiked, prevCount);
 					window.location.href = '/login';

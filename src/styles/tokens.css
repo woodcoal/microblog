@@ -49,11 +49,12 @@
 	--font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 
 	/* ===== 布局 ===== */
-	--max-width: 720px;
-	--layout-content: 640px;
+	--max-width: 760px;
+	--layout-content: 760px;
 	--layout-sidebar-width: 220px;
 	--layout-sidebar-collapsed: 64px;
-	--layout-wide: 900px;
+	--layout-wide: 1320px;
+	--layout-home: 1480px;
 	--layout-gap: 1.5rem;
 	--navbar-height: 56px;
 

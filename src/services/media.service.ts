@@ -43,7 +43,7 @@ export async function uploadFile(input: UploadFileInput): Promise<UploadFileResu
 			originalName: file.name,
 			fileSize: fileStorage.fileSize
 		};
-	} catch (err: any) {
-		throw new ServiceError('BAD_REQUEST', err.message || '文件上传失败');
+	} catch (err) {
+		throw new ServiceError('BAD_REQUEST', err instanceof Error ? err.message : '文件上传失败');
 	}
 }

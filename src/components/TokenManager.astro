@@ -73,6 +73,13 @@ const { initialTokens } = Astro.props;
 	import { actions } from 'astro:actions';
 	import { escapeHtml } from '@/lib/html';
 
+	interface TokenItem {
+		id: string;
+		name: string;
+		createdAt: string;
+		lastUsedAt: string | null;
+	}
+
 	/**
 	 * 格式化日期
 	 *
@@ -91,11 +98,7 @@ const { initialTokens } = Astro.props;
 	 * @param tokens - Token 数组
 	 * @param revokingId - 正在确认撤销的 Token ID
 	 */
-	function renderList(
-		container: HTMLElement,
-		tokens: Array<Record<string, any>>,
-		revokingId: string | null
-	) {
+	function renderList(container: HTMLElement, tokens: TokenItem[], revokingId: string | null) {
 		if (tokens.length === 0) {
 			container.innerHTML = '<div class="empty-state"><p>暂无 Token</p></div>';
 			return;
@@ -133,7 +136,7 @@ const { initialTokens } = Astro.props;
 	document.querySelectorAll<HTMLElement>('[data-token-manager]').forEach((manager) => {
 		// 从 data 属性解析初始 Token 列表
 		const tokensJson = manager.dataset.tokens || '[]';
-		let tokens: Array<Record<string, any>> = JSON.parse(tokensJson);
+		let tokens = JSON.parse(tokensJson) as TokenItem[];
 
 		// 交互状态
 		let revokingId: string | null = null;

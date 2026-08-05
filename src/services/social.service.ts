@@ -153,8 +153,14 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 		// 已点赞 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
 			await deleteLike(whereClause);
-		} catch (deleteError: any) {
-			if (deleteError?.code !== 'P2025') throw deleteError;
+		} catch (deleteError) {
+			if (!(
+				typeof deleteError === 'object' &&
+				deleteError !== null &&
+				'code' in deleteError &&
+				deleteError.code === 'P2025'
+			))
+				throw deleteError;
 		}
 		liked = false;
 
@@ -269,8 +275,14 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
 		// 已关注 → 取关：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
 			await deleteFollow(followWhere);
-		} catch (deleteError: any) {
-			if (deleteError?.code !== 'P2025') throw deleteError;
+		} catch (deleteError) {
+			if (!(
+				typeof deleteError === 'object' &&
+				deleteError !== null &&
+				'code' in deleteError &&
+				deleteError.code === 'P2025'
+			))
+				throw deleteError;
 		}
 		following = false;
 
@@ -328,8 +340,14 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 		// 已收藏 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
 		try {
 			await deleteBookmark(bookmarkWhere);
-		} catch (deleteError: any) {
-			if (deleteError?.code !== 'P2025') throw deleteError;
+		} catch (deleteError) {
+			if (!(
+				typeof deleteError === 'object' &&
+				deleteError !== null &&
+				'code' in deleteError &&
+				deleteError.code === 'P2025'
+			))
+				throw deleteError;
 		}
 		bookmarked = false;
 

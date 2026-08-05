@@ -114,7 +114,7 @@ const isBookmarked = initialBookmarked;
 				}
 			} else if (result.error) {
 				// 未登录时跳转登录页
-				const errStatus = (result.error as any).status;
+				const errStatus = (result.error as { status?: number }).status;
 				if (errStatus === 401) {
 					rollback(btn, countEl, svg, prevBookmarked, prevCount);
 					window.location.href = '/login';

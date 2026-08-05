@@ -81,7 +81,7 @@ export function jsonErrorResponse(message: string, status: number = 400): Respon
  * @returns 解析后的 JSON 数据
  * @throws JSON 格式错误时抛出可被外层 catch 捕获的错误对象
  */
-export async function parseJsonBody(request: Request): Promise<any> {
+export async function parseJsonBody(request: Request): Promise<unknown> {
 	try {
 		return await request.json();
 	} catch {
