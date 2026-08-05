@@ -4,19 +4,14 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
-import { PrismaClient } from '../generated/prisma/client';
+import { prisma } from '../src/lib/db';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const DATABASE_PATH = 'prisma/agent-api-acceptance.db';
 const RUN_ID = `${Date.now()}${Math.floor(Math.random() * 10_000)}`;
 const alice = `ag_alice_${RUN_ID}`.slice(0, 20);
 const bob = `ag_bob_${RUN_ID}`.slice(0, 20);
 const password = 'agent-acceptance-password';
-const prisma = new PrismaClient({
-	adapter: new PrismaLibSql({ url: `file:./${DATABASE_PATH}` })
-});
 
 let serverOutput = '';
 let aliceToken = '';
@@ -119,7 +114,6 @@ before(async () => {
 		{
 			env: {
 				...process.env,
-				DATABASE_URL: `file:./${DATABASE_PATH}`,
 				API_RATE_LIMIT_READ: '1000',
 				API_RATE_LIMIT_WRITE: '1000',
 				API_RATE_LIMIT_UPLOAD: '1000'
@@ -147,9 +141,6 @@ after(async () => {
 	await prisma.$disconnect();
 	if (uploadedUrl.startsWith('/uploads/') && !uploadedUrl.includes('..')) {
 		await unlink(resolve('public', uploadedUrl.slice(1))).catch(() => {});
-	}
-	for (const suffix of ['', '-shm', '-wal']) {
-		await unlink(`${DATABASE_PATH}${suffix}`).catch(() => {});
 	}
 });
 

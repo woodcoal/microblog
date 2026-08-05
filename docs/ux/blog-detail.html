@@ -1,1 +1,133 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 博客文章</title><link rel="stylesheet" href="prototype.css"></head><body><header class="topbar"><div class="topbar__in"><a class="brand" href="index.html">睦<b>谈</b></a><nav class="channels"><a href="index.html">首页</a><a href="weibo.html">微博</a><a href="forum.html">论坛</a><a href="blog.html" aria-current="page">博客</a></nav><div class="top-actions"><button class="btn primary" data-toast="已进入写作草稿">写文章</button><button class="theme" data-theme-toggle aria-label="切换主题">◐</button><span class="avatar mini">林</span></div></div></header><main class="shell"><div class="detail-layout"><aside class="sidebar"><a class="side-link" href="blog.html"><span>⌂</span>编辑推荐</a><a class="side-link active" href="#"><span>◷</span>最新文章</a><a class="side-link" href="#"><span>◇</span>阅读清单</a></aside><article class="detail-main card detail-post"><a class="back-link" href="blog.html">← 返回博客</a><div class="eyebrow">产品与体验 · 编辑推荐</div><h1 style="font-size:30px;line-height:1.28;letter-spacing:-.8px;margin:5px 0 10px">从一条短动态到一篇长文：让思考有自然的生长路径</h1><div class="byline"><span class="avatar mini a-teal">周</span><span>周末读物 · 昨天</span><span>·</span><span>6 分钟阅读</span></div><div style="max-width:680px;font-size:16px;line-height:1.85;margin-top:24px"><p>短内容解决“现在想说”，长内容承担“值得反复读”。当一套社区产品把二者放在同一个语境里，用户不需要在表达之前先决定自己的想法是否足够完整。</p><h2 style="font-size:21px;margin:28px 0 8px">让内容可以继续，而不是重新开始</h2><p>短动态的价值是低门槛地记录观察。真正的断裂发生在用户想把它扩展成更完整的论证时：原来的上下文、讨论和引用都被留在了另一个入口。</p><p>一个更自然的方式，是保留内容之间的来源关系，让读者能从文章回到最初的问题，也能从动态继续读到后来形成的观点。</p></div><div class="post-actions" style="margin-top:24px"><button data-like>♡ <span>28</span></button><button data-toast="已显示 6 条回应">◌ 6</button><button data-toast="已保存到阅读清单">◇ 收藏</button><button data-toast="链接已复制">↗ 分享</button></div><section style="margin-top:26px;border-top:1px solid var(--line);padding-top:16px"><h2 style="font-size:17px">文章回应</h2><article class="comment"><span class="avatar mini a-amber">林</span><div><span class="name">林一</span> <span class="handle">· 5 分钟前</span><p>期待看到“从短帖扩写”的连续体验，也希望作者能选择是否把过程公开。</p></div></article></section></article><aside class="right-rail"><section class="card card-pad"><h2 class="rail-title">本文目录</h2><a class="trend" href="#">让内容可以继续</a><a class="trend" href="#">保留来源关系</a></section><section class="card card-pad"><h2 class="rail-title">作者</h2><div class="compact-post"><span class="avatar mini a-teal">周</span><div><span class="name">周末读物</span><p>记录内容与产品</p></div></div><button class="btn" data-toast="已关注作者">关注</button></section></aside></div></main><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 博客详情</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html">💬 论坛</a>
+      <a href="blog.html" aria-current="page">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="detail-layout">
+
+  <section>
+    <a class="back-link" href="blog.html">← 返回博客</a>
+
+    <article class="card card-pad">
+      <div class="blog-detail-head">
+        <span class="tag">设计</span>
+        <h1>从原型到上线：设计系统的取舍</h1>
+        <div class="blog-byline">
+          <span class="avatar a-indigo">花</span>
+          <b>花荣</b>
+          <span>@huayang · 2026 年 8 月 5 日 · 5 分钟阅读</span>
+        </div>
+      </div>
+
+      <div class="blog-content">
+        <p>真正难的不是把设计系统做出来，是决定什么不做。一套令牌越全，维护成本越高；越精简，覆盖场景越窄。本文记录我们在多模式社区产品里做的几个关键取舍。</p>
+
+        <h2>1. 令牌层级：三层而非两层</h2>
+        <p>我们用「语义令牌 → 主题令牌 → 原始值」三层。语义令牌（<code>--ink</code>、<code>--surface</code>）给组件用，主题令牌（<code>--bg</code>）由主题文件覆盖，原始值（<code>#1a1a2e</code>）只在主题定义里出现一次。</p>
+        <blockquote>组件永远不直接引用颜色值，只引用语义令牌——这是让多主题成立的底线。</blockquote>
+
+        <h2>2. 断点：抄 Bootstrap</h2>
+        <p>最初我们自定义了一套断点，结果每个页面都在踩不同的坑。后来直接采用 Bootstrap 5 的 <code>576/768/992/1200/1400</code>，团队心智成本立刻下降。容器宽度也跟随：<code>540/720/960/1140/1320</code>。</p>
+
+        <h2>3. 什么不做</h2>
+        <p>不做原子级 CSS 框架——项目用 UnoCSS 已经够了。不做暗色专属组件——同结构不同令牌。不做响应式字体缩放——<code>rem</code> 和 <code>clamp()</code> 只在标题用。</p>
+
+        <p style="color:var(--muted)">原型是 HTML 单文件，但令牌和断点体系与生产代码对齐，交付时前端可直接复用。</p>
+      </div>
+
+      <div class="post-actions" style="border-top:1px solid var(--line);padding-top:12px;margin-top:16px">
+        <button data-like>❤️ <span>63</span></button>
+        <button data-like>🔖 <span>18</span></button>
+        <button data-toast="分享链接已复制">🔗 分享</button>
+      </div>
+    </article>
+
+    <article class="card card-pad comment-section" style="margin-top:16px">
+      <h3 style="margin:0 0 12px">评论 (8)</h3>
+      <div class="comment-form">
+        <span class="avatar a-indigo">林</span>
+        <div style="flex:1">
+          <textarea placeholder="写下你的评论……"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px">
+            <button class="btn primary" data-toast="评论已发布">评论</button>
+          </div>
+        </div>
+      </div>
+      <ul class="comment-list" style="margin-top:8px">
+        <li class="comment-item">
+          <span class="avatar a-amber">墨</span>
+          <div class="comment-body">
+            <div class="comment-head"><b class="name">墨墨</b><span class="time">1 小时前</span></div>
+            <p class="comment-text">三层令牌那段说得太对了，我们之前两层经常出问题。</p>
+          </div>
+        </li>
+      </ul>
+    </article>
+  </section>
+
+  <aside class="right-rail">
+    <article class="card card-pad">
+      <div class="section-title"><span>作者</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="avatar a-indigo">花</span>
+        <div><b style="font-size:14px">花荣</b><br><small class="handle">@huayang</small></div>
+      </div>
+      <div style="margin-top:12px"><button class="btn primary" data-toast="已关注" style="width:100%">关注</button></div>
+    </article>
+    <article class="card card-pad" style="margin-top:12px">
+      <div class="section-title"><span>目录</span></div>
+      <a href="#" style="display:block;padding:6px 0;font-size:14px">1. 令牌层级</a>
+      <a href="#" style="display:block;padding:6px 0;font-size:14px">2. 断点</a>
+      <a href="#" style="display:block;padding:6px 0;font-size:14px">3. 什么不做</a>
+    </article>
+  </aside>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

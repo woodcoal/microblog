@@ -1,3 +1,5 @@
+-- SQLite 基线迁移；由 DATABASE_PROVIDER=sqlite 选择。
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,

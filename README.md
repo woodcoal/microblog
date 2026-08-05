@@ -19,7 +19,7 @@
 - **框架**：Astro 6（服务端渲染）
 - **前端**：Astro 组件 + React 19（Tiptap 富文本编辑器）
 - **样式**：纯 CSS（CSS 变量设计令牌，无 UI 框架依赖）
-- **数据库**：SQLite（@libsql/client，纯 JS 实现）
+- **数据库**：SQLite（libSQL）或 MySQL 8+（MariaDB connector），按环境变量切换
 - **ORM**：Prisma 7
 - **认证**：JWT（jose）+ bcryptjs
 - **部署**：Node.js standalone（默认），预留 Cloudflare 适配器
@@ -45,7 +45,7 @@ npm install
 cp .env.example .env
 # 编辑 .env，至少配置 JWT_SECRET
 
-# 初始化数据库
+# 初始化数据库（默认 SQLite；修改 DATABASE_PROVIDER=mysql 后使用 MySQL）
 npm run db:setup
 
 # 启动开发服务器
@@ -73,7 +73,9 @@ npm run pm2
 
 | 变量                 | 说明                                 | 默认值                                  |
 | -------------------- | ------------------------------------ | --------------------------------------- |
-| `DATABASE_URL`       | 数据库连接                           | `file:./prisma/dev.db`                  |
+| `DATABASE_PROVIDER`  | 数据库类型：`sqlite` 或 `mysql`      | `sqlite`                                |
+| `DATABASE_URL`       | 当前数据库连接                       | `file:./prisma/dev.db`                  |
+| `TEST_DATABASE_URL`  | API 验收测试专用连接（必须独立）     | `file:./prisma/test.db`                 |
 | `JWT_SECRET`         | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
 | `JWT_EXPIRES_DAYS`   | JWT 有效期（天）                     | `7`                                     |
 | `UPLOAD_DIR`         | 文件上传目录                         | `./uploads`                             |
@@ -97,7 +99,9 @@ src/
   services/         # 业务 Service 层
   styles/           # 样式文件
 prisma/
-  schema.prisma     # 数据库模型
+  schema.sqlite.prisma  # SQLite 数据库模型
+  schema.mysql.prisma   # MySQL 数据库模型
+  migrations/           # 按 provider 分开的基线迁移
 ```
 
 ## 常用命令
@@ -108,16 +112,20 @@ npm run build            # 构建
 npm run start            # 生产启动
 npm run db:generate      # 生成 Prisma Client
 npm run db:migrate       # 数据库迁移
+npm run db:migrate:dev   # 生成开发迁移
+npm run db:status        # 查看当前 provider 的迁移状态
 npm run db:studio        # Prisma Studio GUI
 npm run db:setup         # 一键初始化数据库
 npm run format           # 代码格式化
 ```
 
-### Prisma 迁移策略
+### 切换 SQLite / MySQL
 
-当前仓库将 Prisma 迁移压缩为单个 `prisma/migrations/0_init` 基线，适用于新建数据库；使用 `npm run db:setup` 即可完成建库、迁移和种子数据初始化。
+`DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量依次执行 `npm run db:generate`、`npm run db:migrate`，再启动应用；`npm run db:setup` 会额外写入管理员种子数据。
 
-已从旧版本部署且 `_prisma_migrations` 中仍记录了旧迁移的数据库，不能直接执行压缩后的迁移。请先备份数据库，并由维护者在确认数据库结构与当前 `prisma/schema.prisma` 一致后，将迁移记录重新基线化为 `0_init`；避免在未确认数据状态时使用 `prisma migrate reset`。
+SQLite 使用 `prisma/migrations/sqlite/0_init`，MySQL 使用 `prisma/migrations/mysql/0_init`。两个基线描述相同的数据模型，但不互相转换数据；从一种数据库迁移到另一种时请先备份并自行迁移数据，切勿对生产库使用 `prisma migrate reset`。
+
+`test:api-v1` 与 `test:api-agent` 只读取 `TEST_DATABASE_URL`。SQLite 默认使用独立文件；MySQL 必须配置独立测试库，禁止指向生产库。
 
 ## 内容模式
 

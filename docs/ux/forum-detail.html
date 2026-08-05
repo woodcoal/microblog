@@ -1,1 +1,163 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 论坛主题详情</title><link rel="stylesheet" href="prototype.css"></head><body><header class="topbar"><div class="topbar__in"><a class="brand" href="index.html">睦<b>谈</b></a><nav class="channels"><a href="index.html">首页</a><a href="weibo.html">微博</a><a href="forum.html" aria-current="page">论坛</a><a href="blog.html">博客</a></nav><div class="top-actions"><button class="btn primary" data-toast="已打开论坛发帖器">发起讨论</button><button class="theme" data-theme-toggle aria-label="切换主题">◐</button><span class="avatar mini">林</span></div></div></header><main class="shell"><div class="detail-layout"><aside class="sidebar"><a class="side-link" href="forum.html"><span>⌂</span>论坛首页</a><a class="side-link active" href="#"><span>◐</span>产品与体验</a><a class="side-link" href="#"><span>✎</span>写作与表达</a><a class="side-link" href="#"><span>⌘</span>开源协作</a></aside><section class="detail-main"><a class="back-link" href="forum.html">← 产品与体验</a><article class="card detail-post"><div class="eyebrow">产品与体验 · 讨论主题</div><h1 style="font-size:24px;line-height:1.35;margin:5px 0 16px">如何避免调研结论只停留在文档里？</h1><div class="post-top"><span class="avatar a-slate">杨</span><div class="post-user"><span class="name">杨青</span> <span class="handle">@yangqing · 今天 09:20</span><p class="post-text">我们每次访谈都会收集到不少观察，但最后往往只在汇报里出现一次。你们会怎样把结论变成团队接下来一周真正要验证的事情？</p><div class="post-actions"><button data-like>♡ <span>12</span></button><button data-toast="已订阅该主题">◎ 订阅</button><button data-toast="链接已复制">↗ 分享</button></div></div></div></article><section class="card reply-form" style="margin-top:12px"><textarea class="input" rows="3" placeholder="参与讨论，补充你的经验…" aria-label="参与讨论"></textarea><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><span class="handle">请围绕主题回答，并给出可复用的上下文。</span><button class="btn primary" data-toast="回复已模拟发布">发表回复</button></div></section><section class="card card-pad" style="margin-top:12px"><div class="section-title"><span>18 条回复</span><button class="btn" data-toast="已按最相关排序">最相关</button></div><article class="comment"><span class="avatar mini a-teal">周</span><div><span class="name">周末读物</span> <span class="handle">· 8 分钟前</span><p>我们会把每条洞察翻译成一个“下周能验证的问题”，并指定负责人。没有负责人或时间边界的结论，会明确标为背景材料。</p><span class="tag">方法</span></div></article><article class="comment"><span class="avatar mini a-amber">林</span><div><span class="name">林一</span> <span class="handle">· 2 分钟前</span><p>把调研回放放在真实决策之前也很有效：先让参与者自己判断，再回到原始证据，减少“被汇报结论说服”的惯性。</p><span class="tag">协作</span></div></article></section></section><aside class="right-rail"><section class="card card-pad"><h2 class="rail-title">主题信息</h2><p class="handle">发起于今天<br>18 条回复 · 6 位参与者</p><button class="btn" data-toast="已关注该版块">关注版块</button></section></aside></div></main><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 帖子详情</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html" aria-current="page">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="detail-layout">
+
+  <section>
+    <a class="back-link" href="forum.html">← 产品与体验</a>
+
+    <article class="card card-pad">
+      <div class="forum-post-head">
+        <div class="eyebrow">产品与体验 · 讨论主题</div>
+        <h1>如何避免调研结论只停留在文档里？</h1>
+      </div>
+
+      <div class="forum-meta">
+        <span class="avatar a-slate">杨</span>
+        <div>
+          <b style="font-size:14px">杨青</b>
+          <span class="handle">@yangqing · 今天 09:20</span>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="btn" data-toast="已关注该用户">关注</button>
+          <button class="btn" data-like>❤️ <span>48</span></button>
+          <button class="btn" data-toast="已收藏">🔖</button>
+        </div>
+      </div>
+
+      <div class="blog-content">
+        <p>我们每次访谈都会收集到不少观察，但最后往往只在汇报里出现一次。团队对问题本身是有共识的，但共识之后没有行动。</p>
+        <p>我尝试过几种方式：</p>
+        <blockquote>把每个结论转成一条 issue，并标注「需要验证」——让结论进入开发流程，而不是文档归档。</blockquote>
+        <p>问题在于：当 issue 多了以后，大家又开始忽略它们。你们会怎样把结论变成团队接下来一周真正要验证的事情？有没有更好的节奏或者仪式感？</p>
+      </div>
+
+      <div class="post-actions" style="border-top:1px solid var(--line);padding-top:12px;margin-top:16px">
+        <button data-like>💬 <span>32</span></button>
+        <button data-like>🔁 <span>12</span></button>
+        <button data-like>❤️ <span>48</span></button>
+        <button data-like>🔖 <span>15</span></button>
+      </div>
+    </article>
+
+    <article class="card reply-form">
+      <h3 style="margin:0 0 10px">参与讨论</h3>
+      <div style="display:flex;gap:10px">
+        <span class="avatar a-indigo">林</span>
+        <textarea placeholder="写下你的看法……"></textarea>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:8px">
+        <button class="btn primary" data-toast="回复已发布">发表回复</button>
+      </div>
+    </article>
+
+    <h3 style="margin:20px 0 12px">32 条回复</h3>
+    <ul class="reply-list">
+      <li class="reply">
+        <div class="reply-header">
+          <span class="avatar a-teal">潮</span>
+          <b style="font-size:13px">潮汐</b>
+          <span class="handle">@tide · 30 分钟前</span>
+          <span class="reply-floor">#1 楼</span>
+        </div>
+        <p class="reply-body">我们把每周结论拆成 3 条「本周验证」贴在墙上，周五复盘是否成立。成立的进入 backlog，不成立的写明原因。</p>
+        <div class="reply-actions"><button data-like>👍 8</button><button>回复</button></div>
+      </li>
+      <li class="reply">
+        <div class="reply-header">
+          <span class="avatar a-rose">苏</span>
+          <b style="font-size:13px">苏晚</b>
+          <span class="handle">@sora · 1 小时前</span>
+          <span class="reply-floor">#2 楼</span>
+        </div>
+        <p class="reply-body">关键不是工具，是有人盯着。如果 PM 自己不回头看，什么流程都会失效。</p>
+        <div class="reply-actions"><button data-like>👍 15</button><button>回复</button></div>
+      </li>
+      <li class="reply">
+        <div class="reply-header">
+          <span class="avatar a-amber">墨</span>
+          <b style="font-size:13px">墨墨</b>
+          <span class="handle">@momo · 2 小时前</span>
+          <span class="reply-floor">#3 楼</span>
+        </div>
+        <p class="reply-body">同意楼上。我们试过 Notion / Linear / 飞书任务，最后能跑起来的都是「有个人每天扫一眼」的那种。</p>
+        <div class="reply-actions"><button data-like>👍 6</button><button>回复</button></div>
+      </li>
+    </ul>
+
+    <div class="pagination">
+      <a href="#">‹</a>
+      <span>1</span><a href="#">2</a><a href="#">3</a>
+      <a href="#">›</a>
+    </div>
+  </section>
+
+  <aside class="right-rail">
+    <article class="card card-pad">
+      <div class="section-title"><span>版块</span></div>
+      <a class="side-link" href="forum.html"><span>⌂</span>论坛首页</a>
+      <a class="side-link active" href="#"><span>◐</span>产品与体验</a>
+      <a class="side-link" href="#"><span>✎</span>写作与表达</a>
+      <a class="side-link" href="#"><span>⌘</span>开源协作</a>
+    </article>
+    <article class="card card-pad" style="margin-top:12px">
+      <div class="section-title"><span>楼主</span></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="avatar a-slate">杨</span>
+        <div><b style="font-size:14px">杨青</b><br><small class="handle">@yangqing</small></div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin:10px 0 0">产品设计师，关注从研究到落地的路径。</p>
+    </article>
+  </aside>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

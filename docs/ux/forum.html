@@ -1,1 +1,145 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 论坛 UX 原型</title><link rel="stylesheet" href="prototype.css"></head><body><header class="topbar"><div class="topbar__in"><a class="brand" href="index.html">睦<b>谈</b></a><nav class="channels"><a href="index.html">首页</a><a href="weibo.html">微博</a><a href="forum.html" aria-current="page">论坛</a><a href="blog.html">博客</a></nav><div class="top-actions"><button class="btn primary" data-toast="已打开论坛发帖器">发起讨论</button><button class="theme" data-theme-toggle aria-label="切换深浅色">◐</button><span class="avatar mini">林</span></div></div></header><main class="shell"><header class="page-head"><div><div class="eyebrow">探索 · 结构化讨论</div><h1>论坛</h1><p>按话题组织的持续讨论；版块入口明确，回复上下文可追溯。</p></div></header><div class="forum-layout"><section class="stack"><section class="card forum-group"><div class="forum-head">产品与创作</div><a class="forum-item" href="#"><span class="forum-icon">◐</span><span><strong>产品与体验</strong><small>设计、研究、产品决策的具体讨论</small></span><span class="forum-count">128 帖</span></a><a class="forum-item" href="#"><span class="forum-icon">✎</span><span><strong>写作与表达</strong><small>从灵感笔记到长文编辑</small></span><span class="forum-count">86 帖</span></a></section><section class="card forum-group"><div class="forum-head">协作与技术</div><a class="forum-item" href="#"><span class="forum-icon">⌘</span><span><strong>开源协作</strong><small>贡献、维护和社区规范</small></span><span class="forum-count">64 帖</span></a><a class="forum-item" href="#"><span class="forum-icon">?</span><span><strong>问答互助</strong><small>提出清晰的问题，留下可复用的答案</small></span><span class="forum-count">203 帖</span></a></section><section class="card card-pad"><div class="section-title"><span>最近更新</span><a href="#">全部主题</a></div><div class="discussion"><div class="discussion-row"><div><a href="#">如何避免调研结论只停留在文档里？</a><p>产品与体验 · 杨青回复了此帖 · 8 分钟前</p></div><span class="forum-count">18</span></div><div class="discussion-row"><div><a href="#">新成员的第一条贡献，应该怎样被看见？</a><p>开源协作 · 4 位参与者</p></div><span class="forum-count">9</span></div></div></section></section><aside class="stack"><section class="card card-pad"><h2 class="rail-title">论坛规则</h2><p style="margin:0;color:var(--muted);font-size:13px">以问题和经验为中心；引用上下文；对结论保持开放。</p></section><section class="card card-pad"><h2 class="rail-title">我的足迹</h2><p style="margin:0;color:var(--muted);font-size:13px">2 个订阅版块<br>7 个参与中的主题</p><button class="btn" style="margin-top:12px" data-toast="订阅管理已打开">管理订阅</button></section></aside></div></main><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 论坛</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html" aria-current="page">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="forum-layout">
+
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h1 style="margin:0;font-size:24px">论坛</h1>
+      <button class="btn primary" data-toast="论坛发帖器已打开">✏️ 发起讨论</button>
+    </div>
+
+    <div class="tabs">
+      <button data-tab class="active">最新</button>
+      <button data-tab>热门</button>
+      <button data-tab>精华</button>
+      <button data-tab>求助</button>
+    </div>
+
+    <div class="feed">
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-slate topic-avatar">杨</span>
+        <div class="forum-topic-info">
+          <span class="tag">产品与体验</span>
+          <h3>如何避免调研结论只停留在文档里？</h3>
+          <div class="forum-topic-meta">
+            <span>@yangqing</span><span>· 6 分钟前</span>
+            <span>💬 32 回复</span><span>❤️ 48</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>32</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-teal topic-avatar">潮</span>
+        <div class="forum-topic-info">
+          <span class="tag">开源协作</span>
+          <h3>开源项目的社区治理模式比较</h3>
+          <div class="forum-topic-meta">
+            <span>@tide</span><span>· 2 小时前</span>
+            <span>💬 18 回复</span><span>❤️ 25</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>18</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-rose topic-avatar">苏</span>
+        <div class="forum-topic-info">
+          <span class="tag">写作与表达</span>
+          <h3>从一句话到一篇文章：思考的颗粒度怎么选？</h3>
+          <div class="forum-topic-meta">
+            <span>@sora</span><span>· 4 小时前</span>
+            <span>💬 12 回复</span><span>❤️ 31</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>12</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-amber topic-avatar">墨</span>
+        <div class="forum-topic-info">
+          <span class="tag">求助</span>
+          <h3>UnoCSS 和 Tailwind 在多主题项目里怎么选？</h3>
+          <div class="forum-topic-meta">
+            <span>@momo</span><span>· 昨天</span>
+            <span>💬 7 回复</span><span>❤️ 14</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>7</b>回复</div>
+      </a>
+    </div>
+
+    <div class="pagination">
+      <a href="#">‹</a>
+      <span>1</span><a href="#">2</a><a href="#">3</a>
+      <a href="#">›</a>
+    </div>
+  </section>
+
+  <aside class="right-rail">
+    <article class="card card-pad">
+      <div class="section-title"><span>版块</span></div>
+      <a class="side-link" href="forum.html"><span>◐</span>全部</a>
+      <a class="side-link active" href="#"><span>✦</span>产品与体验</a>
+      <a class="side-link" href="#"><span>✎</span>写作与表达</a>
+      <a class="side-link" href="#"><span>⌘</span>开源协作</a>
+      <a class="side-link" href="#"><span>❓</span>求助</a>
+    </article>
+    <article class="card card-pad" style="margin-top:12px">
+      <div class="section-title"><span>论坛规则</span></div>
+      <p style="font-size:13px;color:var(--muted);margin:0">发帖前请搜索是否已有同类讨论。尊重不同观点，用证据回应，不人身攻击。</p>
+    </article>
+  </aside>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>
