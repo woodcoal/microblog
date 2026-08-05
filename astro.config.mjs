@@ -8,6 +8,8 @@ import node from '@astrojs/node';
 // https://astro.build/config
 export default defineConfig({
 	output: 'server',
+	// 保持 Astro 6 及以前版本的完整 HTML 压缩行为，避免内联元素间距变化。
+	compressHTML: true,
 	adapter: node({
 		mode: 'standalone'
 	}),
