@@ -1,7 +1,7 @@
 {
 	"name": "mutan",
 	"type": "module",
-	"version": "1.26.605",
+	"version": "1.26.805",
 	"description": "睦谈 — 轻量级多用户微博系统",
 	"author": "MuTan",
 	"license": "MIT",
