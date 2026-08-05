@@ -128,6 +128,7 @@ const navItems = [
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
 	</head>
 	<body class="admin-body">
+		<a class="skip-link" href="#main-content">跳到主要内容</a>
 		<!-- 移动端顶部栏 -->
 		<header class="admin-mobile-header">
 			<button class="admin-sidebar-toggle" id="sidebar-toggle" aria-label="切换侧边栏">
@@ -177,7 +178,7 @@ const navItems = [
 		</aside>
 
 		<!-- 主内容区 -->
-		<main class="admin-main">
+		<main id="main-content" class="admin-main" tabindex="-1">
 			<slot />
 		</main>
 
