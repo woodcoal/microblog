@@ -614,10 +614,6 @@ const MAX_IMAGES = 9;
 		let existingMedia: ExistingMedia[] = JSON.parse(form.dataset.existingMedia || '[]');
 		/** 本次已上传文件列表 */
 		let uploadedFiles: UploadedFile[] = [];
-		/** 是否正在上传 */
-		let uploading = false;
-		/** 上传进度百分比 */
-		let uploadProgress = 0;
 		/** 是否正在提交 */
 		let loading = false;
 		/** 当前 Emoji 分类索引 */
@@ -797,7 +793,6 @@ const MAX_IMAGES = 9;
 			uploadedFiles = [];
 			fileInput.value = '';
 			attachmentInput.value = '';
-			uploadProgress = 0;
 			progressBar.style.width = '0%';
 			progressWrap.style.display = 'none';
 			hideError();
@@ -896,16 +891,12 @@ const MAX_IMAGES = 9;
 				return;
 			}
 			hideError();
-			uploading = true;
-			uploadProgress = 0;
 			progressWrap.style.display = '';
 			progressBar.style.width = '0%';
 
 			try {
 				await Promise.all(filesToUpload.map((file) => uploadFile(file, fileType)));
 			} finally {
-				uploading = false;
-				uploadProgress = 0;
 				progressWrap.style.display = 'none';
 				progressBar.style.width = '0%';
 			}
@@ -931,7 +922,7 @@ const MAX_IMAGES = 9;
 			emojiGroupLabel.textContent = cat.name;
 			emojiItems.innerHTML = cat.emojis
 				.map(
-					(emoji, i) =>
+					(emoji) =>
 						`<button type="button" class="emoji-picker-item" data-emoji="${emoji}" title="${emoji}">${emoji}</button>`
 				)
 				.join('');

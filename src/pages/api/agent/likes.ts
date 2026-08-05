@@ -8,7 +8,7 @@ import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { toggleLike as toggleLikeService, checkLikeStatus } from '@/services/social.service';
-import { ServiceError } from '@/lib/errors';
+import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
 const statusCodeMap: Record<string, number> = {
@@ -68,9 +68,9 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		return textResponse('ok');
-	} catch (error: any) {
-		if (error?.status === 400) {
-			return textErrorResponse(error.message, 400);
+	} catch (error) {
+		if (getErrorStatus(error) === 400) {
+			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);
 		}
 		console.error('点赞操作失败:', error);
 		return textErrorResponse('服务器错误', 500);

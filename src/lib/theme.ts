@@ -27,7 +27,6 @@ export const ACCENTS = [
 type ThemeId = (typeof THEMES)[number]['id'];
 
 /** 强调色 ID 联合类型，从 ACCENTS 推导 */
-type AccentId = (typeof ACCENTS)[number]['id'];
 
 /** 默认主题 */
 export const DEFAULT_THEME: ThemeId = 'light';

@@ -111,7 +111,7 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 					parentId: parentId || undefined
 				});
 				if (result.error) {
-					const errStatus = (result.error as any).status;
+					const errStatus = (result.error as { status?: number }).status;
 					if (errStatus === 401) {
 						// 未登录跳转登录页
 						window.location.href = '/login';

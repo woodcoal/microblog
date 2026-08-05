@@ -353,7 +353,7 @@ const hasCategories = categories.length > 0;
 				publishBtn.textContent = '发布中...';
 			}
 
-			const actionInput: Record<string, unknown> = {
+			const actionInput: Parameters<typeof actions.createPost>[0] = {
 				content,
 				visibility: visibilitySelect.value,
 				mode: 'blog',
@@ -365,7 +365,7 @@ const hasCategories = categories.length > 0;
 				actionInput.categoryId = categoryId;
 			}
 
-			const result = await actions.createPost(actionInput as any);
+			const result = await actions.createPost(actionInput);
 
 			if (result.error) {
 				showError(result.error.message || '发布失败');

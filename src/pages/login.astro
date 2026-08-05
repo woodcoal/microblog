@@ -130,7 +130,7 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 </style>
 
 <script>
-	import { actions, isActionError } from 'astro:actions';
+	import { actions } from 'astro:actions';
 
 	// 登录表单提交处理
 	const form = document.getElementById('login-form') as HTMLFormElement;
@@ -177,9 +177,9 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 
 				// 跳转首页
 				window.location.href = '/';
-			} catch (e: any) {
+			} catch (e) {
 				// 兜底处理意外异常
-				errorEl.textContent = e.message || '登录失败';
+				errorEl.textContent = e instanceof Error ? e.message : '登录失败';
 			} finally {
 				submitBtn.disabled = false;
 				submitBtn.textContent = '登录';

@@ -240,7 +240,7 @@ const allowRegistration = ALLOW_REGISTRATION;
 </style>
 
 <script>
-	import { actions, isActionError } from 'astro:actions';
+	import { actions } from 'astro:actions';
 
 	// 从 data 属性读取保留用户名列表（从服务端注入，包含内置 + .env 追加的保留词）
 	const form = document.getElementById('register-form') as HTMLFormElement;
@@ -405,9 +405,9 @@ const allowRegistration = ALLOW_REGISTRATION;
 					localStorage.setItem('token', result.data.token);
 				}
 				window.location.href = '/';
-			} catch (e: any) {
+			} catch (e) {
 				// ActionError 通过 e.message 获取错误信息
-				errorEl.textContent = e.message || '注册失败，请重试';
+				errorEl.textContent = e instanceof Error ? e.message : '注册失败，请重试';
 			} finally {
 				submitBtn.disabled = false;
 				submitBtn.textContent = '注册';

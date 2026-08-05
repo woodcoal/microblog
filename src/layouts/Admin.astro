@@ -71,26 +71,26 @@ const navItems = [
 		<!-- 为同源 Action/fetch 自动加入 CSRF header，并为原生表单补充隐藏字段。 -->
 		<script is:inline>
 			(function () {
-				var tokenMeta = document.querySelector('meta[name="csrf-token"]');
-				var token = tokenMeta && tokenMeta.getAttribute('content');
+				const tokenMeta = document.querySelector('meta[name="csrf-token"]');
+				const token = tokenMeta && tokenMeta.getAttribute('content');
 				if (!token) return;
 
-				var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
-				var originalFetch = window.fetch.bind(window);
+				const unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+				const originalFetch = window.fetch.bind(window);
 				window.fetch = function (input, init) {
-					var request = input instanceof Request ? input : null;
-					var targetUrl = new URL(
+					const request = input instanceof Request ? input : null;
+					const targetUrl = new URL(
 						request ? request.url : String(input),
 						window.location.href
 					);
-					var method = String(
+					const method = String(
 						(init && init.method) || (request && request.method) || 'GET'
 					).toUpperCase();
 					if (targetUrl.origin !== window.location.origin || !unsafeMethods[method]) {
 						return originalFetch(input, init);
 					}
 
-					var headers = new Headers(request ? request.headers : undefined);
+					const headers = new Headers(request ? request.headers : undefined);
 					if (init && init.headers) {
 						new Headers(init.headers).forEach(function (value, key) {
 							headers.set(key, value);
@@ -104,17 +104,17 @@ const navItems = [
 				};
 
 				document.addEventListener('submit', function (event) {
-					var form = event.target;
+					const form = event.target;
 					if (!(form instanceof HTMLFormElement)) return;
-					var method = (form.method || 'GET').toUpperCase();
+					const method = (form.method || 'GET').toUpperCase();
 					if (!unsafeMethods[method]) return;
-					var action = new URL(
+					const action = new URL(
 						form.getAttribute('action') || window.location.href,
 						window.location.href
 					);
 					if (action.origin !== window.location.origin) return;
 					if (!form.querySelector('input[name="csrf_token"]')) {
-						var input = document.createElement('input');
+						const input = document.createElement('input');
 						input.type = 'hidden';
 						input.name = 'csrf_token';
 						input.value = token;
@@ -187,7 +187,7 @@ const navItems = [
 				alert: function (message, options) {
 					options = options || {};
 					return new Promise(function (resolve) {
-						var overlay = document.createElement('div');
+						const overlay = document.createElement('div');
 						overlay.className = 'dialog-overlay';
 						overlay.innerHTML =
 							'<div class="dialog-box">' +
@@ -217,8 +217,8 @@ const navItems = [
 				confirm: function (message, options) {
 					options = options || {};
 					return new Promise(function (resolve) {
-						var overlay = document.createElement('div');
-						var confirmClass = options.danger
+						const overlay = document.createElement('div');
+						const confirmClass = options.danger
 							? 'dialog-btn dialog-btn-danger'
 							: 'dialog-btn dialog-btn-primary';
 						overlay.className = 'dialog-overlay';

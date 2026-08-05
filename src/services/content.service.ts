@@ -549,7 +549,7 @@ export async function updatePost(input: UpdatePostInput) {
 	}
 
 	// 7. mediaIds 去重
-	let dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
+	const dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
 
 	// 校验图片数量限制
 	if (dedupedMediaIds.length > 0) {

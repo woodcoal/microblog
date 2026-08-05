@@ -326,7 +326,7 @@ const seoTitle = isDeleted
 // 页面描述：帖子内容前 100 字符，去除 Markdown 标记
 const seoDescription = isDeleted
 	? '该内容已删除'
-	: post.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 100);
+	: post.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 100);
 
 // 规范链接
 const canonicalUrl = `${SITE_URL}/${post.user.username}/${post.id}`;
@@ -1125,8 +1125,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				}
 				// 删除成功，跳转到用户主页
 				window.location.href = `/${username}`;
-			} catch (e: any) {
-				await MutanDialog.alert(e.message || '删除失败');
+			} catch (e) {
+				await MutanDialog.alert(e instanceof Error ? e.message : '删除失败');
 			}
 		});
 	}
@@ -1310,11 +1310,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				const isNowPinned = result.data.pinned;
 				(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
 				pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
-			} catch (e: any) {
-				if (e.status === 401) {
+			} catch (e) {
+				const status =
+					typeof e === 'object' && e !== null && 'status' in e ? e.status : undefined;
+				if (status === 401) {
 					await MutanDialog.alert('请先登录', { title: '提示' });
 				} else {
-					await MutanDialog.alert(e.message || '操作失败');
+					await MutanDialog.alert(e instanceof Error ? e.message : '操作失败');
 				}
 			}
 		});
@@ -1393,7 +1395,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			titleDiv.className = 'post-detail-similar-item-title';
 			// 有标题用标题，否则用内容前 60 字符
 			titleDiv.textContent =
-				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 60);
+				item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 60);
 
 			const metaDiv = document.createElement('div');
 			metaDiv.className = 'post-detail-similar-item-meta';

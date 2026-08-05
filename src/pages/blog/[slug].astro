@@ -9,7 +9,7 @@ import BlogLayout from '@/layouts/BlogLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
+import { renderFullMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';

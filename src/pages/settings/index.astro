@@ -28,7 +28,6 @@ if (!currentUser) {
 
 // 当前选项卡（默认 profile）
 const tab = Astro.url.searchParams.get('tab') || 'profile';
-const validTabs = ['profile', 'security', 'appearance', 'notification', 'tokens', 'note'];
 
 // 并行查询用户设置、用户信息、Token 列表、Webhook 列表
 const [settings, user, tokens, webhooks] = await Promise.all([

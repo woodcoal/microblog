@@ -10,7 +10,7 @@
 import BlogLayout from '@/layouts/BlogLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 
@@ -92,12 +92,6 @@ const posts = await prisma.post.findMany({
 	skip,
 	take: PAGE_SIZE
 });
-
-// 查询当前用户对帖子的点赞状态
-const likedPostIds = await getLikedPostIds(
-	currentUser?.userId ?? null,
-	posts.map((p) => p.id)
-);
 
 /**
  * 从 Markdown 内容中提取纯文本摘要

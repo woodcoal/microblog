@@ -311,7 +311,7 @@ const filterOptions = [
 		btn.addEventListener('click', async () => {
 			const result = await actions.markNotificationsRead({});
 			if (result.error) {
-				const errStatus = (result.error as any).status;
+				const errStatus = (result.error as { status?: number }).status;
 				if (errStatus === 401) {
 					window.location.href = '/login';
 				} else {

@@ -9,7 +9,7 @@ import { textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { registerUser } from '@/services/auth.service';
 import { createToken } from '@/services/token.service';
-import { ServiceError } from '@/lib/errors';
+import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
 const statusCodeMap: Record<string, number> = {
@@ -52,9 +52,9 @@ export const POST: APIRoute = async (context) => {
 		});
 
 		return textResponse(`ok: ${tokenResult.token}`, 201);
-	} catch (error: any) {
-		if (error?.status === 400) {
-			return textErrorResponse(error.message, 400);
+	} catch (error) {
+		if (getErrorStatus(error) === 400) {
+			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);
 		}
 		console.error('快速注册失败:', error);
 		return textErrorResponse('服务器错误', 500);

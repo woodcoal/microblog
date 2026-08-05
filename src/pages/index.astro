@@ -654,7 +654,7 @@ const canShowRecommendations = !!currentUser;
 			titleDiv.className = 'recommend-item-title';
 			// 有标题用标题，否则用内容前 80 字符
 			titleDiv.textContent =
-				item.title || item.content.replace(/[#*`>\-\[\]()!]/g, '').slice(0, 80);
+				item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
 
 			const metaDiv = document.createElement('div');
 			metaDiv.className = 'recommend-item-meta';

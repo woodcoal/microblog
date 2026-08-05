@@ -386,7 +386,10 @@ const hasForumCategories = forumCategories.length > 0;
 			if (loading) return;
 
 			const title = forumTitleInput!.value.trim();
-			const content = (forumEditorEl as any).getContent?.() || '';
+			const content =
+				(
+					forumEditorEl as (HTMLElement & { getContent?: () => string }) | null
+				)?.getContent?.() || '';
 			const categoryId = forumCategorySelect?.value || '';
 			const visibility = forumVisibilitySelect!.value;
 
@@ -409,7 +412,7 @@ const hasForumCategories = forumCategories.length > 0;
 			loading = true;
 			hideError();
 
-			const actionInput: Record<string, unknown> = {
+			const actionInput: Parameters<typeof actions.createPost>[0] = {
 				content,
 				visibility,
 				mode: 'forum',
@@ -421,7 +424,7 @@ const hasForumCategories = forumCategories.length > 0;
 				actionInput.categoryId = categoryId;
 			}
 
-			const result = await actions.createPost(actionInput as any);
+			const result = await actions.createPost(actionInput);
 
 			if (result.error) {
 				showError(result.error.message || '发布失败');

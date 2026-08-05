@@ -439,8 +439,8 @@ const hasCategories = serializedTree.length > 0;
 				}
 			}
 			window.location.reload();
-		} catch (err: any) {
-			await MutanDialog.alert(err?.message || '操作失败');
+		} catch (err) {
+			await MutanDialog.alert(err instanceof Error ? err.message : '操作失败');
 		}
 	});
 
@@ -511,8 +511,8 @@ const hasCategories = serializedTree.length > 0;
 					return;
 				}
 				window.location.reload();
-			} catch (err: any) {
-				await MutanDialog.alert(err?.message || '删除失败');
+			} catch (err) {
+				await MutanDialog.alert(err instanceof Error ? err.message : '删除失败');
 			}
 			return;
 		}
@@ -583,8 +583,8 @@ const hasCategories = serializedTree.length > 0;
 					return;
 				}
 				window.location.reload();
-			} catch (err: any) {
-				await MutanDialog.alert(err?.message || '排序失败');
+			} catch (err) {
+				await MutanDialog.alert(err instanceof Error ? err.message : '排序失败');
 			}
 		}
 	});

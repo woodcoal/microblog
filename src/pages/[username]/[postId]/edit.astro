@@ -310,7 +310,10 @@ const hasBlogCategories = blogCategories.length > 0;
 				if (loading) return;
 
 				const title = titleInput.value.trim();
-				const content = (editorEl as any).getContent?.() || '';
+				const content =
+					(
+						editorEl as (HTMLElement & { getContent?: () => string }) | null
+					)?.getContent?.() || '';
 
 				if (!content) {
 					showError('请输入帖子内容');
@@ -325,7 +328,7 @@ const hasBlogCategories = blogCategories.length > 0;
 					content,
 					visibility: visibilitySelect.value,
 					title: title || undefined
-				} as any);
+				});
 
 				if (result.error) {
 					showError(result.error.message || '保存失败');
@@ -403,7 +406,7 @@ const hasBlogCategories = blogCategories.length > 0;
 				visibility: visibilitySelect.value,
 				title,
 				categoryId: categorySelect?.value || ''
-			} as any);
+			});
 
 			if (result.error) {
 				showError(result.error.message || '保存失败');

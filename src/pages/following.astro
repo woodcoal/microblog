@@ -97,7 +97,6 @@ const likedPostIds = await getLikedPostIds(
 					{follows.map((f) => {
 						const avatarUrl = f.following.avatarUrl;
 						const initial = f.following.displayName.charAt(0).toUpperCase();
-						const isSelf = f.following.id === currentUser.userId;
 						return (
 							<a href={`/${f.following.username}`} class="user-grid-item">
 								{avatarUrl ? (
