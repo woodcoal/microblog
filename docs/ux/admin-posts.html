@@ -1,1 +1,125 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>睦谈 · 管理后台帖子列表</title><link rel="stylesheet" href="prototype.css"></head><body class="admin-shell"><div class="admin-frame"><aside class="admin-nav"><a class="brand" href="index.html">睦<b>谈</b></a><a href="admin.html">▦ 仪表盘</a><a href="#">◉ 用户管理</a><a class="active" href="admin-posts.html">▤ 帖子管理</a><a href="#">◌ 评论管理</a><a href="#"># 标签管理</a><a href="#">□ 分类管理</a></aside><main class="admin-main"><header class="admin-head"><div><div class="eyebrow">操作 · 内容治理</div><h1>帖子管理</h1><p>筛选、审阅并处理全站内容；列表密度与操作入口在各断点保持一致。</p></div><div class="top-actions"><button class="theme" data-theme-toggle aria-label="切换主题">◐</button><span class="avatar mini">管</span></div></header><section class="card card-pad"><div class="table-tools"><input class="input" placeholder="搜索标题、作者或内容"><button class="btn" data-toast="筛选器已打开">筛选</button><button class="btn" data-toast="已导出当前列表">导出</button></div><div style="overflow:auto"><table class="table"><thead><tr><th>内容</th><th>作者 / 频道</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead><tbody><tr><td><b>如何避免调研结论只停留在文档里？</b><br><span class="handle">18 条回复 · 被举报 1 次</span></td><td>杨青<br><span class="handle">论坛 · 产品与体验</span></td><td><span class="status warn">待审核</span></td><td>今天 09:20</td><td><button class="btn" data-toast="已进入帖子审核">审核</button></td></tr><tr><td><b>从一条短动态到一篇长文</b><br><span class="handle">6 条回应 · 28 次喜欢</span></td><td>周末读物<br><span class="handle">博客</span></td><td><span class="status ok">公开</span></td><td>昨天</td><td><button class="btn" data-toast="已查看帖子详情">查看</button></td></tr><tr><td><b>我如何判断一句话是否应该留下</b><br><span class="handle">0 条举报</span></td><td>舒展<br><span class="handle">博客</span></td><td><span class="status ok">公开</span></td><td>8 月 3 日</td><td><button class="btn" data-toast="已查看帖子详情">查看</button></td></tr><tr><td><b>本周开源协作问题汇总</b><br><span class="handle">由规则自动隐藏</span></td><td>tide<br><span class="handle">微博</span></td><td><span class="status warn">已隐藏</span></td><td>8 月 2 日</td><td><button class="btn" data-toast="已进入恢复流程">恢复</button></td></tr></tbody></table></div><nav class="pagination" aria-label="分页"><button>‹</button><button class="active">1</button><button>2</button><button>3</button><button>›</button></nav></section></main></div><script src="prototype.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 帖子管理</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body>
+<div class="admin-shell">
+<div class="admin-frame">
+
+  <aside class="admin-nav">
+    <a class="brand" href="index.html">睦<b>谈</b></a>
+    <a href="admin.html">▦ 仪表盘</a>
+    <a class="active" href="admin-posts.html">▤ 帖子管理</a>
+    <a href="#">◉ 用户管理</a>
+    <a href="#">◌ 评论管理</a>
+    <a href="#">✚ 举报处理</a>
+    <a href="#"># 标签管理</a>
+    <a href="#">□ 分类管理</a>
+    <a href="index.html" style="color:var(--muted)">← 返回前台</a>
+  </aside>
+
+  <main class="admin-main">
+    <header class="admin-head">
+      <div>
+        <div class="eyebrow">内容管理</div>
+        <h1>帖子管理</h1>
+        <p>搜索、筛选、批量管理全站帖子。</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="icon-btn admin-mobile-toggle" aria-label="菜单">☰</button>
+        <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+        <button class="btn" data-toast="已导出筛选结果">导出</button>
+      </div>
+    </header>
+
+    <article class="card card-pad" style="margin-bottom:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="search" placeholder="搜索帖子内容或作者……" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)">
+        <select style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)">
+          <option>全部频道</option><option>微博</option><option>论坛</option><option>博客</option>
+        </select>
+        <select style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink)">
+          <option>全部状态</option><option>已发布</option><option>待审核</option><option>已隐藏</option><option>已删除</option>
+        </select>
+        <button class="btn primary" data-toast="筛选已应用">筛选</button>
+      </div>
+    </article>
+
+    <article class="card card-pad">
+      <div class="section-title">
+        <span>帖子列表 (共 1,248 条)</span>
+        <div style="display:flex;gap:8px">
+          <button class="btn" data-toast="已批量隐藏">批量隐藏</button>
+          <button class="btn" data-toast="已批量删除">批量删除</button>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead><tr><th><input type="checkbox"></th><th>内容</th><th>作者</th><th>频道</th><th>状态</th><th>发布时间</th><th>操作</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td style="max-width:300px">一条短想法可以先开始，想清楚以后再沉淀成文章……</td>
+            <td>@weekend</td>
+            <td><span class="tag">微博</span></td>
+            <td><span class="status ok">已发布</span></td>
+            <td class="handle">今天 10:18</td>
+            <td><button class="btn ghost" data-toast="已查看详情">查看</button> <button class="btn ghost" data-toast="已隐藏">隐藏</button></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td style="max-width:300px">如何避免调研结论只停留在文档里？</td>
+            <td>@yangqing</td>
+            <td><span class="tag">论坛</span></td>
+            <td><span class="status ok">已发布</span></td>
+            <td class="handle">今天 09:20</td>
+            <td><button class="btn ghost" data-toast="已查看详情">查看</button> <button class="btn ghost" data-toast="已隐藏">隐藏</button></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td style="max-width:300px">好的交互不是让用户少点几下……</td>
+            <td>@sora</td>
+            <td><span class="tag">微博</span></td>
+            <td><span class="status warn">待审核</span></td>
+            <td class="handle">5 小时前</td>
+            <td><button class="btn ghost" data-toast="已查看详情">查看</button> <button class="btn ghost" data-toast="已隐藏">隐藏</button></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td style="max-width:300px">从原型到上线：设计系统的取舍</td>
+            <td>@huayang</td>
+            <td><span class="tag">博客</span></td>
+            <td><span class="status ok">已发布</span></td>
+            <td class="handle">今天 08:00</td>
+            <td><button class="btn ghost" data-toast="已查看详情">查看</button> <button class="btn ghost" data-toast="已隐藏">隐藏</button></td>
+          </tr>
+          <tr>
+            <td><input type="checkbox"></td>
+            <td style="max-width:300px">开源项目的社区治理模式比较</td>
+            <td>@tide</td>
+            <td><span class="tag">论坛</span></td>
+            <td><span class="status bad">已隐藏</span></td>
+            <td class="handle">昨天</td>
+            <td><button class="btn ghost" data-toast="已查看详情">查看</button> <button class="btn ghost" data-toast="已恢复">恢复</button></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pagination">
+        <a href="#">‹</a>
+        <span>1</span><a href="#">2</a><a href="#">3</a><a href="#">…</a><a href="#">125</a>
+        <a href="#">›</a>
+      </div>
+    </article>
+  </main>
+
+</div>
+</div>
+
+<script src="prototype.js"></script>
+</body>
+</html>
