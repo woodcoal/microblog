@@ -26,13 +26,13 @@ export interface RecommendItem {
 	id: string;
 	content: string;
 	createdAt: string;
-	user: any;
-	media: any;
+	user: { id: string; username: string; displayName: string; avatarUrl: string };
+	media: Array<{ id: string; fileType: string }>;
 	visibility: string;
 	mode: string;
 	title: string | null;
 	categoryId: string | null;
-	category: any;
+	category: { id: string; name: string; slug: string; mode: string } | null;
 	tags: Array<{ id: string; name: string }>;
 	likeCount: number;
 	commentCount: number;

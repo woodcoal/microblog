@@ -16,6 +16,18 @@ import SearchSuggest from '@/components/SearchSuggest.astro';
 import { prisma } from '@/lib/db';
 import { getModeLabel } from '@/lib/config';
 
+interface PostResult {
+	id: string; content: string; createdAt: string; isPinned: boolean; isGlobalPinned: boolean;
+	likeCount: number; mode: string; title: string | null; categoryId: string | null;
+	category: { id: string; name: string; slug: string; mode: string } | null;
+	user: { id: string; username: string; displayName: string; avatarUrl: string };
+	tags: Array<{ id: string; name: string }>;
+}
+interface UserResult {
+	id: string; username: string; displayName: string; avatarUrl: string; bio: string;
+	followerCount: number; followingCount: number; postCount: number;
+}
+
 // 解析 URL 参数
 const q = Astro.url.searchParams.get('q')?.trim() || '';
 const tab = Astro.url.searchParams.get('tab') === 'users' ? 'users' : 'posts';
@@ -56,11 +68,11 @@ if (categoryIdParam) {
 }
 
 // 帖子搜索结果
-let posts: any[] = [];
+let posts: PostResult[] = [];
 let nextPostsCursor: string | null = null;
 
 // 用户搜索结果
-let users: any[] = [];
+let users: UserResult[] = [];
 let nextUsersCursor: string | null = null;
 
 if (q) {
@@ -142,7 +154,7 @@ if (q) {
 				displayName: post.user.displayName,
 				avatarUrl: post.user.avatarUrl
 			},
-			tags: post.tags.map((pt: any) => ({
+			tags: post.tags.map((pt) => ({
 				id: pt.tag.id,
 				name: pt.tag.name
 			}))

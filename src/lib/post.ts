@@ -45,12 +45,30 @@ export function findPostByIdSelect<T extends Prisma.PostSelect>(id: string, sele
  * @param select - 字段选择器（可选，与 include 互斥）
  * @returns 匹配的帖子列表
  */
+export function findPostsByIds<T extends Prisma.PostSelect>(
+	ids: string[],
+	where: Prisma.PostWhereInput | undefined,
+	include: undefined,
+	select: T
+): Promise<Array<Prisma.PostGetPayload<{ select: T }>>>;
+export function findPostsByIds<T extends Prisma.PostInclude>(
+	ids: string[],
+	where: Prisma.PostWhereInput | undefined,
+	include: T,
+	select?: undefined
+): Promise<Array<Prisma.PostGetPayload<{ include: T }>>>;
 export function findPostsByIds(
 	ids: string[],
 	where?: Prisma.PostWhereInput,
 	include?: Prisma.PostInclude,
 	select?: Prisma.PostSelect
-) {
+): Promise<Array<Prisma.PostGetPayload<Prisma.PostDefaultArgs>>>;
+export function findPostsByIds(
+	ids: string[],
+	where?: Prisma.PostWhereInput,
+	include?: Prisma.PostInclude,
+	select?: Prisma.PostSelect
+): Promise<unknown> {
 	return prisma.post.findMany({
 		where: { id: { in: ids }, ...where },
 		...(include ? { include } : {}),

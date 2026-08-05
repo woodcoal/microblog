@@ -143,6 +143,14 @@ export async function getUnreadCount(userId: string): Promise<number> {
  * @param skip - 偏移分页跳过数量（不能与 cursor 同时使用）
  * @returns 匹配的通知列表
  */
+export function findNotifications<T extends Prisma.NotificationInclude>(
+	where: Prisma.NotificationWhereInput,
+	include: T,
+	orderBy?: Prisma.NotificationOrderByWithRelationInput,
+	take?: number,
+	cursor?: string,
+	skip?: number
+): Promise<Array<Prisma.NotificationGetPayload<{ include: T }>>>;
 export function findNotifications(
 	where: Prisma.NotificationWhereInput,
 	include?: Prisma.NotificationInclude,
@@ -150,7 +158,15 @@ export function findNotifications(
 	take?: number,
 	cursor?: string,
 	skip?: number
-) {
+): Promise<Array<Prisma.NotificationGetPayload<Prisma.NotificationDefaultArgs>>>;
+export function findNotifications(
+	where: Prisma.NotificationWhereInput,
+	include?: Prisma.NotificationInclude,
+	orderBy?: Prisma.NotificationOrderByWithRelationInput,
+	take?: number,
+	cursor?: string,
+	skip?: number
+): Promise<unknown> {
 	return prisma.notification.findMany({
 		where,
 		...(include ? { include } : {}),

@@ -75,14 +75,14 @@ const initialBio = bio.trimStart();
 const initialNote = note.trimStart();
 
 // 序列化数据（将 Date 对象转为字符串，供 React 组件使用）
-const serializedTokens = tokens.map((t: any) => ({
+const serializedTokens = tokens.map((t) => ({
 	...t,
 	lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString() : null,
 	createdAt: t.createdAt.toISOString()
 }));
 
 // Webhook 列表 secret 脱敏
-const serializedWebhooks = webhooks.map((w: any) => ({
+const serializedWebhooks = webhooks.map((w) => ({
 	...w,
 	secret: w.secret.slice(0, 8) + '***',
 	createdAt: w.createdAt.toISOString(),

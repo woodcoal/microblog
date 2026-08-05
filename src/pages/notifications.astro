@@ -28,7 +28,7 @@ const url = new URL(Astro.request.url);
 const typeFilter = url.searchParams.get('type') || '';
 
 // 构建查询条件
-const where: any = { recipientId: currentUser.userId };
+const where: { recipientId: string; type?: string } = { recipientId: currentUser.userId };
 if (typeFilter && VALID_TYPES.includes(typeFilter)) {
 	where.type = typeFilter;
 }
@@ -79,7 +79,7 @@ const unreadCount = await prisma.notification.count({
 });
 
 // 序列化通知数据（将 Date 对象转为字符串，附加帖子作者用户名）
-const serializedNotifications = displayNotifications.map((n: any) => ({
+const serializedNotifications = displayNotifications.map((n) => ({
 	...n,
 	createdAt: n.createdAt.toISOString(),
 	postAuthorUsername: n.postId ? (postAuthorMap.get(n.postId) ?? null) : null
@@ -228,6 +228,16 @@ const filterOptions = [
 </style>
 
 <script>
+	interface NotificationClientItem {
+		id: string;
+		type: string;
+		postId: string | null;
+		isRead: boolean;
+		createdAt: string;
+		postAuthorUsername: string | null;
+		actor: { username: string; displayName: string; avatarUrl: string | null };
+	}
+
 	import { actions } from 'astro:actions';
 
 	/**
@@ -387,7 +397,7 @@ const filterOptions = [
 	 * @param notification - 通知数据对象（包含 postAuthorUsername）
 	 * @returns 通知项 DOM 元素
 	 */
-	function createNotificationElement(notification: any): HTMLElement {
+	function createNotificationElement(notification: NotificationClientItem): HTMLElement {
 		const typeIconMap: Record<string, string> = {
 			like: '❤️',
 			follow: '👤',

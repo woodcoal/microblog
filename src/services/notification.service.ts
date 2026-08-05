@@ -42,7 +42,19 @@ export async function getNotificationList(input: {
 	sort?: string;
 	skip?: number;
 	limit?: number;
-}): Promise<any[]> {
+}): Promise<
+	Array<{
+		id: string;
+		createdAt: Date;
+		type: string;
+		postId: string | null;
+		commentId: string | null;
+		actorId: string;
+		isRead: boolean;
+		recipientId: string;
+		actor: { username: string; displayName: string };
+	}>
+> {
 	const { recipientId, status, type, from, to, sort, skip, limit } = input;
 
 	// 构建 where 条件
@@ -189,7 +201,7 @@ export async function getNotifications(
 	}
 
 	// 构建查询条件
-	const where: any = { recipientId: userId };
+	const where: { recipientId: string; type?: string } = { recipientId: userId };
 	if (type) {
 		where.type = type;
 	}
@@ -221,17 +233,28 @@ export async function getNotifications(
 	const postIds = [...new Set(items.map((n) => n.postId).filter(Boolean))] as string[];
 	const postAuthorMap = new Map<string, string>();
 	if (postIds.length > 0) {
-		const posts = await findPostsByIds(postIds, undefined, undefined, {
-			id: true,
+		const posts = await findPostsByIds(postIds, undefined, {
 			user: { select: { username: true } }
 		});
-		for (const p of posts as any[]) {
+		for (const p of posts) {
 			postAuthorMap.set(p.id, p.user.username);
 		}
 	}
 
 	// 为每条通知附加 postAuthorUsername
-	const itemsWithAuthor: NotificationItem[] = items.map((n: any) => ({
+	const itemsWithAuthor: NotificationItem[] = (
+		items as Array<{
+			id: string;
+			type: string;
+			actorId: string;
+			recipientId: string;
+			postId: string | null;
+			commentId: string | null;
+			isRead: boolean;
+			createdAt: Date;
+			actor: NotificationItem['actor'];
+		}>
+	).map((n) => ({
 		id: n.id,
 		type: n.type,
 		actorId: n.actorId,

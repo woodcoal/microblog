@@ -31,9 +31,20 @@ async function request(path: string, init: RequestInit = {}) {
 	});
 }
 
-async function json(response: Response) {
+type ErrorResponse = { error: { code: string } };
+type OpenApiDocument = {
+	openapi: string;
+	servers: Array<{ url: string }>;
+	paths: Record<
+		string,
+		Record<string, { responses: Record<number, { content: Record<string, unknown> }> }>
+	>;
+	components: { schemas: { Post: { properties: { visibility: { enum: string[] } } } } };
+};
+
+async function json<T>(response: Response): Promise<T> {
 	assert.match(response.headers.get('content-type') ?? '', /^application\/json/);
-	return response.json() as Promise<Record<string, any>>;
+	return response.json() as Promise<T>;
 }
 
 async function waitForServer() {
@@ -109,7 +120,7 @@ before(async () => {
 			})
 		});
 		assert.equal(response.status, 201);
-		const body = await json(response);
+		const body = await json<{ username: string; email: unknown; id: string }>(response);
 		assert.equal(body.username, username);
 		assert.equal(typeof body.email, 'string');
 		if (username === alice) aliceId = body.id;
@@ -134,7 +145,7 @@ before(async () => {
 			body: JSON.stringify({ email: `${username}@example.test`, password })
 		});
 		assert.equal(response.status, 200);
-		const body = await json(response);
+		const body = await json<{ token: string }>(response);
 		assert.equal(typeof body.token, 'string');
 		if (target === 'alice') aliceToken = body.token;
 		else bobToken = body.token;
@@ -149,18 +160,23 @@ after(async () => {
 test('公开读返回 JSON 分页结构，非法分页返回统一错误体', async () => {
 	const list = await request('/api/v1/posts?page=1&pageSize=20');
 	assert.equal(list.status, 200);
-	const listBody = await json(list);
+	const listBody = await json<{
+		items: unknown[];
+		page: number;
+		pageSize: number;
+		total: number;
+	}>(list);
 	assert.deepEqual(Object.keys(listBody).sort(), ['items', 'page', 'pageSize', 'total']);
 	assert.equal(listBody.page, 1);
 	assert.equal(listBody.pageSize, 20);
 
 	const invalid = await request('/api/v1/posts?page=0');
 	assert.equal(invalid.status, 400);
-	assert.equal((await json(invalid)).error.code, 'BAD_REQUEST');
+	assert.equal((await json<ErrorResponse>(invalid)).error.code, 'BAD_REQUEST');
 });
 
 test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DTO', async () => {
-	const spec = await json(await request('/api/docs.json'));
+	const spec = await json<OpenApiDocument>(await request('/api/docs.json'));
 	assert.equal(spec.openapi, '3.0.3');
 	assert.equal(spec.servers[0].url, '/api/v1');
 	for (const [path, method] of [
@@ -199,7 +215,7 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 });
 
 test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => {
-	const spec = await json(await request('/api/docs.json?api=agent'));
+	const spec = await json<OpenApiDocument>(await request('/api/docs.json?api=agent'));
 	assert.equal(spec.openapi, '3.0.3');
 	assert.equal(spec.servers[0].url, '/api/agent');
 	for (const [path, method] of [
@@ -241,7 +257,7 @@ test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async 
 	];
 	for (const response of await Promise.all(requests)) {
 		assert.equal(response.status, 401);
-		assert.equal((await json(response)).error.code, 'UNAUTHORIZED');
+		assert.equal((await json<ErrorResponse>(response)).error.code, 'UNAUTHORIZED');
 	}
 	const cookieOnly = await request('/api/v1/posts', {
 		method: 'POST',
@@ -249,7 +265,7 @@ test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async 
 		body: JSON.stringify({ content: 'cookie must not authenticate v1 writes' })
 	});
 	assert.equal(cookieOnly.status, 401);
-	assert.equal((await json(cookieOnly)).error.code, 'UNAUTHORIZED');
+	assert.equal((await json<ErrorResponse>(cookieOnly)).error.code, 'UNAUTHORIZED');
 });
 
 test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除语义', async () => {
@@ -260,7 +276,9 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		body: JSON.stringify({ content: 'api-v1 acceptance post #qa' })
 	});
 	assert.equal(create.status, 201);
-	const created = await json(create);
+	const created = await json<{ id: string; author: { username: string }; visibility: string }>(
+		create
+	);
 	postId = created.id;
 	assert.equal(created.author.username, alice);
 	assert.equal(created.visibility, 'public');
@@ -271,7 +289,7 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		body: JSON.stringify({ content: 'not the author' })
 	});
 	assert.equal(forbiddenUpdate.status, 403);
-	assert.equal((await json(forbiddenUpdate)).error.code, 'FORBIDDEN');
+	assert.equal((await json<ErrorResponse>(forbiddenUpdate)).error.code, 'FORBIDDEN');
 
 	const update = await request(`/api/v1/posts/${postId}`, {
 		method: 'PUT',
@@ -279,11 +297,11 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		body: JSON.stringify({ content: 'api-v1 acceptance post updated #qa' })
 	});
 	assert.equal(update.status, 200);
-	assert.equal((await json(update)).isEdited, true);
+	assert.equal((await json<{ isEdited: boolean }>(update)).isEdited, true);
 
 	const detail = await request(`/api/v1/posts/${postId}`);
 	assert.equal(detail.status, 200);
-	assert.equal((await json(detail)).id, postId);
+	assert.equal((await json<{ id: string }>(detail)).id, postId);
 
 	const likeHeaders = { authorization: `Bearer ${bobToken}` };
 	for (const active of [true, false]) {
@@ -292,7 +310,7 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 			headers: likeHeaders
 		});
 		assert.equal(response.status, 200);
-		assert.equal((await json(response)).active, active);
+		assert.equal((await json<{ active: boolean }>(response)).active, active);
 	}
 
 	const comment = await request(`/api/v1/posts/${postId}/comments`, {
@@ -301,17 +319,17 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		body: JSON.stringify({ content: 'acceptance comment' })
 	});
 	assert.equal(comment.status, 201);
-	const commentId = (await json(comment)).id;
+	const commentId = (await json<{ id: string }>(comment)).id;
 	const comments = await request(`/api/v1/posts/${postId}/comments`);
 	assert.equal(comments.status, 200);
-	assert.equal((await json(comments)).items[0].id, commentId);
+	assert.equal((await json<{ items: Array<{ id: string }> }>(comments)).items[0].id, commentId);
 	for (const active of [true, false]) {
 		const response = await request(`/api/v1/comments/${commentId}/like`, {
 			method: 'PUT',
 			headers: likeHeaders
 		});
 		assert.equal(response.status, 200);
-		assert.equal((await json(response)).active, active);
+		assert.equal((await json<{ active: boolean }>(response)).active, active);
 	}
 
 	const deleteComment = await request(`/api/v1/comments/${commentId}`, {
@@ -324,7 +342,7 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		headers: likeHeaders
 	});
 	assert.equal(repeatDelete.status, 404);
-	assert.equal((await json(repeatDelete)).error.code, 'NOT_FOUND');
+	assert.equal((await json<ErrorResponse>(repeatDelete)).error.code, 'NOT_FOUND');
 
 	const deletePost = await request(`/api/v1/posts/${postId}`, {
 		method: 'DELETE',
@@ -336,7 +354,7 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 		headers: auth
 	});
 	assert.equal(repeatPostDelete.status, 404);
-	assert.equal((await json(repeatPostDelete)).error.code, 'NOT_FOUND');
+	assert.equal((await json<ErrorResponse>(repeatPostDelete)).error.code, 'NOT_FOUND');
 });
 
 test('mt_ Bearer token 与 JWT token 均可通过 /api/v1 认证', async () => {
@@ -344,7 +362,7 @@ test('mt_ Bearer token 与 JWT token 均可通过 /api/v1 认证', async () => {
 		headers: { authorization: `Bearer ${apiToken}` }
 	});
 	assert.equal(response.status, 200);
-	assert.ok(Array.isArray((await json(response)).items));
+	assert.ok(Array.isArray((await json<{ items: unknown[] }>(response)).items));
 });
 
 test('JWT Bearer 覆盖关注切换与关注时间线', async () => {
@@ -352,11 +370,11 @@ test('JWT Bearer 覆盖关注切换与关注时间线', async () => {
 	for (const active of [true, false]) {
 		const response = await request(`/api/v1/users/${alice}/follow`, { method: 'PUT', headers });
 		assert.equal(response.status, 200);
-		assert.equal((await json(response)).active, active);
+		assert.equal((await json<{ active: boolean }>(response)).active, active);
 	}
 	const timeline = await request('/api/v1/timeline/following', { headers });
 	assert.equal(timeline.status, 200);
-	assert.ok(Array.isArray((await json(timeline)).items));
+	assert.ok(Array.isArray((await json<{ items: unknown[] }>(timeline)).items));
 });
 
 test('CORS 非白名单来源与超大请求体被中间件拒绝', async () => {
@@ -364,7 +382,7 @@ test('CORS 非白名单来源与超大请求体被中间件拒绝', async () => 
 		headers: { origin: 'https://forbidden.example' }
 	});
 	assert.equal(cors.status, 403);
-	assert.equal((await json(cors)).error.code, 'FORBIDDEN');
+	assert.equal((await json<ErrorResponse>(cors)).error.code, 'FORBIDDEN');
 
 	const oversized = await request('/api/v1/posts', {
 		method: 'POST',
@@ -375,7 +393,7 @@ test('CORS 非白名单来源与超大请求体被中间件拒绝', async () => 
 		body: JSON.stringify({ content: 'x'.repeat(1_048_576) })
 	});
 	assert.equal(oversized.status, 413);
-	assert.equal((await json(oversized)).error.code, 'BAD_REQUEST');
+	assert.equal((await json<ErrorResponse>(oversized)).error.code, 'BAD_REQUEST');
 });
 
 test('同一 IP 与路由超出独立读取配额后返回 429', async () => {
@@ -386,7 +404,7 @@ test('同一 IP 与路由超出独立读取配额后返回 429', async () => {
 	}
 	const limited = await request(`/api/v1/search/posts?q=rate-limit-${RUN_ID}`);
 	assert.equal(limited.status, 429);
-	assert.equal((await json(limited)).error.code, 'BAD_REQUEST');
+	assert.equal((await json<ErrorResponse>(limited)).error.code, 'BAD_REQUEST');
 	assert.ok(Number(limited.headers.get('retry-after')) >= 1);
 });
 
@@ -408,7 +426,7 @@ test('所有 7 种产品可见性均可被创建端点接受，并保留到 DTO'
 		if (visibility === 'password') payload.password = 'visibility-secret';
 		if (visibility === 'users') {
 			const profile = await request(`/api/v1/users/${bob}`);
-			payload.allowedUserIds = [(await json(profile)).id];
+			payload.allowedUserIds = [(await json<{ id: string }>(profile)).id];
 		}
 		const response = await request('/api/v1/posts', {
 			method: 'POST',
@@ -416,7 +434,7 @@ test('所有 7 种产品可见性均可被创建端点接受，并保留到 DTO'
 			body: JSON.stringify(payload)
 		});
 		assert.equal(response.status, 201, visibility);
-		const created = await json(response);
+		const created = await json<{ visibility: string; id: string }>(response);
 		assert.equal(created.visibility, visibility);
 		visibilityPostIds[visibility] = created.id;
 	}
@@ -479,10 +497,13 @@ test('7 种可见性按 Bearer 身份读取，password 支持详情密码传递'
 		headers: { ...bobHeaders, 'x-forwarded-for': '10.10.10.10' }
 	});
 	assert.equal(passwordListResponse.status, 200);
-	const passwordList = await json(passwordListResponse);
+	const passwordList = await json<{
+		items: Array<{ id: string; content: string; isPasswordProtected: boolean }>;
+	}>(passwordListResponse);
 	const passwordPost = passwordList.items.find(
 		(post: { id: string }) => post.id === id('password')
 	);
+	assert.ok(passwordPost, 'password post should be present in the list');
 	assert.equal(passwordPost.content, '[受限内容]');
 	assert.equal(passwordPost.isPasswordProtected, true);
 	assert.equal(
@@ -496,7 +517,7 @@ test('7 种可见性按 Bearer 身份读取，password 支持详情密码传递'
 		}
 	);
 	assert.equal(passwordDetail.status, 200);
-	assert.equal((await json(passwordDetail)).content, 'visibility password');
+	assert.equal((await json<{ content: string }>(passwordDetail)).content, 'visibility password');
 
 	assert.equal(
 		(await request(`/api/v1/posts/${id('users')}`, { headers: bobHeaders })).status,
