@@ -4,6 +4,7 @@
 
 **变更类型**: 重构 / 优化 / 安全加固
 
+- 升级 Astro 至 7.1.6、`@astrojs/node` 至 11.0.3、`@astrojs/react` 至 6.0.2（两集成版本遵循 Astro 自身的独立版本号），并显式设置 `compressHTML: true` 保持既有 HTML 压缩行为。
 - 新增 `/api/v1` 版本化 JSON REST API，覆盖认证、帖子、评论、点赞、关注、时间线、搜索和标签读取；复用既有认证、Service 与全局 API 安全中间件。
 
 - 修复 `/api/v1` 可见性读取、重复删除 404 语义与 Bearer-only 鉴权；password 列表正文脱敏、详情支持 `password` 查询参数，并补齐迁移说明与 HTTP 验收矩阵。
