@@ -1,7 +1,7 @@
 /**
  * 全局请求安全中间件。
  *
- * API 路由（当前 Agent API 及预留的 v1 API）走 CORS、限流和请求体检查；
+ * Agent 与 v1 外部 API 走 CORS、限流和请求体检查；
  * 所有浏览器端 unsafe 请求（尤其 Astro Actions）走同步器 CSRF 校验。
  */
 import { defineMiddleware } from 'astro:middleware';

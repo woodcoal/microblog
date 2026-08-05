@@ -3,7 +3,7 @@
  *
  * GET /api/agent/note — 读取当前用户的个人记录（纯文本）
  * PUT /api/agent/note — 更新当前用户的个人记录
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';

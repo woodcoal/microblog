@@ -4,6 +4,8 @@
 
 **变更类型**: 重构 / 优化 / 安全加固
 
+- 将 `/api/agent` 明确为长期保留的自动化 Agent 纯文本接口：统一 Bearer-only 认证，兼容 `imageUrls`/`images` 与 `mutual` 旧别名，修复发帖错误状态映射和通知页码失效，并新增真实 HTTP 验收测试及双 API 定位文档。
+
 - 升级 Astro 至 7.1.6、`@astrojs/node` 至 11.0.3、`@astrojs/react` 至 6.0.2（两集成版本遵循 Astro 自身的独立版本号），并显式设置 `compressHTML: true` 保持既有 HTML 压缩行为。
 - 新增 `/api/v1` 版本化 JSON REST API，覆盖认证、帖子、评论、点赞、关注、时间线、搜索和标签读取；复用既有认证、Service 与全局 API 安全中间件。
 

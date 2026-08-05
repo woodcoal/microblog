@@ -5,8 +5,9 @@
  * 供所有 /api/agent/* 端点复用。
  */
 import type { APIContext } from 'astro';
-import { getUserFromRequest, type JwtPayload } from '@/lib/auth';
+import { getUserFromBearerRequest, type JwtPayload } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { ServiceError } from '@/lib/errors';
 
 // ─── 响应构建 ────────────────────────────────────────
 
@@ -40,19 +41,44 @@ export function textErrorResponse(message: string, status: number = 400): Respon
 	});
 }
 
+const SERVICE_ERROR_STATUS = {
+	BAD_REQUEST: 400,
+	UNAUTHORIZED: 401,
+	FORBIDDEN: 403,
+	NOT_FOUND: 404
+} as const;
+
+/** 将 service 与请求解析错误转换为 Agent API 的纯文本错误契约。 */
+export function handleAgentError(error: unknown, operation: string): Response {
+	if (error instanceof ServiceError) {
+		return textErrorResponse(error.message, SERVICE_ERROR_STATUS[error.code]);
+	}
+	if (
+		error instanceof Error &&
+		'status' in error &&
+		typeof error.status === 'number' &&
+		error.status >= 400 &&
+		error.status < 500
+	) {
+		return textErrorResponse(error.message, error.status);
+	}
+	console.error(`${operation}失败:`, error);
+	return textErrorResponse('服务器错误', 500);
+}
+
 // ─── 认证适配 ────────────────────────────────────────
 
 /**
  * Agent 专用认证检查
  *
- * 复用 getUserFromRequest()，但未认证时返回纯文本 401 响应，
- * 而非 JSON 格式。Agent API 全部端点均要求认证。
+ * 仅接受 Authorization: Bearer，避免外部 API 回退到浏览器 Cookie。
+ * 未认证时返回纯文本 401；Agent API 全部端点均要求认证。
  *
  * @param context - Astro APIContext
  * @returns 用户信息，未认证时返回纯文本 Response
  */
 export async function requireAgentAuth(context: APIContext): Promise<JwtPayload | Response> {
-	const user = await getUserFromRequest(context);
+	const user = await getUserFromBearerRequest(context.request);
 	if (!user) {
 		return textErrorResponse('请先登录', 401);
 	}

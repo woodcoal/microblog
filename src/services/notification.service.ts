@@ -43,7 +43,7 @@ export async function getNotificationList(input: {
 	skip?: number;
 	limit?: number;
 }): Promise<any[]> {
-	const { recipientId, status, type, from, to, sort, limit } = input;
+	const { recipientId, status, type, from, to, sort, skip, limit } = input;
 
 	// 构建 where 条件
 	const where: Record<string, unknown> = {
@@ -84,7 +84,8 @@ export async function getNotificationList(input: {
 		},
 		orderBy,
 		limit,
-		undefined
+		undefined,
+		skip
 	);
 }
 
