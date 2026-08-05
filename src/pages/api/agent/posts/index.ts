@@ -3,7 +3,7 @@
  *
  * GET  /api/agent/posts — 帖子列表（多过滤、可见度过滤、hot排序）
  * POST /api/agent/posts — 发帖
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import {
@@ -12,7 +12,8 @@ import {
 	textErrorResponse,
 	parsePagination,
 	getFollowIds,
-	formatPostListItem
+	formatPostListItem,
+	handleAgentError
 } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { getPosts, createPost } from '@/services/content.service';
@@ -94,7 +95,7 @@ export const GET: APIRoute = async (context) => {
 /**
  * 创建新帖子
  *
- * 参数：content（内容）、images（图片 URL 数组）、visibility（可见度）
+ * 参数：content（内容）、imageUrls（图片 URL 数组）、visibility（可见度）
  * Agent API 不支持 password/users 可见度。
  *
  * @param context - Astro API 上下文
@@ -107,8 +108,10 @@ export const POST: APIRoute = async (context) => {
 		const currentUser = authResult;
 
 		const body = await parseJsonBody(context.request);
-		const { content, images, visibility } = body as {
+		const { content, imageUrls, images, visibility } = body as {
 			content?: string;
+			imageUrls?: string[];
+			/** 兼容早期代码实际使用、但未正式发布的字段名。 */
 			images?: string[];
 			visibility?: string;
 		};
@@ -119,25 +122,22 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 验证并规范化可见度（完整校验由 service 层负责）
-		const vis = visibility || 'public';
+		// mutual 是早期 Agent 技能公开过的别名；产品标准名称为 following。
+		const vis = visibility === 'mutual' ? 'following' : visibility || 'public';
 		if (AGENT_UNSUPPORTED_VISIBILITIES.includes(vis)) {
 			return textErrorResponse('Agent API 不支持 password/users 可见度');
 		}
 
-		// 委托 service 层创建帖子（images URL 转换由 service 层处理）
+		// 委托 service 层创建帖子（图片 URL 转换由 service 层处理）
 		const result = await createPost({
 			userId: currentUser.userId,
 			content,
 			visibility: vis,
-			images
+			images: imageUrls ?? images
 		});
 
 		return textResponse('ok: ' + result.id, 201);
-	} catch (error: any) {
-		if (error?.status === 400) {
-			return textErrorResponse(error.message, 400);
-		}
-		console.error('创建帖子失败:', error);
-		return textErrorResponse('服务器错误', 500);
+	} catch (error) {
+		return handleAgentError(error, '创建帖子');
 	}
 };

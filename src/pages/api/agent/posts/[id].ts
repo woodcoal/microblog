@@ -2,7 +2,7 @@
  * Agent 帖子详情 API
  *
  * GET /api/agent/posts/:id — 获取帖子详情（含评论和媒体）
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse, formatPostDetail } from '@/lib/agent';

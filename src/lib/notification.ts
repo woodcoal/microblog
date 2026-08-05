@@ -140,6 +140,7 @@ export async function getUnreadCount(userId: string): Promise<number> {
  * @param orderBy - 排序规则（可选，默认按创建时间倒序）
  * @param take - 返回数量上限（可选）
  * @param cursor - 游标分页起始 ID（可选，传入后将跳过该记录）
+ * @param skip - 偏移分页跳过数量（不能与 cursor 同时使用）
  * @returns 匹配的通知列表
  */
 export function findNotifications(
@@ -147,14 +148,15 @@ export function findNotifications(
 	include?: Prisma.NotificationInclude,
 	orderBy?: Prisma.NotificationOrderByWithRelationInput,
 	take?: number,
-	cursor?: string
+	cursor?: string,
+	skip?: number
 ) {
 	return prisma.notification.findMany({
 		where,
 		...(include ? { include } : {}),
 		orderBy: orderBy ?? { createdAt: 'desc' },
 		...(take ? { take } : {}),
-		...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
+		...(cursor ? { cursor: { id: cursor }, skip: 1 } : skip ? { skip } : {})
 	});
 }
 

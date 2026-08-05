@@ -31,7 +31,8 @@
 		"format:check": "prettier --check .",
 		"lint": "npm run format:check",
 		"typecheck": "astro check",
-		"test:api-v1": "DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma generate && DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma migrate deploy && DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 node --import=tsx --test tests/api-v1.acceptance.test.ts"
+		"test:api-v1": "DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma generate && DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma migrate deploy && DATABASE_URL=file:./prisma/api-v1-acceptance.db API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 node --import=tsx --test tests/api-v1.acceptance.test.ts",
+		"test:api-agent": "DATABASE_URL=file:./prisma/agent-api-acceptance.db API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 pnpm exec prisma generate && DATABASE_URL=file:./prisma/agent-api-acceptance.db API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 pnpm exec prisma migrate deploy && DATABASE_URL=file:./prisma/agent-api-acceptance.db API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 node --import=tsx --test tests/agent-api.acceptance.test.ts"
 	},
 	"dependencies": {
 		"@astrojs/node": "^10.1.4",

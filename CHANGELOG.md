@@ -4,6 +4,8 @@
 
 **变更类型**: 重构 / 优化 / 安全加固
 
+- 将 `/api/agent` 明确为长期保留的自动化 Agent 纯文本接口：统一 Bearer-only 认证，兼容 `imageUrls`/`images` 与 `mutual` 旧别名，修复发帖错误状态映射和通知页码失效，并新增真实 HTTP 验收测试及双 API 定位文档。
+
 - 新增 `/api/v1` 版本化 JSON REST API，覆盖认证、帖子、评论、点赞、关注、时间线、搜索和标签读取；复用既有认证、Service 与全局 API 安全中间件。
 
 - 修复 `/api/v1` 可见性读取、重复删除 404 语义与 Bearer-only 鉴权；password 列表正文脱敏、详情支持 `password` 查询参数，并补齐迁移说明与 HTTP 验收矩阵。
