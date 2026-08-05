@@ -74,6 +74,12 @@ export const API_CORS_ORIGINS = (getEnv('API_CORS_ORIGINS') || 'self')
 	.map((origin) => origin.trim())
 	.filter(Boolean);
 
+/** 是否启用 /api/v1 外部 JSON API；默认启用以保持兼容。 */
+export const API_V1_ENABLED = getEnv('API_V1_ENABLED') !== 'false';
+
+/** 是否启用 /api/agent 兼容 API；默认启用以保持兼容。 */
+export const API_AGENT_ENABLED = getEnv('API_AGENT_ENABLED') !== 'false';
+
 /** API 限流窗口（秒）及按请求类型区分的上限。 */
 export const API_RATE_LIMIT_WINDOW_SECONDS = Math.max(
 	1,
