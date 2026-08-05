@@ -2,13 +2,13 @@
  * /api/v1 HTTP 验收测试。
  *
  * 使用 Node 内置 node:test 与项目已有的 tsx；测试启动真实 Astro server，
- * 因而覆盖路由、中间件、认证、DTO 和 SQLite 持久化，而非只 mock service。
+ * 因而覆盖路由、中间件、认证、DTO 和 MySQL 持久化，而非只 mock service。
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import { PrismaClient } from '../generated/prisma/client';
 
 const PORT = 4329;
@@ -25,7 +25,7 @@ let aliceId = '';
 let apiToken = '';
 const visibilityPostIds: Partial<Record<string, string>> = {};
 const prisma = new PrismaClient({
-	adapter: new PrismaLibSql({ url: 'file:./prisma/api-v1-acceptance.db' })
+	adapter: new PrismaMariaDb(process.env.DATABASE_URL!)
 });
 
 async function request(path: string, init: RequestInit = {}) {
@@ -95,7 +95,7 @@ before(async () => {
 	await stopBackgroundAstroServer();
 	await waitForServerToStop();
 	spawn('pnpm', ['exec', 'astro', 'dev', '--host', '127.0.0.1', '--port', String(PORT)], {
-		env: { ...process.env, DATABASE_URL: 'file:./prisma/api-v1-acceptance.db' },
+		env: { ...process.env },
 		stdio: 'pipe',
 		detached: process.platform !== 'win32'
 	});
