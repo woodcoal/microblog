@@ -49,6 +49,17 @@ function envNumber(key: string, defaultValue: number): number {
 /** 数据库连接字符串 */
 export const DATABASE_URL = getEnv('DATABASE_URL') ?? 'file:./dev.db';
 
+export type DatabaseProvider = 'sqlite' | 'mysql';
+
+const databaseProvider = (getEnv('DATABASE_PROVIDER') ?? 'sqlite').toLowerCase();
+
+if (databaseProvider !== 'sqlite' && databaseProvider !== 'mysql') {
+	throw new Error('DATABASE_PROVIDER 必须是 sqlite 或 mysql');
+}
+
+/** 当前 Prisma schema、迁移和 driver adapter 所使用的数据库类型。 */
+export const DATABASE_PROVIDER: DatabaseProvider = databaseProvider;
+
 /** JWT 签名密钥 */
 export const JWT_SECRET =
 	getEnv('JWT_SECRET') ??

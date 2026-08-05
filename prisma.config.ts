@@ -11,10 +11,16 @@ type Env = {
 	DATABASE_URL: string;
 };
 
+const databaseProvider = (process.env.DATABASE_PROVIDER ?? 'sqlite').toLowerCase();
+
+if (databaseProvider !== 'sqlite' && databaseProvider !== 'mysql') {
+	throw new Error('DATABASE_PROVIDER 必须是 sqlite 或 mysql');
+}
+
 export default defineConfig({
-	schema: 'prisma/schema.prisma',
+	schema: `prisma/schema.${databaseProvider}.prisma`,
 	migrations: {
-		path: 'prisma/migrations'
+		path: `prisma/migrations/${databaseProvider}`
 	},
 	datasource: {
 		url: env<Env>('DATABASE_URL')
