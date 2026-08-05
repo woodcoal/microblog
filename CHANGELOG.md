@@ -2,10 +2,10 @@
 
 ### 2026-08-05
 
-**变更类型**: 数据库迁移
+**变更类型**: 数据库迁移 / 优化
 
-- 数据库运行时从 SQLite/libSQL 切换至 MySQL，使用 Prisma MariaDB driver adapter；提供 MySQL 初始迁移、连接示例与独立验收测试库配置。
-- 既有 SQLite 数据库不会自动迁移数据；切换前请自行备份并完成数据迁移。
+- 保留 SQLite/libSQL 与 MySQL/MariaDB 两种 Prisma driver adapter，通过 `DATABASE_PROVIDER` 选择 schema、迁移和运行时连接；切换前必须备份并自行迁移数据。
+- 将 SQLite 的用户备注、分类/收藏/帖子模式和阅读记录增量迁移合并为独立 `0_init` 基线；MySQL 保留对应的独立初始基线，消除两种 provider 的迁移锁冲突。
 
 ### v1.26.805 — 2026-08-05
 

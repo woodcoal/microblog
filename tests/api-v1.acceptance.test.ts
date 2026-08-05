@@ -2,14 +2,13 @@
  * /api/v1 HTTP 验收测试。
  *
  * 使用 Node 内置 node:test 与项目已有的 tsx；测试启动真实 Astro server，
- * 因而覆盖路由、中间件、认证、DTO 和 MySQL 持久化，而非只 mock service。
+ * 因而覆盖路由、中间件、认证、DTO 和当前数据库 provider 的持久化，而非只 mock service。
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { PrismaClient } from '../generated/prisma/client';
+import { prisma } from '../src/lib/db';
 
 const PORT = 4329;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -24,9 +23,6 @@ let postId = '';
 let aliceId = '';
 let apiToken = '';
 const visibilityPostIds: Partial<Record<string, string>> = {};
-const prisma = new PrismaClient({
-	adapter: new PrismaMariaDb(process.env.DATABASE_URL!)
-});
 
 async function request(path: string, init: RequestInit = {}) {
 	return fetch(`${BASE_URL}${path}`, {

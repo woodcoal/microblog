@@ -1,3 +1,5 @@
+-- MySQL 基线迁移；由 DATABASE_PROVIDER=mysql 选择。
+
 -- CreateTable
 CREATE TABLE `User` (
     `id` VARCHAR(191) NOT NULL,

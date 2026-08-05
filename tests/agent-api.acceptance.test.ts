@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
-import { PrismaClient } from '../generated/prisma/client';
+import { prisma } from '../src/lib/db';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -13,9 +12,6 @@ const RUN_ID = `${Date.now()}${Math.floor(Math.random() * 10_000)}`;
 const alice = `ag_alice_${RUN_ID}`.slice(0, 20);
 const bob = `ag_bob_${RUN_ID}`.slice(0, 20);
 const password = 'agent-acceptance-password';
-const prisma = new PrismaClient({
-	adapter: new PrismaMariaDb(process.env.DATABASE_URL!)
-});
 
 let serverOutput = '';
 let aliceToken = '';

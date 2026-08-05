@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
 }
 
 /// 用户表
@@ -15,8 +15,8 @@ model User {
   email        String   @unique
   passwordHash String
   avatarUrl    String   @default("")
-  bio          String   @default("") @db.VarChar(2000)
-  note         String   @default("") @db.VarChar(2000) // 个人备注，仅自己可见
+  bio          String   @default("")
+  note         String   @default("")  // 个人备注，仅自己可见
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -43,19 +43,19 @@ model User {
 model Post {
   id             String    @id  // 应用层生成 8 位无规律短链
   userId         String
-  content        String    @db.LongText
+  content        String
   visibility     String    @default("public")
   passwordHash   String?   // password 可见度用
-  allowedUserIds String?   @db.Text // users 可见度用，JSON 数组
+  allowedUserIds String?   // users 可见度用，JSON 数组
   isPinned       Boolean   @default(false)   // 用户主页置顶
   isGlobalPinned Boolean   @default(false)   // 管理员全局置顶
   isLocked       Boolean   @default(false)   // 锁定：禁止编辑和评论
   lockedBy       String?   // 锁定者 ID（区分管理员/用户锁定）
-  lockReason     String?   @db.Text // 锁定理由
+  lockReason     String?   // 锁定理由
   isDeleted      Boolean   @default(false)   // 软删除
-  deleteReason   String?   @db.Text // 删除理由（管理员删除时填写）
+  deleteReason   String?   // 删除理由（管理员删除时填写）
   deletedBy      String?   // 删除者 ID
-  restoreReason  String?   @db.Text // 恢复理由（管理员恢复时填写）
+  restoreReason  String?   // 恢复理由（管理员恢复时填写）
   restoredBy     String?   // 恢复者 ID
   isEdited       Boolean   @default(false)   // 是否已编辑
   mode           String    @default("weibo")  // weibo | forum | blog — 帖子模式
@@ -81,8 +81,8 @@ model Post {
 model PostRevision {
   id            String   @id @default(cuid())
   postId        String
-  content       String   @db.LongText
-  mediaSnapshot String?  @db.Text // 快照：关联的图片/附件 ID 列表（JSON 数组）
+  content       String
+  mediaSnapshot String?  // 快照：关联的图片/附件 ID 列表（JSON 数组）
   createdAt     DateTime @default(now())
 
   post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -122,7 +122,7 @@ model Comment {
   postId    String
   userId    String
   parentId  String?  // 二级评论父 ID
-  content   String   @db.LongText
+  content   String
   isDeleted Boolean  @default(false)  // 软删除
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -269,9 +269,9 @@ model ActivityLog {
 model Webhook {
   id        String   @id @default(cuid())
   userId    String
-  url       String   @db.Text // Webhook 回调 URL
-  secret    String   @db.Text // HMAC-SHA256 签名密钥
-  events    String   @db.Text // 触发事件类型（JSON 数组）
+  url       String   // Webhook 回调 URL
+  secret    String   // HMAC-SHA256 签名密钥
+  events    String   // 触发事件类型（JSON 数组）
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
