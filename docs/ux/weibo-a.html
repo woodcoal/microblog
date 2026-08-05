@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+	<meta charset="utf-8" /><meta
+		name="viewport"
+		content="width=device-width,initial-scale=1"
+	/><title>睦谈 · 微博</title
+	><style>
+		:root {
+			--bg: #fff;
+			--s: #f8fafc;
+			--t: #1a1a2e;
+			--m: #64748b;
+			--b: #e2e8f0;
+			--p: #4f46e5;
+			font:
+				15px -apple-system,
+				BlinkMacSystemFont,
+				'Segoe UI',
+				'Noto Sans SC',
+				sans-serif;
+		}
+		* {
+			box-sizing: border-box;
+		}
+		body {
+			margin: 0;
+			background: var(--bg);
+			color: var(--t);
+		}
+		a {
+			text-decoration: none;
+			color: inherit;
+		}
+		.top {
+			height: 64px;
+			border-bottom: 1px solid var(--b);
+			display: flex;
+			align-items: center;
+			/* 顶栏操作区跟随视口，不跟随 1440px 内容容器。 */
+			padding: 0 24px;
+			gap: 28px;
+			position: sticky;
+			top: 0;
+			background: #fff;
+			z-index: 2;
+		}
+		.brand {
+			font-size: 20px;
+			font-weight: 800;
+		}
+		.brand i {
+			color: var(--p);
+			font-style: normal;
+		}
+		.channels {
+			display: flex;
+			gap: 6px;
+			flex: 1;
+		}
+		.channels a {
+			padding: 8px 10px;
+			color: var(--m);
+		}
+		.channels .on {
+			background: #eef2ff;
+			color: var(--p);
+			border-radius: 6px;
+			font-weight: 700;
+		}
+		.top-actions {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			margin-left: auto;
+		}
+		.search {
+			border: 1px solid var(--b);
+			border-radius: 6px;
+			padding: 8px 12px;
+			color: var(--m);
+			min-width: 190px;
+		}
+		.avatar {
+			display: grid;
+			place-items: center;
+			width: 32px;
+			height: 32px;
+			border-radius: 50%;
+			background: var(--p);
+			color: white;
+			font-size: 12px;
+			font-weight: bold;
+		}
+		.shell {
+			max-width: 1440px;
+			margin: auto;
+			padding: 32px 24px 80px;
+			display: grid;
+			grid-template-columns: 224px 720px 272px;
+			gap: 32px;
+			justify-content: center;
+		}
+		.side a {
+			display: block;
+			padding: 11px;
+			border-radius: 6px;
+			margin: 2px 0;
+		}
+		.side a.on {
+			background: #eef2ff;
+			color: var(--p);
+			font-weight: 700;
+		}
+		.side small {
+			display: block;
+			color: var(--m);
+			margin: 22px 11px 6px;
+			text-transform: uppercase;
+		}
+		.head {
+			display: flex;
+			justify-content: space-between;
+			align-items: end;
+			margin-bottom: 16px;
+		}
+		.head h1 {
+			margin: 0;
+			font-size: 28px;
+		}
+		.head p {
+			color: var(--m);
+			margin: 4px 0;
+		}
+		.button {
+			background: var(--p);
+			color: white;
+			border: 0;
+			border-radius: 6px;
+			padding: 10px 15px;
+			font-weight: 700;
+		}
+		.compose,
+		.post,
+		.aside {
+			border: 1px solid var(--b);
+			border-radius: 10px;
+			padding: 16px;
+			margin-bottom: 12px;
+		}
+		.compose {
+			color: var(--m);
+			background: var(--s);
+		}
+		.posthead {
+			display: flex;
+			gap: 10px;
+			align-items: center;
+		}
+		.post p {
+			line-height: 1.65;
+			margin: 12px 0;
+		}
+		.meta,
+		.actions,
+		.aside p {
+			color: var(--m);
+			font-size: 13px;
+		}
+		.actions {
+			display: flex;
+			gap: 22px;
+		}
+		.aside h2 {
+			font-size: 13px;
+			margin: 0 0 10px;
+		}
+		.topic {
+			padding: 12px 0;
+			border-top: 1px solid var(--b);
+			font-size: 14px;
+		}
+		.topic:first-of-type {
+			border: 0;
+		}
+		@media (min-width: 768px) and (max-width: 1199px) {
+			.shell {
+				grid-template-columns: 64px minmax(0, 1fr);
+				gap: 16px;
+				padding-right: 16px;
+				padding-left: 16px;
+			}
+			.aside {
+				display: none;
+			}
+			.side a {
+				font-size: 0;
+				text-align: center;
+			}
+			.side a:first-letter {
+				font-size: 18px;
+			}
+		}
+		@media (max-width: 767px) {
+			.top {
+				height: 56px;
+				padding: 0 14px;
+			}
+			.channels {
+				display: none;
+			}
+			.search {
+				min-width: 0;
+				width: 40px;
+				font-size: 0;
+				border: 0;
+			}
+			.search:before {
+				content: '⌕';
+				font-size: 24px;
+			}
+			.shell {
+				display: block;
+				padding: 20px 14px 80px;
+			}
+			.side {
+				display: none;
+			}
+			.head h1 {
+				font-size: 24px;
+			}
+			.bottom {
+				display: flex !important;
+				position: fixed;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				background: #fff;
+				border-top: 1px solid var(--b);
+				justify-content: space-around;
+				padding: 7px;
+			}
+			.bottom a {
+				padding: 10px;
+				font-size: 12px;
+			}
+			.bottom a:first-child {
+				color: var(--p);
+				font-weight: 700;
+			}
+		}
+		.bottom {
+			display: none;
+		}
+	</style>
+	<body>
+		<header class="top">
+			<a class="brand">睦<i>谈</i></a>
+			<nav class="channels"><a>首页</a><a class="on">微博</a><a>论坛</a><a>博客</a></nav>
+			<div class="top-actions" aria-label="全局操作">
+				<div class="search">搜索睦谈</div>
+				<span>◐</span><span>♢</span><span class="avatar">木</span>
+			</div>
+		</header>
+		<main class="shell">
+			<nav class="side">
+				<small>微博</small><a class="on">⌂ 推荐</a><a>◷ 最新</a><a>◌ 关注</a><a>◇ 收藏</a>
+			</nav>
+			<section>
+				<div class="head">
+					<div>
+						<h1>推荐</h1>
+						<p>来自你关注的人与正在发生的讨论</p>
+					</div>
+					<button class="button">发布</button>
+				</div>
+				<div class="compose">分享此刻的想法…</div>
+				<article class="post">
+					<div class="posthead">
+						<span class="avatar">林</span>
+						<div>
+							<b>林冲</b>
+							<div class="meta">12 分钟前 · 微博</div>
+						</div>
+					</div>
+					<p>
+						真正好用的信息流不必填满屏幕。阅读主列保持克制，辅助栏只在需要发现更多话题时出现。
+					</p>
+					<div class="actions">回复 12　转发 8　喜欢 46</div>
+				</article>
+				<article class="post">
+					<div class="posthead">
+						<span class="avatar">花</span>
+						<div>
+							<b>花荣</b>
+							<div class="meta">38 分钟前 · 微博</div>
+						</div>
+					</div>
+					<p>本周新功能的三点观察，欢迎聊聊你最期待哪一项。</p>
+					<div class="actions">回复 4　转发 2　喜欢 18</div>
+				</article>
+			</section>
+			<aside>
+				<div class="aside">
+					<h2>正在讨论</h2>
+					<div class="topic">
+						如何让小社区的讨论持续发生？
+						<p>论坛 · 28 回复</p>
+					</div>
+					<div class="topic">
+						长文阅读的最佳行宽
+						<p>博客 · 12 讨论</p>
+					</div>
+				</div>
+			</aside>
+		</main>
+		<nav class="bottom"><a>首页</a><a>频道</a><a>发布</a><a>通知</a><a>我的</a></nav>
+	</body>
+</html>
