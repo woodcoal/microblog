@@ -113,6 +113,12 @@ npm run db:setup         # 一键初始化数据库
 npm run format           # 代码格式化
 ```
 
+### Prisma 迁移策略
+
+当前仓库将 Prisma 迁移压缩为单个 `prisma/migrations/0_init` 基线，适用于新建数据库；使用 `npm run db:setup` 即可完成建库、迁移和种子数据初始化。
+
+已从旧版本部署且 `_prisma_migrations` 中仍记录了旧迁移的数据库，不能直接执行压缩后的迁移。请先备份数据库，并由维护者在确认数据库结构与当前 `prisma/schema.prisma` 一致后，将迁移记录重新基线化为 `0_init`；避免在未确认数据状态时使用 `prisma migrate reset`。
+
 ## 内容模式
 
 通过 `SITE_MODES` 环境变量控制：
