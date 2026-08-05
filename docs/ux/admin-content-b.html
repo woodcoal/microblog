@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 后台帖子管理</title>
+		<style>
+			:root {
+				--bg: #f7f8fa;
+				--card: #fff;
+				--ink: #1f2937;
+				--muted: #6b7280;
+				--line: #e5e7eb;
+				--side: #f1f3f5;
+				--primary: #4f46e5;
+				--soft: #eef2ff;
+				--font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+			}
+			[data-theme='dark'] {
+				--bg: #111827;
+				--card: #1f2937;
+				--ink: #e5e7eb;
+				--muted: #9ca3af;
+				--line: #374151;
+				--side: #18212f;
+				--primary: #818cf8;
+				--soft: #252b52;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--ink);
+				font: 14px/1.5 var(--font);
+			}
+			button,
+			input,
+			select {
+				font: inherit;
+			}
+			button:focus-visible,
+			input:focus-visible,
+			select:focus-visible {
+				outline: 3px solid var(--primary);
+				outline-offset: 2px;
+			}
+			.app {
+				min-height: 100vh;
+				display: grid;
+				grid-template-columns: 224px minmax(0, 1fr);
+			}
+			.side {
+				padding: 22px 12px;
+				background: var(--side);
+				border-right: 1px solid var(--line);
+			}
+			.brand {
+				display: block;
+				margin: 0 10px 26px;
+				font-size: 20px;
+				font-weight: 800;
+				letter-spacing: -0.05em;
+			}
+			.brand b {
+				color: var(--primary);
+			}
+			.side a {
+				display: block;
+				margin: 2px 0;
+				padding: 10px;
+				border-radius: 6px;
+				color: var(--muted);
+				text-decoration: none;
+			}
+			.side a.on {
+				background: var(--card);
+				color: var(--ink);
+				font-weight: 750;
+			}
+			.main {
+				min-width: 0;
+			}
+			.head {
+				min-height: 64px;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 0 16px;
+				border-bottom: 1px solid var(--line);
+				background: var(--card);
+			}
+			.crumb {
+				color: var(--muted);
+			}
+			.tools {
+				margin-left: auto;
+				display: flex;
+				gap: 8px;
+				align-items: center;
+			}
+			.theme,
+			.icon,
+			.btn {
+				min-height: 34px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				padding: 0 10px;
+				background: var(--card);
+				color: var(--ink);
+			}
+			.btn.primary {
+				border-color: var(--primary);
+				background: var(--primary);
+				color: #fff;
+				font-weight: 750;
+			}
+			.avatar {
+				width: 32px;
+				height: 32px;
+				display: grid;
+				place-items: center;
+				border-radius: 50%;
+				background: var(--primary);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.content {
+				max-width: 1400px;
+				padding: 30px 28px;
+				margin: auto;
+			}
+			.title {
+				display: flex;
+				align-items: flex-start;
+				justify-content: space-between;
+				margin-bottom: 22px;
+			}
+			.title h1 {
+				margin: 0;
+				font-size: 26px;
+				letter-spacing: -0.04em;
+			}
+			.title p {
+				margin: 4px 0 0;
+				color: var(--muted);
+			}
+			.panel {
+				margin: 14px 0;
+				padding: 18px;
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: var(--card);
+			}
+			.filters {
+				display: flex;
+				gap: 10px;
+				flex-wrap: wrap;
+			}
+			.filters input {
+				min-width: 220px;
+				flex: 1;
+			}
+			.filters input,
+			.filters select {
+				height: 38px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				padding: 0 10px;
+				background: var(--card);
+				color: var(--ink);
+			}
+			.bar {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				margin-bottom: 12px;
+			}
+			.bar b {
+				font-size: 16px;
+			}
+			.table-wrap {
+				overflow: auto;
+			}
+			.table {
+				width: 100%;
+				min-width: 790px;
+				border-collapse: collapse;
+			}
+			.table th,
+			.table td {
+				padding: 13px 10px;
+				border-bottom: 1px solid var(--line);
+				text-align: left;
+				vertical-align: middle;
+			}
+			.table th {
+				color: var(--muted);
+				font-size: 12px;
+				font-weight: 750;
+			}
+			.table td:nth-child(2) {
+				max-width: 330px;
+			}
+			.tag,
+			.state {
+				display: inline-block;
+				border-radius: 99px;
+				padding: 3px 7px;
+				font-size: 12px;
+			}
+			.tag {
+				background: var(--soft);
+				color: var(--primary);
+			}
+			.state.ok {
+				background: #ecfdf5;
+				color: #047857;
+			}
+			.state.wait {
+				background: #fffbeb;
+				color: #b45309;
+			}
+			.state.hide {
+				background: #f3f4f6;
+				color: #6b7280;
+			}
+			.row-btn {
+				border: 0;
+				background: transparent;
+				color: var(--primary);
+				font-weight: 700;
+			}
+			.pager {
+				display: flex;
+				justify-content: flex-end;
+				gap: 5px;
+				margin-top: 16px;
+			}
+			.pager button {
+				width: 32px;
+				height: 32px;
+				border: 1px solid var(--line);
+				border-radius: 5px;
+				background: var(--card);
+				color: var(--muted);
+			}
+			.pager button.on {
+				border-color: var(--primary);
+				background: var(--primary);
+				color: #fff;
+			}
+			@media (max-width: 767px) {
+				.app {
+					display: block;
+				}
+				.side {
+					display: none;
+				}
+				.head {
+					min-height: 56px;
+					padding: 0 14px;
+				}
+				.crumb {
+					display: none;
+				}
+				.content {
+					padding: 22px 14px;
+				}
+				.title {
+					display: block;
+				}
+				.title .btn {
+					margin-top: 14px;
+				}
+				.filters input {
+					min-width: 100%;
+				}
+				.tools .theme {
+					width: 36px;
+					padding: 0;
+					font-size: 0;
+				}
+				.panel {
+					padding: 14px;
+				}
+				.bar .btn:not(.primary) {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="app">
+			<aside class="side">
+				<span class="brand">睦<b>谈</b></span
+				><a>仪表盘</a><a class="on">帖子管理</a><a>用户管理</a><a>评论管理</a><a>举报处理</a
+				><a>标签管理</a><a>分类管理</a>
+			</aside>
+			<main class="main">
+				<header class="head">
+					<span class="crumb">内容管理 / 帖子管理</span>
+					<div class="tools">
+						<select class="theme" id="theme" aria-label="主题">
+							<option value="light">浅色</option>
+							<option value="dark">深色</option></select
+						><button class="btn" id="export">导出</button><span class="avatar">木</span>
+					</div>
+				</header>
+				<section class="content">
+					<div class="title">
+						<div>
+							<h1>帖子管理</h1>
+							<p>搜索、筛选和批量处理全站公开内容。</p>
+						</div>
+						<button class="btn primary" id="bulk">批量隐藏</button>
+					</div>
+					<section class="panel">
+						<div class="filters">
+							<input placeholder="搜索内容或作者" aria-label="搜索帖子" /><select
+								aria-label="频道"
+							>
+								<option>全部频道</option>
+								<option>微博</option>
+								<option>论坛</option>
+								<option>博客</option></select
+							><select aria-label="状态">
+								<option>全部状态</option>
+								<option>已发布</option>
+								<option>待审核</option>
+								<option>已隐藏</option></select
+							><button class="btn primary" id="filter">筛选</button>
+						</div>
+					</section>
+					<section class="panel">
+						<div class="bar">
+							<b
+								>帖子列表
+								<small style="color: var(--muted); font-weight: 400"
+									>共 1,248 条</small
+								></b
+							><button class="btn" id="clear">清除筛选</button>
+						</div>
+						<div class="table-wrap">
+							<table class="table">
+								<thead>
+									<tr>
+										<th><input type="checkbox" aria-label="全选" /></th>
+										<th>内容</th>
+										<th>作者</th>
+										<th>频道</th>
+										<th>状态</th>
+										<th>发布时间</th>
+										<th>操作</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr>
+										<td><input type="checkbox" /></td>
+										<td>一条短想法可以先开始，想清楚以后再沉淀成文章……</td>
+										<td>@weekend</td>
+										<td><span class="tag">微博</span></td>
+										<td><span class="state ok">已发布</span></td>
+										<td>今天 10:18</td>
+										<td>
+											<button class="row-btn">查看</button>　<button
+												class="row-btn"
+											>
+												隐藏
+											</button>
+										</td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" /></td>
+										<td>如何避免调研结论只停留在文档里？</td>
+										<td>@yangqing</td>
+										<td><span class="tag">论坛</span></td>
+										<td><span class="state ok">已发布</span></td>
+										<td>今天 09:20</td>
+										<td>
+											<button class="row-btn">查看</button>　<button
+												class="row-btn"
+											>
+												隐藏
+											</button>
+										</td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" /></td>
+										<td>好的交互不是让用户少点几下……</td>
+										<td>@sora</td>
+										<td><span class="tag">微博</span></td>
+										<td><span class="state wait">待审核</span></td>
+										<td>5 小时前</td>
+										<td>
+											<button class="row-btn">查看</button>　<button
+												class="row-btn"
+											>
+												通过
+											</button>
+										</td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" /></td>
+										<td>开源项目的社区治理模式比较</td>
+										<td>@tide</td>
+										<td><span class="tag">论坛</span></td>
+										<td><span class="state hide">已隐藏</span></td>
+										<td>昨天</td>
+										<td>
+											<button class="row-btn">查看</button>　<button
+												class="row-btn"
+											>
+												恢复
+											</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+						<nav class="pager">
+							<button>‹</button><button class="on">1</button><button>2</button
+							><button>3</button><button>›</button>
+						</nav>
+					</section>
+				</section>
+			</main>
+		</div>
+		<script>
+			const root = document.documentElement,
+				t = document.querySelector('#theme');
+			t.value = localStorage.getItem('mutan-theme') || 'light';
+			root.dataset.theme = t.value;
+			t.onchange = () => {
+				root.dataset.theme = t.value;
+				localStorage.setItem('mutan-theme', t.value);
+			};
+			for (const id of ['export', 'bulk', 'filter', 'clear'])
+				document.querySelector('#' + id).onclick = () =>
+					alert(
+						{
+							export: '已导出当前筛选结果',
+							bulk: '已批量隐藏选中帖子',
+							filter: '筛选已应用',
+							clear: '筛选已清除'
+						}[id]
+					);
+		</script>
+	</body>
+</html>

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 登录</title>
+		<style>
+			:root {
+				--bg: #fff;
+				--surface: #f8fafc;
+				--card: #fff;
+				--text: #1a1a2e;
+				--muted: #64748b;
+				--line: #e2e8f0;
+				--primary: #4f46e5;
+				--soft: #eef2ff;
+				--danger: #b42318;
+				--font:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+					'Microsoft YaHei', sans-serif;
+			}
+			[data-theme='dark'] {
+				--bg: #0f172a;
+				--surface: #172033;
+				--card: #1e293b;
+				--text: #e2e8f0;
+				--muted: #94a3b8;
+				--line: #334155;
+				--primary: #818cf8;
+				--soft: #252b52;
+				--danger: #fda4af;
+			}
+			[data-theme='eye'] {
+				--bg: #f5f0e8;
+				--surface: #ede8dc;
+				--card: #faf7f0;
+				--text: #3d3929;
+				--muted: #8a8474;
+				--line: #d4cfc4;
+				--primary: #6b8e4e;
+				--soft: #e2ead8;
+				--danger: #b45309;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				min-height: 100vh;
+				margin: 0;
+				background: var(--bg);
+				color: var(--text);
+				font: 15px/1.55 var(--font);
+			}
+			a {
+				color: inherit;
+				text-decoration: none;
+			}
+			button,
+			input {
+				font: inherit;
+			}
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
+			}
+			.top {
+				height: 64px;
+				display: flex;
+				align-items: center;
+				padding: 0 clamp(18px, 4vw, 56px);
+				border-bottom: 1px solid var(--line);
+				background: var(--card);
+			}
+			.brand {
+				font-size: 20px;
+				font-weight: 800;
+				letter-spacing: -0.05em;
+			}
+			.brand i {
+				color: var(--primary);
+				font-style: normal;
+			}
+			.top-tools {
+				margin-left: auto;
+				display: flex;
+				gap: 8px;
+				align-items: center;
+			}
+			.theme {
+				min-height: 36px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				padding: 0 9px;
+				background: var(--card);
+				color: var(--text);
+			}
+			.page {
+				width: min(100%, 1180px);
+				min-height: calc(100vh - 64px);
+				margin: auto;
+				padding: clamp(34px, 8vh, 88px) 24px 52px;
+				display: grid;
+				grid-template-columns: minmax(280px, 390px) minmax(260px, 370px);
+				justify-content: space-between;
+				gap: clamp(40px, 10vw, 160px);
+				align-items: start;
+			}
+			.intro {
+				padding-top: 36px;
+			}
+			.kicker {
+				color: var(--primary);
+				font-size: 13px;
+				font-weight: 800;
+				letter-spacing: 0.08em;
+			}
+			h1 {
+				max-width: 480px;
+				margin: 12px 0 16px;
+				font-size: clamp(34px, 4vw, 52px);
+				line-height: 1.08;
+				letter-spacing: -0.06em;
+				text-wrap: pretty;
+			}
+			.intro p {
+				max-width: 390px;
+				margin: 0;
+				color: var(--muted);
+				font-size: 17px;
+			}
+			.benefits {
+				display: grid;
+				gap: 14px;
+				margin: 34px 0 0;
+				padding: 0;
+				list-style: none;
+			}
+			.benefits li {
+				display: flex;
+				gap: 10px;
+				align-items: flex-start;
+				color: var(--muted);
+			}
+			.benefits b {
+				color: var(--primary);
+				font-size: 17px;
+				line-height: 1.3;
+			}
+			.panel {
+				padding: 30px;
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				background: var(--card);
+				box-shadow: 0 18px 38px rgba(15, 23, 42, 0.06);
+			}
+			.panel h2 {
+				margin: 0;
+				font-size: 24px;
+				letter-spacing: -0.035em;
+			}
+			.panel > p {
+				margin: 5px 0 24px;
+				color: var(--muted);
+			}
+			label {
+				display: block;
+				margin: 16px 0 6px;
+				font-size: 13px;
+				font-weight: 750;
+			}
+			input {
+				width: 100%;
+				min-height: 44px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				padding: 0 12px;
+				background: var(--bg);
+				color: var(--text);
+				outline: 0;
+			}
+			input:focus {
+				border-color: var(--primary);
+				box-shadow: 0 0 0 3px var(--soft);
+			}
+			.password-row {
+				display: flex;
+				justify-content: space-between;
+				align-items: baseline;
+			}
+			.minor {
+				color: var(--primary);
+				font-size: 13px;
+				font-weight: 700;
+			}
+			.remember {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				margin: 16px 0 22px;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.remember input {
+				width: 16px;
+				min-height: 16px;
+				accent-color: var(--primary);
+			}
+			.submit {
+				width: 100%;
+				min-height: 44px;
+				border: 1px solid var(--primary);
+				border-radius: 6px;
+				background: var(--primary);
+				color: #fff;
+				font-weight: 800;
+				cursor: pointer;
+			}
+			.submit:hover {
+				filter: brightness(0.95);
+			}
+			.feedback {
+				min-height: 20px;
+				margin: 12px 0 0;
+				color: var(--danger);
+				font-size: 13px;
+			}
+			.foot {
+				margin: 22px 0 0;
+				padding-top: 20px;
+				border-top: 1px solid var(--line);
+				color: var(--muted);
+				text-align: center;
+			}
+			.foot a {
+				color: var(--primary);
+				font-weight: 750;
+			}
+			button:focus-visible,
+			a:focus-visible,
+			input:focus-visible,
+			select:focus-visible {
+				outline: 3px solid var(--primary);
+				outline-offset: 2px;
+			}
+			@media (max-width: 767px) {
+				.top {
+					height: 56px;
+					padding: 0 16px;
+				}
+				.page {
+					min-height: calc(100vh - 56px);
+					display: block;
+					padding: 34px 16px 44px;
+				}
+				.intro {
+					padding: 0;
+					margin-bottom: 32px;
+				}
+				.intro p {
+					font-size: 16px;
+				}
+				h1 {
+					font-size: 38px;
+				}
+				.benefits {
+					display: none;
+				}
+				.panel {
+					padding: 24px 20px;
+					box-shadow: none;
+				}
+			}
+			@media (prefers-reduced-motion: no-preference) {
+				.panel {
+					animation: arrive 0.35s ease-out both;
+				}
+				@keyframes arrive {
+					from {
+						opacity: 0;
+						transform: translateY(8px);
+					}
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="top">
+			<a class="brand" href="home-c.html">睦<i>谈</i></a>
+			<div class="top-tools">
+				<label for="theme" style="margin: 0"
+					><span class="sr-only">主题</span
+					><select class="theme" id="theme" aria-label="切换主题">
+						<option value="light">浅色</option>
+						<option value="dark">深色</option>
+						<option value="eye">护眼</option>
+					</select></label
+				>
+			</div>
+		</header>
+		<main class="page">
+			<section class="intro" aria-labelledby="welcome">
+				<div class="kicker">回到你的社区</div>
+				<h1 id="welcome">把想说的，交给愿意听的人。</h1>
+				<p>登录后即可继续关注讨论、保存阅读与管理你的个人动态。</p>
+				<ul class="benefits">
+					<li><b>01</b><span>微博、论坛、博客的内容在同一账号下自然流转。</span></li>
+					<li><b>02</b><span>通知和收藏帮助你在合适的时间回来回应。</span></li>
+				</ul>
+			</section>
+			<section class="panel" aria-labelledby="login-title">
+				<h2 id="login-title">登录睦谈</h2>
+				<p>使用你的账号继续。</p>
+				<form id="login-form" novalidate>
+					<label for="account">邮箱或用户名</label
+					><input id="account" autocomplete="username" placeholder="name@example.com" />
+					<div class="password-row">
+						<label for="password">密码</label
+						><a class="minor" href="#forgot">忘记密码？</a>
+					</div>
+					<input
+						id="password"
+						type="password"
+						autocomplete="current-password"
+						placeholder="输入密码"
+					/><label class="remember"
+						><input type="checkbox" checked />在此设备上保持登录</label
+					><button class="submit" type="submit">登录</button>
+					<p class="feedback" id="feedback" role="status" aria-live="polite"></p>
+				</form>
+				<p class="foot">还没有账号？ <a href="register-a.html">创建一个睦谈账号</a></p>
+			</section>
+		</main>
+		<script>
+			const root = document.documentElement,
+				theme = document.querySelector('#theme'),
+				form = document.querySelector('#login-form'),
+				accountInput = document.querySelector('#account'),
+				passwordInput = document.querySelector('#password'),
+				feedback = document.querySelector('#feedback');
+			theme.value = localStorage.getItem('mutan-theme') || 'light';
+			root.dataset.theme = theme.value;
+			theme.addEventListener('change', () => {
+				root.dataset.theme = theme.value;
+				localStorage.setItem('mutan-theme', theme.value);
+			});
+			form.addEventListener('submit', (e) => {
+				e.preventDefault();
+				feedback.textContent =
+					accountInput.value.trim() && passwordInput.value
+						? '这是交互原型：登录信息已就绪。'
+						: '请填写邮箱或用户名，以及密码。';
+			});
+		</script>
+	</body>
+</html>

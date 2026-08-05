@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 论坛</title>
+		<style>
+			:root {
+				--bg: #fff;
+				--surface: #f8fafc;
+				--ink: #1a1a2e;
+				--muted: #64748b;
+				--line: #e2e8f0;
+				--primary: #4f46e5;
+				font:
+					15px -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					'Noto Sans SC',
+					sans-serif;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--ink);
+			}
+			a {
+				color: inherit;
+				text-decoration: none;
+			}
+			.top {
+				position: sticky;
+				top: 0;
+				z-index: 3;
+				height: 64px;
+				padding: 0 24px;
+				display: flex;
+				align-items: center;
+				gap: 28px;
+				border-bottom: 1px solid var(--line);
+				background: var(--bg);
+			}
+			.brand {
+				font-size: 20px;
+				font-weight: 800;
+			}
+			.brand i {
+				font-style: normal;
+				color: var(--primary);
+			}
+			.channels {
+				display: flex;
+				gap: 6px;
+				flex: 1;
+			}
+			.channels a {
+				padding: 8px 10px;
+				color: var(--muted);
+			}
+			.channels .on {
+				background: #eef2ff;
+				color: var(--primary);
+				border-radius: 6px;
+				font-weight: 700;
+			}
+			.top-actions {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-left: auto;
+			}
+			.search {
+				min-width: 190px;
+				padding: 8px 12px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				color: var(--muted);
+			}
+			.icon {
+				width: 36px;
+				height: 36px;
+				display: grid;
+				place-items: center;
+				border-radius: 50%;
+				color: var(--muted);
+			}
+			.avatar {
+				width: 34px;
+				height: 34px;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				background: var(--primary);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.shell {
+				max-width: 1440px;
+				margin: auto;
+				padding: 32px 24px 80px;
+				display: grid;
+				grid-template-columns: 224px minmax(0, 760px) 272px;
+				gap: 32px;
+				justify-content: center;
+			}
+			.side small {
+				display: block;
+				margin: 0 11px 8px;
+				color: var(--muted);
+				text-transform: uppercase;
+			}
+			.side a {
+				display: block;
+				padding: 11px;
+				border-radius: 6px;
+				margin: 2px 0;
+				color: var(--muted);
+			}
+			.side a.on {
+				background: #eef2ff;
+				color: var(--primary);
+				font-weight: 700;
+			}
+			.heading {
+				display: flex;
+				align-items: end;
+				justify-content: space-between;
+				margin-bottom: 16px;
+			}
+			.heading h1 {
+				margin: 0;
+				font-size: 28px;
+			}
+			.heading p {
+				margin: 4px 0;
+				color: var(--muted);
+			}
+			button {
+				font: inherit;
+				cursor: pointer;
+			}
+			.primary {
+				padding: 10px 15px;
+				border: 0;
+				border-radius: 6px;
+				background: var(--primary);
+				color: #fff;
+				font-weight: 700;
+			}
+			.tabs {
+				display: flex;
+				gap: 3px;
+				margin-bottom: 12px;
+				border-bottom: 1px solid var(--line);
+			}
+			.tabs a {
+				padding: 10px 12px;
+				color: var(--muted);
+			}
+			.tabs .active {
+				border-bottom: 2px solid var(--primary);
+				color: var(--primary);
+				font-weight: 700;
+			}
+			.topic,
+			.aside {
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 16px;
+				margin-bottom: 12px;
+			}
+			.topic {
+				display: grid;
+				grid-template-columns: 40px minmax(0, 1fr) 54px;
+				gap: 12px;
+				align-items: start;
+			}
+			.topic .avatar {
+				width: 40px;
+				height: 40px;
+				background: #64748b;
+			}
+			.topic h2 {
+				font-size: 16px;
+				margin: 3px 0 7px;
+			}
+			.topic p,
+			.topic time,
+			.aside p {
+				font-size: 13px;
+				color: var(--muted);
+				margin: 0;
+			}
+			.tag {
+				color: var(--primary);
+				font-size: 12px;
+				font-weight: 700;
+			}
+			.replies {
+				text-align: center;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.replies b {
+				display: block;
+				color: var(--ink);
+				font-size: 18px;
+			}
+			.aside h2 {
+				font-size: 14px;
+				margin: 0 0 10px;
+			}
+			.aside a {
+				display: block;
+				padding: 10px 0;
+				border-top: 1px solid var(--line);
+			}
+			.aside a:first-of-type {
+				border: 0;
+			}
+			.bottom {
+				display: none;
+			}
+			@media (min-width: 768px) and (max-width: 1199px) {
+				.shell {
+					grid-template-columns: 64px minmax(0, 1fr);
+					gap: 16px;
+					padding-inline: 16px;
+				}
+				.shell aside {
+					display: none;
+				}
+				.side a {
+					font-size: 0;
+					text-align: center;
+				}
+				.side a:first-letter {
+					font-size: 18px;
+				}
+			}
+			@media (max-width: 767px) {
+				.top {
+					height: 56px;
+					padding: 0 14px;
+					gap: 12px;
+				}
+				.channels {
+					display: none;
+				}
+				.search {
+					width: 36px;
+					min-width: 0;
+					padding: 0;
+					border: 0;
+					font-size: 0;
+				}
+				.search:before {
+					content: '⌕';
+					font-size: 24px;
+				}
+				.icon:nth-of-type(2) {
+					display: none;
+				}
+				.shell {
+					display: block;
+					padding: 20px 14px 80px;
+				}
+				.side,
+				aside {
+					display: none;
+				}
+				.heading h1 {
+					font-size: 24px;
+				}
+				.topic {
+					grid-template-columns: 36px minmax(0, 1fr) 42px;
+					padding: 14px;
+				}
+				.topic .avatar {
+					width: 36px;
+					height: 36px;
+				}
+				.bottom {
+					position: fixed;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					z-index: 5;
+					display: flex;
+					justify-content: space-around;
+					padding: 7px;
+					background: var(--bg);
+					border-top: 1px solid var(--line);
+				}
+				.bottom a {
+					padding: 10px;
+					font-size: 12px;
+				}
+				.bottom a:nth-child(2) {
+					color: var(--primary);
+					font-weight: 700;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="top">
+			<a class="brand">睦<i>谈</i></a>
+			<nav class="channels"><a>首页</a><a>微博</a><a class="on">论坛</a><a>博客</a></nav>
+			<div class="top-actions" aria-label="全局操作">
+				<span class="search">搜索睦谈</span><span class="icon" title="主题">◐</span
+				><span class="icon" title="通知">♢</span><span class="avatar">木</span>
+			</div>
+		</header>
+		<main class="shell">
+			<nav class="side">
+				<small>论坛</small><a class="on">⌂ 全部主题</a><a>◈ 产品与体验</a><a>✎ 写作与表达</a
+				><a>⌘ 开源协作</a><a>？ 求助</a>
+			</nav>
+			<section>
+				<div class="heading">
+					<div>
+						<h1>论坛</h1>
+						<p>围绕一个问题，展开完整而有据的讨论。</p>
+					</div>
+					<button class="primary">发起讨论</button>
+				</div>
+				<nav class="tabs"><a class="active">最新</a><a>热门</a><a>精华</a><a>求助</a></nav>
+				<article class="topic">
+					<span class="avatar">杨</span>
+					<div>
+						<span class="tag">产品与体验</span>
+						<h2>如何避免调研结论只停留在文档里？</h2>
+						<p>@yangqing　·　6 分钟前　·　48 人认同</p>
+					</div>
+					<span class="replies"><b>32</b>回复</span>
+				</article>
+				<article class="topic">
+					<span class="avatar">潮</span>
+					<div>
+						<span class="tag">开源协作</span>
+						<h2>开源项目的社区治理模式比较</h2>
+						<p>@tide　·　2 小时前　·　25 人认同</p>
+					</div>
+					<span class="replies"><b>18</b>回复</span>
+				</article>
+				<article class="topic">
+					<span class="avatar">苏</span>
+					<div>
+						<span class="tag">写作与表达</span>
+						<h2>从一句话到一篇文章：思考的颗粒度怎么选？</h2>
+						<p>@sora　·　4 小时前　·　31 人认同</p>
+					</div>
+					<span class="replies"><b>12</b>回复</span>
+				</article>
+			</section>
+			<aside>
+				<div class="aside">
+					<h2>版块</h2>
+					<a>产品与体验</a><a>写作与表达</a><a>开源协作</a><a>求助</a>
+				</div>
+				<div class="aside">
+					<h2>论坛规则</h2>
+					<p>先搜索，再讨论；以观点和证据回应观点。</p>
+				</div>
+			</aside>
+		</main>
+		<nav class="bottom"><a>首页</a><a>频道</a><a>发布</a><a>通知</a><a>我的</a></nav>
+	</body>
+</html>

@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 论坛详情</title>
+		<style>
+			:root {
+				--bg: #fff;
+				--surface: #f8fafc;
+				--ink: #1a1a2e;
+				--muted: #64748b;
+				--line: #e2e8f0;
+				--primary: #4f46e5;
+				font:
+					15px -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					'Noto Sans SC',
+					sans-serif;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				background: var(--bg);
+				color: var(--ink);
+			}
+			a {
+				color: inherit;
+				text-decoration: none;
+			}
+			.top {
+				height: 64px;
+				position: sticky;
+				top: 0;
+				z-index: 3;
+				display: flex;
+				align-items: center;
+				gap: 28px;
+				padding: 0 24px;
+				border-bottom: 1px solid var(--line);
+				background: var(--bg);
+			}
+			.brand {
+				font-size: 20px;
+				font-weight: 800;
+			}
+			.brand i {
+				font-style: normal;
+				color: var(--primary);
+			}
+			.channels {
+				display: flex;
+				gap: 6px;
+				flex: 1;
+			}
+			.channels a {
+				padding: 8px 10px;
+				color: var(--muted);
+			}
+			.channels .on {
+				border-radius: 6px;
+				background: #eef2ff;
+				color: var(--primary);
+				font-weight: 700;
+			}
+			.top-actions {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				margin-left: auto;
+			}
+			.search {
+				min-width: 190px;
+				padding: 8px 12px;
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				color: var(--muted);
+			}
+			.icon {
+				width: 36px;
+				height: 36px;
+				display: grid;
+				place-items: center;
+				color: var(--muted);
+			}
+			.avatar {
+				width: 34px;
+				height: 34px;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				background: var(--primary);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.layout {
+				max-width: 1100px;
+				margin: auto;
+				padding: 32px 24px 80px;
+				display: grid;
+				grid-template-columns: minmax(0, 720px) 260px;
+				gap: 32px;
+			}
+			.crumb {
+				display: inline-block;
+				margin-bottom: 16px;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.card {
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 18px;
+				margin-bottom: 12px;
+			}
+			.eyebrow {
+				color: var(--primary);
+				font-size: 12px;
+				font-weight: 700;
+			}
+			.post h1 {
+				font-size: 28px;
+				line-height: 1.3;
+				margin: 6px 0 20px;
+			}
+			.author {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding-bottom: 16px;
+				border-bottom: 1px solid var(--line);
+			}
+			.author .avatar {
+				width: 40px;
+				height: 40px;
+				background: #64748b;
+			}
+			.meta {
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.body {
+				line-height: 1.8;
+				margin: 18px 0;
+			}
+			.quote {
+				margin: 16px 0;
+				padding: 12px 16px;
+				border-left: 3px solid var(--primary);
+				background: var(--surface);
+				color: var(--muted);
+			}
+			.actions {
+				display: flex;
+				gap: 20px;
+				padding-top: 13px;
+				border-top: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.reply-box {
+				display: flex;
+				gap: 10px;
+				align-items: start;
+			}
+			.reply-box .avatar {
+				width: 38px;
+				height: 38px;
+			}
+			.reply-input {
+				flex: 1;
+				padding: 10px 12px;
+				color: var(--muted);
+				border: 1px solid var(--line);
+				border-radius: 8px;
+				background: var(--surface);
+			}
+			.reply-title {
+				margin: 26px 0 12px;
+				font-size: 18px;
+			}
+			.reply {
+				border-bottom: 1px solid var(--line);
+				padding: 16px 0;
+			}
+			.reply-head {
+				display: flex;
+				align-items: center;
+				gap: 9px;
+			}
+			.reply-head .avatar {
+				width: 34px;
+				height: 34px;
+				background: #0d9488;
+			}
+			.floor {
+				margin-left: auto;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.reply p {
+				margin: 10px 0 8px;
+				line-height: 1.65;
+			}
+			.aside h2 {
+				font-size: 14px;
+				margin: 0 0 10px;
+			}
+			.aside a,
+			.aside p {
+				display: block;
+				border-top: 1px solid var(--line);
+				margin: 0;
+				padding: 10px 0;
+				font-size: 14px;
+			}
+			.aside a:first-of-type {
+				border: 0;
+			}
+			.aside p {
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.bottom {
+				display: none;
+			}
+			@media (max-width: 767px) {
+				.top {
+					height: 56px;
+					padding: 0 14px;
+					gap: 12px;
+				}
+				.channels {
+					display: none;
+				}
+				.search {
+					width: 36px;
+					min-width: 0;
+					padding: 0;
+					border: 0;
+					font-size: 0;
+				}
+				.search:before {
+					content: '⌕';
+					font-size: 24px;
+				}
+				.icon:nth-of-type(2) {
+					display: none;
+				}
+				.layout {
+					display: block;
+					padding: 20px 14px 80px;
+				}
+				.layout aside {
+					display: none;
+				}
+				.post h1 {
+					font-size: 24px;
+				}
+				.card {
+					padding: 15px;
+				}
+				.bottom {
+					position: fixed;
+					bottom: 0;
+					left: 0;
+					right: 0;
+					z-index: 5;
+					display: flex;
+					justify-content: space-around;
+					padding: 7px;
+					background: var(--bg);
+					border-top: 1px solid var(--line);
+				}
+				.bottom a {
+					padding: 10px;
+					font-size: 12px;
+				}
+				.bottom a:nth-child(2) {
+					color: var(--primary);
+					font-weight: 700;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="top">
+			<a class="brand">睦<i>谈</i></a>
+			<nav class="channels"><a>首页</a><a>微博</a><a class="on">论坛</a><a>博客</a></nav>
+			<div class="top-actions" aria-label="全局操作">
+				<span class="search">搜索睦谈</span><span class="icon" title="主题">◐</span
+				><span class="icon" title="通知">♢</span><span class="avatar">木</span>
+			</div>
+		</header>
+		<main class="layout">
+			<section>
+				<a class="crumb">← 论坛 / 产品与体验</a>
+				<article class="card post">
+					<div class="eyebrow">产品与体验 · 讨论主题</div>
+					<h1>如何避免调研结论只停留在文档里？</h1>
+					<div class="author">
+						<span class="avatar">杨</span>
+						<div>
+							<b>杨青</b>
+							<div class="meta">@yangqing · 今天 09:20</div>
+						</div>
+						<span class="floor">关注　收藏</span>
+					</div>
+					<div class="body">
+						<p>
+							我们每次访谈都会收集到不少观察，但最后往往只在汇报里出现一次。团队对问题本身有共识，然而共识之后没有行动。
+						</p>
+						<p>我尝试过几种方式：</p>
+						<div class="quote">
+							把每个结论转成一条「需要验证」的事项，让结论进入下一周的工作流程，而不是被归档。
+						</div>
+						<p>
+							当事项多了以后，大家又开始忽略它们。你们会怎样把结论变成团队真正要验证的事情？
+						</p>
+					</div>
+					<div class="actions">回复 32　转发 12　认同 48　收藏 15</div>
+				</article>
+				<section>
+					<h2 class="reply-title">32 条回复</h2>
+					<div class="card reply-box">
+						<span class="avatar">木</span>
+						<div class="reply-input">写下你的看法……</div>
+					</div>
+					<article class="reply">
+						<div class="reply-head">
+							<span class="avatar">潮</span><b>潮汐</b
+							><span class="meta">@tide · 30 分钟前</span
+							><span class="floor">#1 楼</span>
+						</div>
+						<p>
+							我们把每周结论拆成 3 条「本周验证」，周五复盘是否成立。成立的进入
+							backlog，不成立的写明原因。
+						</p>
+						<span class="meta">认同 8　·　回复</span>
+					</article>
+					<article class="reply">
+						<div class="reply-head">
+							<span class="avatar">苏</span><b>苏晚</b
+							><span class="meta">@sora · 1 小时前</span
+							><span class="floor">#2 楼</span>
+						</div>
+						<p>关键不是工具，是有人盯着。如果负责人自己不回头看，什么流程都会失效。</p>
+						<span class="meta">认同 15　·　回复</span>
+					</article>
+				</section>
+			</section>
+			<aside>
+				<div class="card aside">
+					<h2>版块</h2>
+					<a>论坛首页</a><a>产品与体验</a><a>写作与表达</a><a>开源协作</a>
+				</div>
+				<div class="card aside">
+					<h2>楼主</h2>
+					<p><b>杨青</b><br />@yangqing</p>
+					<p>产品设计师，关注从研究到落地的路径。</p>
+				</div>
+			</aside>
+		</main>
+		<nav class="bottom"><a>首页</a><a>频道</a><a>发布</a><a>通知</a><a>我的</a></nav>
+	</body>
+</html>

@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 视觉方向样本</title>
+		<style>
+			:root {
+				--ink: #202337;
+				--muted: #6d7287;
+				--line: #e4e4e9;
+				--accent: #4f46e5;
+				--paper: #fff;
+				--canvas: #f5f5f2;
+				font:
+					15px -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					'Noto Sans SC',
+					sans-serif;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				color: var(--ink);
+				background: #ecece8;
+			}
+			button {
+				font: inherit;
+				cursor: pointer;
+			}
+			.guide {
+				max-width: 1180px;
+				margin: 0 auto;
+				padding: 24px 24px 18px;
+			}
+			.guide h1 {
+				margin: 0 0 5px;
+				font-size: 23px;
+			}
+			.guide p {
+				margin: 0;
+				color: #626878;
+			}
+			.switcher {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+				margin-top: 18px;
+			}
+			.switcher button {
+				border: 1px solid #cfd0d8;
+				border-radius: 99px;
+				padding: 8px 13px;
+				color: #4c5162;
+				background: #fff;
+			}
+			.switcher button.active {
+				color: #fff;
+				background: #25283b;
+				border-color: #25283b;
+			}
+			.note {
+				display: inline-block;
+				margin-top: 13px;
+				color: #676d7c;
+				font-size: 13px;
+			}
+			.sample {
+				display: none;
+				min-height: 740px;
+				--canvas: #f5f5f2;
+				--paper: #fff;
+				--ink: #202337;
+				--muted: #6d7287;
+				--line: #e4e4e9;
+				--accent: #4f46e5;
+				background: var(--canvas);
+			}
+			.sample.active {
+				display: block;
+			}
+			.nav {
+				height: 64px;
+				padding: 0 24px;
+				display: flex;
+				align-items: center;
+				gap: 28px;
+				background: var(--paper);
+				border-bottom: 1px solid var(--line);
+			}
+			.brand {
+				font-size: 20px;
+				font-weight: 800;
+				letter-spacing: -0.5px;
+			}
+			.brand b {
+				color: var(--accent);
+			}
+			.links {
+				display: flex;
+				gap: 6px;
+				flex: 1;
+			}
+			.links span {
+				padding: 8px 10px;
+				color: var(--muted);
+			}
+			.links .active {
+				color: var(--accent);
+				font-weight: 700;
+			}
+			.nav-actions {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.search {
+				min-width: 180px;
+				padding: 8px 12px;
+				color: var(--muted);
+				border: 1px solid var(--line);
+				border-radius: 7px;
+			}
+			.tiny {
+				width: 34px;
+				height: 34px;
+				display: grid;
+				place-items: center;
+				color: var(--muted);
+			}
+			.avatar {
+				width: 34px;
+				height: 34px;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				color: #fff;
+				background: var(--accent);
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.page {
+				max-width: 1120px;
+				margin: auto;
+				padding: 46px 24px 80px;
+				display: grid;
+				grid-template-columns: minmax(0, 700px) 230px;
+				gap: 58px;
+				justify-content: center;
+			}
+			.crumb,
+			.eyebrow {
+				color: var(--accent);
+				font-size: 12px;
+				font-weight: 750;
+				letter-spacing: 0.05em;
+			}
+			.article h2 {
+				margin: 10px 0 12px;
+				font-size: 36px;
+				line-height: 1.22;
+				letter-spacing: -0.8px;
+			}
+			.dek {
+				max-width: 590px;
+				margin: 0 0 18px;
+				color: var(--muted);
+				font-size: 18px;
+				line-height: 1.65;
+			}
+			.byline {
+				display: flex;
+				align-items: center;
+				gap: 9px;
+				padding: 14px 0;
+				border-top: 1px solid var(--line);
+				border-bottom: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.byline .avatar {
+				width: 30px;
+				height: 30px;
+				background: #69707a;
+			}
+			.copy {
+				font-size: 17px;
+				line-height: 1.9;
+				padding-top: 22px;
+			}
+			.copy p {
+				margin: 0 0 17px;
+			}
+			.copy h3 {
+				margin: 35px 0 10px;
+				font-size: 23px;
+				line-height: 1.35;
+			}
+			.quote {
+				margin: 24px 0;
+				padding: 13px 18px;
+				border-left: 3px solid var(--accent);
+				color: var(--muted);
+				background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+			}
+			.rail {
+				padding-top: 76px;
+			}
+			.rail h3 {
+				margin: 0 0 9px;
+				font-size: 13px;
+			}
+			.rail a {
+				display: block;
+				padding: 7px 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.rail a:first-of-type {
+				color: var(--accent);
+				font-weight: 700;
+			}
+			/* 1. 温润编辑感：暖纸、安静的色彩和书写型标题。 */
+			.editorial {
+				--canvas: #f4f0e9;
+				--paper: #fffdf9;
+				--ink: #352f2a;
+				--muted: #7d746a;
+				--line: #e5ddd2;
+				--accent: #9a523d;
+			}
+			.editorial .nav {
+				box-shadow: 0 1px 0 #d8ccbd;
+			}
+			.editorial .article h2 {
+				font-family: 'Songti SC', 'STSong', 'Noto Serif CJK SC', serif;
+				font-weight: 700;
+			}
+			.editorial .page {
+				background-image: radial-gradient(#d3c5b3 0.6px, transparent 0.6px);
+				background-size: 14px 14px;
+			}
+			.editorial .article {
+				background: var(--paper);
+				padding: 32px 36px 38px;
+				box-shadow: 0 12px 28px #4b30120c;
+			}
+			.editorial .rail {
+				border-top: 1px solid var(--accent);
+			}
+			/* 2. 社区活力：深色墨蓝基底、频道色和更紧凑的讨论氛围。 */
+			.vibrant {
+				--canvas: #edf3f4;
+				--paper: #fff;
+				--ink: #172433;
+				--muted: #627080;
+				--line: #d4e0e2;
+				--accent: #137b75;
+			}
+			.vibrant .nav {
+				background: #153d49;
+				border-bottom: 0;
+				color: #fff;
+			}
+			.vibrant .brand b,
+			.vibrant .links .active {
+				color: #ffbd59;
+			}
+			.vibrant .links span,
+			.vibrant .tiny {
+				color: #c3d4d8;
+			}
+			.vibrant .search {
+				color: #c5d9dc;
+				border-color: #42717a;
+				background: #214d59;
+			}
+			.vibrant .nav-actions .avatar {
+				background: #ffbd59;
+				color: #213d48;
+			}
+			.vibrant .article {
+				border-top: 4px solid var(--accent);
+				padding: 26px 28px 30px;
+				background: var(--paper);
+				box-shadow: 0 8px 22px #0c34410f;
+			}
+			.vibrant .article h2 {
+				font-weight: 800;
+			}
+			.vibrant .eyebrow {
+				display: inline-block;
+				padding: 4px 8px;
+				border-radius: 99px;
+				background: #d9f0eb;
+			}
+			.vibrant .rail {
+				background: #dff0ee;
+				margin-top: 0;
+				padding: 22px;
+				align-self: start;
+			}
+			/* 3. 数字杂志：更大的标题、更强留白和黑金小面积强调。 */
+			.magazine {
+				--canvas: #f7f4ee;
+				--paper: #f7f4ee;
+				--ink: #171717;
+				--muted: #66615a;
+				--line: #d3cec3;
+				--accent: #b0482f;
+			}
+			.magazine .nav {
+				border-bottom: 2px solid var(--ink);
+			}
+			.magazine .brand {
+				font-family: Georgia, 'Songti SC', serif;
+				letter-spacing: -1px;
+			}
+			.magazine .article h2 {
+				font-family: Georgia, 'Songti SC', serif;
+				font-size: 49px;
+				line-height: 1.08;
+				letter-spacing: -1.8px;
+				max-width: 660px;
+			}
+			.magazine .dek {
+				font-family: 'Songti SC', serif;
+				font-size: 20px;
+			}
+			.magazine .copy {
+				column-count: 2;
+				column-gap: 34px;
+				font-size: 16px;
+			}
+			.magazine .copy h3,
+			.magazine .copy .quote {
+				column-span: all;
+			}
+			.magazine .quote {
+				border-left: 0;
+				border-top: 2px solid var(--ink);
+				border-bottom: 2px solid var(--ink);
+				background: transparent;
+				padding: 14px 0;
+				color: var(--ink);
+				font-family: 'Songti SC', serif;
+				font-size: 20px;
+			}
+			.magazine .rail {
+				border-left: 2px solid var(--ink);
+				padding: 11px 0 0 16px;
+			}
+			@media (max-width: 767px) {
+				.guide {
+					padding: 18px 14px 14px;
+				}
+				.nav {
+					height: 56px;
+					padding: 0 14px;
+					gap: 10px;
+				}
+				.links {
+					display: none;
+				}
+				.search {
+					width: 34px;
+					min-width: 0;
+					padding: 0;
+					border: 0;
+					font-size: 0;
+				}
+				.search:before {
+					content: '⌕';
+					font-size: 24px;
+				}
+				.tiny:nth-of-type(2) {
+					display: none;
+				}
+				.page {
+					display: block;
+					padding: 28px 14px 70px;
+				}
+				.rail {
+					display: none;
+				}
+				.article h2,
+				.magazine .article h2 {
+					font-size: 30px;
+				}
+				.editorial .article {
+					padding: 23px 20px 26px;
+				}
+				.magazine .copy {
+					column-count: 1;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<section class="guide">
+			<h1>睦谈视觉样本</h1>
+			<p>内容和布局相同；点击下面三种风格，只比较你觉得更舒服、更像睦谈的那一种。</p>
+			<div class="switcher" role="tablist" aria-label="视觉方向">
+				<button class="active" data-target="editorial" role="tab">
+					1. 温润编辑感（推荐）
+				</button>
+				<button data-target="vibrant" role="tab">2. 社区活力</button>
+				<button data-target="magazine" role="tab">3. 数字杂志</button>
+			</div>
+			<span class="note">每一版都保留右上角账号/主题入口与已确认的响应式布局。</span>
+		</section>
+		<section class="sample editorial active" id="editorial">
+			<header class="nav">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span>首页</span><span>微博</span><span>论坛</span
+					><span class="active">博客</span>
+				</nav>
+				<div class="nav-actions">
+					<span class="search">搜索睦谈</span><span class="tiny">◐</span
+					><span class="tiny">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="page">
+				<article class="article">
+					<span class="eyebrow">产品与体验</span>
+					<h2>长文阅读的最佳行宽，不只是一个数字</h2>
+					<p class="dek">
+						阅读界面不该把可用空间用满，而该为理解留下适当的节奏、层次与停顿。
+					</p>
+					<div class="byline">
+						<span class="avatar">林</span><b>林冲</b> · 昨天 · 8 分钟阅读 · 12 条讨论
+					</div>
+					<div class="copy">
+						<p>
+							当屏幕越来越宽，许多内容页面会本能地把正文铺开。但读者真正需要的不是更长的一行文字，而是能持续保持注意力的阅读路径。
+						</p>
+						<h3>行宽服务于扫读与回看</h3>
+						<p>
+							合适的主列宽度会让眼睛在每次换行后更快回到下一行，也会把标题、引用和段落组织在一个稳定的视觉节奏里。
+						</p>
+						<div class="quote">内容壳可以更宽，阅读列应当克制。两者不矛盾。</div>
+					</div>
+				</article>
+				<aside class="rail">
+					<h3>本文目录</h3>
+					<a>行宽服务于扫读与回看</a><a>留白不是装饰</a><a>结语</a>
+				</aside>
+			</main>
+		</section>
+		<section class="sample vibrant" id="vibrant">
+			<header class="nav">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span>首页</span><span>微博</span><span>论坛</span
+					><span class="active">博客</span>
+				</nav>
+				<div class="nav-actions">
+					<span class="search">搜索睦谈</span><span class="tiny">◐</span
+					><span class="tiny">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="page">
+				<article class="article">
+					<span class="eyebrow">产品与体验</span>
+					<h2>长文阅读的最佳行宽，不只是一个数字</h2>
+					<p class="dek">
+						阅读界面不该把可用空间用满，而该为理解留下适当的节奏、层次与停顿。
+					</p>
+					<div class="byline">
+						<span class="avatar">林</span><b>林冲</b> · 昨天 · 8 分钟阅读 · 12 条讨论
+					</div>
+					<div class="copy">
+						<p>
+							当屏幕越来越宽，许多内容页面会本能地把正文铺开。但读者真正需要的不是更长的一行文字，而是能持续保持注意力的阅读路径。
+						</p>
+						<h3>行宽服务于扫读与回看</h3>
+						<p>
+							合适的主列宽度会让眼睛在每次换行后更快回到下一行，也会把标题、引用和段落组织在一个稳定的视觉节奏里。
+						</p>
+						<div class="quote">内容壳可以更宽，阅读列应当克制。两者不矛盾。</div>
+					</div>
+				</article>
+				<aside class="rail">
+					<h3>本文目录</h3>
+					<a>行宽服务于扫读与回看</a><a>留白不是装饰</a><a>结语</a>
+				</aside>
+			</main>
+		</section>
+		<section class="sample magazine" id="magazine">
+			<header class="nav">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span>首页</span><span>微博</span><span>论坛</span
+					><span class="active">博客</span>
+				</nav>
+				<div class="nav-actions">
+					<span class="search">搜索睦谈</span><span class="tiny">◐</span
+					><span class="tiny">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="page">
+				<article class="article">
+					<span class="eyebrow">产品与体验</span>
+					<h2>长文阅读的最佳行宽，不只是一个数字</h2>
+					<p class="dek">
+						阅读界面不该把可用空间用满，而该为理解留下适当的节奏、层次与停顿。
+					</p>
+					<div class="byline">
+						<span class="avatar">林</span><b>林冲</b> · 昨天 · 8 分钟阅读 · 12 条讨论
+					</div>
+					<div class="copy">
+						<p>
+							当屏幕越来越宽，许多内容页面会本能地把正文铺开。但读者真正需要的不是更长的一行文字，而是能持续保持注意力的阅读路径。
+						</p>
+						<h3>行宽服务于扫读与回看</h3>
+						<p>
+							合适的主列宽度会让眼睛在每次换行后更快回到下一行，也会把标题、引用和段落组织在一个稳定的视觉节奏里。
+						</p>
+						<div class="quote">内容壳可以更宽，阅读列应当克制。两者不矛盾。</div>
+					</div>
+				</article>
+				<aside class="rail">
+					<h3>本文目录</h3>
+					<a>行宽服务于扫读与回看</a><a>留白不是装饰</a><a>结语</a>
+				</aside>
+			</main>
+		</section>
+		<script>
+			document.querySelectorAll('.switcher button').forEach((button) => {
+				button.addEventListener('click', () => {
+					document
+						.querySelectorAll('.switcher button')
+						.forEach((item) => item.classList.remove('active'));
+					document
+						.querySelectorAll('.sample')
+						.forEach((item) => item.classList.remove('active'));
+					button.classList.add('active');
+					document.getElementById(button.dataset.target).classList.add('active');
+				});
+			});
+		</script>
+	</body>
+</html>

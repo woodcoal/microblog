@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 搜索</title>
+		<style>
+			:root {
+				--t: #1a1a2e;
+				--m: #64748b;
+				--b: #e2e8f0;
+				--p: #4f46e5;
+				font:
+					15px -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					'Noto Sans SC',
+					sans-serif;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				color: var(--t);
+			}
+			a {
+				text-decoration: none;
+				color: inherit;
+			}
+			.top {
+				height: 64px;
+				display: flex;
+				align-items: center;
+				gap: 28px;
+				padding: 0 24px;
+				border-bottom: 1px solid var(--b);
+			}
+			.brand {
+				font-size: 20px;
+				font-weight: 800;
+			}
+			.brand i {
+				font-style: normal;
+				color: var(--p);
+			}
+			.links {
+				flex: 1;
+				display: flex;
+				gap: 6px;
+			}
+			.links a {
+				padding: 8px 10px;
+				color: var(--m);
+			}
+			.actions {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.avatar {
+				width: 34px;
+				height: 34px;
+				display: grid;
+				place-items: center;
+				border-radius: 50%;
+				background: var(--p);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.icon {
+				width: 36px;
+				text-align: center;
+				color: var(--m);
+			}
+			.shell {
+				max-width: 980px;
+				margin: auto;
+				padding: 38px 24px 80px;
+			}
+			.searchbox {
+				display: flex;
+				gap: 10px;
+				margin: 20px 0;
+				border: 1px solid var(--p);
+				border-radius: 10px;
+				padding: 7px;
+				background: #fff;
+			}
+			.searchbox input {
+				flex: 1;
+				border: 0;
+				outline: 0;
+				padding: 8px;
+				font: inherit;
+			}
+			.searchbox button {
+				border: 0;
+				border-radius: 6px;
+				padding: 9px 16px;
+				background: var(--p);
+				color: #fff;
+				font-weight: 700;
+			}
+			.tabs {
+				display: flex;
+				gap: 6px;
+				border-bottom: 1px solid var(--b);
+				margin-bottom: 14px;
+			}
+			.tabs a {
+				padding: 10px 12px;
+				color: var(--m);
+			}
+			.tabs .on {
+				color: var(--p);
+				border-bottom: 2px solid var(--p);
+				font-weight: 700;
+			}
+			.result {
+				display: grid;
+				grid-template-columns: 78px minmax(0, 1fr);
+				gap: 14px;
+				padding: 18px 0;
+				border-bottom: 1px solid var(--b);
+			}
+			.kind {
+				color: var(--p);
+				font-size: 12px;
+				font-weight: 700;
+			}
+			.result h2 {
+				margin: 2px 0 7px;
+				font-size: 18px;
+			}
+			.result p {
+				margin: 0 0 8px;
+				color: var(--m);
+				line-height: 1.6;
+			}
+			.meta {
+				font-size: 13px;
+				color: var(--m);
+			}
+			.bottom {
+				display: none;
+			}
+			@media (max-width: 767px) {
+				.top {
+					height: 56px;
+					padding: 0 14px;
+				}
+				.links {
+					display: none;
+				}
+				.shell {
+					padding: 22px 14px 80px;
+				}
+				.result {
+					grid-template-columns: 1fr;
+				}
+				.bottom {
+					display: flex;
+					position: fixed;
+					bottom: 0;
+					left: 0;
+					right: 0;
+					justify-content: space-around;
+					padding: 7px;
+					background: #fff;
+					border-top: 1px solid var(--b);
+				}
+				.bottom a {
+					padding: 10px;
+					font-size: 12px;
+				}
+				.bottom a:nth-child(2) {
+					color: var(--p);
+					font-weight: 700;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="top">
+			<a class="brand">睦<i>谈</i></a>
+			<nav class="links"><a>首页</a><a>微博</a><a>论坛</a><a>博客</a></nav>
+			<div class="actions">
+				<span class="icon">◐</span><span class="icon">♢</span><span class="avatar">木</span>
+			</div>
+		</header>
+		<main class="shell">
+			<h1>搜索</h1>
+			<div class="searchbox">
+				<input value="社区" aria-label="搜索关键词" /><button>搜索</button>
+			</div>
+			<nav class="tabs">
+				<a class="on">综合</a><a>微博</a><a>论坛</a><a>博客</a><a>用户</a>
+			</nav>
+			<article class="result">
+				<span class="kind">论坛</span>
+				<div>
+					<h2>如何让小社区的讨论持续发生？</h2>
+					<p>讨论不是靠更多内容堆出来的，而是让人知道自己说的话会被看见、被回应。</p>
+					<span class="meta">林冲 · 论坛 · 32 回复 · 12 分钟前</span>
+				</div>
+			</article>
+			<article class="result">
+				<span class="kind">博客</span>
+				<div>
+					<h2>从信息流到知识沉淀的设计取舍</h2>
+					<p>社区既要有即时的交流，也需要让值得反复阅读的思考沉淀下来。</p>
+					<span class="meta">花荣 · 博客 · 8 分钟阅读 · 昨天</span>
+				</div>
+			</article>
+			<article class="result">
+				<span class="kind">用户</span>
+				<div>
+					<h2>社区体验研究社</h2>
+					<p>@communitylab · 关注线上社区的治理、产品与表达。</p>
+					<span class="meta">1,248 粉丝 · 已发布 86 条内容</span>
+				</div>
+			</article>
+		</main>
+		<nav class="bottom"><a>首页</a><a>搜索</a><a>发布</a><a>通知</a><a>我的</a></nav>
+	</body>
+</html>

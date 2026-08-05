@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 非博客频道视觉样本</title>
+		<style>
+			:root {
+				font:
+					15px -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					'Noto Sans SC',
+					sans-serif;
+				color: #172433;
+				background: #e8e9e7;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+			}
+			button {
+				font: inherit;
+				cursor: pointer;
+			}
+			.guide {
+				max-width: 1180px;
+				margin: auto;
+				padding: 23px 24px 18px;
+			}
+			.guide h1 {
+				margin: 0 0 5px;
+				font-size: 23px;
+			}
+			.guide p {
+				margin: 0;
+				color: #626878;
+			}
+			.tabs {
+				display: flex;
+				gap: 8px;
+				flex-wrap: wrap;
+				margin-top: 17px;
+			}
+			.tabs button {
+				padding: 8px 13px;
+				border: 1px solid #cfd0d8;
+				border-radius: 99px;
+				background: #fff;
+				color: #4d5360;
+			}
+			.tabs button.active {
+				background: #25283b;
+				color: #fff;
+				border-color: #25283b;
+			}
+			.note {
+				display: block;
+				margin-top: 12px;
+				font-size: 13px;
+				color: #676d7c;
+			}
+			.sample {
+				display: none;
+				min-height: 735px;
+				--bg: #f6f8fa;
+				--paper: #fff;
+				--ink: #182333;
+				--muted: #657587;
+				--line: #dbe4ea;
+				--brand: #2563eb;
+				--soft: #e8f0ff;
+				background: var(--bg);
+				color: var(--ink);
+			}
+			.sample.active {
+				display: block;
+			}
+			.top {
+				height: 64px;
+				display: flex;
+				align-items: center;
+				gap: 28px;
+				padding: 0 24px;
+				background: var(--paper);
+				border-bottom: 1px solid var(--line);
+			}
+			.brand {
+				font-weight: 850;
+				font-size: 20px;
+			}
+			.brand b {
+				color: var(--brand);
+			}
+			.links {
+				display: flex;
+				gap: 6px;
+				flex: 1;
+			}
+			.links span {
+				padding: 8px 10px;
+				color: var(--muted);
+			}
+			.links .on {
+				font-weight: 750;
+				color: var(--brand);
+				background: var(--soft);
+				border-radius: 7px;
+			}
+			.actions {
+				margin-left: auto;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.search {
+				min-width: 180px;
+				padding: 8px 12px;
+				border: 1px solid var(--line);
+				border-radius: 7px;
+				color: var(--muted);
+			}
+			.icon {
+				width: 34px;
+				height: 34px;
+				display: grid;
+				place-items: center;
+				color: var(--muted);
+			}
+			.avatar {
+				width: 34px;
+				height: 34px;
+				border-radius: 50%;
+				display: grid;
+				place-items: center;
+				background: var(--brand);
+				color: #fff;
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.shell {
+				max-width: 1240px;
+				margin: auto;
+				padding: 34px 24px 80px;
+				display: grid;
+				grid-template-columns: 185px minmax(0, 690px) 250px;
+				gap: 32px;
+				justify-content: center;
+			}
+			.side {
+				padding-top: 8px;
+			}
+			.side h3,
+			.rail h3 {
+				margin: 0 0 9px;
+				font-size: 13px;
+			}
+			.side a {
+				display: block;
+				padding: 10px;
+				border-radius: 7px;
+				color: var(--muted);
+			}
+			.side a.on {
+				background: var(--soft);
+				color: var(--brand);
+				font-weight: 750;
+			}
+			.heading {
+				display: flex;
+				align-items: end;
+				justify-content: space-between;
+				margin-bottom: 15px;
+			}
+			.heading h1 {
+				margin: 0;
+				font-size: 27px;
+			}
+			.heading p {
+				margin: 4px 0 0;
+				color: var(--muted);
+			}
+			.primary {
+				border: 0;
+				border-radius: 7px;
+				padding: 10px 15px;
+				background: var(--brand);
+				color: #fff;
+				font-weight: 750;
+			}
+			.card {
+				background: var(--paper);
+				border: 1px solid var(--line);
+				border-radius: 10px;
+				padding: 16px;
+				margin-bottom: 12px;
+			}
+			.rail a {
+				display: block;
+				padding: 10px 0;
+				border-top: 1px solid var(--line);
+				font-size: 14px;
+			}
+			.rail a:first-of-type {
+				border: 0;
+			}
+			.rail p {
+				margin: 0;
+				color: var(--muted);
+				font-size: 13px;
+				line-height: 1.65;
+			}
+			/* 微博：高频、即时、内容有节奏，不使用博客衬线。 */
+			.weibo {
+				--bg: #f3f7fb;
+				--paper: #fff;
+				--ink: #172433;
+				--muted: #617187;
+				--line: #d8e3ee;
+				--brand: #1262b3;
+				--soft: #e0effc;
+			}
+			.composer {
+				display: flex;
+				gap: 11px;
+				align-items: start;
+			}
+			.composer .avatar {
+				background: #345b83;
+			}
+			.composer p {
+				flex: 1;
+				margin: 3px 0;
+				color: var(--muted);
+			}
+			.post {
+				position: relative;
+				padding-left: 61px;
+				min-height: 112px;
+			}
+			.post:before {
+				content: '';
+				position: absolute;
+				left: 31px;
+				top: 53px;
+				bottom: -13px;
+				width: 2px;
+				background: var(--soft);
+			}
+			.post:last-child:before {
+				display: none;
+			}
+			.post .avatar {
+				position: absolute;
+				left: 15px;
+				top: 17px;
+				background: #e56a54;
+			}
+			.post:nth-of-type(3) .avatar {
+				background: #7666c9;
+			}
+			.post b {
+				font-size: 14px;
+			}
+			.post small,
+			.post footer {
+				display: block;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.post p {
+				margin: 9px 0;
+				line-height: 1.65;
+			}
+			.post footer {
+				padding-top: 8px;
+				border-top: 1px solid var(--line);
+				word-spacing: 16px;
+			}
+			.weibo .rail {
+				border-top: 3px solid var(--brand);
+				padding-top: 13px;
+			}
+			/* 论坛：主题、版块、回复计数比即时信息更突出。 */
+			.forum {
+				--bg: #f7f5ef;
+				--paper: #fffdf8;
+				--ink: #28251e;
+				--muted: #746d60;
+				--line: #e5ddd0;
+				--brand: #786031;
+				--soft: #f2ecd9;
+			}
+			.forum .side {
+				border-right: 1px solid var(--line);
+			}
+			.topic {
+				display: grid;
+				grid-template-columns: 42px minmax(0, 1fr) 52px;
+				gap: 12px;
+				align-items: start;
+			}
+			.topic .badge {
+				height: 42px;
+				display: grid;
+				place-items: center;
+				background: var(--soft);
+				color: var(--brand);
+				font-weight: 800;
+				border-radius: 8px;
+			}
+			.tag {
+				display: inline-block;
+				padding: 3px 8px;
+				background: var(--soft);
+				color: var(--brand);
+				border-radius: 99px;
+				font-size: 12px;
+				font-weight: 750;
+			}
+			.topic h2 {
+				font-size: 17px;
+				margin: 5px 0 7px;
+			}
+			.topic p {
+				margin: 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.count {
+				text-align: center;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.count b {
+				display: block;
+				font-size: 19px;
+				color: var(--ink);
+			}
+			.forum .rail {
+				border-left: 3px solid var(--brand);
+				padding-left: 14px;
+			}
+			/* 首页：发现感更强，但没有用大面积渐变。 */
+			.home {
+				--bg: #eef2ee;
+				--paper: #fbfcf8;
+				--ink: #173236;
+				--muted: #607277;
+				--line: #d5dfd9;
+				--brand: #197168;
+				--soft: #dcefe9;
+			}
+			.home .top {
+				background: #173b3e;
+				color: #fff;
+				border: 0;
+			}
+			.home .links span,
+			.home .icon {
+				color: #c1d8d5;
+			}
+			.home .links .on {
+				background: #28585a;
+				color: #fff;
+			}
+			.home .search {
+				background: #255356;
+				border-color: #4b7474;
+				color: #d5e5e2;
+			}
+			.home .avatar {
+				background: #f3a44b;
+				color: #233b3d;
+			}
+			.home .shell {
+				display: block;
+				max-width: 1120px;
+			}
+			.hero {
+				display: grid;
+				grid-template-columns: 1.25fr 0.75fr;
+				gap: 20px;
+				padding: 36px;
+				border: 1px solid #bbd4cd;
+				background: var(--paper);
+			}
+			.hero h1 {
+				font-size: 42px;
+				line-height: 1.13;
+				margin: 0 0 12px;
+				letter-spacing: -1px;
+			}
+			.hero p {
+				max-width: 540px;
+				color: var(--muted);
+				font-size: 17px;
+				line-height: 1.65;
+			}
+			.hero .primary {
+				background: var(--brand);
+			}
+			.route {
+				padding: 18px;
+				background: #d9ede6;
+				border-left: 5px solid var(--brand);
+			}
+			.route b {
+				display: block;
+				font-size: 18px;
+				margin-bottom: 7px;
+			}
+			.route p {
+				margin: 0;
+				color: #4d6e6c;
+			}
+			.channels {
+				display: grid;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 12px;
+				margin-top: 18px;
+			}
+			.channels article {
+				min-height: 135px;
+				padding: 18px;
+				background: var(--paper);
+				border: 1px solid var(--line);
+			}
+			.channels h2 {
+				font-size: 18px;
+				margin: 0 0 7px;
+			}
+			.channels p {
+				margin: 0;
+				color: var(--muted);
+				font-size: 13px;
+				line-height: 1.6;
+			}
+			/* 后台：工具界面，深色左轨与清晰状态表格。 */
+			.admin {
+				--bg: #f0f3f5;
+				--paper: #fff;
+				--ink: #202b36;
+				--muted: #647281;
+				--line: #d9e0e5;
+				--brand: #326b95;
+				--soft: #e5f0f7;
+			}
+			.admin .top {
+				background: #203844;
+				color: #fff;
+				border: 0;
+			}
+			.admin .links {
+				display: none;
+			}
+			.admin .search {
+				background: #2a4b58;
+				border-color: #55707a;
+				color: #d5e3e6;
+			}
+			.admin .icon {
+				color: #c9d9dc;
+			}
+			.admin .avatar {
+				background: #f1b24d;
+				color: #2a3e45;
+			}
+			.admin .shell {
+				grid-template-columns: 210px minmax(0, 820px);
+				max-width: 1100px;
+				gap: 0;
+				padding-top: 0;
+			}
+			.admin .side {
+				min-height: 670px;
+				padding: 24px 14px;
+				background: #213844;
+				color: #c6d5d9;
+			}
+			.admin .side h3 {
+				color: #fff;
+			}
+			.admin .side a {
+				color: #b9cbd0;
+			}
+			.admin .side a.on {
+				background: #315364;
+				color: #fff;
+			}
+			.admin .heading {
+				margin-top: 25px;
+			}
+			.filters {
+				display: flex;
+				gap: 8px;
+				margin-bottom: 12px;
+			}
+			.filters span {
+				padding: 7px 10px;
+				background: var(--paper);
+				border: 1px solid var(--line);
+				border-radius: 6px;
+				font-size: 13px;
+				color: var(--muted);
+			}
+			.table {
+				width: 100%;
+				border-collapse: collapse;
+				background: var(--paper);
+				font-size: 14px;
+			}
+			.table th {
+				text-align: left;
+				padding: 11px 14px;
+				color: var(--muted);
+				font-size: 12px;
+				border-bottom: 1px solid var(--line);
+			}
+			.table td {
+				padding: 14px;
+				border-bottom: 1px solid var(--line);
+			}
+			.state {
+				display: inline-block;
+				border-radius: 99px;
+				padding: 3px 8px;
+				background: #e1f2e9;
+				color: #29714d;
+				font-size: 12px;
+			}
+			.state.pending {
+				background: #f9ebcf;
+				color: #98722c;
+			}
+			@media (max-width: 767px) {
+				.guide {
+					padding: 18px 14px 14px;
+				}
+				.top {
+					height: 56px;
+					padding: 0 14px;
+					gap: 10px;
+				}
+				.links,
+				.side,
+				.rail {
+					display: none;
+				}
+				.search {
+					width: 34px;
+					min-width: 0;
+					padding: 0;
+					border: 0;
+					font-size: 0;
+				}
+				.search:before {
+					content: '⌕';
+					font-size: 24px;
+				}
+				.icon:nth-of-type(2) {
+					display: none;
+				}
+				.shell,
+				.admin .shell {
+					display: block;
+					padding: 22px 14px 70px;
+				}
+				.heading h1 {
+					font-size: 24px;
+				}
+				.weibo .post {
+					padding-left: 55px;
+				}
+				.home .shell {
+					padding: 18px 14px 70px;
+				}
+				.hero {
+					display: block;
+					padding: 25px;
+				}
+				.hero h1 {
+					font-size: 33px;
+				}
+				.route {
+					margin-top: 18px;
+				}
+				.channels {
+					grid-template-columns: 1fr;
+				}
+				.admin .side {
+					display: none;
+				}
+				.admin .table {
+					font-size: 12px;
+				}
+				.admin .table th:nth-child(3),
+				.admin .table td:nth-child(3) {
+					display: none;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<section class="guide">
+			<h1>睦谈非博客频道样本</h1>
+			<p>博客可用编辑感；下面四页展示其余场景应有的不同气质，点击切换即可查看。</p>
+			<div class="tabs">
+				<button class="active" data-target="weibo">微博：即时社区</button
+				><button data-target="forum">论坛：主题讨论</button
+				><button data-target="home">首页：发现引导</button
+				><button data-target="admin">后台：操作工具</button>
+			</div>
+			<span class="note"
+				>四页共享品牌字、圆角、主题机制与视口右上角账号入口；变化的是信息表达方式。</span
+			>
+		</section>
+		<section id="weibo" class="sample weibo active">
+			<header class="top">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span>首页</span><span class="on">微博</span><span>论坛</span><span>博客</span>
+				</nav>
+				<div class="actions">
+					<span class="search">搜索睦谈</span><span class="icon">◐</span
+					><span class="icon">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="shell">
+				<nav class="side">
+					<h3>微博</h3>
+					<a class="on">推荐</a><a>最新</a><a>关注</a><a>收藏</a>
+				</nav>
+				<section>
+					<div class="heading">
+						<div>
+							<h1>正在发生</h1>
+							<p>来自你关注的人与正在展开的讨论</p>
+						</div>
+						<button class="primary">发布</button>
+					</div>
+					<article class="card composer">
+						<span class="avatar">林</span>
+						<p>分享此刻的想法……</p>
+					</article>
+					<article class="card post">
+						<span class="avatar">花</span><b>花荣</b><small>@huarong · 12 分钟前</small>
+						<p>
+							信息流可以有更鲜明的节奏：人、观点和互动自然串联，而不是一张张孤立的白卡片。
+						</p>
+						<footer>回复 12　转发 8　喜欢 46</footer>
+					</article>
+					<article class="card post">
+						<span class="avatar">苏</span><b>苏晚</b><small>@sora · 38 分钟前</small>
+						<p>今天读到一篇关于社区如何保持小而活跃的文章，想听听大家的经验。</p>
+						<footer>回复 4　转发 2　喜欢 18</footer>
+					</article>
+				</section>
+				<aside class="rail">
+					<h3>正在讨论</h3>
+					<a>如何让小社区持续发生？</a><a>今天值得读的三篇文章</a><a>新成员自我介绍</a>
+				</aside>
+			</main>
+		</section>
+		<section id="forum" class="sample forum">
+			<header class="top">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span>首页</span><span>微博</span><span class="on">论坛</span><span>博客</span>
+				</nav>
+				<div class="actions">
+					<span class="search">搜索睦谈</span><span class="icon">◐</span
+					><span class="icon">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="shell">
+				<nav class="side">
+					<h3>版块</h3>
+					<a class="on">全部主题</a><a>产品与体验</a><a>写作与表达</a><a>开源协作</a>
+				</nav>
+				<section>
+					<div class="heading">
+						<div>
+							<h1>论坛</h1>
+							<p>围绕一个问题，把话说完整。</p>
+						</div>
+						<button class="primary">发起讨论</button>
+					</div>
+					<article class="card topic">
+						<span class="badge">策</span>
+						<div>
+							<span class="tag">产品与体验</span>
+							<h2>如何避免调研结论只停留在文档里？</h2>
+							<p>杨青 · 6 分钟前 · 48 人认同</p>
+						</div>
+						<span class="count"><b>32</b>回复</span>
+					</article>
+					<article class="card topic">
+						<span class="badge">开</span>
+						<div>
+							<span class="tag">开源协作</span>
+							<h2>开源项目的社区治理模式比较</h2>
+							<p>潮汐 · 2 小时前 · 25 人认同</p>
+						</div>
+						<span class="count"><b>18</b>回复</span>
+					</article>
+					<article class="card topic">
+						<span class="badge">写</span>
+						<div>
+							<span class="tag">写作与表达</span>
+							<h2>从一句话到一篇文章：思考的颗粒度怎么选？</h2>
+							<p>苏晚 · 4 小时前 · 31 人认同</p>
+						</div>
+						<span class="count"><b>12</b>回复</span>
+					</article>
+				</section>
+				<aside class="rail">
+					<h3>讨论规则</h3>
+					<p>先搜索，再讨论；以观点和证据回应观点。</p>
+				</aside>
+			</main>
+		</section>
+		<section id="home" class="sample home">
+			<header class="top">
+				<span class="brand">睦<b>谈</b></span>
+				<nav class="links">
+					<span class="on">首页</span><span>微博</span><span>论坛</span><span>博客</span>
+				</nav>
+				<div class="actions">
+					<span class="search">搜索睦谈</span><span class="icon">◐</span
+					><span class="icon">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="shell">
+				<section class="hero">
+					<div>
+						<span class="tag">和同好一起，把想法说清楚</span>
+						<h1>每一次表达，都能找到回声。</h1>
+						<p>睦谈把即时分享、完整讨论和深度文章放在一个能长期生长的社区里。</p>
+						<button class="primary">开始探索</button>
+					</div>
+					<aside class="route">
+						<b>从你喜欢的方式开始</b>
+						<p>发一条微博，参与一个讨论，或读完一篇值得保存的文章。</p>
+					</aside>
+				</section>
+				<section class="channels">
+					<article>
+						<span class="tag">即时</span>
+						<h2>微博</h2>
+						<p>捕捉此刻，跟进正在发生的事。</p>
+					</article>
+					<article>
+						<span class="tag">讨论</span>
+						<h2>论坛</h2>
+						<p>围绕一个问题，整理不同观点。</p>
+					</article>
+					<article>
+						<span class="tag">沉淀</span>
+						<h2>博客</h2>
+						<p>把一段思考写完整，留给慢慢读的人。</p>
+					</article>
+				</section>
+			</main>
+		</section>
+		<section id="admin" class="sample admin">
+			<header class="top">
+				<span class="brand">睦<b>谈</b> · 管理</span>
+				<div class="actions">
+					<span class="search">搜索内容或用户</span><span class="icon">◐</span
+					><span class="icon">♢</span><span class="avatar">木</span>
+				</div>
+			</header>
+			<main class="shell">
+				<nav class="side">
+					<h3>运营管理</h3>
+					<a>概览</a><a class="on">内容审核</a><a>用户与权限</a><a>举报处理</a
+					><a>系统设置</a>
+				</nav>
+				<section>
+					<div class="heading">
+						<div>
+							<h1>内容审核</h1>
+							<p>按风险与时间处理待审核内容</p>
+						</div>
+						<button class="primary">批量操作</button>
+					</div>
+					<div class="filters">
+						<span>全部状态 ▾</span><span>所有频道 ▾</span><span>最近 7 天 ▾</span>
+					</div>
+					<table class="table">
+						<thead>
+							<tr>
+								<th>内容</th>
+								<th>作者 / 频道</th>
+								<th>时间</th>
+								<th>状态</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td><b>如何避免调研结论只停留在文档里？</b></td>
+								<td>杨青 · 论坛</td>
+								<td>6 分钟前</td>
+								<td><span class="state pending">待审核</span></td>
+							</tr>
+							<tr>
+								<td><b>本周新功能的三点观察</b></td>
+								<td>花荣 · 微博</td>
+								<td>38 分钟前</td>
+								<td><span class="state">已通过</span></td>
+							</tr>
+							<tr>
+								<td><b>长文阅读的最佳行宽</b></td>
+								<td>林冲 · 博客</td>
+								<td>昨天</td>
+								<td><span class="state">已通过</span></td>
+							</tr>
+						</tbody>
+					</table>
+				</section>
+			</main>
+		</section>
+		<script>
+			document.querySelectorAll('.tabs button').forEach((b) =>
+				b.addEventListener('click', () => {
+					document
+						.querySelectorAll('.tabs button,.sample')
+						.forEach((e) => e.classList.remove('active'));
+					b.classList.add('active');
+					document.getElementById(b.dataset.target).classList.add('active');
+				})
+			);
+		</script>
+	</body>
+</html>
