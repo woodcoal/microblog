@@ -25,17 +25,21 @@
 		"pm2": "pm2 start ecosystem.config.js",
 		"db:generate": "prisma generate",
 		"db:migrate": "prisma migrate deploy",
+		"db:migrate:dev": "prisma migrate dev",
+		"db:status": "prisma migrate status",
 		"db:studio": "prisma studio",
 		"db:seed": "npx tsx prisma/seed.ts",
 		"db:setup": "prisma generate && prisma migrate deploy && npx tsx prisma/seed.ts",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
-		"test:api-v1": "DATABASE_URL=$(node -r dotenv/config -p 'process.env.TEST_DATABASE_URL') && test -n \"$DATABASE_URL\" && export DATABASE_URL && API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma generate && API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 pnpm exec prisma migrate deploy && API_RATE_LIMIT_READ=3 API_RATE_LIMIT_WRITE=100 node --import=tsx --test tests/api-v1.acceptance.test.ts",
-		"test:api-agent": "DATABASE_URL=$(node -r dotenv/config -p 'process.env.TEST_DATABASE_URL') && test -n \"$DATABASE_URL\" && export DATABASE_URL && API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 pnpm exec prisma generate && API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 pnpm exec prisma migrate deploy && API_RATE_LIMIT_READ=1000 API_RATE_LIMIT_WRITE=1000 API_RATE_LIMIT_UPLOAD=1000 node --import=tsx --test tests/agent-api.acceptance.test.ts"
+		"test:api-v1": "node scripts/run-api-test.mjs api-v1",
+		"test:api-agent": "node scripts/run-api-test.mjs api-agent"
 	},
 	"dependencies": {
 		"@astrojs/node": "^11.0.3",
 		"@astrojs/react": "^6.0.2",
+		"@libsql/client": "^0.17.4",
+		"@prisma/adapter-libsql": "^7.9.1",
 		"@prisma/adapter-mariadb": "^7.9.1",
 		"@prisma/client": "^7.9.1",
 		"@scalar/api-reference": "^1.64.0",
