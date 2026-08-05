@@ -1,7 +1,7 @@
 /** /api/agent 真实 HTTP 验收测试。 */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
@@ -18,7 +18,6 @@ const prisma = new PrismaClient({
 	adapter: new PrismaLibSql({ url: `file:./${DATABASE_PATH}` })
 });
 
-let server: ChildProcess;
 let serverOutput = '';
 let aliceToken = '';
 let bobToken = '';
@@ -60,6 +59,40 @@ async function waitForServer() {
 	throw lastError ?? new Error(`Astro server did not become ready\n${serverOutput}`);
 }
 
+/** Astro 在 AI agent 环境中以锁文件管理后台进程，需通过 CLI 明确停止。 */
+async function waitForServerToStop() {
+	for (let attempt = 0; attempt < 80; attempt++) {
+		try {
+			await request('/api/agent/posts');
+		} catch {
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 125));
+	}
+	throw new Error('Astro server did not stop');
+}
+
+async function stopBackgroundAstroServer() {
+	// Astro 的 agent 模式会使 dev server 脱离 spawn 的子进程树；先只终止本测试专用端口的监听者。
+	if (process.platform === 'linux') {
+		const result = spawnSync('fuser', ['-k', '-TERM', `${PORT}/tcp`], { stdio: 'ignore' });
+		if (result.error && (result.error as NodeJS.ErrnoException).code !== 'ENOENT')
+			throw result.error;
+	}
+	await waitForServerToStop();
+	const child = spawn('pnpm', ['exec', 'astro', 'dev', 'stop'], { stdio: 'ignore' });
+	for (let attempt = 0; attempt < 40; attempt++) {
+		if (child.exitCode !== null || child.signalCode !== null) {
+			if (child.exitCode !== 0)
+				throw new Error(`无法停止 Astro dev server（退出码 ${child.exitCode}）`);
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 125));
+	}
+	child.kill('SIGTERM');
+	throw new Error('Astro dev stop command did not exit');
+}
+
 async function register(username: string) {
 	const response = await request('/api/agent/register', {
 		method: 'POST',
@@ -78,7 +111,9 @@ async function register(username: string) {
 }
 
 before(async () => {
-	server = spawn(
+	await stopBackgroundAstroServer();
+	await waitForServerToStop();
+	const server = spawn(
 		'pnpm',
 		['exec', 'astro', 'dev', '--host', '127.0.0.1', '--port', String(PORT)],
 		{
@@ -89,7 +124,8 @@ before(async () => {
 				API_RATE_LIMIT_WRITE: '1000',
 				API_RATE_LIMIT_UPLOAD: '1000'
 			},
-			stdio: 'pipe'
+			stdio: 'pipe',
+			detached: process.platform !== 'win32'
 		}
 	);
 	server.stdout?.on('data', (chunk) => (serverOutput += chunk.toString()));
@@ -107,10 +143,7 @@ before(async () => {
 });
 
 after(async () => {
-	if (!server?.killed) {
-		server.kill('SIGTERM');
-		await new Promise((resolve) => setTimeout(resolve, 100));
-	}
+	await stopBackgroundAstroServer();
 	await prisma.$disconnect();
 	if (uploadedUrl.startsWith('/uploads/') && !uploadedUrl.includes('..')) {
 		await unlink(resolve('public', uploadedUrl.slice(1))).catch(() => {});
@@ -154,6 +187,13 @@ test('资料与私有 note 可写可读', async () => {
 	});
 	assert.equal(profile.status, 200);
 	assert.equal(await plainText(profile), 'ok');
+	const clearAvatar = await request('/api/agent/profile', {
+		method: 'PUT',
+		headers: bearer(aliceToken, true),
+		body: JSON.stringify({ avatarUrl: null })
+	});
+	assert.equal(clearAvatar.status, 200);
+	assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: aliceId } })).avatarUrl, '');
 
 	const noteValue = `private-note-${RUN_ID}`;
 	const updateNote = await request('/api/agent/note', {
@@ -224,6 +264,18 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 	});
 	assert.equal(tooLong.status, 400);
 	assert.match(await plainText(tooLong), /^error: 内容不能超过/);
+
+	for (const path of [
+		'/api/agent/posts?userScope=unknown',
+		'/api/agent/posts?sort=popular',
+		'/api/agent/users?sort=popular',
+		'/api/agent/notifications?sort=popular',
+		`/api/agent/posts/${postId}?comments=-2`
+	]) {
+		const response = await request(path, { headers: bearer(aliceToken) });
+		assert.equal(response.status, 400, path);
+		assert.match(await plainText(response), /^error: /);
+	}
 });
 
 test('评论、点赞和关注的显式 action 保持幂等', async () => {

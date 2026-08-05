@@ -28,7 +28,7 @@ export const PUT: APIRoute = async (context) => {
 		const { displayName, bio, avatarUrl } = body as {
 			displayName?: string;
 			bio?: string;
-			avatarUrl?: string;
+			avatarUrl?: string | null;
 		};
 
 		try {

@@ -19,11 +19,11 @@
 
 **职责**：薄适配层，连接前端组件与 Service 层。
 
-| 允许 | 禁止 |
-|------|------|
-| 鉴权（`getUserFromRequest`） | 直接调用 `prisma` |
-| Zod 输入校验 | 直接调用 `@/lib/db` |
-| 委托 Service 层函数 | 跨层调用 `@/lib/*`（auth/errors 除外） |
+| 允许                            | 禁止                                           |
+| ------------------------------- | ---------------------------------------------- |
+| 鉴权（`getUserFromRequest`）    | 直接调用 `prisma`                              |
+| Zod 输入校验                    | 直接调用 `@/lib/db`                            |
+| 委托 Service 层函数             | 跨层调用 `@/lib/*`（auth/errors 除外）         |
 | ServiceError → ActionError 转换 | 包含业务逻辑（校验规则、数据转换、副作用触发） |
 
 **典型 handler 结构**（≤15 行）：
@@ -45,6 +45,7 @@ export const xxxAction = defineAction({
 ```
 
 **允许的 lib 导入**（仅限适配层自身职责）：
+
 - `@/lib/auth` — 鉴权（getUserFromRequest、generateToken、setTokenCookie、clearTokenCookie）
 - `@/lib/errors` — ServiceError 类
 
@@ -52,15 +53,16 @@ export const xxxAction = defineAction({
 
 **职责**：薄适配层，连接外部客户端与 Service 层。
 
-| 允许 | 禁止 |
-|------|------|
-| 鉴权（Agent Token / JWT / Cookie） | 直接调用 `prisma` |
-| 请求格式解析（JSON / FormData / URL 参数） | 直接调用 `@/lib/db` |
-| 委托 Service 层函数 | 跨层调用 `@/lib/*`（agent/utils/errors/auth 除外） |
-| ServiceError → HTTP 错误响应转换 | 包含业务逻辑 |
-| 响应格式化（JSON / 纯文本） | |
+| 允许                                       | 禁止                                               |
+| ------------------------------------------ | -------------------------------------------------- |
+| 鉴权（Agent Token / JWT / Cookie）         | 直接调用 `prisma`                                  |
+| 请求格式解析（JSON / FormData / URL 参数） | 直接调用 `@/lib/db`                                |
+| 委托 Service 层函数                        | 跨层调用 `@/lib/*`（agent/utils/errors/auth 除外） |
+| ServiceError → HTTP 错误响应转换           | 包含业务逻辑                                       |
+| 响应格式化（JSON / 纯文本）                |                                                    |
 
 **允许的 lib 导入**（仅限适配层自身职责）：
+
 - `@/lib/agent` — Agent API 鉴权与响应工具（requireAgentAuth、textResponse、textErrorResponse、parsePagination、getFollowIds、formatPostListItem、formatPostDetail）
 - `@/lib/utils` — 通用工具（parseJsonBody）
 - `@/lib/errors` — ServiceError 类
@@ -70,15 +72,16 @@ export const xxxAction = defineAction({
 
 **职责**：业务编排层，协调 lib 层的原子能力，实现完整业务流程。
 
-| 允许 | 禁止 |
-|------|------|
-| 调用任意 `@/lib/*` 函数 | 直接调用 `prisma`（通过 lib 层间接操作） |
-| 调用其他 Service 函数 | 依赖 Astro 上下文（APIContext / ActionAPIContext） |
-| 业务校验（字段合法性、权限检查、状态判断） | 接收 zod schema 作为参数 |
-| 触发副作用（通知、活动日志、推荐引擎同步） | |
-| 抛出 ServiceError | |
+| 允许                                       | 禁止                                               |
+| ------------------------------------------ | -------------------------------------------------- |
+| 调用任意 `@/lib/*` 函数                    | 直接调用 `prisma`（通过 lib 层间接操作）           |
+| 调用其他 Service 函数                      | 依赖 Astro 上下文（APIContext / ActionAPIContext） |
+| 业务校验（字段合法性、权限检查、状态判断） | 接收 zod schema 作为参数                           |
+| 触发副作用（通知、活动日志、推荐引擎同步） |                                                    |
+| 抛出 ServiceError                          |                                                    |
 
 **编码规范**：
+
 - 函数不依赖 Astro 上下文，仅接收纯参数，返回纯数据
 - 输入输出使用显式 TypeScript 接口，不用 zod
 - 异步副作用（通知、活动日志、推荐引擎）在 service 内部触发，调用方无需关心
@@ -88,33 +91,33 @@ export const xxxAction = defineAction({
 
 **职责**：原子能力层，提供可复用的底层操作。
 
-| 允许 | 禁止 |
-|------|------|
-| 直接调用 `prisma`（数据库 CRUD） | 包含业务逻辑（校验规则、权限判断、状态机） |
-| 封装数据库事务（`prisma.$transaction`） | 调用 Service 层函数（反向依赖） |
-| 提供纯工具函数（哈希、解析、格式化） | 依赖 Astro 上下文 |
-| 触发 Webhook 等基础设施操作 | |
+| 允许                                    | 禁止                                       |
+| --------------------------------------- | ------------------------------------------ |
+| 直接调用 `prisma`（数据库 CRUD）        | 包含业务逻辑（校验规则、权限判断、状态机） |
+| 封装数据库事务（`prisma.$transaction`） | 调用 Service 层函数（反向依赖）            |
+| 提供纯工具函数（哈希、解析、格式化）    | 依赖 Astro 上下文                          |
+| 触发 Webhook 等基础设施操作             |                                            |
 
 **文件组织**（按实体/领域划分）：
 
-| 文件 | 职责 |
-|------|------|
-| `db.ts` | Prisma Client 单例 |
-| `user.ts` | 用户 CRUD |
-| `post.ts` | 帖子 CRUD + 事务 |
-| `comment.ts` | 评论 CRUD |
-| `social.ts` | 点赞/关注/收藏 CRUD |
-| `category.ts` | 分类 CRUD + 排序事务 |
-| `tag.ts` | 标签查询 |
-| `settings.ts` | 用户设置 CRUD |
-| `notification.ts` | 通知创建/查询/删除 |
-| `upload.ts` | 文件存储 CRUD |
-| `activity.ts` | 活动日志创建 |
-| `auth.ts` | 鉴权工具（密码、JWT、Token） |
-| `token.ts` | API Token 生成/哈希/CRUD |
-| `webhook.ts` | Webhook 触发/CRUD |
-| `visibility.ts` | 可见度过滤 |
-| `errors.ts` | ServiceError 类 |
+| 文件              | 职责                         |
+| ----------------- | ---------------------------- |
+| `db.ts`           | Prisma Client 单例           |
+| `user.ts`         | 用户 CRUD                    |
+| `post.ts`         | 帖子 CRUD + 事务             |
+| `comment.ts`      | 评论 CRUD                    |
+| `social.ts`       | 点赞/关注/收藏 CRUD          |
+| `category.ts`     | 分类 CRUD + 排序事务         |
+| `tag.ts`          | 标签查询                     |
+| `settings.ts`     | 用户设置 CRUD                |
+| `notification.ts` | 通知创建/查询/删除           |
+| `upload.ts`       | 文件存储 CRUD                |
+| `activity.ts`     | 活动日志创建                 |
+| `auth.ts`         | 鉴权工具（密码、JWT、Token） |
+| `token.ts`        | API Token 生成/哈希/CRUD     |
+| `webhook.ts`      | Webhook 触发/CRUD            |
+| `visibility.ts`   | 可见度过滤                   |
+| `errors.ts`       | ServiceError 类              |
 
 ### 层间依赖规则
 
@@ -127,6 +130,7 @@ Actions ──→ Services ──→ Lib ──→ Prisma
 ```
 
 **严格规则**：
+
 1. **单向依赖**：上层只能调用下层，禁止反向依赖
 2. **禁止跨层**：Actions/API 不能直接调用 Lib（auth/errors/agent/utils 除外）
 3. **Service 是唯一业务入口**：所有业务操作必须通过 Service 层，Actions/API 只做薄适配

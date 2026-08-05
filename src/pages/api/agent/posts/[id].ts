@@ -31,7 +31,11 @@ export const GET: APIRoute = async (context) => {
 
 		// 解析 comments 参数
 		const url = new URL(context.request.url);
-		const commentsParam = Number(url.searchParams.get('comments')) || 0;
+		const commentsValue = url.searchParams.get('comments');
+		const commentsParam = commentsValue === null ? 0 : Number(commentsValue);
+		if (!Number.isInteger(commentsParam) || commentsParam < -1) {
+			return textErrorResponse('comments 必须为 -1、0 或正整数');
+		}
 
 		// 委托 service 层查询
 		const result = await getPostDetail({
