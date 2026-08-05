@@ -19,6 +19,7 @@ import {
 	withCorsHeaders,
 	withRateLimitHeaders
 } from '@/lib/api-security';
+import { API_AGENT_ENABLED, API_V1_ENABLED } from '@/lib/config';
 import { getOrCreateCsrfToken, csrfFailureResponse, validateCsrfToken } from '@/lib/csrf';
 
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -30,6 +31,23 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	if (isApiRoute(url.pathname)) {
 		const isV1 = isV1ApiRoute(url.pathname);
+		if ((isV1 && !API_V1_ENABLED) || (!isV1 && !API_AGENT_ENABLED)) {
+			return new Response(
+				isV1
+					? JSON.stringify({ error: { code: 'NOT_FOUND', message: 'API v1 接口未启用' } })
+					: 'error: Agent API 接口未启用',
+				{
+					status: 404,
+					headers: {
+						'Content-Type': isV1
+							? 'application/json; charset=utf-8'
+							: 'text/plain; charset=utf-8',
+						'Cache-Control': 'no-store'
+					}
+				}
+			);
+		}
+
 		if (!isAllowedCorsOrigin(request)) {
 			return withCorsHeaders(corsRejectedResponse(isV1), request);
 		}
