@@ -6,7 +6,7 @@
  */
 import { after, before, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaClient } from '../generated/prisma/client';
@@ -18,7 +18,6 @@ const alice = `qa_alice_${RUN_ID}`.slice(0, 20);
 const bob = `qa_bob_${RUN_ID}`.slice(0, 20);
 const password = 'acceptance-password';
 
-let server: ChildProcess;
 let aliceToken = '';
 let bobToken = '';
 let postId = '';
@@ -55,15 +54,51 @@ async function waitForServer() {
 	throw lastError ?? new Error('Astro server did not become ready');
 }
 
-before(async () => {
-	server = spawn(
-		'pnpm',
-		['exec', 'astro', 'dev', '--host', '127.0.0.1', '--port', String(PORT)],
-		{
-			env: { ...process.env, DATABASE_URL: 'file:./prisma/api-v1-acceptance.db' },
-			stdio: 'pipe'
+/**
+ * Astro 在 AI agent 环境中会把 dev server 转为受锁文件管理的后台进程，
+ * spawn 得到的 pnpm 进程退出并不代表监听器退出。必须通过 Astro CLI 停止它。
+ */
+async function waitForServerToStop() {
+	for (let attempt = 0; attempt < 80; attempt++) {
+		try {
+			await request('/api/v1/posts');
+		} catch {
+			return;
 		}
-	);
+		await new Promise((resolve) => setTimeout(resolve, 125));
+	}
+	throw new Error('Astro server did not stop');
+}
+
+async function stopBackgroundAstroServer() {
+	// Astro 的 agent 模式会使 dev server 脱离 spawn 的子进程树；先只终止本测试专用端口的监听者。
+	if (process.platform === 'linux') {
+		const result = spawnSync('fuser', ['-k', '-TERM', `${PORT}/tcp`], { stdio: 'ignore' });
+		if (result.error && (result.error as NodeJS.ErrnoException).code !== 'ENOENT')
+			throw result.error;
+	}
+	await waitForServerToStop();
+	const child = spawn('pnpm', ['exec', 'astro', 'dev', 'stop'], { stdio: 'ignore' });
+	for (let attempt = 0; attempt < 40; attempt++) {
+		if (child.exitCode !== null || child.signalCode !== null) {
+			if (child.exitCode !== 0)
+				throw new Error(`无法停止 Astro dev server（退出码 ${child.exitCode}）`);
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 125));
+	}
+	child.kill('SIGTERM');
+	throw new Error('Astro dev stop command did not exit');
+}
+
+before(async () => {
+	await stopBackgroundAstroServer();
+	await waitForServerToStop();
+	spawn('pnpm', ['exec', 'astro', 'dev', '--host', '127.0.0.1', '--port', String(PORT)], {
+		env: { ...process.env, DATABASE_URL: 'file:./prisma/api-v1-acceptance.db' },
+		stdio: 'pipe',
+		detached: process.platform !== 'win32'
+	});
 	await waitForServer();
 
 	for (const username of [alice, bob]) {
@@ -111,10 +146,7 @@ before(async () => {
 });
 
 after(async () => {
-	if (!server?.killed) {
-		server.kill('SIGTERM');
-		await new Promise((resolve) => setTimeout(resolve, 100));
-	}
+	await stopBackgroundAstroServer();
 	await prisma.$disconnect();
 });
 
@@ -168,6 +200,23 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 		'password',
 		'users'
 	]);
+});
+
+test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => {
+	const spec = await json(await request('/api/docs.json?api=agent'));
+	assert.equal(spec.openapi, '3.0.3');
+	assert.equal(spec.servers[0].url, '/api/agent');
+	for (const [path, method] of [
+		['/register', 'post'],
+		['/posts', 'get'],
+		['/posts', 'post'],
+		['/notifications', 'get'],
+		['/profile', 'put'],
+		['/upload', 'post']
+	]) {
+		assert.ok(spec.paths[path]?.[method], `${method.toUpperCase()} ${path}`);
+	}
+	assert.ok(spec.paths['/posts'].get.responses[200].content['text/plain']);
 });
 
 test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async () => {

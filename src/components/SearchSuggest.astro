@@ -245,7 +245,12 @@ const modeLabels = JSON.stringify({
 		 * @param users - 用户数组
 		 */
 		function renderUsers(
-			users: Array<{ id: string; username: string; displayName: string; avatarUrl: string | null }>
+			users: Array<{
+				id: string;
+				username: string;
+				displayName: string;
+				avatarUrl: string | null;
+			}>
 		) {
 			if (users.length === 0) {
 				usersSection.style.display = 'none';

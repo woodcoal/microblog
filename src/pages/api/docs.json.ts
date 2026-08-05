@@ -6,6 +6,7 @@
  */
 import type { APIRoute } from 'astro';
 import { SITE_TITLE, SITE_DESCRIPTION } from '@/lib/config';
+import { createAgentOpenApiSpec } from '@/lib/agent-openapi';
 
 const bearerSecurity = [{ BearerJWT: [] }, { BearerAPIToken: [] }];
 
@@ -769,11 +770,15 @@ const spec = {
 	}
 };
 
-export const GET: APIRoute = () =>
-	new Response(JSON.stringify(spec, null, 2), {
+export const GET: APIRoute = ({ request }) => {
+	const api = new URL(request.url).searchParams.get('api');
+	const document = api === 'agent' ? createAgentOpenApiSpec() : spec;
+
+	return new Response(JSON.stringify(document, null, 2), {
 		status: 200,
 		headers: {
 			'Content-Type': 'application/json; charset=utf-8',
 			'Cache-Control': 'public, max-age=3600'
 		}
 	});
+};

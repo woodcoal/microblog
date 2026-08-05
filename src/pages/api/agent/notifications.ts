@@ -48,6 +48,9 @@ export const GET: APIRoute = async (context) => {
 		if (status !== 'all' && status !== 'read' && status !== 'unread') {
 			return textErrorResponse('status 必须为 all、read 或 unread');
 		}
+		if (sort !== 'latest' && sort !== 'earliest') {
+			return textErrorResponse('sort 必须为 latest 或 earliest');
+		}
 
 		// 时间范围解析
 		let from: Date | undefined;

@@ -34,6 +34,12 @@ export const GET: APIRoute = async (context) => {
 		const userScope = url.searchParams.get('userScope') || 'all';
 		const sort = url.searchParams.get('sort') || 'latest';
 		const { limit, skip } = parsePagination(url);
+		if (!['all', 'followers', 'following'].includes(userScope)) {
+			return textErrorResponse('userScope 必须为 all、followers 或 following');
+		}
+		if (!['latest', 'earliest'].includes(sort)) {
+			return textErrorResponse('sort 必须为 latest 或 earliest');
+		}
 
 		// userScope 过滤需要获取关注 ID 列表
 		let followingIds: string[] | undefined;

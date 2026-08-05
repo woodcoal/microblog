@@ -21,7 +21,7 @@ Content-Type: application/json
 }
 ```
 
-只更新传入的字段，未传入的保持不变。
+只更新传入的字段，未传入的保持不变。`avatarUrl: null` 会清除头像（服务端保存为空字符串）。
 
 ### 读取个人记录
 

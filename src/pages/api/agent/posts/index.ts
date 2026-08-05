@@ -61,6 +61,12 @@ export const GET: APIRoute = async (context) => {
 			to = new Date(toStr);
 			if (isNaN(to.getTime())) return textErrorResponse('结束时间格式无效');
 		}
+		if (!['all', 'followers', 'following'].includes(userScope)) {
+			return textErrorResponse('userScope 必须为 all、followers 或 following');
+		}
+		if (!['latest', 'earliest', 'hot'].includes(sort)) {
+			return textErrorResponse('sort 必须为 latest、earliest 或 hot');
+		}
 
 		// 获取关注关系
 		const { followingIds, followerIds } = await getFollowIds(currentUser.userId);

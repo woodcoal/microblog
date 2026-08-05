@@ -167,9 +167,8 @@ const likedPostIds = await getLikedPostIds(
 										displayName: post.user.displayName,
 										avatarUrl: post.user.avatarUrl
 									},
-								media: post.media
-								,
-								visibility: post.visibility
+									media: post.media,
+									visibility: post.visibility
 								}}
 								htmlContent={renderMarkdown(post.content)}
 								likeCount={postLikeCount}
