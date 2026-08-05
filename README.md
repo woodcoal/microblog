@@ -19,7 +19,7 @@
 - **框架**：Astro 6（服务端渲染）
 - **前端**：Astro 组件 + React 19（Tiptap 富文本编辑器）
 - **样式**：纯 CSS（CSS 变量设计令牌，无 UI 框架依赖）
-- **数据库**：SQLite（@libsql/client，纯 JS 实现）
+- **数据库**：MySQL 8+（MariaDB connector）
 - **ORM**：Prisma 7
 - **认证**：JWT（jose）+ bcryptjs
 - **部署**：Node.js standalone（默认），预留 Cloudflare 适配器
@@ -45,7 +45,7 @@ npm install
 cp .env.example .env
 # 编辑 .env，至少配置 JWT_SECRET
 
-# 初始化数据库
+# 初始化数据库（执行已提交的 MySQL 迁移）
 npm run db:setup
 
 # 启动开发服务器
@@ -71,17 +71,18 @@ npm run pm2
 
 复制 `.env.example` 为 `.env` 进行配置：
 
-| 变量                 | 说明                                 | 默认值                                  |
-| -------------------- | ------------------------------------ | --------------------------------------- |
-| `DATABASE_URL`       | 数据库连接                           | `file:./prisma/dev.db`                  |
-| `JWT_SECRET`         | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
-| `JWT_EXPIRES_DAYS`   | JWT 有效期（天）                     | `7`                                     |
-| `UPLOAD_DIR`         | 文件上传目录                         | `./uploads`                             |
-| `SITE_URL`           | 站点 URL                             | `http://localhost:4321`                 |
-| `SITE_TITLE`         | 站点标题                             | `睦谈`                                  |
-| `SITE_DESCRIPTION`   | 站点描述                             | `世间纷纷扰扰，此处和睦相谈`            |
-| `SITE_MODES`         | 启用的模式（逗号分隔）               | `weibo,forum,blog`                      |
-| `ALLOW_REGISTRATION` | 是否允许注册                         | `true`                                  |
+| 变量                 | 说明                                 | 默认值                                           |
+| -------------------- | ------------------------------------ | ------------------------------------------------ |
+| `DATABASE_URL`       | 数据库连接                           | `mysql://user:password@127.0.0.1:3306/microblog` |
+| `TEST_DATABASE_URL`  | API 验收测试专用连接（必须独立）     | —                                                |
+| `JWT_SECRET`         | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production`          |
+| `JWT_EXPIRES_DAYS`   | JWT 有效期（天）                     | `7`                                              |
+| `UPLOAD_DIR`         | 文件上传目录                         | `./uploads`                                      |
+| `SITE_URL`           | 站点 URL                             | `http://localhost:4321`                          |
+| `SITE_TITLE`         | 站点标题                             | `睦谈`                                           |
+| `SITE_DESCRIPTION`   | 站点描述                             | `世间纷纷扰扰，此处和睦相谈`                     |
+| `SITE_MODES`         | 启用的模式（逗号分隔）               | `weibo,forum,blog`                               |
+| `ALLOW_REGISTRATION` | 是否允许注册                         | `true`                                           |
 
 完整变量列表见 `.env.example`。
 
@@ -112,6 +113,12 @@ npm run db:studio        # Prisma Studio GUI
 npm run db:setup         # 一键初始化数据库
 npm run format           # 代码格式化
 ```
+
+### MySQL 数据库
+
+`DATABASE_URL` 需采用 `mysql://用户名:密码@主机:端口/数据库名` 格式。首次连接空数据库时，执行 `npm run db:setup` 创建表结构和管理员账号。
+
+`test:api-v1` 与 `test:api-agent` 只读取 `TEST_DATABASE_URL`，并会向其中写入验收数据；请配置一个独立的测试库，禁止指向生产库。
 
 ## 内容模式
 
