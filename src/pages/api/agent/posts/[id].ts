@@ -2,11 +2,11 @@
  * Agent 帖子详情 API
  *
  * GET /api/agent/posts/:id — 获取帖子详情（含评论和媒体）
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
-import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
-import { getAgentPostDetail } from '@/services/content.service';
+import { requireAgentAuth, textResponse, textErrorResponse, formatPostDetail } from '@/lib/agent';
+import { getPostDetail } from '@/services/content.service';
 
 /**
  * 获取帖子详情
@@ -31,10 +31,14 @@ export const GET: APIRoute = async (context) => {
 
 		// 解析 comments 参数
 		const url = new URL(context.request.url);
-		const commentsParam = Number(url.searchParams.get('comments')) || 0;
+		const commentsValue = url.searchParams.get('comments');
+		const commentsParam = commentsValue === null ? 0 : Number(commentsValue);
+		if (!Number.isInteger(commentsParam) || commentsParam < -1) {
+			return textErrorResponse('comments 必须为 -1、0 或正整数');
+		}
 
 		// 委托 service 层查询
-		const result = await getAgentPostDetail({
+		const result = await getPostDetail({
 			userId: currentUser.userId,
 			postId: id,
 			commentsParam
@@ -45,7 +49,7 @@ export const GET: APIRoute = async (context) => {
 			return textErrorResponse(result.error ?? '未知错误', result.status);
 		}
 
-		return textResponse(result.data);
+		return textResponse(formatPostDetail(result.data.post, result.data.comments));
 	} catch (error) {
 		console.error('获取帖子详情失败:', error);
 		return textErrorResponse('服务器错误', 500);

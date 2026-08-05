@@ -14,17 +14,52 @@
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 
 interface Props {
-	/** 是否在挂载时恢复草稿（仅弹窗模式需要） */
+	/** 是否在挂载时恢复草稿 */
 	restoreDraft?: boolean;
+	/** 编辑态所需的帖子 ID；未传入时为创建态 */
+	postId?: string;
+	/** 编辑成功后的跳转用户名 */
+	username?: string;
+	/** 编辑态初始内容 */
+	initialContent?: string;
+	/** 编辑态初始可见度 */
+	initialVisibility?: string;
+	/** 编辑态需要回显并允许移除的媒体 */
+	initialMedia?: ExistingMedia[];
 }
 
-const { restoreDraft = false } = Astro.props;
+interface ExistingMedia {
+	id: string;
+	fileStorageId: string;
+	fileType: string;
+	originalName: string;
+	url: string;
+}
+
+const {
+	restoreDraft = false,
+	postId,
+	username,
+	initialContent = '',
+	initialVisibility = 'public',
+	initialMedia = []
+} = Astro.props;
+const isEdit = Boolean(postId);
+// 兼容修复前保存的内容，并通过 set:text 避免 Astro 模板缩进成为 textarea 值。
+const initialEditorContent = initialContent.trimStart();
 
 /** 图片最大数量 */
 const MAX_IMAGES = 9;
 ---
 
-<form class="post-editor" id="post-editor-form" data-restore-draft={String(restoreDraft)}>
+<form
+	class="post-editor"
+	data-restore-draft={String(restoreDraft || isEdit)}
+	data-mode={isEdit ? 'edit' : 'create'}
+	data-post-id={postId}
+	data-username={username}
+	data-existing-media={JSON.stringify(initialMedia)}
+>
 	{/* 草稿恢复提示 */}
 	<div class="post-editor-draft-hint" id="draft-hint" style="display:none">
 		📝 已恢复上次未发布的草稿
@@ -36,23 +71,41 @@ const MAX_IMAGES = 9;
 			id="post-content"
 			placeholder="分享你的想法..."
 			maxlength={POST_CONTENT_MAX_LENGTH}
-			rows="4"></textarea>
+			rows="4"
+			set:text={initialEditorContent}
+		/>
 
 		{/* 可见度选择器 */}
 		<div class="post-editor-visibility">
 			<select class="form-input post-editor-visibility-select" id="post-visibility">
-				<option value="public">🌐 公开</option>
-				<option value="logged_in">🔐 登录用户可见</option>
-				<option value="followers">👥 粉丝可见</option>
-				<option value="following">🤝 我关注的人可见</option>
-				<option value="private">🔒 仅自己可见</option>
-				<option value="password">🔑 密码保护</option>
-				<option value="users">👤 指定用户可见</option>
+				<option value="public" selected={initialVisibility === 'public'}>🌐 公开</option>
+				<option value="logged_in" selected={initialVisibility === 'logged_in'}
+					>🔐 登录用户可见</option
+				>
+				<option value="followers" selected={initialVisibility === 'followers'}
+					>👥 粉丝可见</option
+				>
+				<option value="following" selected={initialVisibility === 'following'}
+					>🤝 我关注的人可见</option
+				>
+				<option value="private" selected={initialVisibility === 'private'}
+					>🔒 仅自己可见</option
+				>
+				<option value="password" selected={initialVisibility === 'password'}
+					>🔑 密码保护</option
+				>
+				<option value="users" selected={initialVisibility === 'users'}
+					>👤 指定用户可见</option
+				>
 			</select>
 		</div>
 
 		{/* 密码输入框（visibility=password 时显示） */}
-		<div class="post-editor-password" id="password-field" style="display:none">
+		<div
+			class="post-editor-password"
+			id="password-field"
+			style={initialVisibility === 'password' ? '' : 'display:none'}
+		>
 			<input
 				type="password"
 				class="form-input"
@@ -62,7 +115,11 @@ const MAX_IMAGES = 9;
 		</div>
 
 		{/* 用户名输入框（visibility=users 时显示） */}
-		<div class="post-editor-users" id="users-field" style="display:none">
+		<div
+			class="post-editor-users"
+			id="users-field"
+			style={initialVisibility === 'users' ? '' : 'display:none'}
+		>
 			<input
 				type="text"
 				class="form-input"
@@ -90,6 +147,16 @@ const MAX_IMAGES = 9;
 							style="display:none"
 						/>
 						📷 图片
+					</label>
+					<label class="post-editor-upload-btn" id="attachment-label">
+						<input
+							type="file"
+							accept=".pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rar,.7z"
+							multiple
+							id="attachment-input"
+							style="display:none"
+						/>
+						📎 附件
 					</label>
 				</div>
 				<button
@@ -134,7 +201,18 @@ const MAX_IMAGES = 9;
 			<span class="post-editor-count" id="char-count">
 				0/{POST_CONTENT_MAX_LENGTH}
 			</span>
-			<button class="btn btn-primary" type="submit" id="submit-btn" disabled> 发布 </button>
+			<div class="post-editor-actions">
+				{
+					isEdit && (
+						<a href={`/${username}/${postId}`} class="btn btn-outline">
+							取消
+						</a>
+					)
+				}
+				<button class="btn btn-primary" type="submit" id="submit-btn" disabled>
+					{isEdit ? '保存修改' : '发布'}
+				</button>
+			</div>
 		</div>
 	</div>
 	<p class="form-error" id="form-error" style="display:none"></p>
@@ -153,6 +231,7 @@ const MAX_IMAGES = 9;
 	 * - Emoji 选择器 → 原生 dialog + 分类浏览
 	 */
 	import { actions } from 'astro:actions';
+	import { escapeHtml } from '@/lib/html';
 
 	/** Emoji 分类数据（约 200 个常用 emoji） */
 	const EMOJI_CATEGORIES = [
@@ -468,7 +547,6 @@ const MAX_IMAGES = 9;
 	];
 
 	/** 草稿存储键 */
-	const DRAFT_KEY = 'post-draft';
 	/** 草稿自动保存间隔（毫秒） */
 	const DRAFT_SAVE_DELAY = 1000;
 	/** 图片最大数量 */
@@ -486,6 +564,14 @@ const MAX_IMAGES = 9;
 		fileType: string;
 		/** 原始文件名 */
 		originalName: string;
+	}
+
+	interface ExistingMedia {
+		id: string;
+		fileStorageId: string;
+		fileType: string;
+		originalName: string;
+		url: string;
 	}
 
 	/**
@@ -506,6 +592,7 @@ const MAX_IMAGES = 9;
 		const usernamesInput = form.querySelector('#post-allowed-usernames') as HTMLInputElement;
 		const uploadArea = form.querySelector('#upload-area') as HTMLDivElement;
 		const fileInput = form.querySelector('#file-input') as HTMLInputElement;
+		const attachmentInput = form.querySelector('#attachment-input') as HTMLInputElement;
 		const uploadCount = form.querySelector('#upload-count') as HTMLSpanElement;
 		const progressWrap = form.querySelector('#upload-progress') as HTMLDivElement;
 		const progressBar = form.querySelector('#progress-bar') as HTMLDivElement;
@@ -521,7 +608,11 @@ const MAX_IMAGES = 9;
 		const draftHint = form.querySelector('#draft-hint') as HTMLDivElement;
 
 		// ===== 状态 =====
-		/** 已上传文件列表 */
+		const isEdit = form.dataset.mode === 'edit';
+		const draftKey = isEdit ? `post-draft-${form.dataset.postId}` : 'post-draft';
+		/** 已有且仍需保留的媒体列表 */
+		let existingMedia: ExistingMedia[] = JSON.parse(form.dataset.existingMedia || '[]');
+		/** 本次已上传文件列表 */
 		let uploadedFiles: UploadedFile[] = [];
 		/** 是否正在上传 */
 		let uploading = false;
@@ -544,7 +635,14 @@ const MAX_IMAGES = 9;
 		 * @returns 图片类型的文件数量
 		 */
 		function getImageCount(): number {
-			return uploadedFiles.filter((f) => f.fileType === 'image').length;
+			return (
+				existingMedia.filter((file) => file.fileType === 'image').length +
+				uploadedFiles.filter((file) => file.fileType === 'image').length
+			);
+		}
+
+		function getUploadId(file: ExistingMedia | UploadedFile): string {
+			return 'fileStorageId' in file ? file.fileStorageId : file.id;
 		}
 
 		/**
@@ -566,7 +664,13 @@ const MAX_IMAGES = 9;
 		 */
 		function updateSubmitBtn(): void {
 			submitBtn.disabled = loading || !textarea.value.trim();
-			submitBtn.textContent = loading ? '发布中...' : '发布';
+			submitBtn.textContent = loading
+				? isEdit
+					? '保存中...'
+					: '发布中...'
+				: isEdit
+					? '保存修改'
+					: '发布';
 		}
 
 		/**
@@ -584,21 +688,56 @@ const MAX_IMAGES = 9;
 		 * 渲染图片预览区域
 		 */
 		function renderPreviews(): void {
-			if (uploadedFiles.length === 0) {
+			if (uploadedFiles.length === 0 && existingMedia.length === 0) {
 				imagePreviews.style.display = 'none';
 				imagePreviews.innerHTML = '';
 				return;
 			}
 			imagePreviews.style.display = '';
-			imagePreviews.innerHTML = uploadedFiles
-				.map(
+			const images = [
+				...existingMedia
+					.filter((file) => file.fileType === 'image')
+					.map((file) => ({
+						...file,
+						kind: 'existing'
+					})),
+				...uploadedFiles
+					.filter((file) => file.fileType === 'image')
+					.map((file) => ({
+						...file,
+						kind: 'uploaded'
+					}))
+			];
+			const attachments = [
+				...existingMedia
+					.filter((file) => file.fileType === 'attachment')
+					.map((file) => ({
+						...file,
+						kind: 'existing'
+					})),
+				...uploadedFiles
+					.filter((file) => file.fileType === 'attachment')
+					.map((file) => ({
+						...file,
+						kind: 'uploaded'
+					}))
+			];
+			imagePreviews.innerHTML = [
+				...images.map(
 					(file) =>
 						`<div class="post-editor-preview-item">
-						<img src="${file.url}" alt="${file.originalName}" />
-						<button type="button" class="post-editor-preview-remove" data-file-id="${file.id}">×</button>
-					</div>`
+							<img src="${escapeHtml(file.url)}" alt="${escapeHtml(file.originalName)}" />
+							<button type="button" class="post-editor-preview-remove" data-file-id="${escapeHtml(getUploadId(file))}" data-file-kind="${file.kind}">×</button>
+						</div>`
+				),
+				...attachments.map(
+					(file) =>
+						`<div class="post-editor-attachment-item">
+							<span>📎 ${escapeHtml(file.originalName)}</span>
+							<button type="button" class="post-editor-preview-remove" data-file-id="${escapeHtml(getUploadId(file))}" data-file-kind="${file.kind}">删除</button>
+						</div>`
 				)
-				.join('');
+			].join('');
 		}
 
 		/**
@@ -626,9 +765,9 @@ const MAX_IMAGES = 9;
 		function saveDraft(): void {
 			const draft = { content: textarea.value, visibility: visibilitySelect.value };
 			if (draft.content.trim()) {
-				localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+				localStorage.setItem(draftKey, JSON.stringify(draft));
 			} else {
-				localStorage.removeItem(DRAFT_KEY);
+				localStorage.removeItem(draftKey);
 			}
 		}
 
@@ -636,7 +775,36 @@ const MAX_IMAGES = 9;
 		 * 清除草稿
 		 */
 		function clearDraft(): void {
-			localStorage.removeItem(DRAFT_KEY);
+			if (draftTimer) {
+				clearTimeout(draftTimer);
+				draftTimer = null;
+			}
+			localStorage.removeItem(draftKey);
+		}
+
+		/**
+		 * 将编辑器恢复为创建时的空状态。
+		 *
+		 * 成功提交后同步清空界面，避免跳转前残留内容，也避免已上传媒体
+		 * 被下一次草稿保存重新写入。
+		 */
+		function resetEditor(): void {
+			textarea.value = '';
+			visibilitySelect.value = 'public';
+			passwordInput.value = '';
+			usernamesInput.value = '';
+			existingMedia = [];
+			uploadedFiles = [];
+			fileInput.value = '';
+			attachmentInput.value = '';
+			uploadProgress = 0;
+			progressBar.style.width = '0%';
+			progressWrap.style.display = 'none';
+			hideError();
+			handleVisibilityChange();
+			renderPreviews();
+			updateUploadUI();
+			updateCharCount();
 		}
 
 		/**
@@ -644,11 +812,12 @@ const MAX_IMAGES = 9;
 		 */
 		function restoreDraft(): void {
 			try {
-				const saved = localStorage.getItem(DRAFT_KEY);
+				const saved = localStorage.getItem(draftKey);
 				if (saved) {
 					const draft = JSON.parse(saved);
 					if (draft.content) {
-						textarea.value = draft.content;
+						// 兼容修复前保存的草稿，避免历史缩进再次显示在输入开头。
+						textarea.value = draft.content.trimStart();
 						if (draft.visibility) visibilitySelect.value = draft.visibility;
 						// 触发可见度切换逻辑
 						handleVisibilityChange();
@@ -699,10 +868,10 @@ const MAX_IMAGES = 9;
 		 * @param file - 要上传的 File 对象
 		 * @returns Promise<void>
 		 */
-		async function uploadFile(file: File): Promise<void> {
+		async function uploadFile(file: File, fileType: 'image' | 'attachment'): Promise<void> {
 			const formData = new FormData();
 			formData.append('file', file);
-			formData.append('fileType', 'image');
+			formData.append('fileType', fileType);
 			const result = await actions.uploadMedia(formData);
 			if (result.data) {
 				uploadedFiles.push(result.data);
@@ -719,10 +888,10 @@ const MAX_IMAGES = 9;
 		 *
 		 * @param files - 待上传的图片文件列表
 		 */
-		async function uploadImages(files: File[]): Promise<void> {
-			const remaining = MAX_IMAGES - getImageCount();
-			const imageFiles = files.slice(0, remaining);
-			if (imageFiles.length === 0) {
+		async function uploadFiles(files: File[], fileType: 'image' | 'attachment'): Promise<void> {
+			const filesToUpload =
+				fileType === 'image' ? files.slice(0, MAX_IMAGES - getImageCount()) : files;
+			if (filesToUpload.length === 0) {
 				showError(`图片最多 ${MAX_IMAGES} 张`);
 				return;
 			}
@@ -733,7 +902,7 @@ const MAX_IMAGES = 9;
 			progressBar.style.width = '0%';
 
 			try {
-				await Promise.all(imageFiles.map((f) => uploadFile(f)));
+				await Promise.all(filesToUpload.map((file) => uploadFile(file, fileType)));
 			} finally {
 				uploading = false;
 				uploadProgress = 0;
@@ -775,6 +944,15 @@ const MAX_IMAGES = 9;
 			activeCategory = 0;
 			renderEmojiCategories();
 			renderEmojiGrid();
+			const toggleRect = emojiToggle.getBoundingClientRect();
+			const pickerWidth = Math.min(360, window.innerWidth - 16);
+			const left = Math.min(
+				Math.max(8, toggleRect.left),
+				window.innerWidth - pickerWidth - 8
+			);
+			const top = Math.min(toggleRect.bottom + 8, window.innerHeight - 288);
+			emojiDialog.style.left = `${left}px`;
+			emojiDialog.style.top = `${Math.max(8, top)}px`;
 			emojiDialog.showModal();
 			emojiToggle.setAttribute('aria-expanded', 'true');
 		}
@@ -854,7 +1032,10 @@ const MAX_IMAGES = 9;
 			updateSubmitBtn();
 
 			// 构建 action 输入
-			const mediaIds = uploadedFiles.map((f) => f.id);
+			const mediaIds = [
+				...existingMedia.map((file) => file.fileStorageId),
+				...uploadedFiles.map((file) => file.id)
+			];
 			const actionInput: Record<string, unknown> = {
 				content,
 				visibility,
@@ -886,7 +1067,9 @@ const MAX_IMAGES = 9;
 			}
 
 			// 调用 createPost Action
-			const result = await actions.createPost(actionInput as any);
+			const result = isEdit
+				? await actions.updatePost({ ...actionInput, postId: form.dataset.postId } as never)
+				: await actions.createPost(actionInput as never);
 
 			if (result.error) {
 				showError(result.error.message || '发布失败');
@@ -897,10 +1080,12 @@ const MAX_IMAGES = 9;
 					window.removeEventListener('beforeunload', beforeUnloadHandler);
 				}
 				clearDraft();
-
-				// 跳转到帖子详情页
-				const post = result.data;
-				window.location.href = `/${post.user.username}/${post.id}`;
+				resetEditor();
+				if (isEdit) {
+					window.location.href = `/${form.dataset.username}/${form.dataset.postId}`;
+				} else if (result.data) {
+					window.location.href = `/${result.data.user.username}/${result.data.id}`;
+				}
 			}
 
 			loading = false;
@@ -928,7 +1113,7 @@ const MAX_IMAGES = 9;
 				}
 			}
 			if (imageFiles.length > 0) {
-				uploadImages(imageFiles);
+				uploadFiles(imageFiles, 'image');
 			}
 		});
 
@@ -942,9 +1127,16 @@ const MAX_IMAGES = 9;
 		fileInput.addEventListener('change', () => {
 			const files = fileInput.files;
 			if (!files) return;
-			uploadImages(Array.from(files));
+			uploadFiles(Array.from(files), 'image');
 			// 重置 input 以允许重复选择同一文件
 			fileInput.value = '';
+		});
+
+		attachmentInput.addEventListener('change', () => {
+			const files = attachmentInput.files;
+			if (!files) return;
+			uploadFiles(Array.from(files), 'attachment');
+			attachmentInput.value = '';
 		});
 
 		// 上传区域点击
@@ -972,7 +1164,7 @@ const MAX_IMAGES = 9;
 			const files = e.dataTransfer?.files;
 			if (!files) return;
 			const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
-			uploadImages(imageFiles);
+			uploadFiles(imageFiles, 'image');
 		});
 
 		uploadArea.addEventListener('dragover', (e: DragEvent) => {
@@ -987,7 +1179,11 @@ const MAX_IMAGES = 9;
 			if (!btn) return;
 			const fileId = btn.dataset.fileId;
 			if (fileId) {
-				uploadedFiles = uploadedFiles.filter((f) => f.id !== fileId);
+				if (btn.dataset.fileKind === 'existing') {
+					existingMedia = existingMedia.filter((file) => file.fileStorageId !== fileId);
+				} else {
+					uploadedFiles = uploadedFiles.filter((file) => file.id !== fileId);
+				}
 				renderPreviews();
 				updateUploadUI();
 			}
@@ -1055,7 +1251,7 @@ const MAX_IMAGES = 9;
 	}
 
 	// 初始化页面上所有 PostEditor 实例
-	document.querySelectorAll('#post-editor-form').forEach((el) => {
-		initPostEditor(el as HTMLFormElement);
+	document.querySelectorAll<HTMLFormElement>('.post-editor').forEach((form) => {
+		initPostEditor(form);
 	});
 </script>

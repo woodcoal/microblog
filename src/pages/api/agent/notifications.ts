@@ -2,7 +2,7 @@
  * Agent 通知 API
  *
  * GET /api/agent/notifications — 获取通知列表
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import {
@@ -12,7 +12,7 @@ import {
 	parsePagination,
 	formatNotificationItem
 } from '@/lib/agent';
-import { getAgentNotifications } from '@/services/notification.service';
+import { getNotificationList } from '@/services/notification.service';
 
 /** 合法的通知类型 */
 const VALID_TYPES = ['comment', 'like', 'follow', 'mention'];
@@ -48,6 +48,9 @@ export const GET: APIRoute = async (context) => {
 		if (status !== 'all' && status !== 'read' && status !== 'unread') {
 			return textErrorResponse('status 必须为 all、read 或 unread');
 		}
+		if (sort !== 'latest' && sort !== 'earliest') {
+			return textErrorResponse('sort 必须为 latest 或 earliest');
+		}
 
 		// 时间范围解析
 		let from: Date | undefined;
@@ -62,7 +65,7 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 通过 service 查询通知
-		const notifications = await getAgentNotifications({
+		const notifications = await getNotificationList({
 			recipientId: currentUser.userId,
 			status,
 			type,

@@ -24,6 +24,7 @@ import {
 } from '@/lib/config';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
+import { getOrCreateCsrfToken } from '@/lib/csrf';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 
@@ -65,6 +66,9 @@ const {
 	narrow,
 	jsonLd
 } = Astro.props;
+
+// 由全局 middleware 首次生成，SSR 页面将 token 注入 HTML，供 Actions 和表单回传。
+const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
 
 // 从 cookie 获取当前登录用户（SSR）
 const currentUser = await getUserFromRequest(Astro);
@@ -133,6 +137,60 @@ const resolvedOgType = ogType || 'website';
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="csrf-token" content={csrfToken} />
+		<!-- 为同源 Action/fetch 自动加入 CSRF header，并为原生表单补充隐藏字段。 -->
+		<script is:inline>
+			(function () {
+				var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+				var token = tokenMeta && tokenMeta.getAttribute('content');
+				if (!token) return;
+
+				var unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
+				var originalFetch = window.fetch.bind(window);
+				window.fetch = function (input, init) {
+					var request = input instanceof Request ? input : null;
+					var targetUrl = new URL(
+						request ? request.url : String(input),
+						window.location.href
+					);
+					var method = String(
+						(init && init.method) || (request && request.method) || 'GET'
+					).toUpperCase();
+					if (targetUrl.origin !== window.location.origin || !unsafeMethods[method]) {
+						return originalFetch(input, init);
+					}
+
+					var headers = new Headers(request ? request.headers : undefined);
+					if (init && init.headers) {
+						new Headers(init.headers).forEach(function (value, key) {
+							headers.set(key, value);
+						});
+					}
+					if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', token);
+					var nextInit = Object.assign({}, init || {}, { headers: headers });
+					return originalFetch(input, nextInit);
+				};
+
+				document.addEventListener('submit', function (event) {
+					var form = event.target;
+					if (!(form instanceof HTMLFormElement)) return;
+					var method = (form.method || 'GET').toUpperCase();
+					if (!unsafeMethods[method]) return;
+					var action = new URL(
+						form.getAttribute('action') || window.location.href,
+						window.location.href
+					);
+					if (action.origin !== window.location.origin) return;
+					if (!form.querySelector('input[name="csrf_token"]')) {
+						var input = document.createElement('input');
+						input.type = 'hidden';
+						input.name = 'csrf_token';
+						input.value = token;
+						form.appendChild(input);
+					}
+				});
+			})();
+		</script>
 		<meta name="description" content={siteDesc} />
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
@@ -625,20 +683,27 @@ const resolvedOgType = ogType || 'website';
 			 */
 			// 从 meta 标签读取通知开关配置
 			const notificationsEnabled =
-				document.querySelector('meta[name="mutan-notifications-enabled"]')?.content ===
-				'true';
+				document.querySelector<HTMLMetaElement>('meta[name="mutan-notifications-enabled"]')
+					?.content === 'true';
 
 			// 下拉菜单切换
-			const userTrigger = document.querySelector('.nav-user-trigger');
-			const userMenu = document.querySelector('.nav-dropdown-menu');
+			const userTrigger = document.querySelector<HTMLElement>('.nav-user-trigger');
+			const userMenu = document.querySelector<HTMLElement>('.nav-dropdown-menu');
 			userTrigger?.addEventListener('click', () => {
 				const expanded = userTrigger.getAttribute('aria-expanded') === 'true';
-				userTrigger.setAttribute('aria-expanded', !expanded);
+				userTrigger.setAttribute('aria-expanded', String(!expanded));
 				userMenu?.classList.toggle('nav-dropdown-open');
 			});
 			// 点击外部关闭下拉
 			document.addEventListener('click', (e) => {
-				if (!e.composedPath().some((el) => el.classList?.contains('nav-user-dropdown'))) {
+				if (
+					!e
+						.composedPath()
+						.some(
+							(el) =>
+								el instanceof Element && el.classList.contains('nav-user-dropdown')
+						)
+				) {
 					userTrigger?.setAttribute('aria-expanded', 'false');
 					userMenu?.classList.remove('nav-dropdown-open');
 				}
@@ -653,6 +718,7 @@ const resolvedOgType = ogType || 'website';
 
 			// 登出（使用点击委托，兼容桌面下拉和移动端扁平菜单两个按钮）
 			document.addEventListener('click', async (e) => {
+				if (!(e.target instanceof Element)) return;
 				const btn = e.target.closest('.logout-option');
 				if (!btn) return;
 				e.preventDefault();
@@ -664,8 +730,8 @@ const resolvedOgType = ogType || 'website';
 				window.location.href = '/';
 			});
 
-			const toggleBtn = document.getElementById('navbar-toggle');
-			const navLinks = document.getElementById('navbar-actions');
+			const toggleBtn = document.getElementById('navbar-toggle') as HTMLButtonElement | null;
+			const navLinks = document.getElementById('navbar-actions') as HTMLElement | null;
 			toggleBtn?.addEventListener('click', () => {
 				const isOpen = navLinks?.classList.toggle('navbar-actions-open');
 				toggleBtn.setAttribute('aria-expanded', String(!!isOpen));
@@ -685,11 +751,11 @@ const resolvedOgType = ogType || 'website';
 						const count = result.data.count;
 
 						// 更新下拉菜单通知项徽章
-						const menuBadge = document.querySelector(
+						const menuBadge = document.querySelector<HTMLElement>(
 							'.nav-dropdown-item .notification-badge'
 						);
 						if (menuBadge) {
-							menuBadge.textContent = count;
+							menuBadge.textContent = String(count);
 							menuBadge.style.display = count > 0 ? '' : 'none';
 						} else {
 							// 无徽章元素但 count > 0：在通知项中插入徽章
@@ -700,16 +766,16 @@ const resolvedOgType = ogType || 'website';
 								if (notifItem) {
 									const badge = document.createElement('span');
 									badge.className = 'notification-badge';
-									badge.textContent = count;
+									badge.textContent = String(count);
 									notifItem.appendChild(badge);
 								}
 							}
 						}
 
 						// 更新头像徽章
-						const avatarBadge = document.querySelector('.avatar-badge');
+						const avatarBadge = document.querySelector<HTMLElement>('.avatar-badge');
 						if (avatarBadge) {
-							avatarBadge.textContent = count;
+							avatarBadge.textContent = String(count);
 							avatarBadge.style.display = count > 0 ? '' : 'none';
 						} else if (count > 0) {
 							// 无头像徽章但 count > 0：在头像包裹容器中插入徽章
@@ -717,13 +783,13 @@ const resolvedOgType = ogType || 'website';
 							if (wrap) {
 								const badge = document.createElement('span');
 								badge.className = 'notification-badge avatar-badge';
-								badge.textContent = count;
+								badge.textContent = String(count);
 								wrap.appendChild(badge);
 							}
 						}
 
 						// 更新移动端 Tab Bar 圆点徽章
-						const tabBadge = document.querySelector('.tab-bar-badge');
+						const tabBadge = document.querySelector<HTMLElement>('.tab-bar-badge');
 						if (tabBadge) {
 							tabBadge.style.display = count > 0 ? '' : 'none';
 						}

@@ -110,7 +110,6 @@ const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
-const hasParent = !!category.parent;
 const hasIcon = !!category.icon;
 ---
 
@@ -119,7 +118,7 @@ const hasIcon = !!category.icon;
 		<nav class="breadcrumb" aria-label="面包屑导航">
 			<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>
 			{
-				hasParent && (
+				category.parent && (
 					<>
 						<span class="breadcrumb-sep">/</span>
 						<span class="breadcrumb-text">{category.parent.name}</span>

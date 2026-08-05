@@ -4,8 +4,7 @@
  * 编排用户查询的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findUserByUsername } from '@/lib/user';
-import { prisma } from '@/lib/db';
+import { findAgentUsers, findUserDetailByUsername } from '@/lib/user';
 
 // ── Agent API 专用查询函数 ──
 
@@ -18,7 +17,7 @@ import { prisma } from '@/lib/db';
  * @param input - 查询参数
  * @returns 用户列表
  */
-export async function getAgentUserList(input: {
+export async function getUserList(input: {
 	keyword?: string;
 	userScope?: string;
 	sort?: string;
@@ -31,38 +30,15 @@ export async function getAgentUserList(input: {
 	const { keyword, userScope, sort, skip, limit, followingIds, followerIds, currentUserId } =
 		input;
 
-	// 构建 where 条件
-	const where: Record<string, unknown> = {
-		isDisabled: false
-	};
-
-	// keyword 过滤
-	if (keyword) {
-		where.OR = [{ username: { contains: keyword } }, { displayName: { contains: keyword } }];
-	}
-
-	// userScope 过滤
-	if (userScope === 'following' && followingIds) {
-		where.id = { in: [...followingIds, currentUserId] };
-	} else if (userScope === 'followers' && followerIds) {
-		where.id = { in: [...followerIds, currentUserId] };
-	}
-
-	// 排序
-	const orderBy =
-		sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
-
-	// 查询
-	return prisma.user.findMany({
-		where,
-		orderBy,
+	return findAgentUsers({
+		keyword,
+		userScope,
+		sort,
 		skip,
-		take: limit,
-		select: {
-			id: true,
-			username: true,
-			displayName: true
-		}
+		limit,
+		followingIds,
+		followerIds,
+		currentUserId
 	});
 }
 
@@ -75,22 +51,7 @@ export async function getAgentUserList(input: {
  * @param input - { username }
  * @returns 用户详情；用户不存在时返回 null
  */
-export async function getAgentUserDetail(input: { username: string }): Promise<any | null> {
+export async function getUserDetail(input: { username: string }) {
 	const { username } = input;
-	return findUserByUsername(username, {
-		id: true,
-		username: true,
-		displayName: true,
-		bio: true,
-		avatarUrl: true,
-		createdAt: true,
-		isDisabled: true,
-		_count: {
-			select: {
-				posts: { where: { isDeleted: false } },
-				following: true,
-				followers: true
-			}
-		}
-	});
+	return findUserDetailByUsername(username);
 }

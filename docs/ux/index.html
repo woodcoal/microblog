@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 首页</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html" aria-current="page">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html" class="active"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+  <section class="home-hero">
+    <article class="card hero-card">
+      <div class="eyebrow">多模式社区</div>
+      <h2>一个地方，三种表达</h2>
+      <p style="color:var(--muted);margin:8px 0 16px">短想法用微博，深讨论用论坛，长文章用博客——不抢占彼此的位置。</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" data-toast="发布框已展开">✏️ 开始发布</button>
+        <a class="btn" href="weibo.html">浏览微博</a>
+        <a class="btn" href="forum.html">进入论坛</a>
+      </div>
+    </article>
+    <article class="card card-pad" style="background:var(--primary-soft);border-color:color-mix(in srgb,var(--primary) 20%,transparent)">
+      <div class="eyebrow">今日话题</div>
+      <h3 style="margin:6px 0">如何把调研结论变成可验证的行动？</h3>
+      <p style="color:var(--muted);font-size:14px;margin:0">32 人正在讨论中</p>
+    </article>
+  </section>
+
+  <h3 class="eyebrow" style="margin-bottom:12px">推荐内容</h3>
+  <div class="home-grid">
+    <a class="card card-pad" href="weibo-detail.html" style="display:block">
+      <div class="eyebrow">微博</div>
+      <p style="margin:8px 0;font-size:14px">一条短想法可以先开始，想清楚以后再沉淀成一篇文章……</p>
+      <small class="handle">@weekend · 2 小时前</small>
+    </a>
+    <a class="card card-pad" href="forum-detail.html" style="display:block">
+      <div class="eyebrow">论坛</div>
+      <h4 style="margin:8px 0;font-size:15px">如何避免调研结论只停留在文档里？</h4>
+      <small class="handle">@yangqing · 4 小时前 · 32 回复</small>
+    </a>
+    <a class="card card-pad" href="blog-detail.html" style="display:block">
+      <div class="eyebrow">博客</div>
+      <h4 style="margin:8px 0;font-size:15px">从原型到上线：设计系统的取舍</h4>
+      <small class="handle">@huayang · 今天</small>
+    </a>
+    <a class="card card-pad" href="#" style="display:block">
+      <div class="eyebrow">微博</div>
+      <p style="margin:8px 0;font-size:14px">好的交互不是让用户少点几下，而是让每一下都有预期……</p>
+      <small class="handle">@sora · 5 小时前</small>
+    </a>
+    <a class="card card-pad" href="#" style="display:block">
+      <div class="eyebrow">论坛</div>
+      <h4 style="margin:8px 0;font-size:15px">开源项目的社区治理模式比较</h4>
+      <small class="handle">@tide · 6 小时前 · 18 回复</small>
+    </a>
+    <a class="card card-pad" href="#" style="display:block">
+      <div class="eyebrow">博客</div>
+      <h4 style="margin:8px 0;font-size:15px">写给工程师的设计原则清单</h4>
+      <small class="handle">@momo · 昨天</small>
+    </a>
+  </div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

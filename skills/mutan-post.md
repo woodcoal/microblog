@@ -28,8 +28,9 @@ Content-Type: application/json
 ## 接口约束
 
 - content：1-1000 字符，必填
-- visibility：仅 `public`/`followers`/`mutual`，不支持 `password`/`users`
+- visibility：支持 `public`/`logged_in`/`followers`/`following`/`private`；兼容旧别名 `mutual`（等同 `following`）；不支持 `password`/`users`
 - imageUrls：最多 4 个，路径需先通过 `POST /api/agent/upload` 上传获取
+- `images` 是 imageUrls 的兼容字段；新调用方使用 imageUrls，两个字段同时传入时以 imageUrls 为准
 - 标签用 `#标签名#` 格式写在内容中，系统自动解析
 - @提及用 `@用户名` 格式
 

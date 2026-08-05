@@ -10,6 +10,7 @@
  * 3. 自定义 renderer 限制输出标签
  */
 import { marked, Marked } from 'marked';
+import { escapeHtml } from '@/lib/html';
 
 /** 允许的 HTML 标签白名单 */
 const ALLOWED_TAGS = new Set(['strong', 'em', 'del', 'code', 'a', 'p', 'br', 'span']);
@@ -20,6 +21,37 @@ const ALLOWED_ATTRS: Record<string, Set<string>> = {
 	span: new Set(['class']),
 	code: new Set(['class'])
 };
+
+/**
+ * 仅允许可安全导航或加载的 URL 协议。
+ * 相对 URL 会以站点根地址解析；图片额外允许常见位图 data URL。
+ */
+function isSafeUrl(value: string, image = false): boolean {
+	const normalized = value
+		.trim()
+		.replace(/&#(?:0*58|x0*3a);|&colon;/gi, ':')
+		.replace(/[\u0000-\u001f\u007f]/g, '');
+
+	if (image && /^data:image\/(?:png|gif|jpe?g|webp);base64,/i.test(normalized)) {
+		return true;
+	}
+
+	try {
+		const url = new URL(normalized, 'https://local.invalid');
+		return image
+			? url.protocol === 'http:' || url.protocol === 'https:'
+			: ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol);
+	} catch {
+		return false;
+	}
+}
+
+/** 判断标签属性值是否可安全保留。 */
+function isSafeAttribute(tag: string, name: string, value: string): boolean {
+	if (name === 'href') return tag === 'a' && isSafeUrl(value);
+	if (name === 'src') return tag === 'img' && isSafeUrl(value, true);
+	return true;
+}
 
 /**
  * 清理 HTML，移除白名单之外的标签和属性
@@ -53,8 +85,9 @@ function sanitizeHtml(html: string): string {
 		let attrMatch;
 		while ((attrMatch = attrRegex.exec(match)) !== null) {
 			const attrName = attrMatch[1].toLowerCase();
-			if (allowedAttrSet.has(attrName)) {
-				filteredAttrs += ` ${attrName}="${attrMatch[3] ?? attrMatch[4]}"`;
+			const attrValue = attrMatch[3] ?? attrMatch[4];
+			if (allowedAttrSet.has(attrName) && isSafeAttribute(tag, attrName, attrValue)) {
+				filteredAttrs += ` ${attrName}="${attrValue}"`;
 			}
 		}
 
@@ -84,8 +117,8 @@ marked.use({
 			return `<p>${text}</p>`;
 		},
 		// 禁用列表
-		list({ body }) {
-			return `<p>${body}</p>`;
+		list({ items }) {
+			return `<p>${items.map((item) => item.text).join('<br>')}</p>`;
 		},
 		listitem({ text }) {
 			return `${text}<br>`;
@@ -118,15 +151,6 @@ marked.use({
  * @param str - 待转义的字符串
  * @returns 转义后的安全字符串
  */
-function escapeHtml(str: string): string {
-	return str
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;')
-		.replace(/"/g, '&quot;')
-		.replace(/'/g, '&#039;');
-}
-
 /**
  * 将文本节点中的 @提及 和 #标签# 转为链接
  *
@@ -263,8 +287,9 @@ function sanitizeFullHtml(html: string): string {
 		let attrMatch;
 		while ((attrMatch = attrRegex.exec(match)) !== null) {
 			const attrName = attrMatch[1].toLowerCase();
-			if (allowedAttrSet.has(attrName)) {
-				filteredAttrs += ` ${attrName}="${attrMatch[3] ?? attrMatch[4]}"`;
+			const attrValue = attrMatch[3] ?? attrMatch[4];
+			if (allowedAttrSet.has(attrName) && isSafeAttribute(tag, attrName, attrValue)) {
+				filteredAttrs += ` ${attrName}="${attrValue}"`;
 			}
 		}
 

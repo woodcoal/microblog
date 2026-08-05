@@ -5,13 +5,14 @@
  * 执行方式：npm run db:seed
  */
 import 'dotenv/config';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { PrismaClient } from '../generated/prisma/client.js';
+import { createDatabaseAdapter } from '../src/lib/database-adapter.js';
 import bcrypt from 'bcryptjs';
 
-const adapter = new PrismaLibSql({
-	url: process.env.DATABASE_URL ?? 'file:./prisma/dev.db'
-});
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL 未设置');
+
+const adapter = createDatabaseAdapter(databaseUrl);
 
 const prisma = new PrismaClient({ adapter });
 

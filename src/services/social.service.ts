@@ -15,7 +15,6 @@ import {
 	BOOKMARK_CREATE,
 	BOOKMARK_REMOVE
 } from '@/lib/activity';
-import { submitFeedback, FEEDBACK_ACTION_CLICK, FEEDBACK_ACTION_FAV } from '@/lib/lens';
 import { findLike, upsertLike, deleteLike, countLikes } from '@/lib/social';
 import { findFollow, upsertFollow, deleteFollow, countFollows } from '@/lib/social';
 import { findBookmark, upsertBookmark, deleteBookmark, countBookmarks } from '@/lib/social';
@@ -200,8 +199,6 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 				logActivity(LIKE_CREATE, userId, 'post', targetId, post.userId, targetId).catch(
 					() => {}
 				);
-				// 点赞作为点击行为上报到 Lens（弱正向信号）
-				submitFeedback(userId, targetId, FEEDBACK_ACTION_CLICK).catch(() => {});
 			}
 		} else {
 			const comment = await findCommentByIdSelect(targetId, {
@@ -348,8 +345,6 @@ export async function toggleBookmark(input: ToggleBookmarkInput): Promise<Toggle
 
 		// 记录收藏活动（异步，不阻塞主流程）
 		logActivity(BOOKMARK_CREATE, userId, 'post', postId, post.userId, postId).catch(() => {});
-		// 收藏作为强正向信号上报到 Lens
-		submitFeedback(userId, postId, FEEDBACK_ACTION_FAV).catch(() => {});
 	}
 
 	// 3. 统计当前收藏数

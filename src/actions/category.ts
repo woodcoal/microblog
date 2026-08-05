@@ -5,7 +5,7 @@
  * 薄适配层：鉴权 → zod 校验 → 调用 service → handleServiceError 转换。
  */
 import { defineAction, ActionError } from 'astro:actions';
-import { z } from 'astro:schema';
+import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
@@ -36,7 +36,7 @@ export const createCategory = defineAction({
 	input: z.object({
 		name: z.string().min(1, '分类名称不能为空'),
 		slug: z.string().min(1, 'slug 不能为空'),
-		mode: z.string().min(1, '模式不能为空'),
+		mode: z.string().min(1, '模式不能为空').optional(),
 		parentId: z.string().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
@@ -74,6 +74,7 @@ export const updateCategory = defineAction({
 		id: z.string().min(1, '分类 ID 不能为空'),
 		name: z.string().optional(),
 		slug: z.string().optional(),
+		parentId: z.string().nullable().optional(),
 		description: z.string().optional(),
 		icon: z.string().optional(),
 		sortOrder: z.number().optional()

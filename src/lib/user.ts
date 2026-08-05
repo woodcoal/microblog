@@ -48,6 +48,25 @@ export async function findUserByUsername<T extends Prisma.UserSelect>(
 	});
 }
 
+/** 用户主页详情所需的公开字段与统计信息。 */
+export function findUserDetailByUsername(username: string) {
+	return prisma.user.findUnique({
+		where: { username },
+		select: {
+			id: true,
+			username: true,
+			displayName: true,
+			bio: true,
+			avatarUrl: true,
+			createdAt: true,
+			isDisabled: true,
+			_count: {
+				select: { posts: { where: { isDeleted: false } }, following: true, followers: true }
+			}
+		}
+	});
+}
+
 /**
  * 创建用户
  *
@@ -155,4 +174,100 @@ export async function searchUsers<T extends Prisma.UserSelect>(
 		take,
 		...(select ? { select } : {})
 	});
+}
+
+/** 查询提及的有效用户 ID，排除当前用户。 */
+export function findMentionedUserIds(usernames: string[], currentUserId: string) {
+	return prisma.user.findMany({
+		where: { username: { in: usernames }, id: { not: currentUserId } },
+		select: { id: true }
+	});
+}
+
+/** Agent 用户列表查询。 */
+export function findAgentUsers(input: {
+	keyword?: string;
+	userScope?: string;
+	skip?: number;
+	limit?: number;
+	followingIds?: string[];
+	followerIds?: string[];
+	currentUserId?: string;
+	sort?: string;
+}) {
+	const where: Prisma.UserWhereInput = { isDisabled: false };
+	if (input.keyword) {
+		where.OR = [
+			{ username: { contains: input.keyword } },
+			{ displayName: { contains: input.keyword } }
+		];
+	}
+	if (input.userScope === 'following' && input.followingIds) {
+		where.id = {
+			in: [...input.followingIds, input.currentUserId].filter(
+				(id): id is string => typeof id === 'string'
+			)
+		};
+	} else if (input.userScope === 'followers' && input.followerIds) {
+		where.id = {
+			in: [...input.followerIds, input.currentUserId].filter(
+				(id): id is string => typeof id === 'string'
+			)
+		};
+	}
+
+	return prisma.user.findMany({
+		where,
+		orderBy: input.sort === 'earliest' ? { createdAt: 'asc' } : { createdAt: 'desc' },
+		skip: input.skip,
+		take: input.limit,
+		select: { id: true, username: true, displayName: true }
+	});
+}
+
+/** v1 API 用户查询，隐去敏感字段并携带计数与当前访问者关注状态。 */
+export function findApiUser(username: string, viewerId?: string) {
+	const viewerFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
+	return prisma.user.findFirst({
+		where: { username, isDisabled: false },
+		select: apiUserSelect(viewerFilter)
+	});
+}
+
+export function findApiUsers(query: string, skip: number, take: number, viewerId?: string) {
+	const viewerFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
+	return prisma.user.findMany({
+		where: {
+			isDisabled: false,
+			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
+		},
+		skip,
+		take,
+		orderBy: { followers: { _count: 'desc' } },
+		select: apiUserSelect(viewerFilter)
+	});
+}
+
+export function countApiUsers(query: string) {
+	return prisma.user.count({
+		where: {
+			isDisabled: false,
+			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
+		}
+	});
+}
+
+function apiUserSelect(viewerFilter: Prisma.FollowWhereInput) {
+	return {
+		id: true,
+		username: true,
+		displayName: true,
+		avatarUrl: true,
+		bio: true,
+		createdAt: true,
+		_count: {
+			select: { posts: { where: { isDeleted: false } }, followers: true, following: true }
+		},
+		followers: { where: viewerFilter, select: { id: true } }
+	};
 }

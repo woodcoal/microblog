@@ -2,7 +2,7 @@
  * Agent 个人资料修改 API
  *
  * PUT /api/agent/profile — 修改当前用户的个人资料
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
@@ -28,7 +28,7 @@ export const PUT: APIRoute = async (context) => {
 		const { displayName, bio, avatarUrl } = body as {
 			displayName?: string;
 			bio?: string;
-			avatarUrl?: string;
+			avatarUrl?: string | null;
 		};
 
 		try {

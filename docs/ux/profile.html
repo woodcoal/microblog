@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 个人主页</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html" class="active"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+
+<article class="card profile-head" style="margin-bottom:16px">
+  <div class="profile-cover"></div>
+  <div class="profile-meta">
+    <span class="avatar a-indigo">林</span>
+    <div class="profile-info" style="flex:1">
+      <h1>林冲</h1>
+      <span class="handle">@linchong</span>
+      <p style="margin:6px 0 0;font-size:14px">关注产品设计、工程化与团队协作。</p>
+      <div class="profile-stats">
+        <div><b>142</b><small>微博</small></div>
+        <div><b>28</b><small>帖子</small></div>
+        <div><b>12</b><small>博客</small></div>
+        <div><b>1.2k</b><small>关注者</small></div>
+        <div><b>356</b><small>关注中</small></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a class="btn" href="user-center.html">编辑资料</a>
+      <button class="btn primary" data-toast="分享链接已复制">分享</button>
+    </div>
+  </div>
+</article>
+
+<div class="tabs">
+  <button data-tab class="active">微博</button>
+  <button data-tab>论坛帖</button>
+  <button data-tab>博客</button>
+  <button data-tab>收藏</button>
+  <button data-tab>点赞</button>
+</div>
+
+<div class="feed">
+  <article class="card post-card">
+    <div class="post-top">
+      <span class="avatar a-indigo">林</span>
+      <div class="post-user"><span class="name">林冲</span><span class="handle">@linchong · 3 小时前</span></div>
+    </div>
+    <p class="post-text">断点不是越细越好，能让团队对齐预期的那套就是好断点。Bootstrap 五档够用了。</p>
+    <span class="tag">设计系统</span>
+    <div class="post-actions">
+      <button data-like>💬 <span>4</span></button>
+      <button data-like>🔁 <span>2</span></button>
+      <button data-like>❤️ <span>19</span></button>
+      <button data-like>🔖 <span>3</span></button>
+    </div>
+  </article>
+
+  <article class="card post-card">
+    <div class="post-top">
+      <span class="avatar a-indigo">林</span>
+      <div class="post-user"><span class="name">林冲</span><span class="handle">@linchong · 昨天</span></div>
+    </div>
+    <p class="post-text">原型交付的底线：令牌和断点跟生产对齐，组件结构可复用。视觉可以粗糙，体系不能错。</p>
+    <div class="post-actions">
+      <button data-like>💬 <span>7</span></button>
+      <button data-like>🔁 <span>5</span></button>
+      <button data-like>❤️ <span>34</span></button>
+      <button data-like>🔖 <span>9</span></button>
+    </div>
+  </article>
+
+  <article class="card post-card">
+    <div class="post-top">
+      <span class="avatar a-indigo">林</span>
+      <div class="post-user"><span class="name">林冲</span><span class="handle">@linchong · 2 天前</span></div>
+    </div>
+    <p class="post-text">用户菜单要还原原项目结构，不是自己另起炉灶——一致性比创意重要。</p>
+    <div class="post-actions">
+      <button data-like>💬 <span>2</span></button>
+      <button data-like>❤️ <span>11</span></button>
+      <button data-like>🔖 <span>1</span></button>
+    </div>
+  </article>
+</div>
+
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

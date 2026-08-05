@@ -102,6 +102,7 @@ const formId = `comment-form-${postId}${parentId ? `-${parentId}` : ''}`;
 				submitBtn.textContent = '发表中...';
 
 				const postId = textarea.dataset.postId;
+				if (!postId) return;
 				const parentId = textarea.dataset.parentId || null;
 
 				const result = await actions.createComment({

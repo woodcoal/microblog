@@ -15,7 +15,6 @@ import {
 	RESERVED_USERNAMES,
 	DISABLED_USER_MESSAGE
 } from '@/lib/config';
-import { createUser as lensCreateUser } from '@/lib/lens';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -133,12 +132,6 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 		email,
 		passwordHash
 	});
-
-	// 异步同步用户到 DaLi.Lens 推荐系统（用于构建用户画像，失败不影响注册）
-	lensCreateUser({
-		userId: user.id,
-		username: user.username
-	}).catch(() => {});
 
 	return {
 		id: user.id,

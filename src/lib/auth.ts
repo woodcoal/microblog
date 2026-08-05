@@ -9,6 +9,9 @@ import { SignJWT, jwtVerify } from 'jose';
 import { JWT_SECRET, JWT_EXPIRES_DAYS } from './config';
 import type { APIContext } from 'astro';
 
+/** Context fields used by authentication helpers in API routes, pages, and Actions. */
+type AuthContext = Pick<APIContext, 'request' | 'cookies'>;
+
 /** JWT payload 结构 */
 export interface JwtPayload {
 	userId: string;
@@ -121,7 +124,7 @@ async function isUserDisabled(userId: string): Promise<boolean> {
  * @param context - Astro APIContext
  * @returns 用户信息，未登录时返回 Response 对象
  */
-export async function requireAuth(context: APIContext): Promise<JwtPayload | Response> {
+export async function requireAuth(context: AuthContext): Promise<JwtPayload | Response> {
 	const user = await getUserFromRequest(context);
 	if (!user) {
 		return new Response(
@@ -135,23 +138,30 @@ export async function requireAuth(context: APIContext): Promise<JwtPayload | Res
 	return user;
 }
 
-export async function getUserFromRequest(context: APIContext): Promise<JwtPayload | null> {
+/**
+ * 仅从 Authorization: Bearer 头验证身份。
+ *
+ * 外部 API 使用 Bearer-only 威胁模型；不得在该场景回退到浏览器 cookie，
+ * 否则会重新引入浏览器自动携带 cookie 所造成的 CSRF 攻击面。
+ */
+export async function getUserFromBearerRequest(request: Request): Promise<JwtPayload | null> {
+	const authHeader = request.headers.get('authorization');
+	if (!authHeader?.startsWith('Bearer ')) return null;
+
+	const token = authHeader.slice(7).trim();
+	if (!token) return null;
+
+	if (token.startsWith('mt_')) return verifyApiTokenFromRequest(token);
+
+	const payload = await verifyToken(token);
+	if (payload && (await isUserDisabled(payload.userId))) return null;
+	return payload;
+}
+
+export async function getUserFromRequest(context: AuthContext): Promise<JwtPayload | null> {
 	// 1. 尝试从 Authorization header 读取
-	const authHeader = context.request.headers.get('authorization');
-	if (authHeader?.startsWith('Bearer ')) {
-		const token = authHeader.slice(7);
-
-		// 检查是否为 API Token（mt_ 前缀）
-		if (token.startsWith('mt_')) {
-			return verifyApiTokenFromRequest(token);
-		}
-
-		// JWT Token 验证
-		const payload = await verifyToken(token);
-		if (payload && (await isUserDisabled(payload.userId))) {
-			return null;
-		}
-		return payload;
+	if (context.request.headers.get('authorization')?.startsWith('Bearer ')) {
+		return getUserFromBearerRequest(context.request);
 	}
 
 	// 2. 尝试从 cookie 读取
@@ -227,7 +237,7 @@ async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | nu
  * @param context - Astro APIContext
  * @param token - JWT 字符串
  */
-export function setTokenCookie(context: APIContext, token: string): void {
+export function setTokenCookie(context: AuthContext, token: string): void {
 	// 判断是否为 HTTPS 环境，动态设置 secure 属性
 	const url = new URL(context.request.url);
 	const isSecure = url.protocol === 'https:';
@@ -246,7 +256,7 @@ export function setTokenCookie(context: APIContext, token: string): void {
  *
  * @param context - Astro APIContext
  */
-export function clearTokenCookie(context: APIContext): void {
+export function clearTokenCookie(context: AuthContext): void {
 	const url = new URL(context.request.url);
 	const isSecure = url.protocol === 'https:';
 

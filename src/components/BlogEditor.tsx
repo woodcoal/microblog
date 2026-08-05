@@ -32,12 +32,13 @@ import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Editor } from '@tiptap/core';
+import { actions } from 'astro:actions';
 
 /** lowlight 实例，用于代码块语法高亮 */
 const lowlight = createLowlight(common);
 
 /** 草稿存储键名 */
-const DRAFT_KEY = 'blog-draft';
+const DEFAULT_DRAFT_KEY = 'blog-draft';
 
 /**
  * 博客编辑器组件属性
@@ -48,6 +49,16 @@ const DRAFT_KEY = 'blog-draft';
 interface BlogEditorProps {
 	initialContent?: string;
 	onSubmit?: (content: string) => void;
+	/** 承载发布/保存事件的页面容器 ID */
+	containerId?: string;
+	/** 草稿存储键；编辑态使用独立键，避免覆盖新建草稿 */
+	draftKey?: string;
+	/** 页面标题输入框 ID */
+	titleInputId?: string;
+	/** 页面分类选择框 ID */
+	categorySelectId?: string;
+	/** 页面可见度选择框 ID */
+	visibilitySelectId?: string;
 }
 
 /**
@@ -67,32 +78,37 @@ interface DraftData {
 	savedAt: string;
 }
 
+interface MarkdownStorage {
+	markdown: {
+		getMarkdown(): string;
+	};
+}
+
+function getMarkdown(editor: Editor): string {
+	return (editor.storage as unknown as MarkdownStorage).markdown.getMarkdown();
+}
+
 /**
  * 上传图片到服务器
  *
- * 使用原生 FormData + fetch 调用 /api/upload 端点，
- * 返回标准 JSON 格式，无需 SuperJSON 反序列化。
+ * 使用 Astro Action 调用统一的上传接口。
  *
  * @param file - 要上传的图片文件
- * @returns 上传成功后的图片 URL，失败返回 null
+ * @returns 上传成功后的图片 URL 或错误信息
  */
-async function uploadImage(file: File): Promise<string | null> {
+async function uploadImage(file: File): Promise<{ url?: string; error?: string }> {
 	const formData = new FormData();
 	formData.append('file', file);
 	formData.append('fileType', 'image');
 
 	try {
-		const res = await fetch('/api/upload', {
-			method: 'POST',
-			body: formData
-		});
-		const json = await res.json();
-		if (json.success && json.data && json.data.url) {
-			return json.data.url as string;
+		const result = await actions.uploadMedia(formData);
+		if (result.data?.url) {
+			return { url: result.data.url };
 		}
-		return null;
-	} catch {
-		return null;
+		return { error: result.error?.message || '图片上传失败，请重试' };
+	} catch (error) {
+		return { error: error instanceof Error ? error.message : '图片上传失败，请重试' };
 	}
 }
 
@@ -105,9 +121,21 @@ async function uploadImage(file: File): Promise<string | null> {
  * @param props - 组件属性
  * @returns 编辑器 JSX
  */
-export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditorProps) {
+export default function BlogEditor({
+	initialContent = '',
+	onSubmit,
+	containerId = 'blog-compose-container',
+	draftKey = DEFAULT_DRAFT_KEY,
+	titleInputId = 'blog-compose-title',
+	categorySelectId = 'blog-compose-category',
+	visibilitySelectId = 'blog-compose-visibility'
+}: BlogEditorProps) {
+	// 服务端已在写入时清理空白；这里兼容修复前保存的内容和草稿。
+	const initialEditorContent = initialContent.trimStart();
 	/** 加载状态 */
 	const [loading, setLoading] = useState(false);
+	/** 图片上传错误信息 */
+	const [uploadError, setUploadError] = useState<string | null>(null);
 	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
 	const editorRef = useRef<Editor | null>(null);
 	/** 图片上传文件输入引用 */
@@ -143,7 +171,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 				transformCopiedText: true
 			})
 		],
-		content: initialContent,
+		content: initialEditorContent,
 		editorProps: {
 			attributes: {
 				class: 'blog-editor-content'
@@ -181,12 +209,20 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 					(async () => {
 						for (const file of imageFiles) {
 							try {
-								const url = await uploadImage(file);
-								if (url) {
-									currentEditor.chain().focus().setImage({ src: url }).run();
+								const upload = await uploadImage(file);
+								if (upload.url) {
+									currentEditor
+										.chain()
+										.focus()
+										.setImage({ src: upload.url })
+										.run();
+								} else {
+									setUploadError(upload.error || '图片上传失败，请重试');
 								}
-							} catch {
-								// 上传失败静默处理
+							} catch (error) {
+								setUploadError(
+									error instanceof Error ? error.message : '图片上传失败，请重试'
+								);
 							}
 						}
 					})();
@@ -230,28 +266,33 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	 *
 	 * @param ed - Tiptap 编辑器实例
 	 */
-	const saveDraft = useCallback((ed: Editor) => {
-		try {
-			const markdown = ed.storage.markdown.getMarkdown();
-			// 从页面 DOM 获取标题、分类、可见度等字段
-			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');
-			const categorySelect =
-				document.querySelector<HTMLSelectElement>('#blog-category-select');
-			const visibilitySelect =
-				document.querySelector<HTMLSelectElement>('#blog-visibility-select');
+	const saveDraft = useCallback(
+		(ed: Editor) => {
+			try {
+				const markdown = getMarkdown(ed);
+				// 从页面 DOM 获取标题、分类、可见度等字段
+				const titleInput = document.getElementById(titleInputId) as HTMLInputElement | null;
+				const categorySelect = document.getElementById(
+					categorySelectId
+				) as HTMLSelectElement | null;
+				const visibilitySelect = document.getElementById(
+					visibilitySelectId
+				) as HTMLSelectElement | null;
 
-			const draft: DraftData = {
-				title: titleInput?.value || '',
-				content: markdown,
-				categoryId: categorySelect?.value || '',
-				visibility: visibilitySelect?.value || 'public',
-				savedAt: new Date().toISOString()
-			};
-			localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-		} catch {
-			// 草稿保存失败静默处理
-		}
-	}, []);
+				const draft: DraftData = {
+					title: titleInput?.value || '',
+					content: markdown,
+					categoryId: categorySelect?.value || '',
+					visibility: visibilitySelect?.value || 'public',
+					savedAt: new Date().toISOString()
+				};
+				localStorage.setItem(draftKey, JSON.stringify(draft));
+			} catch {
+				// 草稿保存失败静默处理
+			}
+		},
+		[categorySelectId, draftKey, titleInputId, visibilitySelectId]
+	);
 
 	/**
 	 * 恢复草稿
@@ -262,30 +303,32 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	const restoreDraft = useCallback(() => {
 		if (!editor) return;
 		try {
-			const raw = localStorage.getItem(DRAFT_KEY);
+			const raw = localStorage.getItem(draftKey);
 			if (!raw) return;
 
 			const draft: DraftData = JSON.parse(raw);
 			// 仅在编辑器内容为空时恢复草稿（避免覆盖已有内容）
-			const currentMarkdown = editor.storage.markdown.getMarkdown();
+			const currentMarkdown = getMarkdown(editor);
 			if (currentMarkdown.trim()) return;
 
 			// 恢复编辑器内容
-			editor.commands.setContent(draft.content);
+			editor.commands.setContent(draft.content.trimStart());
 
 			// 恢复页面表单字段
-			const titleInput = document.querySelector<HTMLInputElement>('#blog-title-input');
-			const categorySelect =
-				document.querySelector<HTMLSelectElement>('#blog-category-select');
-			const visibilitySelect =
-				document.querySelector<HTMLSelectElement>('#blog-visibility-select');
+			const titleInput = document.getElementById(titleInputId) as HTMLInputElement | null;
+			const categorySelect = document.getElementById(
+				categorySelectId
+			) as HTMLSelectElement | null;
+			const visibilitySelect = document.getElementById(
+				visibilitySelectId
+			) as HTMLSelectElement | null;
 
 			if (titleInput && draft.title) titleInput.value = draft.title;
 			if (categorySelect && draft.categoryId) categorySelect.value = draft.categoryId;
 			if (visibilitySelect && draft.visibility) visibilitySelect.value = draft.visibility;
 
 			// 通知页面有草稿恢复
-			const container = document.getElementById('blog-compose-container');
+			const container = document.getElementById(containerId);
 			if (container) {
 				container.dispatchEvent(
 					new CustomEvent('blog-editor-draft-restored', {
@@ -297,7 +340,7 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 		} catch {
 			// 草稿恢复失败静默处理
 		}
-	}, [editor]);
+	}, [categorySelectId, containerId, draftKey, editor, titleInputId, visibilitySelectId]);
 
 	/**
 	 * 清除草稿
@@ -305,12 +348,28 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	 * 从 localStorage 中删除草稿数据。
 	 */
 	const clearDraft = useCallback(() => {
+		if (draftTimerRef.current) {
+			clearTimeout(draftTimerRef.current);
+			draftTimerRef.current = null;
+		}
 		try {
-			localStorage.removeItem(DRAFT_KEY);
+			localStorage.removeItem(draftKey);
+			editor?.commands.setContent('', { emitUpdate: false });
+
+			const titleInput = document.getElementById(titleInputId) as HTMLInputElement | null;
+			const categorySelect = document.getElementById(
+				categorySelectId
+			) as HTMLSelectElement | null;
+			const visibilitySelect = document.getElementById(
+				visibilitySelectId
+			) as HTMLSelectElement | null;
+			if (titleInput) titleInput.value = '';
+			if (categorySelect) categorySelect.value = '';
+			if (visibilitySelect) visibilitySelect.value = 'public';
 		} catch {
 			// 清除失败静默处理
 		}
-	}, []);
+	}, [categorySelectId, draftKey, editor, titleInputId, visibilitySelectId]);
 
 	// 挂载时恢复草稿
 	useEffect(() => {
@@ -321,12 +380,12 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	 * 监听发布完成事件，重置 loading 状态
 	 */
 	useEffect(() => {
-		const container = document.getElementById('blog-compose-container');
+		const container = document.getElementById(containerId);
 		if (!container) return;
 		const handleDone = () => setLoading(false);
 		container.addEventListener('blog-editor-submit-done', handleDone);
 		return () => container.removeEventListener('blog-editor-submit-done', handleDone);
-	}, []);
+	}, [containerId]);
 
 	/**
 	 * 监听页面顶部的发布按钮事件
@@ -335,12 +394,12 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 	 * 编辑器收到后提取 markdown 内容并派发 blog-editor-submit 事件。
 	 */
 	useEffect(() => {
-		const container = document.getElementById('blog-compose-container');
+		const container = document.getElementById(containerId);
 		if (!container || !editor) return;
 
 		const handleDoSubmit = () => {
 			if (loading) return;
-			const markdown = editor.storage.markdown.getMarkdown();
+			const markdown = getMarkdown(editor);
 
 			if (onSubmit) {
 				onSubmit(markdown);
@@ -354,23 +413,21 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 					bubbles: true
 				})
 			);
-			// 发布成功后清除草稿
-			clearDraft();
 		};
 
 		container.addEventListener('blog-editor-do-submit', handleDoSubmit);
 		return () => container.removeEventListener('blog-editor-do-submit', handleDoSubmit);
-	}, [editor, loading, onSubmit, clearDraft]);
+	}, [clearDraft, containerId, editor, loading, onSubmit]);
 
 	/**
 	 * 监听清除草稿事件
 	 */
 	useEffect(() => {
-		const container = document.getElementById('blog-compose-container');
+		const container = document.getElementById(containerId);
 		if (!container) return;
 		container.addEventListener('blog-editor-clear-draft', clearDraft);
 		return () => container.removeEventListener('blog-editor-clear-draft', clearDraft);
-	}, [clearDraft]);
+	}, [clearDraft, containerId]);
 
 	/**
 	 * 组件卸载时清理草稿自动保存定时器，防止内存泄漏
@@ -393,14 +450,13 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			const files = e.target.files;
 			if (!files || !editor) return;
 
+			setUploadError(null);
 			for (const file of Array.from(files)) {
-				try {
-					const url = await uploadImage(file);
-					if (url) {
-						editor.chain().focus().setImage({ src: url }).run();
-					}
-				} catch {
-					// 上传失败静默处理
+				const upload = await uploadImage(file);
+				if (upload.url) {
+					editor.chain().focus().setImage({ src: upload.url }).run();
+				} else {
+					setUploadError(upload.error || '图片上传失败，请重试');
 				}
 			}
 			e.target.value = '';
@@ -569,6 +625,11 @@ export default function BlogEditor({ initialContent = '', onSubmit }: BlogEditor
 			<div className="blog-editor-body">
 				<EditorContent editor={editor} />
 			</div>
+			{uploadError && (
+				<p className="form-error" role="alert" aria-live="polite">
+					{uploadError}
+				</p>
+			)}
 
 			{/* 隐藏的文件输入 */}
 			<input

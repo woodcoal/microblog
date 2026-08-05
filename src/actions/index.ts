@@ -55,10 +55,10 @@ import {
 import { getPostLikers, togglePin, verifyPostPassword } from './posts';
 
 // 推荐模块
-import { getRecommend, getSimilarPosts, recordRead, getUserProfile } from './recommend';
+import { getRecommend, getSimilarPosts, recordRead } from './recommend';
 
 // 管理后台模块
-import { batchUsers, batchPosts, batchComments, toggleTagVisibility } from './admin';
+import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility } from './admin';
 
 // 工具模块
 import { markdownPreview } from './misc';
@@ -112,9 +112,9 @@ export const server = {
 	getRecommend,
 	getSimilarPosts,
 	recordRead,
-	getUserProfile,
 	// 管理后台
 	batchUsers,
+	createUser,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,

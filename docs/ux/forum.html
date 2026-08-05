@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>睦谈 · 论坛</title>
+<link rel="stylesheet" href="prototype.css">
+</head>
+<body class="has-tabbar">
+<a class="skip" href="#main">跳到内容</a>
+
+<header class="navbar">
+  <div class="navbar-inner">
+    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+    <nav class="nav-mode-links" aria-label="频道">
+      <a href="index.html">🏠 首页</a>
+      <a href="weibo.html">💬 微博</a>
+      <a href="forum.html" aria-current="page">💬 论坛</a>
+      <a href="blog.html">📖 博客</a>
+    </nav>
+    <div class="navbar-actions">
+      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
+      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+        <span class="nav-user-name">林冲</span>
+        <span class="nav-user-arrow">▾</span>
+      </button>
+      <nav class="nav-dropdown-menu">
+        <a href="profile.html">👤 个人主页</a>
+        <a href="user-center.html">⚙️ 用户中心</a>
+        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
+        <a href="admin.html">🛡️ 管理后台</a>
+        <div class="divider"></div>
+        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<nav class="tab-bar-mobile" aria-label="移动端导航">
+  <a href="index.html"><span>🏠</span>首页</a>
+  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+  <a href="profile.html"><span>👤</span>我的</a>
+</nav>
+
+<main id="main" class="shell">
+<div class="forum-layout">
+
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h1 style="margin:0;font-size:24px">论坛</h1>
+      <button class="btn primary" data-toast="论坛发帖器已打开">✏️ 发起讨论</button>
+    </div>
+
+    <div class="tabs">
+      <button data-tab class="active">最新</button>
+      <button data-tab>热门</button>
+      <button data-tab>精华</button>
+      <button data-tab>求助</button>
+    </div>
+
+    <div class="feed">
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-slate topic-avatar">杨</span>
+        <div class="forum-topic-info">
+          <span class="tag">产品与体验</span>
+          <h3>如何避免调研结论只停留在文档里？</h3>
+          <div class="forum-topic-meta">
+            <span>@yangqing</span><span>· 6 分钟前</span>
+            <span>💬 32 回复</span><span>❤️ 48</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>32</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-teal topic-avatar">潮</span>
+        <div class="forum-topic-info">
+          <span class="tag">开源协作</span>
+          <h3>开源项目的社区治理模式比较</h3>
+          <div class="forum-topic-meta">
+            <span>@tide</span><span>· 2 小时前</span>
+            <span>💬 18 回复</span><span>❤️ 25</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>18</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-rose topic-avatar">苏</span>
+        <div class="forum-topic-info">
+          <span class="tag">写作与表达</span>
+          <h3>从一句话到一篇文章：思考的颗粒度怎么选？</h3>
+          <div class="forum-topic-meta">
+            <span>@sora</span><span>· 4 小时前</span>
+            <span>💬 12 回复</span><span>❤️ 31</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>12</b>回复</div>
+      </a>
+
+      <a class="card forum-topic" href="forum-detail.html" style="display:flex">
+        <span class="avatar a-amber topic-avatar">墨</span>
+        <div class="forum-topic-info">
+          <span class="tag">求助</span>
+          <h3>UnoCSS 和 Tailwind 在多主题项目里怎么选？</h3>
+          <div class="forum-topic-meta">
+            <span>@momo</span><span>· 昨天</span>
+            <span>💬 7 回复</span><span>❤️ 14</span>
+          </div>
+        </div>
+        <div class="topic-replies"><b>7</b>回复</div>
+      </a>
+    </div>
+
+    <div class="pagination">
+      <a href="#">‹</a>
+      <span>1</span><a href="#">2</a><a href="#">3</a>
+      <a href="#">›</a>
+    </div>
+  </section>
+
+  <aside class="right-rail">
+    <article class="card card-pad">
+      <div class="section-title"><span>版块</span></div>
+      <a class="side-link" href="forum.html"><span>◐</span>全部</a>
+      <a class="side-link active" href="#"><span>✦</span>产品与体验</a>
+      <a class="side-link" href="#"><span>✎</span>写作与表达</a>
+      <a class="side-link" href="#"><span>⌘</span>开源协作</a>
+      <a class="side-link" href="#"><span>❓</span>求助</a>
+    </article>
+    <article class="card card-pad" style="margin-top:12px">
+      <div class="section-title"><span>论坛规则</span></div>
+      <p style="font-size:13px;color:var(--muted);margin:0">发帖前请搜索是否已有同类讨论。尊重不同观点，用证据回应，不人身攻击。</p>
+    </article>
+  </aside>
+
+</div>
+</main>
+
+<script src="prototype.js"></script>
+</body>
+</html>

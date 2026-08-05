@@ -22,6 +22,7 @@ Content-Type: application/json
 ```
 
 成功返回 `ok: commentId`
+`parentId` 只能指向同一帖的一级评论；回复二级评论会返回 `error: 不支持多级嵌套回复`（400）。
 
 ### 点赞/取消点赞
 

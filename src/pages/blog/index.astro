@@ -216,12 +216,11 @@ const hasFilter = !!filterCategoryId;
 						: extractExcerpt(post.content);
 					const postLikeCount = post.likes.length;
 					const postCommentCount = post.comments.length;
-					const postHasCategory = !!post.category;
 
 					return (
 						<article class="blog-article-card">
 							<div class="blog-article-meta">
-								{postHasCategory && (
+								{post.category && (
 									<span class="blog-article-category">
 										{post.category.icon} {post.category.name}
 									</span>

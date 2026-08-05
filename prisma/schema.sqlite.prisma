@@ -36,6 +36,7 @@ model User {
   apiTokens            ApiToken[]
   webhooks             Webhook[]
   activityLogs         ActivityLog[]
+  postReads            PostRead[]
 }
 
 /// 帖子表
@@ -73,6 +74,7 @@ model Post {
   bookmarks  Bookmark[]
   tags       PostTag[]
   mentions   Mention[]
+  reads      PostRead[]
 }
 
 /// 帖子版本历史
@@ -181,6 +183,20 @@ model PostTag {
   tag    Tag    @relation(fields: [tagId], references: [id])
 
   @@unique([postId, tagId])
+}
+
+/// 用户帖子浏览记录，用于本地推荐排除已读内容
+model PostRead {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
 }
 
 /// 提及表

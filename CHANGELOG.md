@@ -1,5 +1,56 @@
 # 更新日志
 
+### 2026-08-05
+
+**变更类型**: 数据库迁移 / 优化
+
+- 保留 SQLite/libSQL 与 MySQL/MariaDB 两种 Prisma driver adapter，通过 `DATABASE_PROVIDER` 选择 schema、迁移和运行时连接；切换前必须备份并自行迁移数据。
+- 将 SQLite 的用户备注、分类/收藏/帖子模式和阅读记录增量迁移合并为独立 `0_init` 基线；MySQL 保留对应的独立初始基线，消除两种 provider 的迁移锁冲突。
+
+### v1.26.805 — 2026-08-05
+
+**变更类型**: 版本发布
+
+- 升级 Astro 至 7，并保留 `/api/agent` 自动化接口；同步修复其认证、兼容字段、错误状态和通知分页等契约缺陷。
+- 修复 API 文档页使用 CDN latest 导致 Scalar 无法初始化的问题，改为打包项目内的 Scalar 1.x 依赖并保留 v1/Agent 文档切换。
+
+### 2026-08-05
+
+**变更类型**: 重构 / 优化 / 安全加固
+
+- 将 `/api/agent` 明确为长期保留的自动化 Agent 纯文本接口：统一 Bearer-only 认证，兼容 `imageUrls`/`images` 与 `mutual` 旧别名，修复发帖错误状态映射和通知页码失效，并新增真实 HTTP 验收测试及双 API 定位文档。
+
+- 升级 Astro 至 7.1.6、`@astrojs/node` 至 11.0.3、`@astrojs/react` 至 6.0.2（两集成版本遵循 Astro 自身的独立版本号），并显式设置 `compressHTML: true` 保持既有 HTML 压缩行为。
+- 新增 `/api/v1` 版本化 JSON REST API，覆盖认证、帖子、评论、点赞、关注、时间线、搜索和标签读取；复用既有认证、Service 与全局 API 安全中间件。
+
+- 新增 `API_V1_ENABLED` 与 `API_AGENT_ENABLED` 配置开关，默认启用；禁用时由全局中间件在 CORS、限流和路由前分别返回 v1 JSON 或 Agent 纯文本 404 响应。
+
+- 修复 `/api/v1` 可见性读取、重复删除 404 语义与 Bearer-only 鉴权；password 列表正文脱敏、详情支持 `password` 查询参数，并补齐迁移说明与 HTTP 验收矩阵。
+
+- 将外部 OpenAPI 契约收敛到版本化 `/api/v1` MVP，明确公开读与 Bearer 写操作边界、统一错误响应、DTO 适配规则及切换操作的重试风险；管理后台继续仅使用 Astro Actions。
+- 管理后台用户管理新增「添加用户」对话框与 `createUser` Action；管理员可绕过前台注册开关创建 user 或 admin，且沿用注册的用户名、邮箱、密码与唯一性校验。
+- 移除 DaLi.Lens 外部推荐依赖，改用本地热门排序、标签/分类匹配及本地阅读历史。
+- 修复本地推荐的分层架构、候选查询数据放大、永久排除已读和相似源帖权限校验问题。
+- 修复 Markdown URL、搜索建议和通知动态内容的持久型 XSS 风险。
+- 新增 `lint` 与 `typecheck` 工程脚本，统一格式和 Astro 类型检查入口。
+- 将 `content.service.ts` 与 `user.service.ts` 的 Prisma 查询下沉至 `lib/post.ts`、`lib/comment.ts` 与 `lib/user.ts`，保持既有 Service 接口不变。
+- 新增公共 `escapeHtml` 工具，并用于 Token、Webhook 及编辑器上传文件预览中的动态 HTML 值。
+- 新增 `HOT_SORT_CANDIDATE_WINDOW` 配置，默认保留 200 条热门排序候选（必须为正数，无效值回退默认值 200）。
+- 新增 ESLint flat config；Actions 统一从 `astro:schema` 迁移到 `astro/zod`。
+- 补齐认证 helper、浏览器全局、FormData、可空 DOM 节点和帖子卡片的类型契约。
+- 修复管理端单条用户、帖子、评论操作仍调用已移除 Action 的功能错误，统一复用管理员批量 Action 的单项调用。
+- 修复分类父级更新契约、帖子分类空值收窄、DOM 查询类型及 Markdown renderer 的新版类型兼容。
+- 修复微博、论坛与博客编辑器回显/草稿内容的前导空白；补齐博客编辑器直接使用的 `@tiptap/core` 依赖声明。
+- 修复设置页多行文本域的模板缩进写回，以及微博、论坛弹窗历史草稿的前导空白恢复。
+- 统一使用 Astro `set:text` 填充动态文本域，从机制上避免模板换行和缩进再次注入前导空白。
+- 统一微博创建与编辑为 `PostEditor.astro`，支持编辑态内容、可见度及既有图片/附件回显、移除和追加上传，并保留 emoji、草稿、拖拽和粘贴图片上传。
+- 修复 emoji 选择器定位：按触发按钮坐标显示，并支持点击遮罩或选择表情关闭。
+- 三类编辑器统一通过 `actions.uploadMedia` 上传图片；论坛和博客在上传失败时显示可见错误提示。
+- 统一博客新建和编辑页面的文档工作区：两者均使用顶部轻工具栏、居中文档页和无边框富文本编辑器，并复用保存事件、分类/可见度控件和独立草稿键。
+- 修复三类编辑器提交成功后的草稿生命周期：取消待执行的防抖保存、清除对应 localStorage，并将编辑器恢复为空状态；提交失败时保留草稿。博客仅在创建/更新成功后触发草稿清除，创建态与编辑态草稿键继续隔离。
+
+**残余事项**：其余为未使用声明、弃用 API 和 ESLint 存量规则治理项。
+
 ### 2026-06-21 19:30
 
 **提交人**: AI
@@ -8,6 +59,7 @@
 **变更类型**: 重构
 
 **详细描述**:
+
 - 重构 actions/content.ts：createPost/updatePost/deletePost 业务逻辑下沉到 content.service.ts
 - 重构 actions/settings.ts：changePassword/uploadAvatar/updateCommentSort 下沉到 settings.service.ts
 - 重构 actions/misc.ts：renderMarkdown 下沉到 misc.service.ts
@@ -19,6 +71,7 @@
 - settings.service.ts 新增 changePassword/uploadAvatar/updateCommentSort
 
 **注意事项**:
+
 - actions/api 层不再直接 import prisma 或跨层调用 lib
 - 业务逻辑完全不变，纯架构调整
 

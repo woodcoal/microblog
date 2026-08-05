@@ -3,11 +3,13 @@
  * API 文档页面
  *
  * 使用 Scalar API Reference 渲染 OpenAPI 规范文档。
- * 通过 CDN 加载 Scalar 组件，读取 /api/docs.json 端点提供的 OpenAPI 规范。
+ * 使用项目依赖中的 Scalar 组件，读取 /api/docs.json 端点提供的 OpenAPI 规范。
  *
  * 路由：/api/docs
  */
 import { SITE_TITLE } from '@/lib/config';
+
+const selectedApi = Astro.url.searchParams.get('api') === 'agent' ? 'agent' : 'v1';
 ---
 
 <!doctype html>
@@ -16,20 +18,53 @@ import { SITE_TITLE } from '@/lib/config';
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<title>{SITE_TITLE} API 文档</title>
+		<style>
+			.api-switcher {
+				display: flex;
+				gap: 0.5rem;
+				padding: 1rem;
+				border-bottom: 1px solid #e5e7eb;
+			}
+			.api-switcher a {
+				border: 1px solid #d1d5db;
+				border-radius: 0.375rem;
+				color: #374151;
+				padding: 0.45rem 0.8rem;
+				text-decoration: none;
+			}
+			.api-switcher a[aria-current='page'] {
+				background: #111827;
+				border-color: #111827;
+				color: #fff;
+			}
+		</style>
 	</head>
 	<body>
+		<nav class="api-switcher" aria-label="API 文档版本">
+			<a href="/api/docs?api=v1" aria-current={selectedApi === 'v1' ? 'page' : undefined}
+				>v1 JSON API</a
+			>
+			<a
+				href="/api/docs?api=agent"
+				aria-current={selectedApi === 'agent' ? 'page' : undefined}>Agent 纯文本 API</a
+			>
+		</nav>
 		<!-- Scalar API Reference 渲染容器 -->
 		<div id="api-reference"></div>
 
-		<!-- 通过 CDN 加载 Scalar API Reference 脚本 -->
-		<script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
-
-		<!-- 初始化 Scalar，指向 OpenAPI 规范端点 -->
+		<!--
+			由 Astro/Vite 将已安装的 Scalar 1.x 打包进客户端，避免 CDN 的 latest
+			升级后移除全局 Scalar API，导致容器无法挂载。
+		-->
 		<script>
-			Scalar.createApiReference('#api-reference', {
-				spec: {
-					url: '/api/docs.json'
-				},
+			import { createApiReference } from '@scalar/api-reference';
+			import '@scalar/api-reference/style.css';
+
+			const selectedApi = new URLSearchParams(window.location.search).get('api');
+			const specUrl = selectedApi === 'agent' ? '/api/docs.json?api=agent' : '/api/docs.json';
+
+			createApiReference('#api-reference', {
+				url: specUrl,
 				theme: 'default'
 			});
 		</script>

@@ -71,6 +71,7 @@ const { initialTokens } = Astro.props;
 	 * 使用 Astro Actions 替代 REST API 调用。
 	 */
 	import { actions } from 'astro:actions';
+	import { escapeHtml } from '@/lib/html';
 
 	/**
 	 * 格式化日期
@@ -106,11 +107,11 @@ const { initialTokens } = Astro.props;
 				.map((token) => {
 					const isRevoking = revokingId === token.id;
 
-					return `<div class="item-card" data-token-id="${token.id}">
+					return `<div class="item-card" data-token-id="${escapeHtml(String(token.id))}">
 				<div class="item-info">
-					<strong>${token.name}</strong>
+					<strong>${escapeHtml(String(token.name))}</strong>
 					<span class="item-meta">
-						创建于 ${formatDate(token.createdAt)} · 最后使用 ${formatDate(token.lastUsedAt)}
+						创建于 ${escapeHtml(formatDate(token.createdAt))} · 最后使用 ${escapeHtml(formatDate(token.lastUsedAt))}
 					</span>
 				</div>
 				<div class="item-actions">

@@ -27,6 +27,12 @@ interface CommentData {
 		displayName: string;
 	};
 	postContent: string;
+	post: {
+		id: string;
+		user: {
+			username: string;
+		};
+	};
 }
 
 interface Props {
@@ -115,9 +121,23 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 									data-id={comment.id}
 								/>
 							</td>
-							<td class="admin-id-cell">{shortId}</td>
+							<td class="admin-id-cell">
+								<a
+									href={`/${comment.post.user.username}/${comment.post.id}/#comment-${comment.id}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{shortId}
+								</a>
+							</td>
 							<td>
-								<a href={`/${comment.user.username}`}>{authorName}</a>
+								<a
+									href={`/${comment.user.username}`}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{authorName}
+								</a>
 							</td>
 							<td>
 								<div class="admin-text-truncate" title={comment.content}>
@@ -204,13 +224,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		btn.addEventListener('click', async () => {
 			const commentId = (btn as HTMLElement).dataset.commentId || '';
 
-			const result = await actions.adminDeleteComment({ commentId });
+			if (!commentId) return;
+			const result = await actions.batchComments({ action: 'delete', ids: [commentId] });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data?.success) {
+			} else if (result.data && result.data.affected > 0) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(result.data?.message || '操作失败');
+				await MutanDialog.alert('没有评论被删除');
 			}
 		});
 	});
@@ -246,10 +267,9 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	// 批量操作按钮点击处理
 	document.querySelectorAll('[data-batch]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
-			const action = (btn as HTMLElement).dataset.batch;
 			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
 				.map((cb) => (cb as HTMLInputElement).dataset.id)
-				.filter(Boolean);
+				.filter((id): id is string => Boolean(id));
 
 			if (checkedIds.length === 0) {
 				await MutanDialog.alert('请先选择项目', { title: '提示' });
@@ -263,13 +283,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			const result = await actions.batchComments({ action, ids: checkedIds });
+			const result = await actions.batchComments({ action: 'delete', ids: checkedIds });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data?.success) {
+			} else if (result.data && result.data.affected > 0) {
 				window.location.reload();
 			} else {
-				await MutanDialog.alert(result.data?.message || '操作失败');
+				await MutanDialog.alert('没有评论被删除');
 			}
 		});
 	});

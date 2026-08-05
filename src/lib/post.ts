@@ -1,4 +1,4 @@
-﻿﻿/**
+﻿/**
  * 帖子数据库操作模块
  *
  * 提供帖子的 CRUD 原子操作，供 Service 层调用。
@@ -190,6 +190,106 @@ export function findMediaByPostId(postId: string) {
 		where: { postId },
 		orderBy: { sortOrder: 'asc' }
 	});
+}
+
+/** 查询 Agent 帖子列表所需的轻量字段。 */
+export function findAgentPosts(
+	where: Prisma.PostWhereInput,
+	options: {
+		take: number;
+		skip?: number;
+		orderBy?: Prisma.PostOrderByWithRelationInput;
+		includeCounts?: boolean;
+	}
+) {
+	return prisma.post.findMany({
+		where,
+		take: options.take,
+		...(options.skip !== undefined ? { skip: options.skip } : {}),
+		...(options.orderBy ? { orderBy: options.orderBy } : {}),
+		select: {
+			id: true,
+			content: true,
+			createdAt: true,
+			...(options.includeCounts
+				? { _count: { select: { likes: true, comments: true } } }
+				: {})
+		}
+	});
+}
+
+/** 查询 Agent 帖子详情及其作者和附件。 */
+export function findAgentPostDetail(postId: string) {
+	return prisma.post.findUnique({
+		where: { id: postId },
+		include: {
+			user: { select: { username: true, displayName: true } },
+			media: {
+				orderBy: { sortOrder: 'asc' },
+				include: { fileStorage: { select: { filePath: true, fileType: true } } }
+			}
+		}
+	});
+}
+
+/** v1 API 使用的帖子查询，始终返回 DTO 映射所需的关联数据。 */
+export function findApiPosts(
+	where: Prisma.PostWhereInput,
+	options: {
+		skip: number;
+		take: number;
+		orderBy: Prisma.PostOrderByWithRelationInput;
+		viewerId?: string;
+	}
+) {
+	return prisma.post.findMany({
+		where,
+		skip: options.skip,
+		take: options.take,
+		orderBy: options.orderBy,
+		include: apiPostInclude(options.viewerId)
+	});
+}
+
+/** 按 ID 查询 v1 API 帖子。 */
+export function findApiPost(postId: string, viewerId?: string) {
+	return prisma.post.findUnique({ where: { id: postId }, include: apiPostInclude(viewerId) });
+}
+
+function apiPostInclude(viewerId?: string) {
+	const viewerLikeFilter = viewerId ? { userId: viewerId } : { userId: '' };
+	const viewerFollowFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
+	return {
+		user: {
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true,
+				bio: true,
+				createdAt: true,
+				_count: {
+					select: {
+						posts: { where: { isDeleted: false } },
+						followers: true,
+						following: true
+					}
+				},
+				followers: { where: viewerFollowFilter, select: { id: true } }
+			}
+		},
+		media: {
+			orderBy: { sortOrder: 'asc' as const },
+			include: {
+				fileStorage: {
+					select: { id: true, filePath: true, mimeType: true, fileType: true }
+				}
+			}
+		},
+		tags: { include: { tag: { select: { id: true, name: true } } } },
+		likes: { where: viewerLikeFilter, select: { id: true } },
+		_count: { select: { likes: true, comments: { where: { isDeleted: false } } } }
+	} satisfies Prisma.PostInclude;
 }
 
 // ── 更新 ──

@@ -6,7 +6,7 @@
  * 业务逻辑委托 misc.service，本层仅负责鉴权 + 输入校验。
  */
 import { defineAction, ActionError } from 'astro:actions';
-import { z } from 'astro:schema';
+import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown as renderMarkdownService } from '@/services/misc.service';
 

@@ -49,6 +49,17 @@ function envNumber(key: string, defaultValue: number): number {
 /** 数据库连接字符串 */
 export const DATABASE_URL = getEnv('DATABASE_URL') ?? 'file:./dev.db';
 
+export type DatabaseProvider = 'sqlite' | 'mysql';
+
+const databaseProvider = (getEnv('DATABASE_PROVIDER') ?? 'sqlite').toLowerCase();
+
+if (databaseProvider !== 'sqlite' && databaseProvider !== 'mysql') {
+	throw new Error('DATABASE_PROVIDER 必须是 sqlite 或 mysql');
+}
+
+/** 当前 Prisma schema、迁移和 driver adapter 所使用的数据库类型。 */
+export const DATABASE_PROVIDER: DatabaseProvider = databaseProvider;
+
 /** JWT 签名密钥 */
 export const JWT_SECRET =
 	getEnv('JWT_SECRET') ??
@@ -67,6 +78,46 @@ export const UPLOAD_DIR = getEnv('UPLOAD_DIR') ?? './uploads';
 
 /** 站点 URL，用于生成绝对链接 */
 export const SITE_URL = getEnv('SITE_URL') ?? 'http://localhost:4321';
+
+/** API CORS 白名单；self 表示当前请求的同源地址。 */
+export const API_CORS_ORIGINS = (getEnv('API_CORS_ORIGINS') || 'self')
+	.split(',')
+	.map((origin) => origin.trim())
+	.filter(Boolean);
+
+/** 是否启用 /api/v1 外部 JSON API；默认启用以保持兼容。 */
+export const API_V1_ENABLED = getEnv('API_V1_ENABLED') !== 'false';
+
+/** 是否启用 /api/agent 兼容 API；默认启用以保持兼容。 */
+export const API_AGENT_ENABLED = getEnv('API_AGENT_ENABLED') !== 'false';
+
+/** API 限流窗口（秒）及按请求类型区分的上限。 */
+export const API_RATE_LIMIT_WINDOW_SECONDS = Math.max(
+	1,
+	Math.floor(envNumber('API_RATE_LIMIT_WINDOW_SECONDS', 60))
+);
+export const API_RATE_LIMIT_READ = Math.max(1, Math.floor(envNumber('API_RATE_LIMIT_READ', 60)));
+export const API_RATE_LIMIT_WRITE = Math.max(1, Math.floor(envNumber('API_RATE_LIMIT_WRITE', 20)));
+export const API_RATE_LIMIT_UPLOAD = Math.max(
+	1,
+	Math.floor(envNumber('API_RATE_LIMIT_UPLOAD', 10))
+);
+
+/** API 请求体限制；上传接口单独放宽。 */
+export const API_BODY_LIMIT_BYTES = Math.max(
+	1024,
+	Math.floor(envNumber('API_BODY_LIMIT_BYTES', 1024 * 1024))
+);
+export const API_UPLOAD_BODY_LIMIT_BYTES = Math.max(
+	API_BODY_LIMIT_BYTES,
+	Math.floor(envNumber('API_UPLOAD_BODY_LIMIT_BYTES', 10 * 1024 * 1024))
+);
+
+/** Agent 帖子热门排序时参与评分的最新候选数量。 */
+export const HOT_SORT_CANDIDATE_WINDOW = Math.max(
+	1,
+	Math.floor(envNumber('HOT_SORT_CANDIDATE_WINDOW', 200))
+);
 
 /** 内置保留用户名，禁止注册（不可覆盖） */
 const BUILTIN_RESERVED_USERNAMES = [
@@ -247,9 +298,3 @@ export const isSingleMode = SITE_MODES.length === 1;
 
 /** 单模式时的模式值 */
 export const singleMode = isSingleMode ? SITE_MODES[0] : null;
-
-/** DaLi.Lens 推荐与搜索中间件服务地址（未设置时全局停用推荐功能） */
-export const LENS_ENDPOINT = getEnv('LENS_ENDPOINT') ?? '';
-
-/** DaLi.Lens 渠道 API Key（必填，用于认证） */
-export const LENS_API_KEY = getEnv('LENS_API_KEY') ?? '';

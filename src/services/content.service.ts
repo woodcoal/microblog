@@ -8,15 +8,23 @@ import {
 	findPostById,
 	findPostWithRelations,
 	findMediaByPostId,
+	findAgentPosts,
+	findAgentPostDetail,
 	createPostTransaction,
 	updatePostTransaction,
 	softDeletePost
 } from '@/lib/post';
-import { findCommentById, createCommentRecord, softDeleteComment } from '@/lib/comment';
+import {
+	findCommentById,
+	findAgentPostComments,
+	createCommentRecord,
+	softDeleteComment
+} from '@/lib/comment';
 import { findFileStoragesByIds, deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
 import { findTagByName, findPostIdsByTagId } from '@/lib/tag';
-import { findUserByUsername } from '@/lib/user';
+import { findMentionedUserIds, findUserByUsername } from '@/lib/user';
 import { findCategoryById } from '@/lib/category';
+import { findFollow } from '@/lib/social';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
 import {
@@ -27,7 +35,6 @@ import {
 	COMMENT_CREATE,
 	COMMENT_DELETE
 } from '@/lib/activity';
-import { ingestDocument, updateDocument, deleteDocument } from '@/lib/lens';
 import { generateShortId } from '@/lib/shortid';
 import { parseMentions, parseTags } from '@/lib/parser';
 import {
@@ -36,8 +43,8 @@ import {
 	checkPostVisibility,
 	getVisibilityFilter
 } from '@/lib/visibility';
-import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
-import { prisma } from '@/lib/db';
+import { HOT_SORT_CANDIDATE_WINDOW, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import type { Prisma } from '../../generated/prisma/client';
 import { calculateTrendingScore } from '@/lib/trending';
 import { hashPassword } from '@/lib/auth';
 
@@ -45,8 +52,6 @@ import { hashPassword } from '@/lib/auth';
 const COMMENT_MAX_LENGTH = 1000;
 
 const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
-
-const HOT_SORT_MAX = 200;
 
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
 
@@ -89,7 +94,7 @@ export interface DeleteCommentInput {
  * 创建评论
  *
  * 校验帖子存在/未删除/未锁定，校验内容，校验 parentId，
- * 创建评论记录，异步发送通知+活动日志+Lens 反馈。
+ * 创建评论记录，异步发送通知和活动日志。
  */
 export async function createComment(input: CreateCommentInput): Promise<CreateCommentResult> {
 	const { userId, postId, content, parentId } = input;
@@ -149,14 +154,9 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 		}
 	);
 
-	// 5. 异步通知 + 活动日志 + Lens 反馈
+	// 5. 异步通知和活动日志
 	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
 	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => {});
-	ingestDocument({
-		externalId: postId,
-		title: content.trim().slice(0, 100),
-		content: content.trim()
-	}).catch(() => {});
 
 	return {
 		id: comment.id,
@@ -194,7 +194,7 @@ export async function deleteComment(input: DeleteCommentInput): Promise<{ id: st
 
 	// 3. 已删除的评论
 	if (comment.isDeleted) {
-		throw new ServiceError('BAD_REQUEST', '评论已被删除');
+		throw new ServiceError('NOT_FOUND', '评论不存在');
 	}
 
 	// 4. 软删除
@@ -244,7 +244,7 @@ export interface DeletePostInput {
 }
 
 /** Agent 帖子列表查询参数 */
-export interface GetAgentPostsInput {
+export interface GetPostsInput {
 	userId: string;
 	keyword?: string;
 	tag?: string;
@@ -260,7 +260,7 @@ export interface GetAgentPostsInput {
 }
 
 /** Agent 帖子详情查询参数 */
-export interface GetAgentPostDetailInput {
+export interface GetPostDetailInput {
 	userId: string;
 	postId: string;
 	commentsParam: number;
@@ -286,7 +286,7 @@ function sanitizePost<T extends Record<string, unknown>>(post: T): T {
  * 创建帖子
  *
  * 校验输入参数，委托 lib 层事务创建帖子，
- * 异步发送通知、活动日志、Lens 文档入库。
+ * 异步发送通知和活动日志。
  *
  * @param input - 创建帖子参数
  * @returns 创建的帖子完整数据（含关联）
@@ -420,23 +420,13 @@ export async function createPost(input: CreatePostInput) {
 	const fullPost = await findPostWithRelations(id);
 
 	if (mentionUsernames.length > 0) {
-		const mentionedUsers = await prisma.user.findMany({
-			where: { username: { in: mentionUsernames }, id: { not: userId } },
-			select: { id: true }
-		});
+		const mentionedUsers = await findMentionedUserIds(mentionUsernames, userId);
 		for (const u of mentionedUsers) {
 			createNotification('mention', userId, u.id, id).catch(() => {});
 		}
 	}
 
 	logActivity(POST_CREATE, userId, 'post', id, userId, id).catch(() => {});
-
-	ingestDocument({
-		externalId: id,
-		title: title?.trim() || content.trim().slice(0, 100),
-		content: content.trim(),
-		category: fullPost?.category?.name
-	}).catch(() => {});
 
 	return sanitizePost(fullPost!);
 }
@@ -446,7 +436,7 @@ export async function createPost(input: CreatePostInput) {
  *
  * 校验帖子存在/作者/锁定/删除状态，校验输入参数，
  * 委托 lib 层事务更新帖子（含 revision、media diff、mention/tag 重建），
- * 事务后处理 refCount、活动日志、Lens 文档更新。
+ * 事务后处理 refCount 和活动日志。
  *
  * @param input - 更新帖子参数
  * @returns 更新后的帖子完整数据（含关联）
@@ -634,14 +624,6 @@ export async function updatePost(input: UpdatePostInput) {
 	// 13. 记录编辑帖子活动（异步，不阻塞主流程）
 	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => {});
 
-	// 14. 同步更新帖子到 DaLi.Lens 推荐引擎（异步，不阻塞）
-	updateDocument(postId, {
-		externalId: postId,
-		title: updated.title || updated.content.slice(0, 100),
-		content: updated.content,
-		category: updated.category?.name
-	}).catch(() => {});
-
 	return sanitizePost(updated);
 }
 
@@ -649,7 +631,7 @@ export async function updatePost(input: UpdatePostInput) {
  * 删除帖子（软删除）
  *
  * 校验帖子存在/作者/锁定/删除状态，标记 isDeleted = true，
- * 异步记录活动日志、Lens 文档删除。
+ * 异步记录活动日志。
  *
  * @param input - 删除帖子参数
  * @returns 被删除的帖子 ID
@@ -675,7 +657,7 @@ export async function deletePost(input: DeletePostInput) {
 
 	// 已经删除的帖子
 	if (post.isDeleted) {
-		throw new ServiceError('BAD_REQUEST', '帖子已被删除');
+		throw new ServiceError('NOT_FOUND', '帖子不存在');
 	}
 
 	// 4. 软删除
@@ -683,9 +665,6 @@ export async function deletePost(input: DeletePostInput) {
 
 	// 5. 记录删除帖子活动（异步，不阻塞主流程）
 	logActivity(POST_DELETE, userId, 'post', postId, post.userId, postId).catch(() => {});
-
-	// 6. 从 DaLi.Lens 删除帖子（异步，不阻塞）
-	deleteDocument(postId).catch(() => {});
 
 	return { id: postId };
 }
@@ -699,7 +678,7 @@ export async function deletePost(input: DeletePostInput) {
  * @param input - 查询参数
  * @returns 格式化后的帖子列表文本
  */
-export async function getAgentPosts(input: GetAgentPostsInput) {
+export async function getPosts(input: GetPostsInput) {
 	const {
 		userId,
 		keyword,
@@ -719,7 +698,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 	const visibilityFilter = getVisibilityFilter({ userId }, { followingIds, followerIds });
 
 	// 构建 where 条件
-	const where: Record<string, unknown> = {
+	const where: Prisma.PostWhereInput = {
 		isDeleted: false,
 		...visibilityFilter
 	};
@@ -742,11 +721,11 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 		const tagRecord = await findTagByName(tag);
 		if (!tagRecord) {
 			// 标签不存在，返回空列表
-			return '';
+			return [];
 		}
 		const postIdsByTag = await findPostIdsByTagId(tagRecord.id);
 		if (postIdsByTag.length === 0) {
-			return '';
+			return [];
 		}
 		where.id = { in: postIdsByTag };
 	}
@@ -755,7 +734,7 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 	if (targetUsername) {
 		const targetUser = await findUserByUsername(targetUsername);
 		if (!targetUser) {
-			return '';
+			return [];
 		}
 		where.userId = targetUser.id;
 	} else if (userScope === 'following') {
@@ -774,15 +753,9 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 
 	if (sort === 'hot') {
 		// hot 排序：查询满足条件的帖子，内存排序
-		const hotPosts = await prisma.post.findMany({
-			where,
-			take: HOT_SORT_MAX,
-			select: {
-				id: true,
-				content: true,
-				createdAt: true,
-				_count: { select: { likes: true, comments: true } }
-			}
+		const hotPosts = await findAgentPosts(where, {
+			take: HOT_SORT_CANDIDATE_WINDOW,
+			includeCounts: true
 		});
 
 		// 计算热门分数并排序
@@ -804,19 +777,10 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
 		const orderBy =
 			sort === 'earliest' ? { createdAt: 'asc' as const } : { createdAt: 'desc' as const };
 
-		posts = await prisma.post.findMany({
-			where,
-			orderBy,
-			skip,
-			take: limit,
-			select: { id: true, content: true, createdAt: true }
-		});
+		posts = await findAgentPosts(where, { orderBy, skip, take: limit });
 	}
 
-	// 格式化输出
-	const { formatPostListItem } = await import('@/lib/agent');
-	const lines = posts.map((p) => formatPostListItem(p));
-	return lines.join('\n');
+	return posts;
 }
 
 /**
@@ -828,26 +792,11 @@ export async function getAgentPosts(input: GetAgentPostsInput) {
  * @param input - 查询参数
  * @returns 格式化后的帖子详情文本，或错误信息对象
  */
-export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
+export async function getPostDetail(input: GetPostDetailInput) {
 	const { userId, postId, commentsParam } = input;
 
 	// 1. 查询帖子
-	const post = await prisma.post.findUnique({
-		where: { id: postId },
-		include: {
-			user: {
-				select: { username: true, displayName: true }
-			},
-			media: {
-				orderBy: { sortOrder: 'asc' },
-				include: {
-					fileStorage: {
-						select: { filePath: true, fileType: true }
-					}
-				}
-			}
-		}
-	});
+	const post = await findAgentPostDetail(postId);
 
 	if (!post) {
 		return { error: '帖子不存在', status: 404 };
@@ -861,23 +810,13 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 	let isFollower = false;
 	let isFollowing = false;
 	if (userId !== post.userId) {
-		const followRecord = await prisma.follow.findUnique({
-			where: {
-				followerId_followingId: {
-					followerId: userId,
-					followingId: post.userId
-				}
-			}
+		const followRecord = await findFollow({
+			followerId_followingId: { followerId: userId, followingId: post.userId }
 		});
 		isFollower = !!followRecord;
 
-		const reverseFollowRecord = await prisma.follow.findUnique({
-			where: {
-				followerId_followingId: {
-					followerId: post.userId,
-					followingId: userId
-				}
-			}
+		const reverseFollowRecord = await findFollow({
+			followerId_followingId: { followerId: post.userId, followingId: userId }
 		});
 		isFollowing = !!reverseFollowRecord;
 	}
@@ -923,29 +862,7 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 	if (commentsParam !== -1) {
 		const takeCount = commentsParam > 0 ? commentsParam : undefined;
 
-		const rawComments = await prisma.comment.findMany({
-			where: {
-				postId,
-				parentId: null,
-				isDeleted: false
-			},
-			orderBy: { createdAt: 'desc' },
-			...(takeCount && { take: takeCount }),
-			include: {
-				user: {
-					select: { username: true, displayName: true }
-				},
-				replies: {
-					where: { isDeleted: false },
-					orderBy: { createdAt: 'desc' },
-					include: {
-						user: {
-							select: { username: true, displayName: true }
-						}
-					}
-				}
-			}
-		});
+		const rawComments = await findAgentPostComments(postId, takeCount);
 
 		comments = rawComments.map((c) => ({
 			id: c.id,
@@ -964,7 +881,5 @@ export async function getAgentPostDetail(input: GetAgentPostDetailInput) {
 		}));
 	}
 
-	// 4. 格式化输出
-	const { formatPostDetail } = await import('@/lib/agent');
-	return { data: formatPostDetail(post, comments) };
+	return { data: { post, comments } };
 }

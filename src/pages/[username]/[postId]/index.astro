@@ -76,7 +76,8 @@ const post = await prisma.post.findUnique({
 				id: true,
 				name: true,
 				slug: true,
-				mode: true
+				mode: true,
+				icon: true
 			}
 		}
 	}
@@ -314,7 +315,6 @@ const htmlContent = isDeleted
 		? renderFullMarkdown(post.content)
 		: renderMarkdown(post.content);
 const hasTitle = !!post.title;
-const hasCategory = !!post.category;
 
 // 页面标题：根据模式不同显示不同格式
 const seoTitle = isDeleted
@@ -373,7 +373,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			isForum && !isDeleted ? (
 				/* 论坛模式：标题大字 + 版块面包屑 */
 				<div class="post-detail-forum-header">
-					{hasCategory && (
+					{post.category && (
 						<div class="post-detail-breadcrumb">
 							<a href="/" class="post-detail-breadcrumb-link">
 								首页
@@ -420,7 +420,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			) : isBlog && !isDeleted ? (
 				/* 博客模式：文章标题 + 分类 + 发布日期 */
 				<div class="post-detail-blog-header">
-					{hasCategory && (
+					{post.category && (
 						<div class="post-detail-blog-category">
 							<span class="post-detail-blog-category-name">{post.category.name}</span>
 						</div>
@@ -712,7 +712,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		)
 	}
 
-	{/* 相关推荐 - DaLi.Lens 相似文档推荐（仅登录用户） */}
+	{/* 相关推荐 - 本地标签和分类匹配（仅登录用户） */}
 	{
 		currentUser && !isDeleted && !needPassword && (
 			<section class="post-detail-similar" id="similar-section" style="display:none">
@@ -1116,6 +1116,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			}
 
 			try {
+				if (!postId) return;
 				const result = await actions.deletePost({ postId });
 				if (result.error) {
 					const errMsg = result.error.message || '删除失败';
@@ -1299,9 +1300,14 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			const postId = (pinBtn as HTMLElement).dataset.postId;
 
 			try {
+				if (!postId) return;
 				const result = await actions.togglePin({ postId });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+					return;
+				}
 				// 更新按钮文字和状态
-				const isNowPinned = result.pinned;
+				const isNowPinned = result.data.pinned;
 				(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
 				pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
 			} catch (e: any) {
@@ -1315,10 +1321,9 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 
 	/**
-	 * 浏览行为追踪（DaLi.Lens view feedback）
+	 * 浏览行为追踪（本地阅读历史）
 	 *
-	 * 用户查看帖子详情页时，异步发送浏览记录到 DaLi.Lens 推荐引擎。
-	 * 浏览反馈（view）作为弱正向信号，帮助推荐系统理解用户兴趣。
+	 * 用户查看帖子详情页时，异步记录阅读历史，供推荐排除已读内容。
 	 * 仅登录用户触发，失败静默不影响页面。
 	 */
 	(async () => {

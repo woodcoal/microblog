@@ -98,7 +98,7 @@ const {
 	nextPostsCursor,
 	users,
 	nextUsersCursor
-} = Astro.props;
+} = Astro.props as Props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const isPostsTab = tab === 'posts';
@@ -137,7 +137,6 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 						const isForum = postMode === 'forum';
 						const isBlog = postMode === 'blog';
 						const hasTitle = !!post.title;
-						const hasCategory = !!post.category;
 						const modeLabel = isForum
 							? getModeLabel('forum')
 							: isBlog
@@ -208,7 +207,7 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 										]}
 										set:html={htmlContent}
 									/>
-									{hasCategory && (
+									{post.category && (
 										<div class="post-card-category">
 											<span class="post-card-category-name">
 												{post.category.name}

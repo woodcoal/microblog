@@ -100,10 +100,10 @@ const THEME_ICONS: Record<string, string> = {
 
 	// 为所有主题切换器绑定事件
 	document.querySelectorAll<HTMLElement>('.theme-switcher').forEach((container) => {
-		const btn = container.querySelector<HTMLButtonElement>('.theme-switcher-btn');
-		const dropdown = container.querySelector<HTMLUListElement>('.theme-switcher-dropdown');
-		const iconEl = container.querySelector<HTMLSpanElement>('.theme-switcher-icon');
-		const nameEl = container.querySelector<HTMLSpanElement>('.theme-switcher-name');
+		const btn = container.querySelector<HTMLButtonElement>('.theme-switcher-btn')!;
+		const dropdown = container.querySelector<HTMLUListElement>('.theme-switcher-dropdown')!;
+		const iconEl = container.querySelector<HTMLSpanElement>('.theme-switcher-icon')!;
+		const nameEl = container.querySelector<HTMLSpanElement>('.theme-switcher-name')!;
 
 		if (!btn || !dropdown || !iconEl || !nameEl) return;
 

@@ -45,3 +45,5 @@ generated/
 # Astro
 .astro/
 yarn.lock
+pnpm-lock.yaml
+app.db

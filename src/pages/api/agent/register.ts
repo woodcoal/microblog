@@ -2,7 +2,7 @@
  * Agent 快速注册 API
  *
  * POST /api/agent/register — 注册新用户并自动创建 API Token
- * @deprecated M6: 此 API 路由已弃用，内部交互已迁移到 Astro Actions。保留供外部客户端使用。
+ * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import { textResponse, textErrorResponse } from '@/lib/agent';

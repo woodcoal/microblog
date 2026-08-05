@@ -48,7 +48,8 @@ export interface UpdateProfileInput {
 	userId: string;
 	displayName?: string;
 	bio?: string;
-	avatarUrl?: string;
+	/** null 表示清除头像；数据库以空字符串保存未设置头像。 */
+	avatarUrl?: string | null;
 	note?: string;
 }
 
@@ -138,9 +139,9 @@ export async function updateProfile(input: UpdateProfileInput): Promise<UpdatePr
 		note?: string;
 	} = {};
 	if (displayName !== undefined) updateData.displayName = displayName;
-	if (bio !== undefined) updateData.bio = bio;
-	if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
-	if (note !== undefined) updateData.note = note;
+	if (bio !== undefined) updateData.bio = bio.trim();
+	if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl ?? '';
+	if (note !== undefined) updateData.note = note.trim();
 
 	// 更新 User 表
 	const updatedUser = await updateUser(userId, updateData, {

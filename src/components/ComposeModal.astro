@@ -225,6 +225,10 @@ const hasForumCategories = forumCategories.length > 0;
 	const forumErrorDisplay = document.getElementById(
 		'forum-modal-error'
 	) as HTMLParagraphElement | null;
+	type ForumEditorElement = HTMLElement & {
+		getContent?: () => string;
+		resetContent?: () => void;
+	};
 
 	if (forumEditorEl && forumTitleInput && forumVisibilitySelect && forumErrorDisplay) {
 		/** 草稿存储键 */
@@ -305,7 +309,8 @@ const hasForumCategories = forumCategories.length > 0;
 						'.forum-editor-textarea'
 					) as HTMLTextAreaElement | null;
 					if (textarea) {
-						textarea.value = data.content;
+						// 兼容修复前保存的草稿，避免历史缩进再次显示在输入开头。
+						textarea.value = data.content.trimStart();
 						// 触发字数统计更新
 						textarea.dispatchEvent(new Event('input'));
 					}
@@ -317,7 +322,7 @@ const hasForumCategories = forumCategories.length > 0;
 					forumVisibilitySelect.value = data.visibility;
 				}
 				// 显示草稿恢复提示
-				const hint = forumModal?.querySelector('.forum-editor-draft-hint');
+				const hint = forumModal?.querySelector<HTMLElement>('.forum-editor-draft-hint');
 				if (hint) {
 					hint.style.display = '';
 					setTimeout(() => {
@@ -333,7 +338,20 @@ const hasForumCategories = forumCategories.length > 0;
 		 * 清除草稿
 		 */
 		function clearDraft(): void {
+			if (draftTimer) {
+				clearTimeout(draftTimer);
+				draftTimer = null;
+			}
 			localStorage.removeItem(DRAFT_KEY);
+		}
+
+		/** 发布成功后将论坛弹窗恢复为空白状态。 */
+		function resetForumForm(): void {
+			forumTitleInput!.value = '';
+			if (forumCategorySelect) forumCategorySelect.value = '';
+			forumVisibilitySelect!.value = 'public';
+			(forumEditorEl as ForumEditorElement).resetContent?.();
+			hideError();
 		}
 
 		// 标题输入时保存草稿
@@ -410,6 +428,7 @@ const hasForumCategories = forumCategories.length > 0;
 			} else {
 				// 发布成功，清除草稿
 				clearDraft();
+				resetForumForm();
 
 				// 关闭弹窗
 				if (forumModal) closeModal(forumModal);
