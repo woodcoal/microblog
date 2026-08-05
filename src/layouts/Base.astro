@@ -254,6 +254,14 @@ const resolvedOgType = ogType || 'website';
 				<div class="navbar-actions" id="navbar-actions">
 					<a href="/search" class="nav-search-btn" aria-label="搜索">🔍</a>
 					<ThemeSwitcher />
+					{
+						currentUser && notificationsEnabled && (
+							<a href="/notifications" class="nav-notification" aria-label="通知">
+								<span aria-hidden="true">🔔</span>
+								{hasUnread && <span class="notification-badge">{unreadCount}</span>}
+							</a>
+						)
+					}
 					<!-- 移动端导航菜单（hamburger 面板内） -->
 					<div class="mobile-user-area">
 						<a href="/" class="mobile-user-link">

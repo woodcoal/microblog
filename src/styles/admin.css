@@ -71,7 +71,7 @@
 .admin-sidebar {
 	width: 240px;
 	min-height: 100vh;
-	background: var(--color-card-bg);
+	background: var(--color-sidebar-bg);
 	border-right: 1px solid var(--color-border);
 	display: flex;
 	flex-direction: column;
@@ -162,8 +162,14 @@
 .admin-main {
 	margin-left: 240px;
 	flex: 1;
-	padding: var(--spacing-6);
+	padding: var(--spacing-8);
 	min-height: 100vh;
+	background: var(--color-bg);
+	overflow: hidden;
+}
+
+.admin-main > * {
+	max-width: 1480px;
 }
 
 /* ===== 页面标题 ===== */
@@ -226,6 +232,7 @@
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
 	overflow-x: auto;
+	max-width: 100%;
 }
 
 .admin-table {
@@ -587,7 +594,7 @@ dialog.admin-modal::backdrop {
 
 	.admin-main {
 		margin-left: 0;
-		padding-top: calc(56px + var(--spacing-4));
+		padding: calc(56px + var(--spacing-4)) var(--spacing-4) var(--spacing-6);
 	}
 
 	.admin-stats-grid {

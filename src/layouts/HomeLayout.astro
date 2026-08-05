@@ -50,19 +50,19 @@ const {
 </BaseLayout>
 
 <style>
-	/* 首页布局：宽容器，适合推荐流和多栏展示 */
+	/* C 型发现首页：引导区与跨频道内容使用更宽的页面壳。 */
 	.layout-home {
-		max-width: 960px;
+		max-width: var(--layout-home);
 		margin: 0 auto;
-		padding: var(--spacing-6) var(--spacing-4);
+		padding: 0 var(--spacing-6) var(--spacing-12);
 		flex: 1;
 		width: 100%;
 	}
 
 	@media (max-width: 767px) {
 		.layout-home {
-			padding: var(--spacing-4) var(--spacing-3);
-			padding-bottom: calc(56px + var(--spacing-4) + env(safe-area-inset-bottom, 0));
+			padding: 0 var(--spacing-4)
+				calc(56px + var(--spacing-6) + env(safe-area-inset-bottom, 0));
 		}
 	}
 </style>
