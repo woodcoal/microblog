@@ -18,6 +18,7 @@ import '@/styles/tokens.css';
 import '@/styles/base.css';
 import '@/styles/components.css';
 import '@/styles/admin.css';
+import '@/styles/ux-pages.css';
 
 interface Props {
 	title?: string;
@@ -127,7 +128,7 @@ const navItems = [
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
 	</head>
-	<body class="admin-body">
+	<body class="admin-body" data-ux-shell="admin">
 		<a class="skip-link" href="#main-content">跳到主要内容</a>
 		<!-- 移动端顶部栏 -->
 		<header class="admin-mobile-header">
