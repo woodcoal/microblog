@@ -9,10 +9,9 @@
  * 支持 mode 过滤（全部/微博/论坛/博客）和分类下拉选择器。
  * 使用 SearchBox 和 SearchResults Astro 组件，完全服务端渲染。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import BaseLayout from '@/layouts/Base.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
-import SearchSuggest from '@/components/SearchSuggest.astro';
 import { prisma } from '@/lib/db';
 import { getModeLabel } from '@/lib/config';
 
@@ -43,7 +42,8 @@ interface UserResult {
 
 // 解析 URL 参数
 const q = Astro.url.searchParams.get('q')?.trim() || '';
-const tab = Astro.url.searchParams.get('tab') === 'users' ? 'users' : 'posts';
+const tabParam = Astro.url.searchParams.get('tab');
+const tab = tabParam === 'users' ? 'users' : tabParam === 'posts' ? 'posts' : 'all';
 const cursor = Astro.url.searchParams.get('cursor') || '';
 // 排序方式：latest=按时间倒序（默认），popular=按点赞数倒序再按时间倒序
 const sort = Astro.url.searchParams.get('sort') === 'popular' ? 'popular' : 'latest';
@@ -54,24 +54,7 @@ const modeFilter = validModes.includes(modeParam) ? modeParam : 'all';
 // 分类过滤：categoryId 参数
 const categoryIdParam = Astro.url.searchParams.get('categoryId')?.trim() || '';
 
-// 查询分类列表：根据当前 mode 过滤，用于分类下拉选择器
-// 当 mode=all 时显示所有分类，否则只显示对应 mode 的分类
-const categoryList = await prisma.category.findMany({
-	where: {
-		...(modeFilter !== 'all' ? { mode: modeFilter } : {})
-	},
-	orderBy: [{ mode: 'asc' }, { sortOrder: 'asc' }],
-	select: {
-		id: true,
-		name: true,
-		slug: true,
-		mode: true,
-		icon: true,
-		parentId: true
-	}
-});
-
-// 验证 categoryId 是否合法（存在且 mode 匹配）
+// 兼容旧链接中的分类参数，并验证其与频道过滤匹配。
 let categoryIdFilter = '';
 if (categoryIdParam) {
 	const cat = await prisma.category.findUnique({ where: { id: categoryIdParam } });
@@ -89,7 +72,7 @@ let users: UserResult[] = [];
 let nextUsersCursor: string | null = null;
 
 if (q) {
-	if (tab === 'posts') {
+	if (tab !== 'users') {
 		// 查询帖子搜索结果
 		const where = {
 			visibility: 'public',
@@ -172,7 +155,9 @@ if (q) {
 				name: pt.tag.name
 			}))
 		}));
-	} else {
+	}
+
+	if (tab !== 'posts') {
 		// 查询用户搜索结果
 		const where = {
 			isDisabled: false,
@@ -222,16 +207,13 @@ if (q) {
 }
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isAllTab = tab === 'all';
 const isPostsTab = tab === 'posts';
 const isUsersTab = tab === 'users';
-const isSortLatest = sort === 'latest';
-const isSortPopular = sort === 'popular';
 const isModeAll = modeFilter === 'all';
 const isModeWeibo = modeFilter === 'weibo';
 const isModeForum = modeFilter === 'forum';
 const isModeBlog = modeFilter === 'blog';
-const hasCategories = categoryList.length > 0;
-const hasCategoryId = !!categoryIdFilter;
 
 /** 构建搜索 URL 的辅助函数，保持所有筛选参数 */
 function buildSearchUrl(params: {
@@ -261,15 +243,11 @@ function buildSearchUrl(params: {
 }
 ---
 
-<WeiboLayout title={q ? `搜索: ${q}` : '搜索'}>
-	<section class="ux-search-page">
-		<header class="ux-page-heading">
-			<p class="ux-eyebrow">发现</p>
-			<h1 class="page-title">搜索</h1>
-			<p>在微博、论坛、博客与社区成员中找到相关内容。</p>
-		</header>
+<BaseLayout title={q ? `搜索: ${q}` : '搜索'}>
+	<section class="search-template" aria-labelledby="search-page-title">
+		<h1 id="search-page-title">搜索</h1>
 
-		<!-- 搜索框 + 实时建议 -->
+		<!-- search-a 的简洁搜索框 -->
 		<div class="search-box-wrapper">
 			<SearchBox
 				initialQuery={q}
@@ -278,106 +256,26 @@ function buildSearchUrl(params: {
 				mode={modeFilter}
 				categoryId={categoryIdFilter}
 			/>
-			<SearchSuggest initialQuery={q} />
 		</div>
 
 		<!-- 标签页切换 -->
 		<div class="search-tabs">
 			<a
-				href={buildSearchUrl({ tab: 'posts' })}
-				class:list={['search-tab', { 'search-tab-active': isPostsTab }]}
+					href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
 			>
-				{getModeLabel('weibo')}
+				综合
 			</a>
+			<a href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })} class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}>{getModeLabel('weibo')}</a>
+			<a href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })} class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}>{getModeLabel('forum')}</a>
+			<a href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })} class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}>{getModeLabel('blog')}</a>
 			<a
-				href={buildSearchUrl({ tab: 'users' })}
+				href={buildSearchUrl({ tab: 'users', categoryId: '' })}
 				class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
 			>
 				用户
 			</a>
 		</div>
-
-		<!-- 排序切换 + mode 过滤 + 分类选择：仅在帖子标签页显示 -->
-		{
-			isPostsTab && (
-				<div class="search-filters">
-					<div class="search-sort">
-						<a
-							href={buildSearchUrl({ sort: 'latest' })}
-							class:list={['search-sort-btn', { 'search-sort-active': isSortLatest }]}
-						>
-							最新
-						</a>
-						<a
-							href={buildSearchUrl({ sort: 'popular' })}
-							class:list={[
-								'search-sort-btn',
-								{ 'search-sort-active': isSortPopular }
-							]}
-						>
-							热门
-						</a>
-					</div>
-					<div class="search-mode-filter">
-						<a
-							href={buildSearchUrl({ mode: 'all', categoryId: '' })}
-							class:list={['search-mode-btn', { 'search-mode-active': isModeAll }]}
-						>
-							全部
-						</a>
-						<a
-							href={buildSearchUrl({ mode: 'weibo', categoryId: '' })}
-							class:list={['search-mode-btn', { 'search-mode-active': isModeWeibo }]}
-						>
-							{getModeLabel('weibo')}
-						</a>
-						<a
-							href={buildSearchUrl({ mode: 'forum', categoryId: '' })}
-							class:list={['search-mode-btn', { 'search-mode-active': isModeForum }]}
-						>
-							{getModeLabel('forum')}
-						</a>
-						<a
-							href={buildSearchUrl({ mode: 'blog', categoryId: '' })}
-							class:list={['search-mode-btn', { 'search-mode-active': isModeBlog }]}
-						>
-							{getModeLabel('blog')}
-						</a>
-					</div>
-				</div>
-			)
-		}
-
-		<!-- 分类下拉选择器：仅在帖子标签页且有分类时显示 -->
-		{
-			isPostsTab && hasCategories && (
-				<div class="search-category-filter">
-					<label for="category-select" class="search-category-label">
-						分类：
-					</label>
-					<select
-						id="category-select"
-						class="search-category-select"
-						data-base-url={buildSearchUrl({ categoryId: '__CATEGORY_ID__' })}
-					>
-						<option value="" selected={!hasCategoryId}>
-							全部分类
-						</option>
-						{categoryList.map((cat) => {
-							const isSelected = cat.id === categoryIdFilter;
-							/** 分类模式标签 */
-							const modeLabel = getModeLabel(cat.mode);
-							return (
-								<option value={cat.id} selected={isSelected}>
-									[{modeLabel}] {cat.icon ? cat.icon + ' ' : ''}
-									{cat.name}
-								</option>
-							);
-						})}
-					</select>
-				</div>
-			)
-		}
 
 		<!-- 搜索结果 -->
 		<SearchResults
@@ -392,28 +290,38 @@ function buildSearchUrl(params: {
 			nextUsersCursor={nextUsersCursor}
 		/>
 	</section>
-</WeiboLayout>
+</BaseLayout>
 
 <style>
-	.page-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		margin-bottom: 1rem;
+	.search-template {
+		width: min(100% - 2 * var(--spacing-6), 980px);
+		margin: 0 auto;
+		padding: clamp(var(--spacing-6), 5vw, 2.5rem) 0 var(--spacing-12);
 	}
+
+	.search-template > h1 {
+		margin: 0;
+		font-size: clamp(1.5rem, 3vw, 1.75rem);
+		letter-spacing: -0.04em;
+	}
+
 	.search-tabs {
 		display: flex;
 		gap: 0;
-		border-bottom: 2px solid var(--color-border);
-		margin-bottom: 1rem;
+		border-bottom: 1px solid var(--color-border);
+		margin-bottom: var(--spacing-2);
+		overflow-x: auto;
 	}
 	.search-tab {
-		padding: 0.5rem 1.25rem;
-		font-size: 0.9375rem;
+		flex: 0 0 auto;
+		padding: 0.625rem 0.75rem;
+		font-size: 0.875rem;
 		font-weight: 500;
 		color: var(--color-muted);
 		text-decoration: none;
 		border-bottom: 2px solid transparent;
-		margin-bottom: -2px;
+		border-radius: 0;
+		margin-bottom: -1px;
 		transition:
 			color 0.2s,
 			border-color 0.2s;
@@ -424,118 +332,10 @@ function buildSearchUrl(params: {
 	.search-tab-active {
 		color: var(--color-primary);
 		border-bottom-color: var(--color-primary);
-	}
-	.search-sort {
-		display: flex;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-	}
-	.search-sort-btn {
-		padding: 0.25rem 0.75rem;
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: 9999px;
-		transition:
-			color 0.2s,
-			border-color 0.2s,
-			background-color 0.2s;
-	}
-	.search-sort-btn:hover {
-		color: var(--color-text);
-		border-color: var(--color-text);
-	}
-	.search-sort-active {
-		color: var(--color-primary-foreground);
-		background-color: var(--color-primary);
-		border-color: var(--color-primary);
-	}
-	.search-filters {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1rem;
-		gap: 0.75rem;
-	}
-	.search-mode-filter {
-		display: flex;
-		gap: 0.375rem;
-	}
-	.search-mode-btn {
-		padding: 0.25rem 0.625rem;
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-		text-decoration: none;
-		border: 1px solid var(--color-border);
-		border-radius: 9999px;
-		transition:
-			color 0.2s,
-			border-color 0.2s,
-			background-color 0.2s;
-	}
-	.search-mode-btn:hover {
-		color: var(--color-text);
-		border-color: var(--color-text);
-	}
-	.search-mode-active {
-		color: var(--color-primary-foreground);
-		background-color: var(--color-primary);
-		border-color: var(--color-primary);
+		font-weight: 700;
 	}
 	.search-box-wrapper {
 		position: relative;
-		margin-bottom: 1rem;
-	}
-	.search-category-filter {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-	}
-	.search-category-label {
-		font-size: 0.875rem;
-		color: var(--color-muted);
-		white-space: nowrap;
-	}
-	.search-category-select {
-		flex: 1;
-		max-width: 280px;
-		padding: 0.375rem 0.75rem;
-		font-size: 0.8125rem;
-		color: var(--color-text);
-		background-color: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: 0.375rem;
-		outline: none;
-		transition: border-color 0.2s;
-	}
-	.search-category-select:focus {
-		border-color: var(--color-primary);
+		margin: var(--spacing-5) 0 var(--spacing-3);
 	}
 </style>
-
-<script>
-	/**
-	 * 分类下拉选择器交互
-	 *
-	 * 选择分类后跳转到对应的搜索 URL，清除分类则跳转到无 categoryId 的 URL。
-	 */
-	const categorySelect = document.getElementById('category-select') as HTMLSelectElement | null;
-	if (categorySelect) {
-		const baseUrl = categorySelect.dataset.baseUrl || '';
-		categorySelect.addEventListener('change', () => {
-			const selectedId = categorySelect.value;
-			if (selectedId) {
-				// 替换占位符为实际分类 ID
-				window.location.href = baseUrl.replace('__CATEGORY_ID__', selectedId);
-			} else {
-				// 清除分类：跳转到无 categoryId 的 URL
-				window.location.href = baseUrl
-					.replace('__CATEGORY_ID__', '')
-					.replace(/&?categoryId=$/, '')
-					.replace(/\?$/, '');
-			}
-		});
-	}
-</script>

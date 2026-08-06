@@ -9,6 +9,7 @@
  */
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
+import InfinitePostList from '@/components/InfinitePostList.astro';
 import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -166,7 +167,7 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 					<p>还没有微博动态，注册后发第一条吧！</p>
 				</div>
 			) : (
-				<div class="post-list">
+				<div class="post-list" id="weibo-post-list">
 					{allPosts.map(async (post) => {
 						const postTags = post.tags.map((pt) => ({
 							id: pt.tag.id,
@@ -230,11 +231,15 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 				</div>
 			)
 		}
+		<InfinitePostList
+			listId="weibo-post-list"
+			nextUrl={hasNextPage ? `/weibo?page=${safePage + 1}` : null}
+		/>
 
 		{/* 分页导航 */}
 		{
 			hasPagination && (
-				<nav class="pagination" aria-label="分页导航">
+				<nav class="pagination" data-infinite-pagination="weibo-post-list" aria-label="分页导航">
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a

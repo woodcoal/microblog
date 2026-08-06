@@ -72,20 +72,20 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 				currentUser ? (
 					<>
 						<a
-							href="/following"
-							class="sidebar-link"
-							aria-current={currentPath.startsWith('/following') ? 'page' : undefined}
-						>
-							<span class="sidebar-link-icon">👀</span>
-							<span>关注</span>
-						</a>
-						<a
 							href="/bookmarks"
 							class="sidebar-link"
 							aria-current={currentPath.startsWith('/bookmarks') ? 'page' : undefined}
 						>
 							<span class="sidebar-link-icon">🔖</span>
 							<span>收藏</span>
+						</a>
+						<a
+							href="/following"
+							class="sidebar-link"
+							aria-current={currentPath.startsWith('/following') ? 'page' : undefined}
+						>
+							<span class="sidebar-link-icon">👀</span>
+							<span>关注</span>
 						</a>
 						<a
 							href="/followers"

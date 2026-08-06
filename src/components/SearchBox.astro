@@ -11,13 +11,17 @@
  * @prop tab - 当前标签页（搜索时保持）
  * @prop mode - 当前 mode 过滤（搜索时保持）
  * @prop categoryId - 当前分类过滤（搜索时保持）
+ * @prop inputId - 输入框 ID，供实时建议精确绑定
  */
+import SearchSuggest from '@/components/SearchSuggest.astro';
+
 interface Props {
 	initialQuery?: string;
 	placeholder?: string;
 	tab?: string;
 	mode?: string;
 	categoryId?: string;
+	inputId?: string;
 }
 
 const {
@@ -25,7 +29,8 @@ const {
 	placeholder = '搜索...',
 	tab = 'posts',
 	mode = 'all',
-	categoryId = ''
+	categoryId = '',
+	inputId = 'search-page-input'
 } = Astro.props;
 ---
 
@@ -39,6 +44,7 @@ const {
 	<div class="search-input-wrap">
 		<span class="search-input-icon" aria-hidden="true">🔍</span>
 		<input
+			id={inputId}
 			type="text"
 			class="form-input search-input"
 			name="q"
@@ -46,6 +52,7 @@ const {
 			placeholder={placeholder}
 			aria-label="搜索关键词"
 		/>
+		<SearchSuggest inputId={inputId} mode={mode} />
 		{
 			initialQuery && (
 				<a

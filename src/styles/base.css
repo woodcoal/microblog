@@ -1100,32 +1100,48 @@ select.form-input {
 	background: var(--color-danger);
 }
 
-/* ===== 导航栏搜索按钮 ===== */
-.nav-search-btn {
+/* ===== 导航栏搜索框 ===== */
+.nav-search-form {
+	position: relative;
 	display: inline-flex;
 	align-items: center;
-	gap: var(--spacing-1);
-	min-width: var(--control-min-height);
-	padding: var(--spacing-1) var(--spacing-2);
+	width: clamp(10rem, 16vw, 13rem);
+	min-height: var(--control-min-height);
 	border: 1px solid var(--color-border);
 	background: var(--color-surface);
 	border-radius: var(--radius-sm);
-	color: var(--color-text);
-	text-decoration: none;
-	font-size: 0.875rem;
 	transition:
-		background var(--transition-fast),
-		color var(--transition-fast);
+		border-color var(--transition-fast),
+		box-shadow var(--transition-fast);
 }
 
-.nav-search-btn:hover {
-	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
-	color: var(--color-primary);
+.nav-search-form:focus-within {
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 16%, transparent);
 }
 
-.nav-search-label {
+.nav-search-icon {
+	margin-left: var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 1.125rem;
+	line-height: 1;
+}
+
+.nav-search-input {
+	min-width: 0;
+	width: 100%;
+	border: 0;
+	outline: 0;
+	padding: 0.5rem var(--spacing-2);
+	background: transparent;
+	color: var(--color-text);
+	font: inherit;
 	font-size: 0.8125rem;
-	font-weight: 500;
+}
+
+.nav-search-input::placeholder {
+	color: var(--color-muted);
+	opacity: 1;
 }
 
 /* ===== 导航栏用户按钮 ===== */
@@ -1344,7 +1360,7 @@ mark.search-highlight {
 
 	/* 移动端隐藏发布和搜索按钮（底部 Tab Bar 已有） */
 	.nav-compose-btn,
-	.nav-search-btn {
+	.nav-search-form {
 		display: none !important;
 	}
 
