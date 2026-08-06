@@ -13,7 +13,7 @@ import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
@@ -64,7 +64,8 @@ const pinnedPosts = await prisma.post.findMany({
 	include: {
 		...POST_CARD_INCLUDE,
 		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } }
+		comments: { select: { id: true } },
+		bookmarks: { select: { id: true } }
 	}
 });
 
@@ -95,7 +96,8 @@ const posts = await prisma.post.findMany({
 	include: {
 		...POST_CARD_INCLUDE,
 		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } }
+		comments: { select: { id: true } },
+		bookmarks: { select: { id: true } }
 	},
 	skip,
 	take: PAGE_SIZE
@@ -106,6 +108,10 @@ const allPosts = safePage === 1 ? [...pinnedPosts, ...posts] : posts;
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(
+	currentUser?.userId ?? null,
+	allPosts.map((p) => p.id)
+);
+const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser?.userId ?? null,
 	allPosts.map((p) => p.id)
 );
@@ -122,6 +128,7 @@ const discoveryItems = discoveryTags.map((tag) => ({
 	href: `/tags/${encodeURIComponent(tag.name)}`,
 	meta: `${tag._count.posts} 条动态`
 }));
+const hasDiscoveryItems = discoveryItems.length > 0;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = allPosts.length > 0;
@@ -131,7 +138,7 @@ const hasPagination = totalPages > 1;
 const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 ---
 
-<WeiboLayout title={getModeLabel('weibo')}>
+<WeiboLayout title={getModeLabel('weibo')} hasAside={hasDiscoveryItems}>
 	<section class="ux-channel-page ux-weibo-page" aria-labelledby="weibo-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
@@ -169,6 +176,7 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 						const postLikeCount = post._count.likes;
 						const postCommentCount = post._count.comments;
 						const postLiked = likedPostIds.has(post.id);
+						const postBookmarked = bookmarkedPostIds.has(post.id);
 
 						// 检查当前用户是否有权查看帖子内容
 						const isPostRestricted = !(await checkPostVisibility(
@@ -210,6 +218,8 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 								likeCount={postLikeCount}
 								liked={postLiked}
 								commentCount={postCommentCount}
+								bookmarkCount={post._count.bookmarks}
+								bookmarked={postBookmarked}
 								tags={postTags}
 								isRestricted={isPostRestricted}
 							/>
@@ -254,12 +264,16 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 			)
 		}
 	</section>
-	<ChannelAside
-		slot="aside"
-		title="热门话题"
-		description="从正在被讨论的标签进入内容流。"
-		items={discoveryItems}
-	/>
+	{
+		hasDiscoveryItems && (
+			<ChannelAside
+				slot="aside"
+				title="热门话题"
+				description="从正在被讨论的标签进入内容流。"
+				items={discoveryItems}
+			/>
+		)
+	}
 </WeiboLayout>
 
 <style>

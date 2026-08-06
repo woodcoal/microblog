@@ -12,6 +12,7 @@
  * - blog：标题 + 摘要 + 发布日期
  */
 import LikeButton from '@/components/LikeButton.astro';
+import BookmarkButton from '@/components/BookmarkButton.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
@@ -89,6 +90,8 @@ interface Props {
 	likeCount?: number;
 	liked?: boolean;
 	commentCount?: number;
+	bookmarkCount?: number;
+	bookmarked?: boolean;
 	tags?: PostTag[];
 	isRestricted?: boolean;
 }
@@ -99,6 +102,8 @@ const {
 	likeCount = 0,
 	liked = false,
 	commentCount = 0,
+	bookmarkCount = 0,
+	bookmarked = false,
 	tags = [],
 	isRestricted = false
 } = Astro.props;
@@ -106,7 +111,8 @@ const {
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasAvatar = !!post.user.avatarUrl;
 const images = post.media?.filter((m) => m.fileType === 'image') ?? [];
-const hasImages = images.length > 0;
+const galleryImages = images.slice(0, 9);
+const hasImages = galleryImages.length > 0;
 const isPinned = post.isPinned || post.isGlobalPinned;
 const hasTags = tags.length > 0;
 const relativeTime = formatRelativeTime(new Date(post.createdAt));
@@ -253,7 +259,7 @@ const blogDate = isBlog
 			>
 				{hasTitle && <h3 class="post-card-subtitle">{post.title}</h3>}
 				<div class="post-card-content" set:html={htmlContent} />
-				{hasImages && <WeiboMediaGallery images={images} />}
+				{hasImages && <WeiboMediaGallery images={galleryImages} />}
 			</a>
 		)
 	}
@@ -275,6 +281,11 @@ const blogDate = isBlog
 
 	<div class="post-card-footer">
 		<LikeButton postId={post.id} initialLiked={liked} initialLikeCount={likeCount} />
+		<BookmarkButton
+			postId={post.id}
+			initialBookmarked={bookmarked}
+			initialBookmarkCount={bookmarkCount}
+		/>
 		<a
 			href={`/${post.user.username}/${post.id}`}
 			class="post-card-stat"

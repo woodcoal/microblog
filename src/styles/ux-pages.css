@@ -133,6 +133,93 @@
 	justify-content: space-between;
 }
 
+.post-card-footer > form,
+.post-card-footer > a,
+.post-card-footer > span {
+	flex: 0 0 auto;
+}
+
+/* 关系页上下区域保持同一信息流，不再叠加装饰卡片边框。 */
+[data-ux-shell='connections'] .following-section,
+[data-ux-shell='connections'] .followers-section,
+[data-ux-shell='connections'] .hot-section {
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+}
+
+.forum-home-grid {
+	display: grid;
+	grid-template-columns: minmax(11rem, 13rem) minmax(0, var(--layout-content));
+	justify-content: center;
+	gap: clamp(var(--spacing-5), 4vw, var(--spacing-8));
+}
+
+.forum-category-sidebar {
+	position: sticky;
+	top: calc(var(--navbar-height) + var(--spacing-6));
+	height: fit-content;
+	max-height: calc(100vh - var(--navbar-height) - var(--spacing-10));
+	overflow-y: auto;
+}
+
+.forum-sidebar-title,
+.forum-sidebar-group h3 {
+	margin: 0;
+	font-size: 0.8125rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
+.forum-sidebar-group {
+	margin-top: var(--spacing-4);
+}
+
+.forum-sidebar-group a {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--spacing-2);
+	padding: var(--spacing-2) var(--spacing-3);
+	border-radius: var(--radius-md);
+	color: var(--color-text);
+	font-size: 0.875rem;
+}
+
+.forum-sidebar-group a:hover,
+.forum-sidebar-group a:focus-visible {
+	background: var(--color-sidebar-hover);
+	color: var(--color-primary);
+}
+
+.forum-sidebar-group small,
+.forum-sidebar-empty {
+	color: var(--color-muted);
+}
+
+.forum-sort-tabs {
+	display: flex;
+	gap: var(--spacing-1);
+	margin: 0 0 var(--spacing-4);
+	border-bottom: 1px solid var(--color-border);
+	overflow-x: auto;
+}
+
+.forum-sort-tabs a {
+	flex: 0 0 auto;
+	padding: var(--spacing-3);
+	border-bottom: 2px solid transparent;
+	color: var(--color-muted);
+	font-weight: 600;
+}
+
+.forum-sort-tabs a:hover,
+.forum-sort-tabs a:focus-visible,
+.forum-sort-tabs a[aria-current='page'] {
+	border-bottom-color: var(--color-primary);
+	color: var(--color-primary);
+}
+
 /* forum-a：版块是明确可扫描的入口。 */
 .forum-groups {
 	display: grid;
@@ -699,6 +786,16 @@
 	.forum-category-list,
 	.user-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.forum-home-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.forum-category-sidebar {
+		position: static;
+		max-height: none;
+		order: 2;
 	}
 
 	.forum-group,

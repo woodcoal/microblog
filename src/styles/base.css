@@ -450,10 +450,18 @@ body[data-ux-shell='home'] .navbar-inner {
 	min-width: 0;
 }
 
+/* 未提供发现侧栏的微博列表使用剩余内容宽度，避免留下空白右栏。 */
+.layout-wide:not(.layout-wide-with-aside) .layout-main {
+	max-width: none;
+}
+
 /* 列表页可选择接入真实数据的发现侧栏；详情和账户页不传入 aside 时维持原布局。 */
 .layout-wide-with-aside {
 	max-width: var(--layout-home);
-	grid-template-columns: var(--layout-sidebar-width) minmax(0, var(--layout-content)) minmax(220px, 272px);
+	grid-template-columns: var(--layout-sidebar-width) minmax(0, var(--layout-content)) minmax(
+			220px,
+			272px
+		);
 	justify-content: center;
 }
 

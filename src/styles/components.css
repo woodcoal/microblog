@@ -1110,6 +1110,8 @@
 	display: flex;
 	align-items: center;
 	gap: 1rem;
+	flex-wrap: nowrap;
+	overflow-x: auto;
 }
 .post-card-stat {
 	display: inline-flex;
@@ -1122,6 +1124,41 @@
 }
 .post-card-stat:hover {
 	color: var(--color-primary);
+}
+
+.like-btn-form,
+.bookmark-btn-form {
+	margin: 0;
+}
+
+.like-btn,
+.bookmark-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	min-height: 2rem;
+	padding: 0.25rem 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-muted);
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.like-btn:hover:not(:disabled),
+.bookmark-btn:hover:not(:disabled),
+.like-btn:focus-visible,
+.bookmark-btn:focus-visible,
+.like-btn-liked,
+.bookmark-btn-bookmarked {
+	color: var(--color-primary);
+}
+
+.like-btn:disabled,
+.bookmark-btn:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
 }
 
 /* ===== 帖子编辑表单 ===== */
