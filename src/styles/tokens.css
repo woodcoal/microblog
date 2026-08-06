@@ -77,6 +77,9 @@
 	--color-text: #1a1a2e;
 	--color-primary: #4f46e5;
 	--color-primary-hover: #4338ca;
+	/* 主色背景表面的文本/图标前景，必须与对应背景保持 WCAG AA 4.5:1。 */
+	--color-primary-foreground: #ffffff;
+	--color-primary-hover-foreground: #ffffff;
 	--color-border: #e2e8f0;
 	--color-muted: #64748b;
 	--color-surface: #f8fafc;
@@ -105,6 +108,8 @@
 	--color-text: #e2e8f0;
 	--color-primary: #818cf8;
 	--color-primary-hover: #6366f1;
+	--color-primary-foreground: #000000;
+	--color-primary-hover-foreground: #000000;
 	--color-border: #334155;
 	--color-muted: #94a3b8;
 	--color-surface: #1e293b;
@@ -133,6 +138,8 @@
 	--color-text: #3d3929;
 	--color-primary: #6b8e4e;
 	--color-primary-hover: #5a7a40;
+	--color-primary-foreground: #000000;
+	--color-primary-hover-foreground: #ffffff;
 	--color-border: #d4cfc4;
 	--color-muted: #8a8474;
 	--color-surface: #ede8dc;
@@ -161,6 +168,8 @@
 	--color-text: #ffffff;
 	--color-primary: #ffff00;
 	--color-primary-hover: #e6e600;
+	--color-primary-foreground: #000000;
+	--color-primary-hover-foreground: #000000;
 	--color-border: #ffffff;
 	--color-muted: #cccccc;
 	--color-surface: #1a1a1a;
@@ -188,20 +197,30 @@
 [data-accent='blue'] {
 	--color-primary: #4f46e5;
 	--color-primary-hover: #4338ca;
+	--color-primary-foreground: #ffffff;
+	--color-primary-hover-foreground: #ffffff;
 }
 [data-accent='green'] {
 	--color-primary: #16a34a;
 	--color-primary-hover: #15803d;
+	--color-primary-foreground: #000000;
+	--color-primary-hover-foreground: #ffffff;
 }
 [data-accent='orange'] {
 	--color-primary: #ea580c;
 	--color-primary-hover: #c2410c;
+	--color-primary-foreground: #000000;
+	--color-primary-hover-foreground: #ffffff;
 }
 [data-accent='purple'] {
 	--color-primary: #9333ea;
 	--color-primary-hover: #7e22ce;
+	--color-primary-foreground: #ffffff;
+	--color-primary-hover-foreground: #ffffff;
 }
 [data-accent='rose'] {
 	--color-primary: #e11d48;
 	--color-primary-hover: #be123c;
+	--color-primary-foreground: #ffffff;
+	--color-primary-hover-foreground: #ffffff;
 }
