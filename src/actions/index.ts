@@ -63,6 +63,9 @@ import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility 
 // 工具模块
 import { markdownPreview } from './misc';
 
+// 站点固定文案管理模块
+import { getSiteCopy, getSiteCopyHistory, updateSiteCopy } from './site-copy';
+
 /** 导出所有服务端 Actions */
 export const server = {
 	toggleLike,
@@ -118,6 +121,10 @@ export const server = {
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,
+	// 站点固定文案（管理员）
+	getSiteCopy,
+	getSiteCopyHistory,
+	updateSiteCopy,
 	// 工具
 	markdownPreview
 };
