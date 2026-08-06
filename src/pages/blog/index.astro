@@ -8,7 +8,6 @@
  * 支持分页浏览。
  */
 import BlogLayout from '@/layouts/BlogLayout.astro';
-import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
@@ -135,12 +134,6 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
-const discoveryItems = categories.slice(0, 5).map((category) => ({
-	title: category.name,
-	href: `/blog?category=${encodeURIComponent(category.id)}`,
-	meta: `${category._count.posts} 篇文章`,
-	icon: category.icon || undefined
-}));
 ---
 
 <BlogLayout title={getModeLabel('blog')}>
@@ -292,12 +285,6 @@ const discoveryItems = categories.slice(0, 5).map((category) => ({
 			)
 		}
 	</section>
-	<ChannelAside
-		slot="aside"
-		title="按主题阅读"
-		description="从分类进入值得沉淀的长文。"
-		items={discoveryItems}
-	/>
 </BlogLayout>
 
 <style>
@@ -373,16 +360,16 @@ const discoveryItems = categories.slice(0, 5).map((category) => ({
 	/* 博客文章网格布局 */
 	.blog-articles {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-		gap: var(--spacing-6);
+		gap: 0;
 	}
 
 	/* 文章卡片 */
 	.blog-article-card {
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		padding: var(--spacing-5);
+		background: transparent;
+		border: 0;
+		border-top: 1px solid var(--color-border);
+		border-radius: 0;
+		padding: var(--spacing-5) 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--spacing-2);

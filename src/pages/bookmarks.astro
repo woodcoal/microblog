@@ -8,7 +8,6 @@
  */
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
-import BookmarkButton from '@/components/BookmarkButton.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
@@ -69,14 +68,6 @@ const postIds = validItems.map((b) => b.post.id);
 // 查询当前用户对这些帖子的点赞状态
 const likedPostIds = await getLikedPostIds(currentUser.userId, postIds);
 
-// 查询每个帖子的收藏数
-const bookmarkCounts = await prisma.bookmark.groupBy({
-	by: ['postId'],
-	where: { postId: { in: postIds } },
-	_count: { _all: true }
-});
-const bookmarkCountMap = new Map(bookmarkCounts.map((b) => [b.postId, b._count._all]));
-
 // 是否有收藏
 const hasBookmarks = validItems.length > 0;
 ---
@@ -101,7 +92,6 @@ const hasBookmarks = validItems.length > 0;
 						const postLiked = likedPostIds.has(post.id);
 						const postLikeCount = post._count.likes;
 						const postCommentCount = post._count.comments;
-						const postBookmarkCount = bookmarkCountMap.get(post.id) || 0;
 						const postTags = post.tags.map((pt) => ({
 							id: pt.tag.id,
 							name: pt.tag.name
@@ -147,16 +137,11 @@ const hasBookmarks = validItems.length > 0;
 									likeCount={postLikeCount}
 									liked={postLiked}
 									commentCount={postCommentCount}
+									bookmarkCount={post._count.bookmarks}
+									bookmarked={true}
 									tags={postTags}
 									isRestricted={isPostRestricted}
 								/>
-								<div class="bookmark-post-actions">
-									<BookmarkButton
-										postId={post.id}
-										initialBookmarked={true}
-										initialBookmarkCount={postBookmarkCount}
-									/>
-								</div>
 							</div>
 						);
 					})}
@@ -186,13 +171,6 @@ const hasBookmarks = validItems.length > 0;
 
 	.bookmark-post-item {
 		position: relative;
-	}
-
-	.bookmark-post-actions {
-		display: flex;
-		justify-content: flex-end;
-		padding: 0 1rem 0.5rem;
-		margin-top: -0.5rem;
 	}
 
 	.pagination {

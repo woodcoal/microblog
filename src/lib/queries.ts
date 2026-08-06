@@ -55,7 +55,7 @@ export const POST_CARD_INCLUDE = {
 		}
 	},
 	_count: {
-		select: { likes: true, comments: true }
+		select: { likes: true, comments: true, bookmarks: true }
 	}
 } as const;
 

@@ -1064,15 +1064,16 @@
 	border-radius: 0.5rem;
 	overflow: hidden;
 }
-/* 1 张图：横跨全宽，限制高度，保留原比例裁剪 */
+/* 单图保留原始比例；最大展示宽度只由此变量控制，供后续后台配置接入。 */
 .post-card-images-1 {
 	grid-template-columns: 1fr;
 }
 .post-card-images-1 .post-card-image-item {
-	max-height: 300px;
+	width: min(100%, var(--post-media-max-width, 100%));
 }
 .post-card-images-1 img {
-	object-position: center 15%;
+	height: auto;
+	object-fit: contain;
 }
 /* 2 张图：等分左右 */
 .post-card-images-2 {
@@ -1081,14 +1082,9 @@
 .post-card-images-2 .post-card-image-item {
 	max-height: 240px;
 }
-/* 3 张图：左大右二（经典 Instagram 布局） */
+/* 3 张图：等宽三列；多图始终不超过 3×3。 */
 .post-card-images-3 {
-	grid-template-columns: 2fr 1fr;
-	grid-template-rows: 1fr 1fr;
-	max-height: 300px;
-}
-.post-card-images-3 .post-card-image-item:first-child {
-	grid-row: 1 / 3;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 /* 4 张图：2x2 方块网格 */
 .post-card-images-4 {
@@ -1096,14 +1092,20 @@
 	grid-template-rows: 1fr 1fr;
 	max-height: 300px;
 }
-/* 5+ 张图：3 列网格，限制高度以隐藏多余 */
-.post-card-images-grid {
-	grid-template-columns: 1fr 1fr 1fr;
-	max-height: 240px;
+/* 5–9 张图：三列网格，卡片自身不生成额外布局变体。 */
+.post-card-images-5,
+.post-card-images-6,
+.post-card-images-7,
+.post-card-images-8,
+.post-card-images-9 {
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .post-card-image-item {
 	overflow: hidden;
 	background: var(--color-surface);
+}
+.post-card-images:not(.post-card-images-1) .post-card-image-item {
+	aspect-ratio: 1;
 }
 .post-card-image-item img {
 	width: 100%;
@@ -1169,6 +1171,8 @@
 	display: flex;
 	align-items: center;
 	gap: 1rem;
+	flex-wrap: nowrap;
+	overflow-x: auto;
 }
 .post-card-stat {
 	display: inline-flex;
@@ -1181,6 +1185,41 @@
 }
 .post-card-stat:hover {
 	color: var(--color-primary);
+}
+
+.like-btn-form,
+.bookmark-btn-form {
+	margin: 0;
+}
+
+.like-btn,
+.bookmark-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	min-height: 2rem;
+	padding: 0.25rem 0;
+	border: 0;
+	background: transparent;
+	color: var(--color-muted);
+	font: inherit;
+	font-size: 0.8125rem;
+	cursor: pointer;
+}
+
+.like-btn:hover:not(:disabled),
+.bookmark-btn:hover:not(:disabled),
+.like-btn:focus-visible,
+.bookmark-btn:focus-visible,
+.like-btn-liked,
+.bookmark-btn-bookmarked {
+	color: var(--color-primary);
+}
+
+.like-btn:disabled,
+.bookmark-btn:disabled {
+	cursor: not-allowed;
+	opacity: 0.55;
 }
 
 /* ===== 帖子编辑表单 ===== */

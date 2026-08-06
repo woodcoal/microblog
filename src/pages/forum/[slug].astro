@@ -12,7 +12,7 @@ import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderFullMarkdown } from '@/lib/markdown';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 
@@ -104,6 +104,10 @@ const likedPostIds = await getLikedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((p) => p.id)
 );
+const bookmarkedPostIds = await getBookmarkedPostIds(
+	currentUser?.userId ?? null,
+	posts.map((post) => post.id)
+);
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -162,6 +166,7 @@ const hasIcon = !!category.icon;
 					const postLikeCount = post._count.likes;
 					const postCommentCount = post._count.comments;
 					const postLiked = likedPostIds.has(post.id);
+					const postBookmarked = bookmarkedPostIds.has(post.id);
 
 					// 检查当前用户是否有权查看帖子内容
 					const isPostRestricted = !(await checkPostVisibility(
@@ -203,6 +208,8 @@ const hasIcon = !!category.icon;
 							likeCount={postLikeCount}
 							liked={postLiked}
 							commentCount={postCommentCount}
+							bookmarkCount={post._count.bookmarks}
+							bookmarked={postBookmarked}
 							tags={postTags}
 							isRestricted={isPostRestricted}
 						/>
