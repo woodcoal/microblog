@@ -139,6 +139,9 @@ const hasBookmarks = validItems.length > 0;
 									commentCount={postCommentCount}
 									bookmarkCount={post._count.bookmarks}
 									bookmarked={true}
+									showFollow={true}
+									following={followingIds.includes(post.user.id)}
+									isSelf={currentUser.userId === post.user.id}
 									tags={postTags}
 									isRestricted={isPostRestricted}
 								/>

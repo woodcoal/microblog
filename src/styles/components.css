@@ -1131,9 +1131,12 @@
 	color: var(--color-muted);
 	font-size: 0.875rem;
 }
-/* 可见度徽章靠右对齐 */
-.post-card-visibility-badge {
+/* 可见度说明固定在操作区右端，避免与互动按钮混排。 */
+.post-card-visibility-note {
 	margin-left: auto;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	white-space: nowrap;
 }
 .post-card-pinned {
 	border-left: 3px solid var(--color-primary);
@@ -1173,6 +1176,20 @@
 	gap: 1rem;
 	flex-wrap: nowrap;
 	overflow-x: auto;
+}
+.post-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	flex: 0 0 auto;
+}
+.post-card-actions .follow-form {
+	margin: 0;
+}
+.post-card-actions .follow-btn {
+	min-height: 2rem;
+	padding: 0.25rem 0.5rem;
+	font-size: 0.8125rem;
 }
 .post-card-stat {
 	display: inline-flex;

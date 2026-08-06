@@ -8,11 +8,13 @@
  * 支持分页浏览。
  */
 import BlogLayout from '@/layouts/BlogLayout.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
+import type { Prisma } from '../../../generated/prisma/client';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -58,6 +60,8 @@ const categories = await prisma.category.findMany({
 
 // 从 URL 查询参数获取分类筛选
 const filterCategoryId = Astro.url.searchParams.get('category') || '';
+const sortParam = Astro.url.searchParams.get('sort') || 'latest';
+const blogSort = ['latest', 'recommended', 'hot'].includes(sortParam) ? sortParam : 'latest';
 
 // 从 URL 查询参数获取当前页码
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
@@ -71,6 +75,12 @@ const whereCondition: Record<string, unknown> = {
 if (filterCategoryId) {
 	whereCondition.categoryId = filterCategoryId;
 }
+const blogPostOrder: Prisma.PostOrderByWithRelationInput[] =
+	blogSort === 'hot'
+		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+		: blogSort === 'recommended'
+			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+			: [{ createdAt: 'desc' }];
 
 // 查询博客帖子总数
 const totalPosts = await prisma.post.count({ where: whereCondition });
@@ -83,7 +93,7 @@ const skip = (safePage - 1) * PAGE_SIZE;
 // 查询当前页的博客帖子（需要 likes 和 comments 计数）
 const posts = await prisma.post.findMany({
 	where: whereCondition,
-	orderBy: [{ createdAt: 'desc' }],
+	orderBy: blogPostOrder,
 	include: {
 		...POST_CARD_INCLUDE,
 		likes: { select: { id: true } },
@@ -134,9 +144,39 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
+const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId)}` : '';
+const recommendationItems = posts.slice(0, 5).map((post) => ({
+	title: post.title || '无标题文章',
+	href: `/${post.user.username}/${post.id}`,
+	meta: `${post.comments.length} 条评论`
+}));
 ---
 
 <BlogLayout title={getModeLabel('blog')}>
+	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
+		<p class="sidebar-section-label">浏览文章</p>
+		<a
+			href={`/blog?sort=latest${filterQuery}`}
+			class="sidebar-link"
+			aria-current={blogSort === 'latest' ? 'page' : undefined}
+		>
+			<span class="sidebar-link-icon">⏰</span><span>最新</span>
+		</a>
+		<a
+			href={`/blog?sort=recommended${filterQuery}`}
+			class="sidebar-link"
+			aria-current={blogSort === 'recommended' ? 'page' : undefined}
+		>
+			<span class="sidebar-link-icon">✨</span><span>推荐</span>
+		</a>
+		<a
+			href={`/blog?sort=hot${filterQuery}`}
+			class="sidebar-link"
+			aria-current={blogSort === 'hot' ? 'page' : undefined}
+		>
+			<span class="sidebar-link-icon">🔥</span><span>热门</span>
+		</a>
+	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
@@ -170,7 +210,7 @@ const hasFilter = !!filterCategoryId;
 						const catHasIcon = !!cat.icon;
 						return (
 							<a
-								href={`/blog?category=${cat.id}`}
+								href={`/blog?sort=${blogSort}&category=${encodeURIComponent(cat.id)}`}
 								class:list={[
 									'blog-category-tag',
 									{ 'blog-category-active': isActive }
@@ -257,7 +297,7 @@ const hasFilter = !!filterCategoryId;
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a
-								href={`/blog?page=${safePage - 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+								href={`/blog?page=${safePage - 1}&sort=${blogSort}${filterQuery}`}
 								class="pagination-btn pagination-prev"
 							>
 								← 上一页
@@ -272,7 +312,7 @@ const hasFilter = !!filterCategoryId;
 
 						{hasNextPage ? (
 							<a
-								href={`/blog?page=${safePage + 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+								href={`/blog?page=${safePage + 1}&sort=${blogSort}${filterQuery}`}
 								class="pagination-btn pagination-next"
 							>
 								下一页 →
@@ -285,6 +325,12 @@ const hasFilter = !!filterCategoryId;
 			)
 		}
 	</section>
+	<ChannelAside
+		slot="aside"
+		title="推荐文章"
+		description="从正在阅读的长文中继续探索。"
+		items={recommendationItems}
+	/>
 </BlogLayout>
 
 <style>
