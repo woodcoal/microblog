@@ -41,6 +41,8 @@
 	--transition-fast: 150ms ease;
 	--transition-base: 200ms ease;
 	--transition-slow: 300ms ease;
+	--focus-ring-width: 3px;
+	--control-min-height: 44px;
 
 	/* ===== 字体 ===== */
 	--font-sans:
@@ -56,7 +58,7 @@
 	--layout-wide: 1320px;
 	--layout-home: 1480px;
 	--layout-gap: 1.5rem;
-	--navbar-height: 56px;
+	--navbar-height: 64px;
 
 	/* ===== z-index 层级 ===== */
 	--z-navbar: 100;
