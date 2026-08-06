@@ -102,6 +102,11 @@ img {
 	gap: var(--spacing-5);
 }
 
+/* 首页内容壳使用更宽的布局令牌，导航与内容保持同一水平轴。 */
+body[data-ux-shell='home'] .navbar-inner {
+	max-width: var(--layout-home);
+}
+
 .navbar-brand {
 	font-size: 1.25rem;
 	font-weight: 800;
