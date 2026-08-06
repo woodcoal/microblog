@@ -195,6 +195,49 @@
 	color: var(--color-primary);
 }
 
+/* 论坛首页与板块页共用 forum-a 的标题节奏；版块页的面包屑必须垂直堆叠。 */
+.forum-page-heading,
+.blog-page-heading {
+	display: flex;
+	align-items: end;
+	justify-content: space-between;
+	gap: var(--spacing-4);
+	margin: var(--spacing-2) 0 var(--spacing-4);
+}
+
+.forum-heading-copy,
+.blog-page-heading > div {
+	min-width: 0;
+}
+
+.forum-page-heading h1,
+.blog-page-heading h1 {
+	margin: 0;
+	font-size: 1.75rem;
+	line-height: 1.25;
+}
+
+.forum-page-heading p,
+.blog-page-heading p {
+	margin: 4px 0 0;
+	color: var(--color-muted);
+	font-size: 0.875rem;
+}
+
+.breadcrumb {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--spacing-1);
+	margin: 0 0 var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+}
+
+.breadcrumb-link { color: var(--color-primary); }
+.breadcrumb-link:hover, .breadcrumb-link:focus-visible { text-decoration: underline; }
+.breadcrumb-current { color: var(--color-text); font-weight: 500; }
+
 /* forum-a：讨论项以作者、主题与回复信息构成可扫读的三段式行。 */
 [data-ux-shell='forum'] .post-list {
 	display: grid;
@@ -878,6 +921,8 @@
 	[data-ux-shell='forum'] .page-header,
 	[data-ux-shell='blog'] .page-header,
 	.page-header-row,
+	.forum-page-heading,
+	.blog-page-heading,
 	.notification-header {
 		align-items: flex-start;
 		flex-direction: column;
