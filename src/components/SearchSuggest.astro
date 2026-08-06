@@ -14,9 +14,11 @@
  */
 interface Props {
 	initialQuery?: string;
+	inputId: string;
+	mode?: string;
 }
 
-const { initialQuery = '' } = Astro.props;
+const { initialQuery = '', inputId, mode = 'all' } = Astro.props;
 
 import { getModeLabel } from '@/lib/config';
 
@@ -31,6 +33,8 @@ const modeLabels = JSON.stringify({
 <div
 	class="search-suggest"
 	data-initial-query={initialQuery}
+	data-input-id={inputId}
+	data-mode={mode}
 	data-mode-labels={modeLabels}
 	style="display:none;"
 >
@@ -91,6 +95,9 @@ const modeLabels = JSON.stringify({
 	document.querySelectorAll<HTMLElement>('.search-suggest').forEach((container) => {
 		/** 从 data 属性读取模式标签映射 */
 		const modeLabels: Record<string, string> = JSON.parse(container.dataset.modeLabels || '{}');
+		const inputId = container.dataset.inputId || '';
+		const preferredMode = container.dataset.mode || 'all';
+		const searchInput = document.getElementById(inputId) as HTMLInputElement | null;
 		const loadingEl = container.querySelector<HTMLElement>('.search-suggest-loading');
 		const resultsEl = container.querySelector<HTMLElement>('.search-suggest-results');
 		const tagsSection = container.querySelector<HTMLElement>('[data-section="tags"]')!;
@@ -122,6 +129,7 @@ const modeLabels = JSON.stringify({
 
 		/** 防抖定时器 */
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		let requestId = 0;
 
 		/** 当前是否可见 */
 		let visible = false;
@@ -186,12 +194,17 @@ const modeLabels = JSON.stringify({
 				};
 			}>
 		) {
-			if (posts.length === 0) {
+			const orderedPosts = preferredMode === 'all'
+				? posts
+				: [...posts].sort(
+						(a, b) => Number(b.mode === preferredMode) - Number(a.mode === preferredMode)
+					);
+			if (orderedPosts.length === 0) {
 				postsSection.style.display = 'none';
 				return;
 			}
 			postsSection.style.display = '';
-			postsContainer.innerHTML = posts
+			postsContainer.innerHTML = orderedPosts
 				.map((post) => {
 					/** 显示标题：有标题用标题，无标题截取内容前 50 字符 */
 					const displayTitle = escapeHtml(post.title || post.content.slice(0, 50));
@@ -275,9 +288,9 @@ const modeLabels = JSON.stringify({
 		/**
 		 * 监听搜索框的 input 事件，防抖请求建议
 		 */
-		const searchInput = document.querySelector<HTMLInputElement>('.search-input');
 		if (searchInput) {
 			searchInput.addEventListener('input', () => {
+				requestId += 1;
 				// 清除上一次的防抖定时器
 				if (timer) {
 					clearTimeout(timer);
@@ -297,7 +310,9 @@ const modeLabels = JSON.stringify({
 
 				// 防抖 300ms 后发起请求
 				timer = setTimeout(async () => {
+					const currentRequestId = requestId;
 					const result = await actions.searchSuggest({ query });
+					if (currentRequestId !== requestId) return;
 
 					if (result.error) {
 						// 请求失败时静默处理
@@ -338,7 +353,7 @@ const modeLabels = JSON.stringify({
 
 		// 点击外部关闭下拉
 		document.addEventListener('mousedown', (e) => {
-			if (visible && !container.contains(e.target as Node)) {
+			if (visible && !container.contains(e.target as Node) && e.target !== searchInput) {
 				hide();
 			}
 		});

@@ -7,6 +7,7 @@
  */
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
+import InfinitePostList from '@/components/InfinitePostList.astro';
 import { prisma } from '@/lib/db';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds } from '@/lib/queries';
@@ -52,22 +53,8 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followerIds
 });
 
-// 查询该标签下的帖子数量（所有可见度，未删除）
-const postCount = await prisma.postTag.count({
-	where: {
-		tagId: tagRecord.id,
-		post: {
-			isDeleted: false
-		}
-	}
-});
-
-// 查询该标签下的帖子 ID 列表（SQLite 不支持关系排序，分步查询）
-const postTagIds = await prisma.postTag.findMany({
-	where: { tagId: tagRecord.id },
-	select: { postId: true }
-});
-const postIds = postTagIds.map((pt) => pt.postId);
+/** 每页显示微博数量。 */
+const PAGE_SIZE = 20;
 
 // 解析排序参数：latest（最新，默认）、popular（热门）、oldest（最早）
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
@@ -84,25 +71,30 @@ if (sort === 'popular') {
 	orderBy.push({ createdAt: 'desc' });
 }
 
-// 查询帖子列表（直接在 Post 表上排序）
-const posts =
-	postIds.length > 0
-		? await prisma.post.findMany({
-				where: {
-					id: { in: postIds },
-					isDeleted: false,
-					...visibilityFilter
-				},
-				orderBy,
-				take: 50,
-				include: {
-					...POST_CARD_INCLUDE,
-					likes: { select: { id: true } },
-					comments: { select: { id: true } },
-					bookmarks: { select: { id: true } }
-				}
-			})
-		: [];
+const tagPostWhere = {
+	isDeleted: false,
+	mode: 'weibo',
+	tags: { some: { tagId: tagRecord.id } },
+	...visibilityFilter
+};
+const postCount = await prisma.post.count({ where: tagPostWhere });
+const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
+const totalPages = Math.max(1, Math.ceil(postCount / PAGE_SIZE));
+const safePage = Math.min(currentPage, totalPages);
+
+// 标签页只查询微博，避免论坛/博客中同名标签混入。
+const posts = await prisma.post.findMany({
+	where: tagPostWhere,
+	orderBy,
+	skip: (safePage - 1) * PAGE_SIZE,
+	take: PAGE_SIZE,
+	include: {
+		...POST_CARD_INCLUDE,
+		likes: { select: { id: true } },
+		comments: { select: { id: true } },
+		bookmarks: { select: { id: true } }
+	}
+});
 
 // 预计算每个帖子的可见度限制状态（避免在模板表达式中使用 await）
 const restrictedMap = new Map<string, boolean>();
@@ -125,6 +117,8 @@ for (const post of posts) {
 
 // 判断帖子列表是否为空
 const hasPosts = posts.length > 0;
+const hasNextPage = safePage < totalPages;
+const querySort = `sort=${encodeURIComponent(sort)}`;
 const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((post) => post.id)
@@ -163,7 +157,7 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 
 		{
 			hasPosts ? (
-				<div class="tag-page-posts">
+				<div class="tag-page-posts" id="tag-post-list">
 					{posts.map((post) => {
 						// 提取标签列表
 						const postTags = post.tags.map((pt) => ({
@@ -227,6 +221,14 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 				<p class="tag-page-empty">该标签下暂无动态</p>
 			)
 		}
+		<InfinitePostList
+			listId="tag-post-list"
+			nextUrl={
+				hasNextPage
+					? `/tags/${encodeURIComponent(tag)}?${querySort}&page=${safePage + 1}`
+					: null
+			}
+		/>
 	</section>
 </WeiboLayout>
 

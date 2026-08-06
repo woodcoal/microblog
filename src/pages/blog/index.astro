@@ -9,6 +9,7 @@
  */
 import BlogLayout from '@/layouts/BlogLayout.astro';
 import ChannelAside from '@/components/ChannelAside.astro';
+import BlogArticleList from '@/components/BlogArticleList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
@@ -61,6 +62,7 @@ const categories = await prisma.category.findMany({
 
 // 从 URL 查询参数获取分类筛选
 const filterCategoryId = Astro.url.searchParams.get('category') || '';
+const isBookmarkScope = Astro.url.searchParams.get('scope') === 'bookmarks';
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const blogSort = ['latest', 'recommended', 'hot'].includes(sortParam) ? sortParam : 'latest';
 
@@ -75,6 +77,9 @@ const whereCondition: Record<string, unknown> = {
 };
 if (filterCategoryId) {
 	whereCondition.categoryId = filterCategoryId;
+}
+if (isBookmarkScope && currentUser) {
+	whereCondition.bookmarks = { some: { userId: currentUser.userId } };
 }
 const blogPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	blogSort === 'hot'
@@ -104,39 +109,26 @@ const posts = await prisma.post.findMany({
 	take: PAGE_SIZE
 });
 
-/**
- * 从 Markdown 内容中提取纯文本摘要
- *
- * @param content - Markdown 原始内容
- * @param maxLength - 摘要最大长度，默认 150 字符
- * @returns 纯文本摘要字符串
- */
-function extractExcerpt(content: string, maxLength = 150): string {
-	// 移除 Markdown 标记：标题、链接、图片、代码块、粗体斜体等
-	const plain = content
-		.replace(/```[\s\S]*?```/g, '') // 代码块
-		.replace(/!\[.*?\]\(.*?\)/g, '') // 图片
-		.replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // 链接保留文字
-		.replace(/#{1,6}\s/g, '') // 标题标记
-		.replace(/(\*{1,3}|_{1,3})(.*?)\1/g, '$2') // 粗体斜体
-		.replace(/`([^`]+)`/g, '$1') // 行内代码
-		.replace(/>\s/g, '') // 引用
-		.replace(/[-*+]\s/g, '') // 无序列表
-		.replace(/\d+\.\s/g, '') // 有序列表
-		.replace(/\n+/g, ' ') // 换行转空格
-		.trim();
-	return plain.length > maxLength ? plain.slice(0, maxLength) + '...' : plain;
-}
-
-/**
- * 格式化日期为中文友好格式
- *
- * @param date - Date 对象
- * @returns 格式化后的日期字符串，如 "2025年1月15日"
- */
-function formatDate(date: Date): string {
-	return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-}
+const restrictedPostIds = (
+	await Promise.all(
+		posts.map(async (post) => ({
+			id: post.id,
+			restricted: !(await checkPostVisibility(
+				{
+					visibility: post.visibility,
+					userId: post.userId,
+					passwordHash: post.passwordHash,
+					allowedUserIds: post.allowedUserIds
+				},
+				currentUser ? { userId: currentUser.userId } : null,
+				{
+					isFollower: followingIds.includes(post.userId),
+					isFollowing: followerIds.includes(post.userId)
+				}
+			))
+		}))
+	)
+).filter((post) => post.restricted).map((post) => post.id);
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -146,6 +138,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
 const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId)}` : '';
+const scopeQuery = isBookmarkScope ? '&scope=bookmarks' : '';
 const recommendationItems = posts.slice(0, 5).map((post) => ({
 	title: post.title || '无标题文章',
 	href: `/${post.user.username}/${post.id}`,
@@ -157,6 +150,9 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 <BlogLayout title={getModeLabel('blog')}>
 	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
 		<p class="sidebar-section-label">浏览文章</p>
+		<a href="/blog" class="sidebar-link" aria-current={!isBookmarkScope && blogSort === 'latest' && !hasFilter ? 'page' : undefined}>
+			<span class="sidebar-link-icon">🏠</span><span>首页</span>
+		</a>
 		<a
 			href={`/blog?sort=latest${filterQuery}`}
 			class="sidebar-link"
@@ -177,6 +173,13 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 			aria-current={blogSort === 'hot' ? 'page' : undefined}
 		>
 			<span class="sidebar-link-icon">🔥</span><span>热门</span>
+		</a>
+		<a
+			href={currentUser ? '/blog?scope=bookmarks' : '/login'}
+			class="sidebar-link"
+			aria-current={isBookmarkScope ? 'page' : undefined}
+		>
+			<span class="sidebar-link-icon">🔖</span><span>收藏</span>
 		</a>
 	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
@@ -212,7 +215,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 						const catHasIcon = !!cat.icon;
 						return (
 							<a
-								href={`/blog?sort=${blogSort}&category=${encodeURIComponent(cat.id)}`}
+								href={`/blog?sort=${blogSort}&category=${encodeURIComponent(cat.id)}${scopeQuery}`}
 								class:list={[
 									'blog-category-tag',
 									{ 'blog-category-active': isActive }
@@ -234,61 +237,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 					<p>暂无{getModeLabel('blog')}文章，来写第一篇吧！</p>
 				</div>
 			) : (
-				<div class="blog-articles">
-					{posts.map(async (post) => {
-						// 检查当前用户是否有权查看帖子内容
-						const isPostRestricted = !(await checkPostVisibility(
-							{
-								visibility: post.visibility,
-								userId: post.userId,
-								passwordHash: post.passwordHash,
-								allowedUserIds: post.allowedUserIds
-							},
-							currentUser ? { userId: currentUser.userId } : null,
-							{
-								isFollower: followingIds.includes(post.userId),
-								isFollowing: followerIds.includes(post.userId)
-							}
-						));
-
-						// 受限帖子不显示摘要
-						const excerpt = isPostRestricted
-							? '内容受限，无法查看'
-							: extractExcerpt(post.content);
-						const postLikeCount = post.likes.length;
-						const postCommentCount = post.comments.length;
-
-						return (
-							<article class="blog-article-card">
-								<div class="blog-article-meta">
-									{post.category && (
-										<span class="blog-article-category">
-											{post.category.icon} {post.category.name}
-										</span>
-									)}
-									<time>{formatDate(post.createdAt)}</time>
-								</div>
-								<h2 class="blog-article-title">
-									<a href={`/${post.user.username}/${post.id}`}>
-										{post.title || '无标题'}
-									</a>
-								</h2>
-								<p class="blog-article-excerpt">{excerpt}</p>
-								<div class="blog-article-footer">
-									<img
-										src={post.user.avatarUrl}
-										class="blog-article-avatar"
-										alt={post.user.displayName}
-									/>
-									<span class="blog-article-author">{post.user.displayName}</span>
-									<span class="blog-article-stats">
-										♥ {postLikeCount} · 💬 {postCommentCount}
-									</span>
-								</div>
-							</article>
-						);
-					})}
-				</div>
+				<BlogArticleList posts={posts} restrictedPostIds={restrictedPostIds} />
 			)
 		}
 
@@ -299,7 +248,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a
-								href={`/blog?page=${safePage - 1}&sort=${blogSort}${filterQuery}`}
+								href={`/blog?page=${safePage - 1}&sort=${blogSort}${filterQuery}${scopeQuery}`}
 								class="pagination-btn pagination-prev"
 							>
 								← 上一页
@@ -314,7 +263,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 
 						{hasNextPage ? (
 							<a
-								href={`/blog?page=${safePage + 1}&sort=${blogSort}${filterQuery}`}
+								href={`/blog?page=${safePage + 1}&sort=${blogSort}${filterQuery}${scopeQuery}`}
 								class="pagination-btn pagination-next"
 							>
 								下一页 →
@@ -338,14 +287,14 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 <style>
 	/* 页面头部 */
 	.page-header {
-		margin-bottom: var(--spacing-6);
-		padding-bottom: var(--spacing-4);
-		border-bottom: 1px solid var(--color-border);
+		margin-bottom: var(--spacing-5);
+		padding-bottom: 0;
+		border-bottom: 0;
 	}
 
 	.page-header-row {
 		display: flex;
-		align-items: flex-start;
+		align-items: end;
 		justify-content: space-between;
 		gap: var(--spacing-4);
 	}

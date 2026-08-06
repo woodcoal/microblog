@@ -69,9 +69,10 @@ const isLiked = initialLiked;
 	 */
 	import { actions } from 'astro:actions';
 
-	// 为所有点赞表单绑定事件
-	document.querySelectorAll<HTMLFormElement>('.like-btn-form').forEach((form) => {
-		form.addEventListener('submit', async (e) => {
+	// 事件委托让自动追加的下一页帖子也保持可操作。
+	document.addEventListener('submit', async (e) => {
+		const form = (e.target as Element | null)?.closest<HTMLFormElement>('.like-btn-form');
+		if (!form) return;
 			e.preventDefault();
 
 			const btn = form.querySelector<HTMLButtonElement>('.like-btn');
@@ -140,7 +141,6 @@ const isLiked = initialLiked;
 				rollback(btn, countEl, svg, prevLiked, prevCount);
 			}
 			btn.disabled = false;
-		});
 	});
 
 	/**

@@ -1130,16 +1130,23 @@
 	padding: 0.25rem 0.5rem;
 	font-size: 0.8125rem;
 }
-.post-card-stat {
+.post-card-action {
 	display: inline-flex;
 	align-items: center;
 	gap: 0.25rem;
+	min-height: 2rem;
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--radius-sm);
 	color: var(--color-muted);
 	font-size: 0.8125rem;
 	text-decoration: none;
-	transition: color 0.2s;
+	transition:
+		color var(--transition-fast),
+		background var(--transition-fast);
 }
-.post-card-stat:hover {
+.post-card-action:hover,
+.post-card-action:focus-visible {
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 	color: var(--color-primary);
 }
 
@@ -1154,7 +1161,8 @@
 	align-items: center;
 	gap: 0.25rem;
 	min-height: 2rem;
-	padding: 0.25rem 0;
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--radius-sm);
 	border: 0;
 	background: transparent;
 	color: var(--color-muted);
@@ -1167,15 +1175,53 @@
 .bookmark-btn:hover:not(:disabled),
 .like-btn:focus-visible,
 .bookmark-btn:focus-visible,
-.like-btn-liked,
 .bookmark-btn-bookmarked {
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 	color: var(--color-primary);
+}
+
+.like-btn-liked {
+	color: var(--color-danger);
+}
+
+.like-btn:hover:not(:disabled),
+.bookmark-btn:hover:not(:disabled),
+.like-btn:focus-visible,
+.bookmark-btn:focus-visible {
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+}
+
+.like-btn-liked:hover:not(:disabled),
+.like-btn-liked:focus-visible {
+	background: color-mix(in srgb, var(--color-danger) 8%, transparent);
+	color: var(--color-danger);
 }
 
 .like-btn:disabled,
 .bookmark-btn:disabled {
 	cursor: not-allowed;
 	opacity: 0.55;
+}
+
+.infinite-post-list-control {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: var(--spacing-3);
+	min-height: 3.5rem;
+	margin-top: var(--spacing-5);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+}
+
+.infinite-post-list-retry {
+	padding: 0.375rem 0.75rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-sm);
+	background: var(--color-card-bg);
+	color: var(--color-text);
+	font: inherit;
+	cursor: pointer;
 }
 
 /* ===== 帖子编辑表单 ===== */
