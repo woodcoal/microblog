@@ -37,6 +37,8 @@ database.db
 # Prisma
 prisma/dev.db
 prisma/dev.db-journal
+prisma/*-test.db
+prisma/*-acceptance.db
 generated/
 
 # 上传文件

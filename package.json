@@ -34,7 +34,8 @@
 		"format:check": "prettier --check .",
 		"test:api-v1": "node scripts/run-api-test.mjs api-v1",
 		"test:api-agent": "node scripts/run-api-test.mjs api-agent",
-		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts"
+		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts",
+		"test:recommend-users": "node scripts/run-recommend-users-test.mjs"
 	},
 	"dependencies": {
 		"@astrojs/node": "^11.0.3",

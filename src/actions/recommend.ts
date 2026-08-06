@@ -9,9 +9,15 @@ import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
+	getRecommendUsersActionHandler,
+	RecommendUsersUnauthorizedError
+} from './recommend-users.handler';
+import {
 	getRecommend as getRecommendService,
 	getSimilarPosts as getSimilarPostsService,
-	recordRead as recordReadService
+	recordRead as recordReadService,
+	RECOMMEND_USER_MAX_COUNT,
+	RECOMMEND_USER_MIN_COUNT
 } from '@/services/recommend.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -48,6 +54,30 @@ const getRecommend = defineAction({
 				n: input.n
 			});
 		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+/** 首页右栏推荐用户的输入契约。 */
+export const getRecommendUsersInputSchema = z.object({
+	n: z.number().int().min(RECOMMEND_USER_MIN_COUNT).max(RECOMMEND_USER_MAX_COUNT).optional()
+});
+
+/**
+ * 获取推荐用户 Action。
+ *
+ * 仅向已登录用户返回可公开展示的用户资料与确定性排序后的统计信息。
+ */
+const getRecommendUsers = defineAction({
+	input: getRecommendUsersInputSchema,
+	handler: async (input, context) => {
+		try {
+			return await getRecommendUsersActionHandler(input, context);
+		} catch (e) {
+			if (e instanceof RecommendUsersUnauthorizedError) {
+				throw new ActionError({ code: e.code, message: e.message });
+			}
 			handleServiceError(e);
 		}
 	}
@@ -116,4 +146,4 @@ const recordRead = defineAction({
 	}
 });
 
-export { getRecommend, getSimilarPosts, recordRead };
+export { getRecommend, getRecommendUsers, getSimilarPosts, recordRead };
