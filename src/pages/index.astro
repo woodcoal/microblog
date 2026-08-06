@@ -183,23 +183,17 @@ const canShowRecommendations = !!currentUser;
 					从你喜欢的方式开始
 				</h2>
 			</div>
-			<a href="/weibo">查看全部频道 <span aria-hidden="true">→</span></a>
+			<a href="#home-feed">浏览全站动态 <span aria-hidden="true">→</span></a>
 		</div>
 		<div class="home-channel-grid">
 			<a class="home-channel home-channel-featured" href="/weibo"
-				><span>微博</span><strong>捕捉正在发生的事</strong><p>
-					短小、及时，和朋友保持同频。
-				</p></a
+				><span>即时交流</span><h3>微博</h3><p>短小、及时，和朋友保持同频。</p></a
 			>
 			<a class="home-channel" href="/forum"
-				><span>论坛</span><strong>让每个话题继续生长</strong><p>
-					找到同好，把观点慢慢讲清楚。
-				</p></a
+				><span>持续讨论</span><h3>论坛</h3><p>找到同好，把观点慢慢讲清楚。</p></a
 			>
 			<a class="home-channel" href="/blog"
-				><span>博客</span><strong>为值得的想法留出篇幅</strong><p>
-					阅读与写作，都有安静的空间。
-				</p></a
+				><span>深度沉淀</span><h3>博客</h3><p>阅读与写作，都有安静的空间。</p></a
 			>
 		</div>
 	</section>
@@ -465,7 +459,7 @@ const canShowRecommendations = !!currentUser;
 		font-size: 0.75rem;
 		font-weight: 800;
 	}
-	.home-channel strong {
+	.home-channel h3 {
 		margin: auto 0 var(--spacing-1);
 		font-size: 1.25rem;
 		letter-spacing: -0.03em;
@@ -580,6 +574,13 @@ const canShowRecommendations = !!currentUser;
 		}
 		.home-lede {
 			font-size: 1rem;
+		}
+		.home-hero-actions {
+			flex-direction: column;
+			align-items: stretch;
+		}
+		.home-hero-actions .btn {
+			width: 100%;
 		}
 		.home-channels {
 			margin-inline: calc(50% - 50vw);

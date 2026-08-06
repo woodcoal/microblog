@@ -255,7 +255,7 @@ const resolvedOgType = ogType || 'website';
 				{/* 频道导航（多模式时居中显示） */}
 				{
 					showModeNav && (
-						<div class="nav-mode-links">
+						<nav class="nav-mode-links" aria-label="频道导航">
 							{enabledModes.map((mode) => (
 								<a
 									href={mode.path}
@@ -270,7 +270,7 @@ const resolvedOgType = ogType || 'website';
 									{mode.icon} {mode.label}
 								</a>
 							))}
-						</div>
+						</nav>
 					)
 				}
 				<button
@@ -281,7 +281,10 @@ const resolvedOgType = ogType || 'website';
 					aria-expanded="false">☰</button
 				>
 				<div class="navbar-actions" id="navbar-actions">
-					<a href="/search" class="nav-search-btn" aria-label="搜索">🔍</a>
+					<a href="/search" class="nav-search-btn" aria-label="搜索睦谈">
+						<span aria-hidden="true">🔍</span>
+						<span class="nav-search-label">搜索睦谈</span>
+					</a>
 					<ThemeSwitcher />
 					{
 						currentUser && notificationsEnabled && (
@@ -438,15 +441,17 @@ const resolvedOgType = ogType || 'website';
 							</>
 						) : (
 							<div class="nav-auth-buttons">
-								<a href="/login" class="nav-auth-btn" aria-label="登录">
-									🔑
+								<a href="/login" class="nav-auth-btn">
+									<>
+										<span aria-hidden="true">🔑</span>
+										<span>登录</span>
+									</>
 								</a>
-								<a
-									href="/register"
-									class="nav-auth-btn nav-auth-register"
-									aria-label="注册"
-								>
-									📝
+								<a href="/register" class="nav-auth-btn nav-auth-register">
+									<>
+										<span aria-hidden="true">📝</span>
+										<span>注册</span>
+									</>
 								</a>
 							</div>
 						)
