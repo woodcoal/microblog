@@ -7,14 +7,16 @@
  */
 import BaseLayout from '@/layouts/Base.astro';
 import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
+
+const introCopy = await getPublicSiteCopy('auth.login.intro');
 ---
 
 <BaseLayout title="登录" narrow>
 	<div class="auth-page-shell">
-		<section class="auth-page-intro" aria-labelledby="login-welcome">
-			<p class="ux-eyebrow">轻量、多元、自在</p>
-			<h1 id="login-welcome">把想说的，交给愿意听的人。</h1>
-			<p>在微博记录当下，在论坛展开讨论，在博客沉淀观点。</p>
+		<section class="auth-page-intro">
+			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->
+			<div class="site-copy-content site-copy-content-auth" set:html={introCopy.html} />
 		</section>
 		<div class="auth-page card">
 			<div class="auth-brand">
