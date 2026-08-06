@@ -9,12 +9,14 @@
  */
 import ForumLayout from '@/layouts/ForumLayout.astro';
 import PostCard from '@/components/PostCard.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderFullMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
+import type { Prisma } from '../../../generated/prisma/client';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -42,6 +44,18 @@ if (!category || category.mode !== 'forum') {
 	return Astro.redirect('/404');
 }
 
+// 版块详情保持与论坛首页一致的左侧导航；当前版块在菜单中有明确当前态。
+const groups = await prisma.category.findMany({
+	where: { mode: 'forum', parentId: null },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		children: {
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			include: { _count: { select: { posts: true } } }
+		}
+	}
+});
+
 // 获取当前登录用户
 const currentUser = await getUserFromRequest(Astro);
 
@@ -64,6 +78,15 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followingIds,
 	followerIds
 });
+
+const sortParam = Astro.url.searchParams.get('sort') || 'latest';
+const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
+const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
+	forumSort === 'hot'
+		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+		: forumSort === 'featured'
+			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+			: [{ createdAt: 'desc' }];
 
 // 从 URL 查询参数获取当前页码
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
@@ -91,7 +114,7 @@ const posts = await prisma.post.findMany({
 		categoryId: category.id,
 		...visibilityFilter
 	},
-	orderBy: [{ createdAt: 'desc' }],
+	orderBy: forumPostOrder,
 	include: {
 		...POST_CARD_INCLUDE
 	},
@@ -115,9 +138,30 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasIcon = !!category.icon;
+const recommendationItems = posts.slice(0, 5).map((post) => ({
+	title: post.title || post.content.slice(0, 30) || '未命名讨论',
+	href: `/${post.user.username}/${post.id}`,
+	meta: `${post._count.comments} 条回复`
+}));
 ---
 
 <ForumLayout title={`${category.name} - ${getModeLabel('forum')}`}>
+	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
+		<p class="sidebar-section-label">浏览论坛</p>
+		<a href="/forum" class="sidebar-link"><span class="sidebar-link-icon">🏠</span><span>首页</span></a>
+		<p class="sidebar-section-label">论坛版块</p>
+		{groups.map((group) => (
+			<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
+				<h2 id={`forum-group-${group.id}`}>{group.icon && `${group.icon} `}{group.name}</h2>
+				{group.children.map((item) => (
+					<a href={`/forum/${item.slug}`} class="sidebar-link" aria-current={item.id === category.id ? 'page' : undefined}>
+						<span>{item.icon && `${item.icon} `}{item.name}</span><small>{item._count.posts}</small>
+					</a>
+				))}
+			</section>
+		))}
+	</nav>
+	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
 	<div class="page-header">
 		<nav class="breadcrumb" aria-label="面包屑导航">
 			<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>
@@ -133,7 +177,7 @@ const hasIcon = !!category.icon;
 			<span class="breadcrumb-current">{category.name}</span>
 		</nav>
 		<p class="ux-eyebrow">论坛版块</p>
-		<h1 class="page-title">
+		<h1 class="page-title" id="forum-page-title">
 			{hasIcon && <span class="page-title-icon">{category.icon}</span>}
 			{category.name}
 		</h1>
@@ -150,6 +194,12 @@ const hasIcon = !!category.icon;
 			</div>
 		)
 	}
+
+	<nav class="forum-sort-tabs" aria-label="帖子排序">
+		<a href={`/forum/${slug}?sort=latest`} aria-current={forumSort === 'latest' ? 'page' : undefined}>最新</a>
+		<a href={`/forum/${slug}?sort=hot`} aria-current={forumSort === 'hot' ? 'page' : undefined}>热门</a>
+		<a href={`/forum/${slug}?sort=featured`} aria-current={forumSort === 'featured' ? 'page' : undefined}>精华</a>
+	</nav>
 
 	{
 		!hasPosts ? (
@@ -229,7 +279,7 @@ const hasIcon = !!category.icon;
 				<div class="pagination-inner">
 					{hasPrevPage ? (
 						<a
-							href={`/forum/${slug}?page=${safePage - 1}`}
+							href={`/forum/${slug}?sort=${forumSort}&page=${safePage - 1}`}
 							class="pagination-btn pagination-prev"
 						>
 							← 上一页
@@ -244,7 +294,7 @@ const hasIcon = !!category.icon;
 
 					{hasNextPage ? (
 						<a
-							href={`/forum/${slug}?page=${safePage + 1}`}
+							href={`/forum/${slug}?sort=${forumSort}&page=${safePage + 1}`}
 							class="pagination-btn pagination-next"
 						>
 							下一页 →
@@ -256,6 +306,13 @@ const hasIcon = !!category.icon;
 			</nav>
 		)
 	}
+	</section>
+	<ChannelAside
+		slot="aside"
+		title="推荐讨论"
+		description="从正在参与的话题中继续阅读。"
+		items={recommendationItems}
+	/>
 </ForumLayout>
 
 <style>

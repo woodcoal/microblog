@@ -13,7 +13,6 @@
  */
 import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
-import FollowButton from '@/components/FollowButton.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
@@ -93,8 +92,11 @@ interface Props {
 	commentCount?: number;
 	bookmarkCount?: number;
 	bookmarked?: boolean;
+	/** 兼容旧页面调用；列表中不再渲染关注操作。 */
 	following?: boolean;
+	/** 兼容旧页面调用；列表中不再渲染关注操作。 */
 	showFollow?: boolean;
+	/** 兼容旧页面调用；列表中不再渲染关注操作。 */
 	isSelf?: boolean;
 	tags?: PostTag[];
 	isRestricted?: boolean;
@@ -108,9 +110,6 @@ const {
 	commentCount = 0,
 	bookmarkCount = 0,
 	bookmarked = false,
-	following = false,
-	showFollow = false,
-	isSelf = false,
 	tags = [],
 	isRestricted = false
 } = Astro.props;
@@ -294,18 +293,9 @@ const blogDate = isBlog
 				initialBookmarked={bookmarked}
 				initialBookmarkCount={bookmarkCount}
 			/>
-			{
-				showFollow && (
-					<FollowButton
-						username={post.user.username}
-						initialFollowing={following}
-						isSelf={isSelf}
-					/>
-				)
-			}
 			<a
 				href={`/${post.user.username}/${post.id}`}
-				class="post-card-stat"
+				class="post-card-action"
 				aria-label={`${commentCount} 条评论`}
 			>
 				<svg

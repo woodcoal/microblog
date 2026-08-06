@@ -70,18 +70,25 @@ const groups = await prisma.category.findMany({
 	}
 });
 
+const PAGE_SIZE = 20;
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
-const forumSort = ['latest', 'recommended', 'hot'].includes(sortParam) ? sortParam : 'latest';
+const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	forumSort === 'hot'
 		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-		: forumSort === 'recommended'
+		: forumSort === 'featured'
 			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 			: [{ createdAt: 'desc' }];
+const forumPostWhere = { isDeleted: false, mode: 'forum', ...visibilityFilter };
+const totalPosts = await prisma.post.count({ where: forumPostWhere });
+const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
+const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
+const safePage = Math.min(currentPage, totalPages);
 const posts = await prisma.post.findMany({
-	where: { isDeleted: false, mode: 'forum', ...visibilityFilter },
+	where: forumPostWhere,
 	orderBy: forumPostOrder,
-	take: 20,
+	skip: (safePage - 1) * PAGE_SIZE,
+	take: PAGE_SIZE,
 	include: POST_CARD_INCLUDE
 });
 const likedPostIds = await getLikedPostIds(
@@ -96,6 +103,9 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasGroups = groups.length > 0;
 const hasPosts = posts.length > 0;
+const hasPrevPage = safePage > 1;
+const hasNextPage = safePage < totalPages;
+const hasPagination = totalPages > 1;
 const recommendationItems = posts.slice(0, 5).map((post) => ({
 	title: post.title || post.content.slice(0, 30) || '未命名讨论',
 	href: `/${post.user.username}/${post.id}`,
@@ -106,6 +116,10 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 
 <ForumLayout title={getModeLabel('forum')}>
 	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
+		<p class="sidebar-section-label">浏览论坛</p>
+		<a href="/forum" class="sidebar-link" aria-current={Astro.url.pathname === '/forum' ? 'page' : undefined}>
+			<span class="sidebar-link-icon">🏠</span><span>首页</span>
+		</a>
 		<p class="sidebar-section-label">论坛版块</p>
 		{
 			hasGroups ? (
@@ -161,8 +175,8 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 				>最新</a
 			>
 			<a
-				href="/forum?sort=recommended"
-				aria-current={forumSort === 'recommended' ? 'page' : undefined}>推荐</a
+				href="/forum?sort=featured"
+				aria-current={forumSort === 'featured' ? 'page' : undefined}>精华</a
 			>
 			<a href="/forum?sort=hot" aria-current={forumSort === 'hot' ? 'page' : undefined}
 				>热门</a
@@ -223,6 +237,25 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 						);
 					})}
 				</div>
+			)
+		}
+		{
+			hasPagination && (
+				<nav class="pagination" aria-label="论坛分页导航">
+					<div class="pagination-inner">
+						{hasPrevPage ? (
+							<a href={`/forum?sort=${forumSort}&page=${safePage - 1}`} class="pagination-btn">← 上一页</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">← 上一页</span>
+						)}
+						<span class="pagination-info">第 {safePage} / {totalPages} 页</span>
+						{hasNextPage ? (
+							<a href={`/forum?sort=${forumSort}&page=${safePage + 1}`} class="pagination-btn">下一页 →</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">下一页 →</span>
+						)}
+					</div>
+				</nav>
 			)
 		}
 	</section>

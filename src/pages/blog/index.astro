@@ -61,6 +61,7 @@ const categories = await prisma.category.findMany({
 
 // 从 URL 查询参数获取分类筛选
 const filterCategoryId = Astro.url.searchParams.get('category') || '';
+const isBookmarkScope = Astro.url.searchParams.get('scope') === 'bookmarks';
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const blogSort = ['latest', 'recommended', 'hot'].includes(sortParam) ? sortParam : 'latest';
 
@@ -75,6 +76,9 @@ const whereCondition: Record<string, unknown> = {
 };
 if (filterCategoryId) {
 	whereCondition.categoryId = filterCategoryId;
+}
+if (isBookmarkScope && currentUser) {
+	whereCondition.bookmarks = { some: { userId: currentUser.userId } };
 }
 const blogPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	blogSort === 'hot'
@@ -146,6 +150,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
 const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId)}` : '';
+const scopeQuery = isBookmarkScope ? '&scope=bookmarks' : '';
 const recommendationItems = posts.slice(0, 5).map((post) => ({
 	title: post.title || '无标题文章',
 	href: `/${post.user.username}/${post.id}`,
@@ -157,6 +162,9 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 <BlogLayout title={getModeLabel('blog')}>
 	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
 		<p class="sidebar-section-label">浏览文章</p>
+		<a href="/blog" class="sidebar-link" aria-current={!isBookmarkScope && blogSort === 'latest' && !hasFilter ? 'page' : undefined}>
+			<span class="sidebar-link-icon">🏠</span><span>首页</span>
+		</a>
 		<a
 			href={`/blog?sort=latest${filterQuery}`}
 			class="sidebar-link"
@@ -177,6 +185,13 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 			aria-current={blogSort === 'hot' ? 'page' : undefined}
 		>
 			<span class="sidebar-link-icon">🔥</span><span>热门</span>
+		</a>
+		<a
+			href={currentUser ? '/blog?scope=bookmarks' : '/login'}
+			class="sidebar-link"
+			aria-current={isBookmarkScope ? 'page' : undefined}
+		>
+			<span class="sidebar-link-icon">🔖</span><span>收藏</span>
 		</a>
 	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
@@ -212,7 +227,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 						const catHasIcon = !!cat.icon;
 						return (
 							<a
-								href={`/blog?sort=${blogSort}&category=${encodeURIComponent(cat.id)}`}
+								href={`/blog?sort=${blogSort}&category=${encodeURIComponent(cat.id)}${scopeQuery}`}
 								class:list={[
 									'blog-category-tag',
 									{ 'blog-category-active': isActive }
@@ -299,7 +314,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a
-								href={`/blog?page=${safePage - 1}&sort=${blogSort}${filterQuery}`}
+								href={`/blog?page=${safePage - 1}&sort=${blogSort}${filterQuery}${scopeQuery}`}
 								class="pagination-btn pagination-prev"
 							>
 								← 上一页
@@ -314,7 +329,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 
 						{hasNextPage ? (
 							<a
-								href={`/blog?page=${safePage + 1}&sort=${blogSort}${filterQuery}`}
+								href={`/blog?page=${safePage + 1}&sort=${blogSort}${filterQuery}${scopeQuery}`}
 								class="pagination-btn pagination-next"
 							>
 								下一页 →

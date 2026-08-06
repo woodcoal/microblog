@@ -8,6 +8,7 @@
  */
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
+import InfinitePostList from '@/components/InfinitePostList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
@@ -41,7 +42,7 @@ const followerIds = followerRecords.map((f) => f.followerId);
 
 // 查询当前用户收藏的帖子（通过 Bookmark 关联）
 const bookmarks = await prisma.bookmark.findMany({
-	where: { userId: currentUser.userId },
+	where: { userId: currentUser.userId, post: { isDeleted: false, mode: 'weibo' } },
 	orderBy: { createdAt: 'desc' },
 	take: PAGE_SIZE + 1,
 	...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -60,7 +61,7 @@ const items = hasMore ? bookmarks.slice(0, PAGE_SIZE) : bookmarks;
 const nextCursor = hasMore ? items[items.length - 1].id : null;
 
 // 过滤掉已删除的帖子
-const validItems = items.filter((b) => !b.post.isDeleted);
+const validItems = items;
 
 // 提取帖子 ID 列表，用于批量查询点赞状态
 const postIds = validItems.map((b) => b.post.id);
@@ -86,7 +87,7 @@ const hasBookmarks = validItems.length > 0;
 					<p>还没有收藏任何帖子</p>
 				</div>
 			) : (
-				<div class="post-list">
+				<div class="post-list" id="bookmark-post-list">
 					{validItems.map(async (bookmark) => {
 						const post = bookmark.post;
 						const postLiked = likedPostIds.has(post.id);
@@ -151,11 +152,15 @@ const hasBookmarks = validItems.length > 0;
 				</div>
 			)
 		}
+		<InfinitePostList
+			listId="bookmark-post-list"
+			nextUrl={nextCursor ? `/bookmarks?cursor=${encodeURIComponent(nextCursor)}` : null}
+		/>
 
 		<!-- 分页 -->
 		{
 			hasMore && nextCursor && (
-				<div class="pagination">
+				<div class="pagination" data-infinite-pagination="bookmark-post-list">
 					<a href={`/bookmarks?cursor=${nextCursor}`} class="btn btn-outline">
 						加载更多
 					</a>

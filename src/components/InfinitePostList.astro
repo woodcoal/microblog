@@ -1,0 +1,82 @@
+---
+/**
+ * 为微博内容流提供渐进增强的自动翻页。
+ * 无 JavaScript 时仍保留页面自身的“下一页”链接；启用后仅在接近列表底部时追加下一页。
+ */
+interface Props {
+	listId: string;
+	nextUrl?: string | null;
+}
+
+const { listId, nextUrl = null } = Astro.props;
+---
+
+<div
+	class="infinite-post-list-control"
+	data-infinite-post-list
+	data-list-id={listId}
+	data-next-url={nextUrl ?? ''}
+	aria-live="polite"
+>
+	<span data-infinite-status>{nextUrl ? '向下滚动以加载更多' : '已经到底了'}</span>
+	<button type="button" class="infinite-post-list-retry" hidden data-infinite-retry>
+		重试加载
+	</button>
+</div>
+
+<script>
+	const controllers = document.querySelectorAll<HTMLElement>('[data-infinite-post-list]');
+
+	for (const controller of controllers) {
+		const listId = controller.dataset.listId;
+		const list = listId ? document.getElementById(listId) : null;
+		const status = controller.querySelector<HTMLElement>('[data-infinite-status]');
+		const retry = controller.querySelector<HTMLButtonElement>('[data-infinite-retry]');
+		if (!list || !status || !retry) continue;
+		const fallbackPagination = listId
+			? document.querySelector<HTMLElement>(`[data-infinite-pagination="${listId}"]`)
+			: null;
+		if (fallbackPagination) fallbackPagination.hidden = true;
+
+		let loading = false;
+		let observer: IntersectionObserver | null = null;
+
+		const loadNextPage = async () => {
+			const nextUrl = controller.dataset.nextUrl;
+			if (!nextUrl || loading) return;
+			loading = true;
+			status.textContent = '正在加载更多…';
+			retry.hidden = true;
+
+			try {
+				const response = await fetch(nextUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+				if (!response.ok) throw new Error(`加载失败：${response.status}`);
+
+				const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+				const nextList = listId ? nextDocument.getElementById(listId) : null;
+				const nextController = nextDocument.querySelector<HTMLElement>('[data-infinite-post-list]');
+				if (!nextList || !nextController) throw new Error('未找到下一页列表');
+
+				list.append(...Array.from(nextList.children));
+				controller.dataset.nextUrl = nextController.dataset.nextUrl || '';
+				const hasMore = !!controller.dataset.nextUrl;
+				status.textContent = hasMore ? '已加载更多内容' : '已经到底了';
+				if (!hasMore && observer) observer.disconnect();
+			} catch {
+				status.textContent = '加载失败，请重试';
+				retry.hidden = false;
+			} finally {
+				loading = false;
+			}
+		};
+
+		retry.addEventListener('click', loadNextPage);
+		observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((entry) => entry.isIntersecting)) void loadNextPage();
+			},
+			{ rootMargin: '320px 0px' }
+		);
+		if (controller.dataset.nextUrl) observer.observe(controller);
+	}
+</script>
