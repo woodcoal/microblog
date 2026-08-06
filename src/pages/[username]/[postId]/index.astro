@@ -481,6 +481,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			)
 		}
 		<div class="post-detail-primary">
+			{
+				isForum && post.category && (
+					<a href={`/forum/${post.category.slug}`} class="post-detail-forum-nav">
+						← 论坛 / {post.category.name}
+					</a>
+				)
+			}
 			<article class="post-detail" data-post-mode={post.mode}>
 				<p class="ux-detail-kicker">
 					{
@@ -503,15 +510,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						/* 论坛模式：标题大字 + 版块面包屑 */
 						<div class="post-detail-forum-header">
 							{post.category && (
-								<div class="post-detail-breadcrumb">
-									<a href="/" class="post-detail-breadcrumb-link">
-										首页
-									</a>
-									<span class="post-detail-breadcrumb-sep">/</span>
-									<span class="post-detail-breadcrumb-current">
-										{post.category.name}
-									</span>
-								</div>
+								<p class="post-detail-forum-category">{post.category.name}</p>
 							)}
 							{hasTitle && <h1 class="post-detail-forum-title">{post.title}</h1>}
 							<div class="post-detail-header">
@@ -773,12 +772,17 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 								postId={post.id}
 								initialLiked={liked}
 								initialLikeCount={likeCount}
+								textOnly={isForum || isBlog}
 							/>
 							<BookmarkButton
 								postId={post.id}
 								initialBookmarked={bookmarked}
 								initialBookmarkCount={bookmarkCount}
+								textOnly={isForum || isBlog}
 							/>
+							<a href="#post-comments" class="post-detail-comment-link">
+								{isBlog ? '讨论' : '回复'} {commentCount}
+							</a>
 							{likeUsers.length > 0 && (
 								<div class="like-users" id="like-users-list">
 									{likeUsers.slice(0, 10).map((u) => (
@@ -813,62 +817,19 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						</div>
 					)
 				}
-
-				{
-					isAuthor && !isDeleted && (
-						<div class="post-detail-actions">
-							{!isLocked && (
-								<a
-									href={`/${post.user.username}/${post.id}/edit`}
-									class="btn btn-outline"
-								>
-									编辑
-								</a>
-							)}
-							<button
-								class="btn btn-danger"
-								id="delete-btn"
-								data-post-id={post.id}
-								data-username={post.user.username}
-								type="button"
-							>
-								删除
-							</button>
-							{post.isEdited && (
-								<a
-									href={`/${post.user.username}/${post.id}/revisions`}
-									class="btn btn-outline"
-								>
-									版本历史
-								</a>
-							)}
-							{canPin && (
-								<button
-									class="btn btn-outline"
-									id="pin-btn"
-									data-post-id={post.id}
-									data-pinned={post.isPinned ? 'true' : 'false'}
-									type="button"
-								>
-									{post.isPinned ? '取消置顶' : '置顶'}
-								</button>
-							)}
-						</div>
-					)
-				}
 			</article>
 
 			<!-- 评论区域 -->
 			{
 				isLocked && !isDeleted && !needPassword && (
-					<section class="post-detail-comments">
+					<section class="post-detail-comments" id="post-comments">
 						<p class="post-detail-locked-hint">🔒 帖子已锁定，评论不可见</p>
 					</section>
 				)
 			}
 			{
 				!isDeleted && !needPassword && !isLocked && (
-					<section class="post-detail-comments">
+					<section class="post-detail-comments" id="post-comments">
 						<CommentList
 							postId={post.id}
 							currentUser={currentUserForComponent}
@@ -996,6 +957,51 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							)}
 						</section>
 					</>
+				)
+			}
+			{
+				!isWeibo && isAuthor && !isDeleted && (
+					<section class="post-detail-aside-section post-detail-owner-actions">
+						<h2>文章操作</h2>
+						<div class="post-detail-actions">
+							{!isLocked && (
+								<a
+									href={`/${post.user.username}/${post.id}/edit`}
+									class="btn btn-outline"
+								>
+									编辑
+								</a>
+							)}
+							<button
+								class="btn btn-danger"
+								id="delete-btn"
+								data-post-id={post.id}
+								data-username={post.user.username}
+								type="button"
+							>
+								删除
+							</button>
+							{post.isEdited && (
+								<a
+									href={`/${post.user.username}/${post.id}/revisions`}
+									class="btn btn-outline"
+								>
+									版本历史
+								</a>
+							)}
+							{canPin && (
+								<button
+									class="btn btn-outline"
+									id="pin-btn"
+									data-post-id={post.id}
+									data-pinned={post.isPinned ? 'true' : 'false'}
+									type="button"
+								>
+									{post.isPinned ? '取消置顶' : '置顶'}
+								</button>
+							)}
+						</div>
+					</section>
 				)
 			}
 		</aside>
@@ -1371,14 +1377,14 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	/* 详情页严格沿用 A 模板的内容轴：博客/论坛两列，微博三列。 */
 	.post-detail-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 720px) 260px;
+		grid-template-columns: minmax(0, 1fr) 260px;
 		gap: 32px;
-		justify-content: center;
+		width: 100%;
 		padding: var(--spacing-8) 0 calc(var(--spacing-12) + 24px);
 	}
 
 	.post-detail-layout-blog {
-		grid-template-columns: minmax(0, 720px) 220px;
+		grid-template-columns: minmax(0, 1fr) 220px;
 		gap: 56px;
 	}
 
@@ -1417,7 +1423,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 
 	.post-detail-layout-blog .post-detail-content {
-		max-width: 720px;
+		max-width: none;
 		font-family: Georgia, 'Noto Serif SC', 'Songti SC', serif;
 		font-size: 1.0625rem;
 		line-height: 1.9;
@@ -1442,6 +1448,25 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 
 	.post-detail-layout-forum .post-detail-forum-header {
 		margin-bottom: 1.25rem;
+	}
+
+	.post-detail-forum-nav {
+		display: inline-block;
+		margin: 0 0 16px;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+
+	.post-detail-forum-nav:hover {
+		color: var(--color-primary);
+	}
+
+	.post-detail-forum-category {
+		margin: 0 0 6px;
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
 	}
 
 	.post-detail-layout-forum .post-detail-forum-title {
@@ -1473,15 +1498,23 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		gap: var(--spacing-5);
 	}
 
+	.post-detail-layout-blog .post-detail-aside {
+		padding-left: 16px;
+		border-left: 1px solid var(--color-border);
+	}
+
 	.post-detail-aside-section,
 	.post-detail-toc {
 		display: block;
-		position: sticky;
-		top: calc(var(--navbar-height) + var(--spacing-6));
 		margin: 0;
 		padding: 0;
 		border: 0;
 		background: transparent;
+	}
+
+	.post-detail-toc {
+		position: sticky;
+		top: calc(var(--navbar-height) + var(--spacing-6));
 	}
 
 	.post-detail-aside-section h2,
@@ -1552,9 +1585,51 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		border-top: 0;
 	}
 
+	.post-detail-comment-link {
+		color: var(--color-muted);
+		font-size: 0.875rem;
+	}
+
+	.post-detail-comment-link:hover {
+		color: var(--color-primary);
+	}
+
+	.post-detail-owner-actions .post-detail-actions {
+		display: grid;
+		gap: 8px;
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.post-detail-owner-actions .btn {
+		width: 100%;
+	}
+
 	.post-detail-layout :global(.comment-list-header) {
 		margin-bottom: 12px;
 		padding-bottom: 12px;
+	}
+
+	.post-detail-layout-blog :global(.comment-list-title) {
+		font-size: 1.1875rem;
+	}
+
+	.post-detail-layout-blog :global(.comment-item) {
+		padding: 16px 0;
+		border-top: 1px solid var(--color-border);
+		border-bottom: 0;
+	}
+
+	.post-detail-layout-blog :global(.comment-form) {
+		padding: 0 0 12px;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+	}
+
+	.post-detail-layout-blog :global(.comment-form-textarea) {
+		border-color: var(--color-border);
 	}
 
 	.post-detail-layout :global(.comment-form) {
@@ -1625,6 +1700,11 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 
 		.post-detail-aside {
 			margin-top: var(--spacing-8);
+		}
+
+		.post-detail-layout-blog .post-detail-aside {
+			padding-left: 0;
+			border-left: 0;
 		}
 
 		.post-detail-toc {
