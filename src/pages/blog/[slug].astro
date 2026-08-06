@@ -72,7 +72,6 @@ const recommendationItems = posts.slice(0, 5).map((post) => ({
 	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
 		<p class="sidebar-section-label">浏览文章</p>
 		<a href="/blog" class="sidebar-link"><span class="sidebar-link-icon">🏠</span><span>首页</span></a>
-		<a href="/blog?sort=latest" class="sidebar-link"><span class="sidebar-link-icon">⏰</span><span>最新</span></a>
 		<a href="/blog?sort=recommended" class="sidebar-link"><span class="sidebar-link-icon">✨</span><span>推荐</span></a>
 		<a href="/blog?sort=hot" class="sidebar-link"><span class="sidebar-link-icon">🔥</span><span>热门</span></a>
 		<a href={currentUser ? '/blog?scope=bookmarks' : '/login'} class="sidebar-link"><span class="sidebar-link-icon">🔖</span><span>收藏</span></a>

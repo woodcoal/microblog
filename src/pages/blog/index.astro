@@ -154,13 +154,6 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 			<span class="sidebar-link-icon">🏠</span><span>首页</span>
 		</a>
 		<a
-			href={`/blog?sort=latest${filterQuery}`}
-			class="sidebar-link"
-			aria-current={blogSort === 'latest' ? 'page' : undefined}
-		>
-			<span class="sidebar-link-icon">⏰</span><span>最新</span>
-		</a>
-		<a
 			href={`/blog?sort=recommended${filterQuery}`}
 			class="sidebar-link"
 			aria-current={blogSort === 'recommended' ? 'page' : undefined}
