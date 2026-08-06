@@ -12,6 +12,24 @@
 | A 账户     | 登录、注册、设置、关系               | `login-a.html`、`register-a.html`、`user-center-a.html`、`connections-a.html` | 表单专注，账户入口不复用完整频道导航。         |
 | B 后台     | 仪表盘与内容管理                     | `admin-b.html`、`admin-content-b.html`                                        | 浅灰左轨、白色顶栏、表格工作区；不装饰化。     |
 
+## 路由覆盖清单
+
+| 样本                                                               | 已实施路由                                                                                      |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| `home-c.html`                                                      | `/`                                                                                             |
+| `weibo-a.html`                                                     | `/weibo`、`/latest`、`/tags/[tag]`、`/bookmarks`                                                |
+| `forum-a.html`                                                     | `/forum`、`/forum/[slug]`                                                                       |
+| `blog-a.html`                                                      | `/blog`、`/blog/[slug]`                                                                         |
+| `search-a.html`、`notifications-a.html`                            | `/search`、`/notifications`                                                                     |
+| `profile-a.html`                                                   | `/[username]`                                                                                   |
+| `weibo-detail-a.html`、`forum-detail-a.html`、`blog-detail-a.html` | `/[username]/[postId]`（按帖子模式呈现）                                                        |
+| `login-a.html`、`register-a.html`、`user-center-a.html`            | `/login`、`/register`、`/settings`                                                              |
+| `connections-a.html`                                               | `/following`、`/followers`                                                                      |
+| `blog-editor-a.html`                                               | `/blog/write`、`/[username]/[postId]/edit`、`/[username]/[postId]/revisions`                    |
+| `admin-b.html`、`admin-content-b.html`                             | `/admin`、`/admin/posts`、`/admin/users`、`/admin/comments`、`/admin/tags`、`/admin/categories` |
+
+上述路由均在实际 `.astro` 页面中建立了对应的内容边界和标题区域：账户页使用导语加表单双栏，频道页使用频道标题与内容流，详情页按 `post.mode` 落到微博、论坛、博客的阅读面，后台每个工作区均有独立的运营标题区。共享 CSS 仅负责令牌、响应式和视觉层级，不替代页面结构。
+
 ## 实施顺序
 
 1. 先让 `Base.astro` 和共享样式消费 `src/styles/tokens.css`；保留 light / dark / eye-care / high-contrast 与现有强调色覆盖。

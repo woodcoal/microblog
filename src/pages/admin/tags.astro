@@ -51,14 +51,20 @@ const serializedTags = tags.map((t) => ({
 ---
 
 <AdminLayout title="标签管理">
-	<h1 class="admin-page-title">🏷️ 标签管理</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-tags-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">内容工作区</p>
+			<h1 class="admin-page-title" id="admin-tags-title">标签管理</h1>
+			<p>整理内容标签，帮助读者更准确地发现主题。</p>
+		</header>
 
-	<AdminTagList
-		tags={serializedTags}
-		total={total}
-		page={page}
-		totalPages={totalPages}
-		hasPrev={hasPrev}
-		hasNext={hasNext}
-	/>
+		<AdminTagList
+			tags={serializedTags}
+			total={total}
+			page={page}
+			totalPages={totalPages}
+			hasPrev={hasPrev}
+			hasNext={hasNext}
+		/>
+	</section>
 </AdminLayout>

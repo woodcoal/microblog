@@ -147,103 +147,113 @@ const trendEndDate = trendPoints[trendPoints.length - 1]?.date.slice(5) || '';
 ---
 
 <AdminLayout title="仪表盘">
-	<h1 class="admin-page-title">📊 仪表盘</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-dashboard-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">运营概览</p>
+			<h1 class="admin-page-title" id="admin-dashboard-title">仪表盘</h1>
+			<p>快速了解社区规模、近期变化与需要关注的活动。</p>
+		</header>
 
-	<!-- 统计卡片 -->
-	<div class="admin-stats-grid">
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">总用户数</div>
-			<div class="admin-stat-value">{totalUsers}</div>
+		<!-- 统计卡片 -->
+		<div class="admin-stats-grid">
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">总用户数</div>
+				<div class="admin-stat-value">{totalUsers}</div>
+			</div>
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">总帖子数</div>
+				<div class="admin-stat-value">{totalPosts}</div>
+			</div>
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">总评论数</div>
+				<div class="admin-stat-value">{totalComments}</div>
+			</div>
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">总关注数</div>
+				<div class="admin-stat-value">{totalFollows}</div>
+			</div>
 		</div>
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">总帖子数</div>
-			<div class="admin-stat-value">{totalPosts}</div>
-		</div>
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">总评论数</div>
-			<div class="admin-stat-value">{totalComments}</div>
-		</div>
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">总关注数</div>
-			<div class="admin-stat-value">{totalFollows}</div>
-		</div>
-	</div>
 
-	<!-- 今日新增 -->
-	<h2 class="admin-section-title">今日新增</h2>
-	<div class="admin-stats-grid">
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">新增用户</div>
-			<div class="admin-stat-value">{todayNewUsers}</div>
-			{
-				todayNewUsers > 0 && (
-					<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewUsers}</span>
-				)
-			}
+		<!-- 今日新增 -->
+		<h2 class="admin-section-title">今日新增</h2>
+		<div class="admin-stats-grid">
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">新增用户</div>
+				<div class="admin-stat-value">{todayNewUsers}</div>
+				{
+					todayNewUsers > 0 && (
+						<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewUsers}</span>
+					)
+				}
+			</div>
+			<div class="admin-stat-card">
+				<div class="admin-stat-label">新增帖子</div>
+				<div class="admin-stat-value">{todayNewPosts}</div>
+				{
+					todayNewPosts > 0 && (
+						<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewPosts}</span>
+					)
+				}
+			</div>
 		</div>
-		<div class="admin-stat-card">
-			<div class="admin-stat-label">新增帖子</div>
-			<div class="admin-stat-value">{todayNewPosts}</div>
-			{
-				todayNewPosts > 0 && (
-					<span class="admin-stat-trend admin-stat-trend-up">↑ +{todayNewPosts}</span>
-				)
-			}
-		</div>
-	</div>
 
-	<!-- 30天发帖趋势图 -->
-	<h2 class="admin-section-title">30天趋势</h2>
-	<div class="admin-trend-chart">
-		<svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} class="admin-trend-svg">
-			<!-- 水平网格线 -->
+		<!-- 30天发帖趋势图 -->
+		<h2 class="admin-section-title">30天趋势</h2>
+		<div class="admin-trend-chart">
+			<svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} class="admin-trend-svg">
+				<!-- 水平网格线 -->
+				{
+					gridLines.map((y) => (
+						<line
+							x1="0"
+							y1={y}
+							x2={SVG_WIDTH}
+							y2={y}
+							stroke="var(--color-border)"
+							stroke-width="0.5"
+						/>
+					))
+				}
+				<!-- 折线 -->
+				<polyline
+					fill="none"
+					stroke="var(--color-primary)"
+					stroke-width="2"
+					points={polylinePoints}></polyline>
+				<!-- 数据点 -->
+				{
+					trendPoints.map((p) => (
+						<circle cx={p.x} cy={p.y} r="3" fill="var(--color-primary)" />
+					))
+				}
+			</svg>
+			<div class="admin-trend-labels">
+				<span>{trendStartDate}</span>
+				<span>{trendEndDate}</span>
+			</div>
+		</div>
+
+		<!-- 最近活动 -->
+		<h2 class="admin-section-title">最近活动</h2>
+		<div class="admin-activity-list">
 			{
-				gridLines.map((y) => (
-					<line
-						x1="0"
-						y1={y}
-						x2={SVG_WIDTH}
-						y2={y}
-						stroke="var(--color-border)"
-						stroke-width="0.5"
-					/>
+				recentActivities.map((activity) => (
+					<div class="admin-activity-item">
+						<div class="admin-activity-content">
+							<span class="admin-activity-author">{activity.actorName}</span>
+							<span class="admin-activity-action">{activity.actionLabel}</span>
+						</div>
+						<span class="admin-activity-time">{activity.time}</span>
+					</div>
 				))
 			}
-			<!-- 折线 -->
-			<polyline
-				fill="none"
-				stroke="var(--color-primary)"
-				stroke-width="2"
-				points={polylinePoints}></polyline>
-			<!-- 数据点 -->
-			{trendPoints.map((p) => <circle cx={p.x} cy={p.y} r="3" fill="var(--color-primary)" />)}
-		</svg>
-		<div class="admin-trend-labels">
-			<span>{trendStartDate}</span>
-			<span>{trendEndDate}</span>
-		</div>
-	</div>
-
-	<!-- 最近活动 -->
-	<h2 class="admin-section-title">最近活动</h2>
-	<div class="admin-activity-list">
-		{
-			recentActivities.map((activity) => (
-				<div class="admin-activity-item">
-					<div class="admin-activity-content">
-						<span class="admin-activity-author">{activity.actorName}</span>
-						<span class="admin-activity-action">{activity.actionLabel}</span>
+			{
+				recentActivities.length === 0 && (
+					<div class="empty-state">
+						<p>暂无活动</p>
 					</div>
-					<span class="admin-activity-time">{activity.time}</span>
-				</div>
-			))
-		}
-		{
-			recentActivities.length === 0 && (
-				<div class="empty-state">
-					<p>暂无活动</p>
-				</div>
-			)
-		}
-	</div>
+				)
+			}
+		</div>
+	</section>
 </AdminLayout>

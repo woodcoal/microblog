@@ -82,105 +82,111 @@ const likedPostIds = await getLikedPostIds(
 ---
 
 <WeiboLayout title="我的粉丝">
-	<h1 class="page-title">我的粉丝</h1>
+	<section class="ux-connections-page" aria-labelledby="followers-page-title">
+		<header class="ux-page-heading">
+			<p class="ux-eyebrow">我的关系</p>
+			<h1 class="page-title" id="followers-page-title">我的粉丝</h1>
+			<p>看看哪些人正在关注你的表达，并发现他们的动态。</p>
+		</header>
 
-	<!-- 粉丝列表 -->
-	<section class="followers-section">
-		<h2 class="section-title">关注我的人</h2>
-		{
-			!hasFollowers ? (
-				<div class="empty-state">
-					<p>还没有粉丝</p>
-				</div>
-			) : (
-				<div class="user-grid">
-					{followers.map((f) => {
-						const avatarUrl = f.follower.avatarUrl;
-						const initial = f.follower.displayName.charAt(0).toUpperCase();
-						return (
-							<a href={`/${f.follower.username}`} class="user-grid-item">
-								{avatarUrl ? (
-									<img
-										src={avatarUrl}
-										alt={f.follower.displayName}
-										class="user-grid-avatar"
-									/>
-								) : (
-									<div class="user-grid-avatar user-grid-avatar-placeholder">
-										{initial}
-									</div>
-								)}
-								<span class="user-grid-name">{f.follower.displayName}</span>
-							</a>
-						);
-					})}
-				</div>
-			)
-		}
-	</section>
+		<!-- 粉丝列表 -->
+		<section class="followers-section">
+			<h2 class="section-title">关注我的人</h2>
+			{
+				!hasFollowers ? (
+					<div class="empty-state">
+						<p>还没有粉丝</p>
+					</div>
+				) : (
+					<div class="user-grid">
+						{followers.map((f) => {
+							const avatarUrl = f.follower.avatarUrl;
+							const initial = f.follower.displayName.charAt(0).toUpperCase();
+							return (
+								<a href={`/${f.follower.username}`} class="user-grid-item">
+									{avatarUrl ? (
+										<img
+											src={avatarUrl}
+											alt={f.follower.displayName}
+											class="user-grid-avatar"
+										/>
+									) : (
+										<div class="user-grid-avatar user-grid-avatar-placeholder">
+											{initial}
+										</div>
+									)}
+									<span class="user-grid-name">{f.follower.displayName}</span>
+								</a>
+							);
+						})}
+					</div>
+				)
+			}
+		</section>
 
-	<!-- 热门帖子 -->
-	<section class="hot-section">
-		<h2 class="section-title">热门动态</h2>
-		{
-			hotPosts.length === 0 ? (
-				<div class="empty-state">
-					<p>近 7 天暂无热门动态</p>
-				</div>
-			) : (
-				<div class="post-list">
-					{hotPosts.map(async (post) => {
-						const postLiked = likedPostIds.has(post.id);
-						const postLikeCount = post._count.likes;
-						const postCommentCount = post._count.comments;
-						const postTags = post.tags.map((pt) => ({
-							id: pt.tag.id,
-							name: pt.tag.name
-						}));
-						// 检查当前用户是否有权查看帖子内容
-						const isPostRestricted = !(await checkPostVisibility(
-							{
-								visibility: post.visibility,
-								userId: post.userId,
-								passwordHash: post.passwordHash,
-								allowedUserIds: post.allowedUserIds
-							},
-							currentUser ? { userId: currentUser.userId } : null,
-							{
-								isFollower: followingIds.includes(post.userId),
-								isFollowing: followerIds.includes(post.userId)
-							}
-						));
+		<!-- 热门帖子 -->
+		<section class="hot-section">
+			<h2 class="section-title">热门动态</h2>
+			{
+				hotPosts.length === 0 ? (
+					<div class="empty-state">
+						<p>近 7 天暂无热门动态</p>
+					</div>
+				) : (
+					<div class="post-list">
+						{hotPosts.map(async (post) => {
+							const postLiked = likedPostIds.has(post.id);
+							const postLikeCount = post._count.likes;
+							const postCommentCount = post._count.comments;
+							const postTags = post.tags.map((pt) => ({
+								id: pt.tag.id,
+								name: pt.tag.name
+							}));
+							// 检查当前用户是否有权查看帖子内容
+							const isPostRestricted = !(await checkPostVisibility(
+								{
+									visibility: post.visibility,
+									userId: post.userId,
+									passwordHash: post.passwordHash,
+									allowedUserIds: post.allowedUserIds
+								},
+								currentUser ? { userId: currentUser.userId } : null,
+								{
+									isFollower: followingIds.includes(post.userId),
+									isFollowing: followerIds.includes(post.userId)
+								}
+							));
 
-						return (
-							<PostCard
-								post={{
-									id: post.id,
-									content: post.content,
-									createdAt: post.createdAt.toISOString(),
-									isPinned: post.isPinned,
-									isGlobalPinned: post.isGlobalPinned,
-									user: {
-										id: post.user.id,
-										username: post.user.username,
-										displayName: post.user.displayName,
-										avatarUrl: post.user.avatarUrl
-									},
-									media: post.media,
-									visibility: post.visibility
-								}}
-								htmlContent={renderMarkdown(post.content)}
-								likeCount={postLikeCount}
-								liked={postLiked}
-								commentCount={postCommentCount}
-								tags={postTags}
-								isRestricted={isPostRestricted}
-							/>
-						);
-					})}
-				</div>
-			)
-		}
+							return (
+								<PostCard
+									post={{
+										id: post.id,
+										content: post.content,
+										createdAt: post.createdAt.toISOString(),
+										isPinned: post.isPinned,
+										isGlobalPinned: post.isGlobalPinned,
+										user: {
+											id: post.user.id,
+											username: post.user.username,
+											displayName: post.user.displayName,
+											avatarUrl: post.user.avatarUrl
+										},
+										media: post.media,
+										visibility: post.visibility
+									}}
+									htmlContent={renderMarkdown(post.content)}
+									likeCount={postLikeCount}
+									liked={postLiked}
+									commentCount={postCommentCount}
+									tags={postTags}
+									isRestricted={isPostRestricted}
+								/>
+							);
+						})}
+					</div>
+				)
+			}
+		</section>
 	</section>
 </WeiboLayout>
 

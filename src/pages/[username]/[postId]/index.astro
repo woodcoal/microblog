@@ -368,7 +368,17 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 	}}
 >
-	<article class="post-detail">
+	<article class="post-detail" data-post-mode={post.mode}>
+		<p class="ux-detail-kicker">
+			{post.mode === 'forum' ? '论坛讨论' : post.mode === 'blog' ? '博客文章' : '微博动态'}
+		</p>
+		{
+			isWeibo && !isDeleted && (
+				<h1 class="post-detail-weibo-title">
+					{post.title || `${post.user.displayName} 的微博动态`}
+				</h1>
+			)
+		}
 		{
 			isForum && !isDeleted ? (
 				/* 论坛模式：标题大字 + 版块面包屑 */

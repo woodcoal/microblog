@@ -32,6 +32,7 @@ import ComposeModal from '@/components/ComposeModal.astro';
 import '@/styles/tokens.css';
 import '@/styles/base.css';
 import '@/styles/components.css';
+import '@/styles/ux-pages.css';
 
 interface Props {
 	title?: string;
@@ -110,6 +111,29 @@ const hasUnread = unreadCount > 0;
 
 // 当前路径，用于侧栏高亮
 const currentPath = Astro.url.pathname;
+const uxShell = narrow
+	? 'account'
+	: currentPath === '/'
+		? 'home'
+		: currentPath.startsWith('/forum')
+			? 'forum'
+			: currentPath.startsWith('/blog')
+				? 'blog'
+				: currentPath.startsWith('/search')
+					? 'search'
+					: currentPath.startsWith('/notifications')
+						? 'notifications'
+						: currentPath.startsWith('/settings')
+							? 'account'
+							: currentPath.startsWith('/following') ||
+								  currentPath.startsWith('/followers')
+								? 'connections'
+								: currentPath.startsWith('/weibo') ||
+									  currentPath.startsWith('/latest') ||
+									  currentPath.startsWith('/tags') ||
+									  currentPath.startsWith('/bookmarks')
+									? 'weibo'
+									: 'profile';
 
 // 多模式频道配置
 const showModeNav = !isSingleMode;
@@ -220,7 +244,7 @@ const resolvedOgType = ogType || 'website';
 			})();
 		</script>
 	</head>
-	<body>
+	<body data-ux-shell={uxShell}>
 		<a class="skip-link" href="#main-content">跳到主要内容</a>
 		<nav class="navbar" aria-label="主导航">
 			<div class="navbar-inner">

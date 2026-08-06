@@ -93,8 +93,12 @@ const hasBlogCategories = blogCategories.length > 0;
 ---
 
 <UserLayout title="编辑帖子">
-	<div class="edit-page">
-		{!isBlog && <h1 class="edit-page-title">编辑帖子</h1>}
+	<section class="edit-page ux-editor-page" aria-labelledby="edit-page-title">
+		<header class="ux-page-heading">
+			<p class="ux-eyebrow">编辑工作区</p>
+			<h1 class="edit-page-title" id="edit-page-title">{isBlog ? '编辑文章' : '编辑帖子'}</h1>
+			<p>修改完成后保存，读者将看到更新后的内容。</p>
+		</header>
 
 		{/* weibo 模式：与创建场景复用 PostEditor */}
 		{
@@ -258,7 +262,7 @@ const hasBlogCategories = blogCategories.length > 0;
 				</div>
 			)
 		}
-	</div>
+	</section>
 </UserLayout>
 
 <style>

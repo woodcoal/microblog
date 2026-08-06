@@ -39,7 +39,16 @@ const hasCategories = categories.length > 0;
 ---
 
 <BlogLayout title={`写文章 - ${getModeLabel('blog')}`}>
-	<div class="blog-write-page" id="blog-compose-container">
+	<section
+		class="blog-write-page ux-editor-page"
+		id="blog-compose-container"
+		aria-labelledby="blog-write-title"
+	>
+		<header class="ux-page-heading">
+			<p class="ux-eyebrow">写作工作区</p>
+			<h1 id="blog-write-title">写一篇文章</h1>
+			<p>先整理观点，再以适合阅读的节奏发布。</p>
+		</header>
 		{/* 顶部轻量工具栏：分类 + 可见度 + 操作按钮 */}
 		<div class="blog-write-toolbar">
 			<div class="blog-write-toolbar-left">
@@ -87,7 +96,7 @@ const hasCategories = categories.length > 0;
 		</div>
 
 		<p class="form-error" id="blog-form-error" style="display:none"></p>
-	</div>
+	</section>
 </BlogLayout>
 
 <style>

@@ -116,125 +116,128 @@ const hasPagination = totalPages > 1;
 ---
 
 <WeiboLayout title={getModeLabel('weibo')}>
-	<div class="page-header">
-		<div class="page-header-row">
-			<div>
-				<h1 class="page-title">💬 {getModeLabel('weibo')}</h1>
-				<p class="page-desc">分享你的想法，随时随地说点什么</p>
-			</div>
-			{
-				currentUser && (
-					<button
-						type="button"
-						class="btn btn-primary"
-						onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
-					>
-						✏️ 发布
-					</button>
-				)
-			}
-		</div>
-	</div>
-
-	{
-		!hasPosts ? (
-			<div class="empty-state">
-				<p>还没有微博动态，注册后发第一条吧！</p>
-			</div>
-		) : (
-			<div class="post-list">
-				{allPosts.map(async (post) => {
-					const postTags = post.tags.map((pt) => ({
-						id: pt.tag.id,
-						name: pt.tag.name
-					}));
-					const postLikeCount = post._count.likes;
-					const postCommentCount = post._count.comments;
-					const postLiked = likedPostIds.has(post.id);
-
-					// 检查当前用户是否有权查看帖子内容
-					const isPostRestricted = !(await checkPostVisibility(
-						{
-							visibility: post.visibility,
-							userId: post.userId,
-							passwordHash: post.passwordHash,
-							allowedUserIds: post.allowedUserIds
-						},
-						currentUser ? { userId: currentUser.userId } : null,
-						{
-							isFollower: followingIds.includes(post.userId),
-							isFollowing: followerIds.includes(post.userId)
-						}
-					));
-
-					return (
-						<PostCard
-							post={{
-								id: post.id,
-								content: post.content,
-								createdAt: post.createdAt.toISOString(),
-								isPinned: post.isPinned,
-								isGlobalPinned: post.isGlobalPinned,
-								user: {
-									id: post.user.id,
-									username: post.user.username,
-									displayName: post.user.displayName,
-									avatarUrl: post.user.avatarUrl
-								},
-								media: post.media,
-								visibility: post.visibility,
-								mode: post.mode,
-								title: post.title,
-								categoryId: post.categoryId,
-								category: post.category
-							}}
-							htmlContent={renderMarkdown(post.content)}
-							likeCount={postLikeCount}
-							liked={postLiked}
-							commentCount={postCommentCount}
-							tags={postTags}
-							isRestricted={isPostRestricted}
-						/>
-					);
-				})}
-			</div>
-		)
-	}
-
-	{/* 分页导航 */}
-	{
-		hasPagination && (
-			<nav class="pagination" aria-label="分页导航">
-				<div class="pagination-inner">
-					{hasPrevPage ? (
-						<a
-							href={`/weibo?page=${safePage - 1}`}
-							class="pagination-btn pagination-prev"
-						>
-							← 上一页
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">← 上一页</span>
-					)}
-
-					<span class="pagination-info">
-						第 {safePage} / {totalPages} 页
-					</span>
-
-					{hasNextPage ? (
-						<a
-							href={`/weibo?page=${safePage + 1}`}
-							class="pagination-btn pagination-next"
-						>
-							下一页 →
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">下一页 →</span>
-					)}
+	<section class="ux-channel-page ux-weibo-page" aria-labelledby="weibo-page-title">
+		<div class="page-header">
+			<div class="page-header-row">
+				<div>
+					<p class="ux-eyebrow">此刻正在发生</p>
+					<h1 class="page-title" id="weibo-page-title">💬 {getModeLabel('weibo')}</h1>
+					<p class="page-desc">分享你的想法，随时随地说点什么</p>
 				</div>
-			</nav>
-		)
-	}
+				{
+					currentUser && (
+						<button
+							type="button"
+							class="btn btn-primary"
+							onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
+						>
+							✏️ 发布
+						</button>
+					)
+				}
+			</div>
+		</div>
+
+		{
+			!hasPosts ? (
+				<div class="empty-state">
+					<p>还没有微博动态，注册后发第一条吧！</p>
+				</div>
+			) : (
+				<div class="post-list">
+					{allPosts.map(async (post) => {
+						const postTags = post.tags.map((pt) => ({
+							id: pt.tag.id,
+							name: pt.tag.name
+						}));
+						const postLikeCount = post._count.likes;
+						const postCommentCount = post._count.comments;
+						const postLiked = likedPostIds.has(post.id);
+
+						// 检查当前用户是否有权查看帖子内容
+						const isPostRestricted = !(await checkPostVisibility(
+							{
+								visibility: post.visibility,
+								userId: post.userId,
+								passwordHash: post.passwordHash,
+								allowedUserIds: post.allowedUserIds
+							},
+							currentUser ? { userId: currentUser.userId } : null,
+							{
+								isFollower: followingIds.includes(post.userId),
+								isFollowing: followerIds.includes(post.userId)
+							}
+						));
+
+						return (
+							<PostCard
+								post={{
+									id: post.id,
+									content: post.content,
+									createdAt: post.createdAt.toISOString(),
+									isPinned: post.isPinned,
+									isGlobalPinned: post.isGlobalPinned,
+									user: {
+										id: post.user.id,
+										username: post.user.username,
+										displayName: post.user.displayName,
+										avatarUrl: post.user.avatarUrl
+									},
+									media: post.media,
+									visibility: post.visibility,
+									mode: post.mode,
+									title: post.title,
+									categoryId: post.categoryId,
+									category: post.category
+								}}
+								htmlContent={renderMarkdown(post.content)}
+								likeCount={postLikeCount}
+								liked={postLiked}
+								commentCount={postCommentCount}
+								tags={postTags}
+								isRestricted={isPostRestricted}
+							/>
+						);
+					})}
+				</div>
+			)
+		}
+
+		{/* 分页导航 */}
+		{
+			hasPagination && (
+				<nav class="pagination" aria-label="分页导航">
+					<div class="pagination-inner">
+						{hasPrevPage ? (
+							<a
+								href={`/weibo?page=${safePage - 1}`}
+								class="pagination-btn pagination-prev"
+							>
+								← 上一页
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">← 上一页</span>
+						)}
+
+						<span class="pagination-info">
+							第 {safePage} / {totalPages} 页
+						</span>
+
+						{hasNextPage ? (
+							<a
+								href={`/weibo?page=${safePage + 1}`}
+								class="pagination-btn pagination-next"
+							>
+								下一页 →
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">下一页 →</span>
+						)}
+					</div>
+				</nav>
+			)
+		}
+	</section>
 </WeiboLayout>
 
 <style>

@@ -104,8 +104,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 ---
 
 <WeiboLayout title="设置">
-	<div class="settings-page">
-		<h1 class="page-title">个人设置</h1>
+	<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
+		<header class="ux-page-heading">
+			<p class="ux-eyebrow">账户中心</p>
+			<h1 class="page-title" id="settings-page-title">个人设置</h1>
+			<p>集中管理资料、安全、外观与通知偏好。</p>
+		</header>
 
 		<nav class="settings-tabs">
 			{
@@ -382,7 +386,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 				)
 			}
 		</div><!-- /.settings-content -->
-	</div>
+	</section>
 </WeiboLayout>
 
 <script>

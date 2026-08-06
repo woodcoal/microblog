@@ -137,148 +137,154 @@ const hasFilter = !!filterCategoryId;
 ---
 
 <BlogLayout title={getModeLabel('blog')}>
-	<div class="page-header">
-		<div class="page-header-row">
-			<div>
-				<h1 class="page-title">📝 {getModeLabel('blog')}</h1>
-				<p class="page-desc">长文写作，深度思考</p>
-			</div>
-			{
-				currentUser && (
-					<a href="/blog/write" class="btn btn-primary">
-						✏️ 写文章
-					</a>
-				)
-			}
-		</div>
-	</div>
-
-	{/* 分类筛选标签 */}
-	{
-		hasCategories && (
-			<div class="blog-categories">
-				<a
-					href="/blog"
-					class:list={['blog-category-tag', { 'blog-category-active': !hasFilter }]}
-				>
-					全部
-				</a>
-				{categories.map((cat) => {
-					const isActive = filterCategoryId === cat.id;
-					const catHasIcon = !!cat.icon;
-					return (
-						<a
-							href={`/blog?category=${cat.id}`}
-							class:list={['blog-category-tag', { 'blog-category-active': isActive }]}
-						>
-							{catHasIcon && <span>{cat.icon}</span>}
-							{cat.name}
-							<span class="blog-category-count">{cat._count.posts}</span>
-						</a>
-					);
-				})}
-			</div>
-		)
-	}
-
-	{
-		!hasPosts ? (
-			<div class="empty-state">
-				<p>暂无{getModeLabel('blog')}文章，来写第一篇吧！</p>
-			</div>
-		) : (
-			<div class="blog-articles">
-				{posts.map(async (post) => {
-					// 检查当前用户是否有权查看帖子内容
-					const isPostRestricted = !(await checkPostVisibility(
-						{
-							visibility: post.visibility,
-							userId: post.userId,
-							passwordHash: post.passwordHash,
-							allowedUserIds: post.allowedUserIds
-						},
-						currentUser ? { userId: currentUser.userId } : null,
-						{
-							isFollower: followingIds.includes(post.userId),
-							isFollowing: followerIds.includes(post.userId)
-						}
-					));
-
-					// 受限帖子不显示摘要
-					const excerpt = isPostRestricted
-						? '内容受限，无法查看'
-						: extractExcerpt(post.content);
-					const postLikeCount = post.likes.length;
-					const postCommentCount = post.comments.length;
-
-					return (
-						<article class="blog-article-card">
-							<div class="blog-article-meta">
-								{post.category && (
-									<span class="blog-article-category">
-										{post.category.icon} {post.category.name}
-									</span>
-								)}
-								<time>{formatDate(post.createdAt)}</time>
-							</div>
-							<h2 class="blog-article-title">
-								<a href={`/${post.user.username}/${post.id}`}>
-									{post.title || '无标题'}
-								</a>
-							</h2>
-							<p class="blog-article-excerpt">{excerpt}</p>
-							<div class="blog-article-footer">
-								<img
-									src={post.user.avatarUrl}
-									class="blog-article-avatar"
-									alt={post.user.displayName}
-								/>
-								<span class="blog-article-author">{post.user.displayName}</span>
-								<span class="blog-article-stats">
-									♥ {postLikeCount} · 💬 {postCommentCount}
-								</span>
-							</div>
-						</article>
-					);
-				})}
-			</div>
-		)
-	}
-
-	{/* 分页导航 */}
-	{
-		hasPagination && (
-			<nav class="pagination" aria-label="分页导航">
-				<div class="pagination-inner">
-					{hasPrevPage ? (
-						<a
-							href={`/blog?page=${safePage - 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
-							class="pagination-btn pagination-prev"
-						>
-							← 上一页
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">← 上一页</span>
-					)}
-
-					<span class="pagination-info">
-						第 {safePage} / {totalPages} 页
-					</span>
-
-					{hasNextPage ? (
-						<a
-							href={`/blog?page=${safePage + 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
-							class="pagination-btn pagination-next"
-						>
-							下一页 →
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">下一页 →</span>
-					)}
+	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
+		<div class="page-header">
+			<div class="page-header-row">
+				<div>
+					<p class="ux-eyebrow">为想法留出篇幅</p>
+					<h1 class="page-title" id="blog-page-title">📝 {getModeLabel('blog')}</h1>
+					<p class="page-desc">长文写作，深度思考</p>
 				</div>
-			</nav>
-		)
-	}
+				{
+					currentUser && (
+						<a href="/blog/write" class="btn btn-primary">
+							✏️ 写文章
+						</a>
+					)
+				}
+			</div>
+		</div>
+
+		{/* 分类筛选标签 */}
+		{
+			hasCategories && (
+				<div class="blog-categories">
+					<a
+						href="/blog"
+						class:list={['blog-category-tag', { 'blog-category-active': !hasFilter }]}
+					>
+						全部
+					</a>
+					{categories.map((cat) => {
+						const isActive = filterCategoryId === cat.id;
+						const catHasIcon = !!cat.icon;
+						return (
+							<a
+								href={`/blog?category=${cat.id}`}
+								class:list={[
+									'blog-category-tag',
+									{ 'blog-category-active': isActive }
+								]}
+							>
+								{catHasIcon && <span>{cat.icon}</span>}
+								{cat.name}
+								<span class="blog-category-count">{cat._count.posts}</span>
+							</a>
+						);
+					})}
+				</div>
+			)
+		}
+
+		{
+			!hasPosts ? (
+				<div class="empty-state">
+					<p>暂无{getModeLabel('blog')}文章，来写第一篇吧！</p>
+				</div>
+			) : (
+				<div class="blog-articles">
+					{posts.map(async (post) => {
+						// 检查当前用户是否有权查看帖子内容
+						const isPostRestricted = !(await checkPostVisibility(
+							{
+								visibility: post.visibility,
+								userId: post.userId,
+								passwordHash: post.passwordHash,
+								allowedUserIds: post.allowedUserIds
+							},
+							currentUser ? { userId: currentUser.userId } : null,
+							{
+								isFollower: followingIds.includes(post.userId),
+								isFollowing: followerIds.includes(post.userId)
+							}
+						));
+
+						// 受限帖子不显示摘要
+						const excerpt = isPostRestricted
+							? '内容受限，无法查看'
+							: extractExcerpt(post.content);
+						const postLikeCount = post.likes.length;
+						const postCommentCount = post.comments.length;
+
+						return (
+							<article class="blog-article-card">
+								<div class="blog-article-meta">
+									{post.category && (
+										<span class="blog-article-category">
+											{post.category.icon} {post.category.name}
+										</span>
+									)}
+									<time>{formatDate(post.createdAt)}</time>
+								</div>
+								<h2 class="blog-article-title">
+									<a href={`/${post.user.username}/${post.id}`}>
+										{post.title || '无标题'}
+									</a>
+								</h2>
+								<p class="blog-article-excerpt">{excerpt}</p>
+								<div class="blog-article-footer">
+									<img
+										src={post.user.avatarUrl}
+										class="blog-article-avatar"
+										alt={post.user.displayName}
+									/>
+									<span class="blog-article-author">{post.user.displayName}</span>
+									<span class="blog-article-stats">
+										♥ {postLikeCount} · 💬 {postCommentCount}
+									</span>
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			)
+		}
+
+		{/* 分页导航 */}
+		{
+			hasPagination && (
+				<nav class="pagination" aria-label="分页导航">
+					<div class="pagination-inner">
+						{hasPrevPage ? (
+							<a
+								href={`/blog?page=${safePage - 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+								class="pagination-btn pagination-prev"
+							>
+								← 上一页
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">← 上一页</span>
+						)}
+
+						<span class="pagination-info">
+							第 {safePage} / {totalPages} 页
+						</span>
+
+						{hasNextPage ? (
+							<a
+								href={`/blog?page=${safePage + 1}${hasFilter ? `&category=${filterCategoryId}` : ''}`}
+								class="pagination-btn pagination-next"
+							>
+								下一页 →
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">下一页 →</span>
+						)}
+					</div>
+				</nav>
+			)
+		}
+	</section>
 </BlogLayout>
 
 <style>

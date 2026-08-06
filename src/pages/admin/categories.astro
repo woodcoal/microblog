@@ -73,254 +73,260 @@ const hasCategories = serializedTree.length > 0;
 ---
 
 <AdminLayout title="分类管理">
-	<h1 class="admin-page-title">📂 分类管理</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-categories-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">内容工作区</p>
+			<h1 class="admin-page-title" id="admin-categories-title">分类管理</h1>
+			<p>维护三大内容模块的分类层级与展示顺序。</p>
+		</header>
 
-	<div class="admin-category-toolbar">
-		<button type="button" class="admin-btn admin-btn-primary" id="category-create-open">
-			新建分类
-		</button>
-	</div>
+		<div class="admin-category-toolbar">
+			<button type="button" class="admin-btn admin-btn-primary" id="category-create-open">
+				新建分类
+			</button>
+		</div>
 
-	<!-- 创建/编辑分类弹窗 -->
-	<dialog id="category-dialog" class="admin-modal" aria-labelledby="form-title">
-		<form id="category-form" novalidate>
-			<h2 class="admin-modal-title" id="form-title">新建分类</h2>
-			<input type="hidden" name="id" id="form-id" value="" />
-			<div class="admin-form-grid">
-				<div class="admin-form-group">
-					<label class="admin-form-label" for="form-name">名称 *</label>
-					<input
-						type="text"
-						class="admin-form-input"
-						id="form-name"
-						name="name"
-						required
-						placeholder="分类名称"
-					/>
+		<!-- 创建/编辑分类弹窗 -->
+		<dialog id="category-dialog" class="admin-modal" aria-labelledby="form-title">
+			<form id="category-form" novalidate>
+				<h2 class="admin-modal-title" id="form-title">新建分类</h2>
+				<input type="hidden" name="id" id="form-id" value="" />
+				<div class="admin-form-grid">
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="form-name">名称 *</label>
+						<input
+							type="text"
+							class="admin-form-input"
+							id="form-name"
+							name="name"
+							required
+							placeholder="分类名称"
+						/>
+					</div>
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="form-slug">Slug *</label>
+						<input
+							type="text"
+							class="admin-form-input"
+							id="form-slug"
+							name="slug"
+							required
+							placeholder="url-friendly-identifier"
+						/>
+					</div>
+					<div class="admin-form-group" id="form-mode-group">
+						<label class="admin-form-label" for="form-mode">模式 *</label>
+						<select class="admin-form-select" id="form-mode" name="mode" required>
+							<option value="weibo">{getModeLabel('weibo')}</option>
+							<option value="forum">{getModeLabel('forum')}</option>
+							<option value="blog">{getModeLabel('blog')}</option>
+						</select>
+					</div>
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="form-parentId">父分类</label>
+						<select class="admin-form-select" id="form-parentId" name="parentId">
+							<option value="">— 无（一级分组）—</option>
+							{
+								parentOptions.map((p) => (
+									<option value={p.id} data-mode={p.mode}>
+										{p.icon ? `${p.icon} ` : ''}
+										{p.name} ({p.mode})
+									</option>
+								))
+							}
+						</select>
+					</div>
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="form-icon">图标</label>
+						<input
+							type="text"
+							class="admin-form-input"
+							id="form-icon"
+							name="icon"
+							placeholder="emoji 或图标名"
+						/>
+					</div>
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="form-sortOrder">排序</label>
+						<input
+							type="number"
+							class="admin-form-input"
+							id="form-sortOrder"
+							name="sortOrder"
+							value="0"
+							min="0"
+						/>
+					</div>
+					<div class="admin-form-group admin-form-group-full">
+						<label class="admin-form-label" for="form-description">描述</label>
+						<textarea
+							class="admin-form-textarea"
+							id="form-description"
+							name="description"
+							placeholder="分类描述（可选）"></textarea>
+					</div>
 				</div>
-				<div class="admin-form-group">
-					<label class="admin-form-label" for="form-slug">Slug *</label>
-					<input
-						type="text"
-						class="admin-form-input"
-						id="form-slug"
-						name="slug"
-						required
-						placeholder="url-friendly-identifier"
-					/>
+				<div class="admin-modal-actions">
+					<button type="submit" class="admin-btn admin-btn-primary" id="form-submit">
+						创建分类
+					</button>
+					<button type="button" class="admin-btn" id="form-cancel">取消</button>
 				</div>
-				<div class="admin-form-group" id="form-mode-group">
-					<label class="admin-form-label" for="form-mode">模式 *</label>
-					<select class="admin-form-select" id="form-mode" name="mode" required>
-						<option value="weibo">{getModeLabel('weibo')}</option>
-						<option value="forum">{getModeLabel('forum')}</option>
-						<option value="blog">{getModeLabel('blog')}</option>
-					</select>
-				</div>
-				<div class="admin-form-group">
-					<label class="admin-form-label" for="form-parentId">父分类</label>
-					<select class="admin-form-select" id="form-parentId" name="parentId">
-						<option value="">— 无（一级分组）—</option>
-						{
-							parentOptions.map((p) => (
-								<option value={p.id} data-mode={p.mode}>
-									{p.icon ? `${p.icon} ` : ''}
-									{p.name} ({p.mode})
-								</option>
-							))
-						}
-					</select>
-				</div>
-				<div class="admin-form-group">
-					<label class="admin-form-label" for="form-icon">图标</label>
-					<input
-						type="text"
-						class="admin-form-input"
-						id="form-icon"
-						name="icon"
-						placeholder="emoji 或图标名"
-					/>
-				</div>
-				<div class="admin-form-group">
-					<label class="admin-form-label" for="form-sortOrder">排序</label>
-					<input
-						type="number"
-						class="admin-form-input"
-						id="form-sortOrder"
-						name="sortOrder"
-						value="0"
-						min="0"
-					/>
-				</div>
-				<div class="admin-form-group admin-form-group-full">
-					<label class="admin-form-label" for="form-description">描述</label>
-					<textarea
-						class="admin-form-textarea"
-						id="form-description"
-						name="description"
-						placeholder="分类描述（可选）"></textarea>
-				</div>
-			</div>
-			<div class="admin-modal-actions">
-				<button type="submit" class="admin-btn admin-btn-primary" id="form-submit">
-					创建分类
-				</button>
-				<button type="button" class="admin-btn" id="form-cancel">取消</button>
-			</div>
-		</form>
-	</dialog>
+			</form>
+		</dialog>
 
-	<!-- 分类列表 -->
-	<div class="admin-table-wrapper">
-		<table class="admin-table">
-			<thead>
-				<tr>
-					<th>名称</th>
-					<th>Slug</th>
-					<th>模式</th>
-					<th>帖子数</th>
-					<th>排序</th>
-					<th>操作</th>
-				</tr>
-			</thead>
-			<tbody>
-				{
-					serializedTree.map((parent) => (
-						<Fragment>
-							<tr data-category-id={parent.id} data-is-parent="true">
-								<td>
-									<span class="admin-category-indent">
-										{parent.icon && <span>{parent.icon}</span>}
-										<strong>{parent.name}</strong>
-									</span>
-								</td>
-								<td>
-									<code class="admin-id-cell">{parent.slug}</code>
-								</td>
-								<td>
-									<span
-										class={`admin-category-mode-badge admin-category-mode-${parent.mode}`}
-									>
-										{parent.mode}
-									</span>
-								</td>
-								<td>{parent.postCount}</td>
-								<td>{parent.sortOrder}</td>
-								<td>
-									<div class="admin-actions">
-										<button
-											type="button"
-											class="admin-btn-sm admin-btn-sm-primary"
-											data-action="edit"
-											data-id={parent.id}
-											data-name={parent.name}
-											data-slug={parent.slug}
-											data-mode={parent.mode}
-											data-parent-id={parent.parentId || ''}
-											data-description={parent.description}
-											data-icon={parent.icon}
-											data-sort-order={String(parent.sortOrder)}
-										>
-											编辑
-										</button>
-										<button
-											type="button"
-											class="admin-btn-sm"
-											data-action="move-up"
-											data-id={parent.id}
-										>
-											↑
-										</button>
-										<button
-											type="button"
-											class="admin-btn-sm"
-											data-action="move-down"
-											data-id={parent.id}
-										>
-											↓
-										</button>
-										<button
-											type="button"
-											class="admin-btn-sm admin-btn-sm-danger"
-											data-action="delete"
-											data-id={parent.id}
-											data-name={parent.name}
-											data-child-count={String(parent.childCount)}
-											data-post-count={String(parent.postCount)}
-										>
-											删除
-										</button>
-									</div>
-								</td>
-							</tr>
-							{parent.children.map((child) => (
-								<tr class="admin-category-child" data-category-id={child.id}>
+		<!-- 分类列表 -->
+		<div class="admin-table-wrapper">
+			<table class="admin-table">
+				<thead>
+					<tr>
+						<th>名称</th>
+						<th>Slug</th>
+						<th>模式</th>
+						<th>帖子数</th>
+						<th>排序</th>
+						<th>操作</th>
+					</tr>
+				</thead>
+				<tbody>
+					{
+						serializedTree.map((parent) => (
+							<Fragment>
+								<tr data-category-id={parent.id} data-is-parent="true">
 									<td>
 										<span class="admin-category-indent">
-											<span style="color: var(--color-muted)">└</span>
-											{child.icon && <span>{child.icon}</span>}
-											<span>{child.name}</span>
+											{parent.icon && <span>{parent.icon}</span>}
+											<strong>{parent.name}</strong>
 										</span>
 									</td>
 									<td>
-										<code class="admin-id-cell">{child.slug}</code>
+										<code class="admin-id-cell">{parent.slug}</code>
 									</td>
 									<td>
 										<span
-											class={`admin-category-mode-badge admin-category-mode-${child.mode}`}
+											class={`admin-category-mode-badge admin-category-mode-${parent.mode}`}
 										>
-											{child.mode}
+											{parent.mode}
 										</span>
 									</td>
-									<td>{child.postCount}</td>
-									<td>{child.sortOrder}</td>
+									<td>{parent.postCount}</td>
+									<td>{parent.sortOrder}</td>
 									<td>
 										<div class="admin-actions">
 											<button
 												type="button"
 												class="admin-btn-sm admin-btn-sm-primary"
 												data-action="edit"
-												data-id={child.id}
-												data-name={child.name}
-												data-slug={child.slug}
-												data-mode={child.mode}
-												data-parent-id={child.parentId || ''}
-												data-description={child.description}
-												data-icon={child.icon}
-												data-sort-order={String(child.sortOrder)}
+												data-id={parent.id}
+												data-name={parent.name}
+												data-slug={parent.slug}
+												data-mode={parent.mode}
+												data-parent-id={parent.parentId || ''}
+												data-description={parent.description}
+												data-icon={parent.icon}
+												data-sort-order={String(parent.sortOrder)}
 											>
 												编辑
 											</button>
 											<button
 												type="button"
+												class="admin-btn-sm"
+												data-action="move-up"
+												data-id={parent.id}
+											>
+												↑
+											</button>
+											<button
+												type="button"
+												class="admin-btn-sm"
+												data-action="move-down"
+												data-id={parent.id}
+											>
+												↓
+											</button>
+											<button
+												type="button"
 												class="admin-btn-sm admin-btn-sm-danger"
 												data-action="delete"
-												data-id={child.id}
-												data-name={child.name}
-												data-child-count="0"
-												data-post-count={String(child.postCount)}
+												data-id={parent.id}
+												data-name={parent.name}
+												data-child-count={String(parent.childCount)}
+												data-post-count={String(parent.postCount)}
 											>
 												删除
 											</button>
 										</div>
 									</td>
 								</tr>
-							))}
-						</Fragment>
-					))
-				}
-				{
-					!hasCategories && (
-						<tr>
-							<td colspan="6" class="admin-empty-cell">
-								暂无分类，请使用上方表单创建
-							</td>
-						</tr>
-					)
-				}
-			</tbody>
-		</table>
-	</div>
+								{parent.children.map((child) => (
+									<tr class="admin-category-child" data-category-id={child.id}>
+										<td>
+											<span class="admin-category-indent">
+												<span style="color: var(--color-muted)">└</span>
+												{child.icon && <span>{child.icon}</span>}
+												<span>{child.name}</span>
+											</span>
+										</td>
+										<td>
+											<code class="admin-id-cell">{child.slug}</code>
+										</td>
+										<td>
+											<span
+												class={`admin-category-mode-badge admin-category-mode-${child.mode}`}
+											>
+												{child.mode}
+											</span>
+										</td>
+										<td>{child.postCount}</td>
+										<td>{child.sortOrder}</td>
+										<td>
+											<div class="admin-actions">
+												<button
+													type="button"
+													class="admin-btn-sm admin-btn-sm-primary"
+													data-action="edit"
+													data-id={child.id}
+													data-name={child.name}
+													data-slug={child.slug}
+													data-mode={child.mode}
+													data-parent-id={child.parentId || ''}
+													data-description={child.description}
+													data-icon={child.icon}
+													data-sort-order={String(child.sortOrder)}
+												>
+													编辑
+												</button>
+												<button
+													type="button"
+													class="admin-btn-sm admin-btn-sm-danger"
+													data-action="delete"
+													data-id={child.id}
+													data-name={child.name}
+													data-child-count="0"
+													data-post-count={String(child.postCount)}
+												>
+													删除
+												</button>
+											</div>
+										</td>
+									</tr>
+								))}
+							</Fragment>
+						))
+					}
+					{
+						!hasCategories && (
+							<tr>
+								<td colspan="6" class="admin-empty-cell">
+									暂无分类，请使用上方表单创建
+								</td>
+							</tr>
+						)
+					}
+				</tbody>
+			</table>
+		</div>
+	</section>
 </AdminLayout>
 
 <style>
