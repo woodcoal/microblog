@@ -450,6 +450,18 @@
 	margin-top: var(--spacing-1);
 }
 
+.search-result-groups {
+	display: grid;
+	gap: var(--spacing-6);
+}
+
+.search-result-group-title {
+	margin: 0;
+	padding-bottom: var(--spacing-2);
+	border-bottom: 1px solid var(--color-border);
+	font-size: 0.875rem;
+}
+
 .search-result-item {
 	display: grid;
 	grid-template-columns: 4.875rem minmax(0, 1fr);

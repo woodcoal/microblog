@@ -5,7 +5,7 @@
  * 服务端渲染搜索结果，支持帖子/用户标签页切换和游标分页。
  * 标签页切换和分页均通过 URL 参数实现，无需客户端 JS。
  *
- * @prop tab - 当前标签页（posts 或 users）
+ * @prop tab - 当前标签页（all、posts 或 users）
  * @prop query - 搜索关键词
  * @prop posts - 帖子搜索结果列表
  * @prop nextPostsCursor - 帖子分页游标（null 表示无更多）
@@ -77,7 +77,7 @@ interface UserResult {
 }
 
 interface Props {
-	tab: 'posts' | 'users';
+	tab: 'all' | 'posts' | 'users';
 	query: string;
 	sort: 'latest' | 'popular';
 	modeFilter?: string;
@@ -102,7 +102,9 @@ const {
 } = Astro.props as Props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
-const isPostsTab = tab === 'posts';
+const showPosts = tab !== 'users';
+const showUsers = tab !== 'posts';
+const isAllTab = tab === 'all';
 const hasNoQuery = !query;
 const hasPosts = posts.length > 0;
 const hasMorePosts = !!nextPostsCursor;
@@ -110,7 +112,8 @@ const hasUsers = users.length > 0;
 const hasMoreUsers = !!nextUsersCursor;
 
 /** 构建帖子分页链接，保持所有筛选参数 */
-const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&sort=${sort}&mode=${modeFilter}${categoryIdFilter ? `&categoryId=${categoryIdFilter}` : ''}`;
+const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=${tab}&sort=${sort}&mode=${modeFilter}${categoryIdFilter ? `&categoryId=${categoryIdFilter}` : ''}`;
+const usersPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=${tab}`;
 ---
 
 {
@@ -118,93 +121,37 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 		<div class="empty-state">
 			<p>请输入搜索关键词</p>
 		</div>
-	) : isPostsTab ? (
-		<div>
-			{!hasPosts ? (
-				<div class="empty-state">
-					<p>没有找到相关帖子</p>
-				</div>
-			) : (
-				<div class="search-result-list">
-					{posts.map((post) => {
-						// 服务端渲染 Markdown 内容，并对搜索关键词高亮
-						const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
-						const relativeTime = formatRelativeTime(new Date(post.createdAt));
-						const isPinned = post.isPinned || post.isGlobalPinned;
-						// 模式标签
-						const postMode = post.mode || 'weibo';
-						const isForum = postMode === 'forum';
-						const isBlog = postMode === 'blog';
-						const hasTitle = !!post.title;
-						const modeLabel = isForum
-							? getModeLabel('forum')
-							: isBlog
-								? getModeLabel('blog')
-								: null;
-
-						const resultTitle = hasTitle ? post.title : post.content.slice(0, 50);
-						const kind = modeLabel || getModeLabel('weibo');
-
-						return (
-							<article class="search-result-item">
-								<span class="search-result-kind">{kind}</span>
-								<div class="search-result-content">
-									<h2>
-										<a href={`/${post.user.username}/${post.id}`}>{resultTitle}</a>
-									</h2>
-									<div class="search-result-excerpt" set:html={htmlContent} />
-									<p class="search-result-meta">
-										{post.user.displayName} · {kind} · {post.likeCount} 赞 · {relativeTime}
-										{isPinned && ' · 已置顶'}
-									</p>
-								</div>
-							</article>
-						);
-					})}
-
-					{hasMorePosts && (
-						<a
-							href={`${postsPaginationBase}&cursor=${nextPostsCursor}`}
-							class="btn btn-outline load-more-btn"
-						>
-							加载更多
-						</a>
-					)}
-				</div>
-			)}
-		</div>
 	) : (
-		<div>
-			{!hasUsers ? (
-				<div class="empty-state">
-					<p>没有找到相关用户</p>
-				</div>
-			) : (
-				<div class="search-result-list">
-					{users.map((user) => {
-						const hasBio = !!user.bio;
-
-						return (
-							<article class="search-result-item">
-								<span class="search-result-kind">用户</span>
-								<div class="search-result-content">
-									<h2><a href={`/${user.username}`}>{user.displayName}</a></h2>
-									{hasBio && <p class="search-result-excerpt" set:html={highlightKeyword(escapeHtml(user.bio), query)} />}
-									<p class="search-result-meta">@{user.username} · {user.followerCount} 粉丝 · 已发布 {user.postCount} 条内容</p>
-								</div>
-							</article>
-						);
-					})}
-
-					{hasMoreUsers && (
-						<a
-							href={`/search?q=${encodeURIComponent(query)}&tab=users&cursor=${nextUsersCursor}`}
-							class="btn btn-outline load-more-btn"
-						>
-							加载更多
-						</a>
+		<div class="search-result-groups">
+			{showPosts && (
+				<section class="search-result-group" aria-labelledby={isAllTab ? 'search-post-results' : undefined}>
+					{isAllTab && <h2 id="search-post-results" class="search-result-group-title">内容</h2>}
+					{!hasPosts ? <div class="empty-state"><p>没有找到相关帖子</p></div> : (
+						<div class="search-result-list">
+							{posts.map((post) => {
+								const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
+								const relativeTime = formatRelativeTime(new Date(post.createdAt));
+								const isPinned = post.isPinned || post.isGlobalPinned;
+								const postMode = post.mode || 'weibo';
+								const modeLabel = postMode === 'forum' ? getModeLabel('forum') : postMode === 'blog' ? getModeLabel('blog') : null;
+								const kind = modeLabel || getModeLabel('weibo');
+								return <article class="search-result-item"><span class="search-result-kind">{kind}</span><div class="search-result-content"><h2><a href={`/${post.user.username}/${post.id}`}>{post.title || post.content.slice(0, 50)}</a></h2><div class="search-result-excerpt" set:html={htmlContent} /><p class="search-result-meta">{post.user.displayName} · {kind} · {post.likeCount} 赞 · {relativeTime}{isPinned && ' · 已置顶'}</p></div></article>;
+							})}
+							{hasMorePosts && <a href={`${postsPaginationBase}&cursor=${nextPostsCursor}`} class="btn btn-outline load-more-btn">加载更多</a>}
+						</div>
 					)}
-				</div>
+				</section>
+			)}
+			{showUsers && (
+				<section class="search-result-group" aria-labelledby={isAllTab ? 'search-user-results' : undefined}>
+					{isAllTab && <h2 id="search-user-results" class="search-result-group-title">用户</h2>}
+					{!hasUsers ? <div class="empty-state"><p>没有找到相关用户</p></div> : (
+						<div class="search-result-list">
+							{users.map((user) => <article class="search-result-item"><span class="search-result-kind">用户</span><div class="search-result-content"><h2><a href={`/${user.username}`}>{user.displayName}</a></h2>{user.bio && <p class="search-result-excerpt" set:html={highlightKeyword(escapeHtml(user.bio), query)} />}<p class="search-result-meta">@{user.username} · {user.followerCount} 粉丝 · 已发布 {user.postCount} 条内容</p></div></article>)}
+							{hasMoreUsers && <a href={`${usersPaginationBase}&cursor=${nextUsersCursor}`} class="btn btn-outline load-more-btn">加载更多</a>}
+						</div>
+					)}
+				</section>
 			)}
 		</div>
 	)

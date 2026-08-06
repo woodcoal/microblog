@@ -42,7 +42,8 @@ interface UserResult {
 
 // 解析 URL 参数
 const q = Astro.url.searchParams.get('q')?.trim() || '';
-const tab = Astro.url.searchParams.get('tab') === 'users' ? 'users' : 'posts';
+const tabParam = Astro.url.searchParams.get('tab');
+const tab = tabParam === 'users' ? 'users' : tabParam === 'posts' ? 'posts' : 'all';
 const cursor = Astro.url.searchParams.get('cursor') || '';
 // 排序方式：latest=按时间倒序（默认），popular=按点赞数倒序再按时间倒序
 const sort = Astro.url.searchParams.get('sort') === 'popular' ? 'popular' : 'latest';
@@ -71,7 +72,7 @@ let users: UserResult[] = [];
 let nextUsersCursor: string | null = null;
 
 if (q) {
-	if (tab === 'posts') {
+	if (tab !== 'users') {
 		// 查询帖子搜索结果
 		const where = {
 			visibility: 'public',
@@ -154,7 +155,9 @@ if (q) {
 				name: pt.tag.name
 			}))
 		}));
-	} else {
+	}
+
+	if (tab !== 'posts') {
 		// 查询用户搜索结果
 		const where = {
 			isDisabled: false,
@@ -204,6 +207,7 @@ if (q) {
 }
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+const isAllTab = tab === 'all';
 const isPostsTab = tab === 'posts';
 const isUsersTab = tab === 'users';
 const isModeAll = modeFilter === 'all';
@@ -257,8 +261,8 @@ function buildSearchUrl(params: {
 		<!-- 标签页切换 -->
 		<div class="search-tabs">
 			<a
-				href={buildSearchUrl({ tab: 'posts', mode: 'all', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeAll }]}
+					href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
 			>
 				综合
 			</a>
@@ -316,6 +320,7 @@ function buildSearchUrl(params: {
 		color: var(--color-muted);
 		text-decoration: none;
 		border-bottom: 2px solid transparent;
+		border-radius: 0;
 		margin-bottom: -1px;
 		transition:
 			color 0.2s,

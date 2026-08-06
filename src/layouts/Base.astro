@@ -28,6 +28,7 @@ import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
+import SearchSuggest from '@/components/SearchSuggest.astro';
 
 // 导入设计令牌、全局样式和组件样式
 import '@/styles/tokens.css';
@@ -112,6 +113,18 @@ const hasUnread = unreadCount > 0;
 
 // 当前路径，用于侧栏高亮
 const currentPath = Astro.url.pathname;
+const globalSearchMode = currentPath.startsWith('/forum')
+	? 'forum'
+	: currentPath.startsWith('/blog')
+		? 'blog'
+		: currentPath.startsWith('/weibo') ||
+				  currentPath.startsWith('/latest') ||
+				  currentPath.startsWith('/tags') ||
+				  currentPath.startsWith('/bookmarks')
+			? 'weibo'
+			: 'all';
+const globalSearchPlaceholder =
+	globalSearchMode === 'all' ? '搜索睦谈' : `搜索${getModeLabel(globalSearchMode)}`;
 const uxShell = narrow
 	? 'account'
 	: currentPath === '/'
@@ -291,14 +304,15 @@ const resolvedOgType = ogType || 'website';
 						!currentPath.startsWith('/search') && (
 							<form class="nav-search-form" action="/search" method="GET" role="search">
 								<label class="sr-only" for="global-search-input">搜索睦谈</label>
-								<span class="nav-search-icon" aria-hidden="true">⌕</span>
+								{globalSearchMode !== 'all' && <input type="hidden" name="mode" value={globalSearchMode} />}
 								<input
 									id="global-search-input"
 									class="nav-search-input"
 									type="search"
 									name="q"
-									placeholder="搜索睦谈"
+									placeholder={globalSearchPlaceholder}
 								/>
+								<SearchSuggest inputId="global-search-input" mode={globalSearchMode} />
 							</form>
 						)
 					}
