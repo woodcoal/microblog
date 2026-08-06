@@ -16,6 +16,7 @@
 import { renderMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
+import { escapeHtml } from '@/lib/html';
 
 /**
  * 对 HTML 内容中的关键词包裹高亮标记
@@ -280,7 +281,7 @@ const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=posts&so
 											{hasBio && (
 												<p
 													class="user-card-bio"
-													set:html={highlightKeyword(user.bio, query)}
+													set:html={highlightKeyword(escapeHtml(user.bio), query)}
 												/>
 											)}
 											<div class="user-card-stats">

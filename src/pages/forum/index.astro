@@ -8,6 +8,7 @@
  * 已登录用户可在页面标题区域点击"发帖"按钮。
  */
 import ForumLayout from '@/layouts/ForumLayout.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
@@ -44,6 +45,16 @@ const groups = await prisma.category.findMany({
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasGroups = groups.length > 0;
+const discoveryItems = groups
+	.flatMap((group) =>
+		group.children.map((category) => ({
+			title: category.name,
+			href: `/forum/${category.slug}`,
+			meta: `${category._count.posts} 个主题`,
+			icon: category.icon || undefined
+		}))
+	)
+	.slice(0, 5);
 ---
 
 <ForumLayout title={getModeLabel('forum')}>
@@ -135,6 +146,12 @@ const hasGroups = groups.length > 0;
 			)
 		}
 	</section>
+	<ChannelAside
+		slot="aside"
+		title="常用版块"
+		description="按主题进入讨论，回复数与帖子内容保持独立可读。"
+		items={discoveryItems}
+	/>
 </ForumLayout>
 
 <style>

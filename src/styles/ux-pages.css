@@ -40,6 +40,70 @@
 	line-height: 1.65;
 }
 
+/* 列表页辅助发现区：只在宽屏展示，使用边框与排版而非额外品牌色分层。 */
+.channel-aside {
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-card-bg);
+}
+
+.channel-aside-title {
+	margin: 0;
+	font-size: 0.875rem;
+	letter-spacing: -0.015em;
+}
+
+.channel-aside-description,
+.channel-aside-empty {
+	margin: var(--spacing-2) 0 0;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	line-height: 1.55;
+}
+
+.channel-aside-list {
+	margin-top: var(--spacing-3);
+	border-top: 1px solid var(--color-border);
+}
+
+.channel-aside-link {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--spacing-2);
+	min-height: 48px;
+	padding: var(--spacing-3) 0;
+	border-bottom: 1px solid var(--color-border);
+	color: var(--color-text);
+}
+
+.channel-aside-link:hover {
+	color: var(--color-primary);
+}
+
+.channel-aside-icon {
+	flex: 0 0 auto;
+	line-height: 1.4;
+}
+
+.channel-aside-copy {
+	display: grid;
+	min-width: 0;
+}
+
+.channel-aside-item-title {
+	font-size: 0.875rem;
+	font-weight: 600;
+	line-height: 1.4;
+}
+
+.channel-aside-meta {
+	margin-top: 0.125rem;
+	color: var(--color-muted);
+	font-size: 0.75rem;
+	line-height: 1.45;
+}
+
 /* weibo-a 与 profile-a：连续、克制的信息流 */
 [data-ux-shell='weibo'] .post-list,
 [data-ux-shell='connections'] .post-list,

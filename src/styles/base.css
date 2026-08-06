@@ -450,6 +450,32 @@ body[data-ux-shell='home'] .navbar-inner {
 	min-width: 0;
 }
 
+/* 列表页可选择接入真实数据的发现侧栏；详情和账户页不传入 aside 时维持原布局。 */
+.layout-wide-with-aside {
+	max-width: var(--layout-home);
+	grid-template-columns: var(--layout-sidebar-width) minmax(0, var(--layout-content)) minmax(220px, 272px);
+	justify-content: center;
+}
+
+.layout-content-with-aside {
+	max-width: 1120px;
+	display: grid;
+	grid-template-columns: minmax(0, var(--layout-content)) minmax(220px, 272px);
+	justify-content: center;
+	gap: clamp(var(--spacing-5), 3vw, var(--spacing-8));
+}
+
+.layout-content-main,
+.layout-discovery-sidebar {
+	min-width: 0;
+}
+
+.layout-discovery-sidebar {
+	position: sticky;
+	top: calc(var(--navbar-height) + var(--spacing-6));
+	height: fit-content;
+}
+
 /* ===== 桌面侧栏导航项 ===== */
 .sidebar-link {
 	display: flex;
@@ -1203,6 +1229,20 @@ mark.search-highlight {
 		max-width: none;
 	}
 
+	.layout-wide-with-aside {
+		grid-template-columns: var(--layout-sidebar-collapsed) minmax(0, 1fr);
+	}
+
+	.layout-content-with-aside {
+		display: block;
+		max-width: var(--layout-content);
+	}
+
+	.layout-wide-with-aside .layout-discovery-sidebar,
+	.layout-content-with-aside .layout-discovery-sidebar {
+		display: none;
+	}
+
 	.sidebar-link {
 		justify-content: center;
 		padding: var(--spacing-2);
@@ -1232,6 +1272,14 @@ mark.search-highlight {
 
 	.layout-wide {
 		grid-template-columns: 1fr;
+	}
+
+	.layout-content-with-aside {
+		display: block;
+	}
+
+	.layout-discovery-sidebar {
+		display: none;
 	}
 
 	.layout-sidebar {
