@@ -271,12 +271,50 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		}
 	</section>
 
-	{/* 猜你喜欢 - 本地热门推荐 */}
+	{/* 为登录用户提供独立状态的帖子与用户推荐。 */}
 	{
 		canShowRecommendations && (
-			<section class="recommend-section" id="recommend-section" style="display:none">
-				<h2 class="recommend-title">猜你喜欢</h2>
-				<div class="recommend-list" id="recommend-list" />
+			<section class="recommend-section" aria-labelledby="recommend-title">
+				<div class="recommend-section-header">
+					<div>
+						<p class="home-eyebrow">为你推荐</p>
+						<h2 id="recommend-title">发现值得关注的内容与创作者</h2>
+					</div>
+				</div>
+				<div class="recommend-grid">
+					<section
+						class="recommend-panel"
+						id="recommend-posts-panel"
+						aria-labelledby="recommend-posts-title"
+					>
+						<h3 id="recommend-posts-title">推荐帖子</h3>
+						<div
+							class="recommend-status"
+							id="recommend-posts-status"
+							role="status"
+							aria-live="polite"
+						>
+							正在加载推荐帖子…
+						</div>
+						<div class="recommend-list" id="recommend-posts-list" />
+					</section>
+					<section
+						class="recommend-panel"
+						id="recommend-users-panel"
+						aria-labelledby="recommend-users-title"
+					>
+						<h3 id="recommend-users-title">推荐用户</h3>
+						<div
+							class="recommend-status"
+							id="recommend-users-status"
+							role="status"
+							aria-live="polite"
+						>
+							正在加载推荐用户…
+						</div>
+						<div class="recommend-user-list" id="recommend-users-list" />
+					</section>
+				</div>
 			</section>
 		)
 	}
@@ -494,17 +532,48 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		font-size: 0.875rem;
 	}
 
-	/* 猜你喜欢 - 个性化推荐区域样式 */
+	/* 登录后的个性化推荐区域与首页内容轴对齐。 */
 	.recommend-section {
-		margin-top: 2rem;
-		padding-top: 1.5rem;
+		margin-top: var(--spacing-10);
+		padding-top: var(--spacing-8);
 		border-top: 1px solid var(--color-border);
 	}
-	.recommend-title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		margin-bottom: 1rem;
-		color: var(--color-text);
+	.recommend-section-header {
+		margin-bottom: var(--spacing-5);
+	}
+	.recommend-section-header h2 {
+		font-size: 1.5625rem;
+		font-weight: 800;
+		letter-spacing: -0.04em;
+	}
+	.recommend-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+		gap: var(--spacing-5);
+		align-items: start;
+	}
+	.recommend-panel {
+		min-width: 0;
+		padding: var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-card-bg);
+	}
+	.recommend-panel h3 {
+		margin-bottom: var(--spacing-4);
+		font-size: 1rem;
+		font-weight: 800;
+	}
+	.recommend-status {
+		color: var(--color-muted);
+		font-size: 0.875rem;
+		line-height: 1.6;
+	}
+	.recommend-status:empty {
+		display: none;
+	}
+	.recommend-retry {
+		margin-top: var(--spacing-3);
 	}
 	.recommend-list {
 		display: flex;
@@ -561,6 +630,83 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		color: var(--color-muted);
 		margin-top: 0.125rem;
 	}
+	.recommend-user-list {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3);
+	}
+	.recommend-user-card {
+		display: grid;
+		grid-template-columns: 44px minmax(0, 1fr) auto;
+		gap: var(--spacing-3);
+		align-items: start;
+		padding-block: var(--spacing-3);
+		border-top: 1px solid var(--color-border);
+	}
+	.recommend-user-card:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	.recommend-user-avatar,
+	.recommend-user-avatar-placeholder {
+		display: grid;
+		place-items: center;
+		width: 44px;
+		height: 44px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: #fff;
+		font-size: 0.875rem;
+		font-weight: 700;
+		object-fit: cover;
+	}
+	.recommend-user-copy {
+		min-width: 0;
+	}
+	.recommend-user-name {
+		display: block;
+		overflow: hidden;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 750;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.recommend-user-handle,
+	.recommend-user-bio,
+	.recommend-user-social {
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		line-height: 1.45;
+	}
+	.recommend-user-handle {
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.recommend-user-bio {
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		overflow: hidden;
+	}
+	.recommend-user-social {
+		color: var(--color-primary);
+		font-weight: 650;
+	}
+	.recommend-follow-button {
+		align-self: center;
+		min-height: 36px;
+		padding-inline: var(--spacing-3);
+		font-size: 0.8125rem;
+	}
+
+	@media (max-width: 1023px) {
+		.recommend-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
 
 	@media (max-width: 767px) {
 		.home-hero {
@@ -599,76 +745,225 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		.home-feed {
 			padding-top: var(--spacing-8);
 		}
+		.recommend-section {
+			margin-top: var(--spacing-8);
+			padding-top: var(--spacing-6);
+		}
+		.recommend-panel {
+			padding: var(--spacing-4);
+		}
 	}
 </style>
 
 <script>
 	import { actions } from 'astro:actions';
+	import type { RecommendItem, RecommendUserItem } from '@/services/recommend.service';
 
-	/**
-	 * 个性化推荐加载逻辑
-	 *
-	 * 页面加载后通过 Astro Actions 获取推荐帖子，
-	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
-	 * 仅在推荐区域存在时执行（登录用户）。
-	 */
+	/** 仅在已登录用户的推荐区域存在时加载两个独立数据源。 */
 	(async () => {
-		const section = document.getElementById('recommend-section');
-		const list = document.getElementById('recommend-list');
-		if (!section || !list) return;
-
-		const result = await actions.getRecommend({ n: 5 });
-		if (result.error || !result.data?.items?.length) {
-			// 无推荐结果或出错，不显示区域
+		const postsPanel = document.getElementById('recommend-posts-panel') as HTMLElement | null;
+		const postsList = document.getElementById('recommend-posts-list') as HTMLElement | null;
+		const postsStatus = document.getElementById('recommend-posts-status') as HTMLElement | null;
+		const usersPanel = document.getElementById('recommend-users-panel') as HTMLElement | null;
+		const usersList = document.getElementById('recommend-users-list') as HTMLElement | null;
+		const usersStatus = document.getElementById('recommend-users-status') as HTMLElement | null;
+		if (!postsPanel || !postsList || !postsStatus || !usersPanel || !usersList || !usersStatus)
 			return;
+		const postsPanelElement: HTMLElement = postsPanel;
+		const postsListElement: HTMLElement = postsList;
+		const postsStatusElement: HTMLElement = postsStatus;
+		const usersPanelElement: HTMLElement = usersPanel;
+		const usersListElement: HTMLElement = usersList;
+		const usersStatusElement: HTMLElement = usersStatus;
+
+		function setStatus(status: HTMLElement, message = '') {
+			status.replaceChildren();
+			if (message) status.append(document.createTextNode(message));
 		}
 
-		const items = result.data.items;
-		const fragment = document.createDocumentFragment();
+		function showError(status: HTMLElement, message: string, retry: () => void) {
+			setStatus(status, message);
+			const retryButton = document.createElement('button');
+			retryButton.type = 'button';
+			retryButton.className = 'btn btn-outline recommend-retry';
+			retryButton.textContent = '重试';
+			retryButton.addEventListener('click', retry);
+			status.appendChild(retryButton);
+		}
 
-		for (const item of items) {
-			const a = document.createElement('a');
-			a.href = `/${item.user.username}/${item.id}`;
-			a.className = 'recommend-item';
+		function renderPosts(items: RecommendItem[]) {
+			const fragment = document.createDocumentFragment();
+			for (const item of items) {
+				const a = document.createElement('a');
+				a.href = `/${item.user.username}/${item.id}`;
+				a.className = 'recommend-item';
 
-			// 头像
-			if (item.user.avatarUrl) {
-				const img = document.createElement('img');
-				img.src = item.user.avatarUrl;
-				img.alt = item.user.displayName;
-				img.className = 'recommend-item-avatar';
-				img.loading = 'lazy';
-				a.appendChild(img);
-			} else {
-				const span = document.createElement('span');
-				span.className = 'recommend-item-avatar-placeholder';
-				span.textContent = item.user.displayName.charAt(0).toUpperCase();
-				a.appendChild(span);
+				// 头像
+				if (item.user.avatarUrl) {
+					const img = document.createElement('img');
+					img.src = item.user.avatarUrl;
+					img.alt = item.user.displayName;
+					img.className = 'recommend-item-avatar';
+					img.loading = 'lazy';
+					a.appendChild(img);
+				} else {
+					const span = document.createElement('span');
+					span.className = 'recommend-item-avatar-placeholder';
+					span.textContent = item.user.displayName.charAt(0).toUpperCase();
+					a.appendChild(span);
+				}
+
+				// 内容区
+				const contentDiv = document.createElement('div');
+				contentDiv.className = 'recommend-item-content';
+
+				const titleDiv = document.createElement('div');
+				titleDiv.className = 'recommend-item-title';
+				// 有标题用标题，否则用内容前 80 字符
+				titleDiv.textContent =
+					item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
+
+				const metaDiv = document.createElement('div');
+				metaDiv.className = 'recommend-item-meta';
+				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+				metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+				contentDiv.appendChild(titleDiv);
+				contentDiv.appendChild(metaDiv);
+				a.appendChild(contentDiv);
+				fragment.appendChild(a);
 			}
-
-			// 内容区
-			const contentDiv = document.createElement('div');
-			contentDiv.className = 'recommend-item-content';
-
-			const titleDiv = document.createElement('div');
-			titleDiv.className = 'recommend-item-title';
-			// 有标题用标题，否则用内容前 80 字符
-			titleDiv.textContent =
-				item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
-
-			const metaDiv = document.createElement('div');
-			metaDiv.className = 'recommend-item-meta';
-			const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
-			const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-			metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
-
-			contentDiv.appendChild(titleDiv);
-			contentDiv.appendChild(metaDiv);
-			a.appendChild(contentDiv);
-			fragment.appendChild(a);
+			postsListElement.replaceChildren(fragment);
 		}
 
-		list.appendChild(fragment);
-		section.style.display = '';
+		function renderUsers(items: RecommendUserItem[]) {
+			const fragment = document.createDocumentFragment();
+			for (const item of items) {
+				const card = document.createElement('article');
+				card.className = 'recommend-user-card';
+
+				const profileUrl = `/${item.username}`;
+				if (item.avatarUrl) {
+					const avatarLink = document.createElement('a');
+					avatarLink.href = profileUrl;
+					const avatar = document.createElement('img');
+					avatar.src = item.avatarUrl;
+					avatar.alt = `${item.displayName} 的头像`;
+					avatar.className = 'recommend-user-avatar';
+					avatar.loading = 'lazy';
+					avatarLink.appendChild(avatar);
+					card.appendChild(avatarLink);
+				} else {
+					const avatarLink = document.createElement('a');
+					avatarLink.href = profileUrl;
+					avatarLink.className = 'recommend-user-avatar-placeholder';
+					avatarLink.setAttribute('aria-label', `查看 ${item.displayName} 的主页`);
+					avatarLink.textContent = item.displayName.charAt(0).toUpperCase();
+					card.appendChild(avatarLink);
+				}
+
+				const copy = document.createElement('div');
+				copy.className = 'recommend-user-copy';
+				const name = document.createElement('a');
+				name.href = profileUrl;
+				name.className = 'recommend-user-name';
+				name.textContent = item.displayName;
+				const handle = document.createElement('p');
+				handle.className = 'recommend-user-handle';
+				handle.textContent = `@${item.username}`;
+				const bio = document.createElement('p');
+				bio.className = 'recommend-user-bio';
+				bio.textContent = item.bio || '来看看这位创作者的公开动态。';
+				const social = document.createElement('p');
+				social.className = 'recommend-user-social';
+				social.textContent =
+					item.mutualFollowCount > 0
+						? `${item.mutualFollowCount} 位共同关注`
+						: `${item.followerCount} 位关注者`;
+				copy.append(name, handle, bio, social);
+
+				const followButton = document.createElement('button');
+				followButton.type = 'button';
+				followButton.className = 'btn btn-primary recommend-follow-button';
+				followButton.textContent = '关注';
+				followButton.setAttribute('aria-label', `关注 ${item.displayName}`);
+				followButton.addEventListener('click', async () => {
+					followButton.disabled = true;
+					try {
+						const result = await actions.toggleFollow({ username: item.username });
+						if (result.data?.following) {
+							card.remove();
+							if (!usersListElement.children.length) {
+								setStatus(usersStatusElement, '暂时没有可推荐的用户');
+							}
+							return;
+						}
+					} catch {
+						// 保留候选并恢复按钮，允许用户直接重试关注。
+					} finally {
+						if (card.isConnected) {
+							followButton.disabled = false;
+							followButton.textContent = '重试关注';
+							followButton.setAttribute('aria-label', `重试关注 ${item.displayName}`);
+						}
+					}
+				});
+				card.append(copy, followButton);
+				fragment.appendChild(card);
+			}
+			usersListElement.replaceChildren(fragment);
+		}
+
+		async function loadPosts() {
+			postsPanelElement.setAttribute('aria-busy', 'true');
+			postsListElement.replaceChildren();
+			setStatus(postsStatusElement, '正在加载推荐帖子…');
+			try {
+				const result = await actions.getRecommend({ n: 5 });
+				if (result.error) {
+					showError(postsStatusElement, '推荐帖子加载失败，请稍后重试。', loadPosts);
+					return;
+				}
+				const items = result.data?.items ?? [];
+				if (!items.length) {
+					setStatus(postsStatusElement, '暂无新的内容推荐');
+					return;
+				}
+				renderPosts(items);
+				setStatus(postsStatusElement);
+			} catch {
+				showError(postsStatusElement, '推荐帖子加载失败，请稍后重试。', loadPosts);
+			} finally {
+				postsPanelElement.removeAttribute('aria-busy');
+			}
+		}
+
+		async function loadUsers() {
+			usersPanelElement.setAttribute('aria-busy', 'true');
+			usersListElement.replaceChildren();
+			setStatus(usersStatusElement, '正在加载推荐用户…');
+			try {
+				const result = await actions.getRecommendUsers({ n: 5 });
+				if (result.error) {
+					showError(usersStatusElement, '推荐用户加载失败，请稍后重试。', loadUsers);
+					return;
+				}
+				const items = result.data?.items ?? [];
+				if (!items.length) {
+					setStatus(usersStatusElement, '暂时没有可推荐的用户');
+					return;
+				}
+				renderUsers(items);
+				setStatus(usersStatusElement);
+			} catch {
+				showError(usersStatusElement, '推荐用户加载失败，请稍后重试。', loadUsers);
+			} finally {
+				usersPanelElement.removeAttribute('aria-busy');
+			}
+		}
+
+		void loadPosts();
+		void loadUsers();
 	})();
 </script>
