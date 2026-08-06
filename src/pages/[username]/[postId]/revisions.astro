@@ -79,10 +79,10 @@ const hasHistory = allVersions.length > 0;
 ---
 
 <UserLayout title="版本历史">
-	<div class="revisions-page">
+	<section class="revisions-page ux-editor-page" aria-labelledby="revisions-title">
 		<div class="revisions-header">
 			<p class="ux-eyebrow">编辑记录</p>
-			<h1 class="revisions-title">版本历史</h1>
+			<h1 class="revisions-title" id="revisions-title">版本历史</h1>
 			<a href={`/${username}/${postId}`} class="btn btn-outline">返回帖子</a>
 		</div>
 
@@ -129,11 +129,13 @@ const hasHistory = allVersions.length > 0;
 				</div>
 			)
 		}
-	</div>
+	</section>
 </UserLayout>
 
 <style>
 	.revisions-page {
+		max-width: 920px;
+		margin: 0 auto;
 		padding: 1rem 0;
 	}
 	.revisions-header {
@@ -161,5 +163,21 @@ const hasHistory = allVersions.length > 0;
 	}
 	.revisions-submit {
 		flex-shrink: 0;
+	}
+	.revisions-content {
+		padding: 1.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-card-bg);
+	}
+	@media (max-width: 767px) {
+		.revisions-header,
+		.revisions-selector {
+			align-items: stretch;
+			flex-direction: column;
+		}
+		.revisions-content {
+			padding: 1rem;
+		}
 	}
 </style>

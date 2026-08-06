@@ -67,9 +67,10 @@ interface Props {
 	comment: CommentData;
 	postId: string;
 	currentUser: CurrentUser | null;
+	floorNumber?: number;
 }
 
-const { comment, postId, currentUser } = Astro.props;
+const { comment, postId, currentUser, floorNumber } = Astro.props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasAvatar = !!comment.user.avatarUrl;
@@ -105,9 +106,10 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 				<span class="comment-item-username">@{comment.user.username}</span>
 			</div>
 		</a>
-		<time class="comment-item-time" datetime={comment.createdAt}>
-			{relativeTime}
-		</time>
+		<div class="comment-item-meta">
+			{floorNumber && <span class="comment-item-floor">#{floorNumber} 楼</span>}
+			<time class="comment-item-time" datetime={comment.createdAt}>{relativeTime}</time>
+		</div>
 	</div>
 
 	<div class="comment-item-content">

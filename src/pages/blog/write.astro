@@ -54,7 +54,11 @@ const hasCategories = categories.length > 0;
 			<div class="blog-write-toolbar-left">
 				{
 					hasCategories && (
-						<select class="form-input blog-write-select" id="blog-compose-category">
+						<select
+							class="form-input blog-write-select"
+							id="blog-compose-category"
+							aria-label="文章分类"
+						>
 							<option value="">选择分类（可选）</option>
 							{categories.map((cat) => (
 								<option value={cat.id}>
@@ -65,7 +69,11 @@ const hasCategories = categories.length > 0;
 						</select>
 					)
 				}
-				<select class="form-input blog-write-select" id="blog-compose-visibility">
+				<select
+					class="form-input blog-write-select"
+					id="blog-compose-visibility"
+					aria-label="文章可见度"
+				>
 					<option value="public">🌐 公开</option>
 					<option value="logged_in">🔐 登录用户可见</option>
 					<option value="followers">👥 粉丝可见</option>
@@ -90,12 +98,21 @@ const hasCategories = categories.length > 0;
 				id="blog-compose-title"
 				placeholder="文章标题"
 				maxlength="200"
+				aria-label="文章标题"
+				aria-describedby="blog-form-error"
 			/>
 			{/* 内容编辑区 */}
 			<BlogEditor client:load />
 		</div>
 
-		<p class="form-error" id="blog-form-error" style="display:none"></p>
+		<p
+			class="form-error"
+			id="blog-form-error"
+			role="alert"
+			aria-live="assertive"
+			style="display:none"
+		>
+		</p>
 	</section>
 </BlogLayout>
 

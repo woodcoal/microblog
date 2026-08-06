@@ -68,20 +68,30 @@ interface Props {
 	initialComments: CommentData[];
 	initialSort: 'asc' | 'desc';
 	commentCount: number;
+	presentation?: 'weibo' | 'forum' | 'blog';
 }
 
-const { postId, currentUser, initialComments, initialSort, commentCount } = Astro.props;
+const {
+	postId,
+	currentUser,
+	initialComments,
+	initialSort,
+	commentCount,
+	presentation = 'weibo'
+} = Astro.props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const isAsc = initialSort === 'asc';
 const isDesc = initialSort === 'desc';
 const hasComments = initialComments.length > 0;
 const isLoggedIn = !!currentUser;
+const commentLabel = presentation === 'forum' ? '回复' : presentation === 'blog' ? '讨论' : '评论';
+const floorStart = presentation === 'forum' ? 2 : undefined;
 ---
 
-<div class="comment-list">
+<div class={`comment-list comment-list-${presentation}`}>
 	<div class="comment-list-header">
-		<h3 class="comment-list-title">评论 ({commentCount})</h3>
+		<h3 class="comment-list-title">{commentLabel} ({commentCount})</h3>
 		<div class="comment-list-sort">
 			<button
 				type="button"
@@ -109,10 +119,15 @@ const isLoggedIn = !!currentUser;
 
 	{/* 评论列表 */}
 	<div class="comment-list-body">
-		{!hasComments && <p class="comment-list-empty">暂无评论，来说点什么吧</p>}
+		{!hasComments && <p class="comment-list-empty">暂无{commentLabel}，来说点什么吧</p>}
 		{
-			initialComments.map((comment) => (
-				<CommentItem comment={comment} postId={postId} currentUser={currentUser} />
+			initialComments.map((comment, index) => (
+				<CommentItem
+					comment={comment}
+					postId={postId}
+					currentUser={currentUser}
+					floorNumber={floorStart ? floorStart + index : undefined}
+				/>
 			))
 		}
 	</div>
