@@ -68,9 +68,10 @@ interface Props {
 	postId: string;
 	currentUser: CurrentUser | null;
 	floorNumber?: number;
+	presentation?: 'weibo' | 'forum' | 'blog';
 }
 
-const { comment, postId, currentUser, floorNumber } = Astro.props;
+const { comment, postId, currentUser, floorNumber, presentation = 'weibo' } = Astro.props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasAvatar = !!comment.user.avatarUrl;
@@ -80,6 +81,7 @@ const isTopLevel = !comment.parentId;
 const canReply = isTopLevel && !!currentUser;
 const hasReplies = comment.replies && comment.replies.length > 0;
 const relativeTime = formatRelativeTime(new Date(comment.createdAt));
+const usesTextActions = presentation === 'forum' || presentation === 'blog';
 
 // 渲染评论内容（非删除状态时渲染 Markdown）
 const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
@@ -130,6 +132,7 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 					commentId={comment.id}
 					initialLiked={comment.liked}
 					initialLikeCount={comment.likeCount}
+					textOnly={usesTextActions}
 				/>
 
 				{/* 回复按钮（仅一级评论且已登录时显示） */}
@@ -227,6 +230,7 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 										commentId={reply.id}
 										initialLiked={reply.liked}
 										initialLikeCount={reply.likeCount}
+										textOnly={usesTextActions}
 									/>
 									{replyIsAuthor && (
 										<button
