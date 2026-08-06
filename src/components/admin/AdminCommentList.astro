@@ -62,6 +62,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		name="search"
 		value={search}
 		placeholder="搜索评论内容..."
+		aria-label="搜索评论内容"
 	/>
 	<button type="submit" class="btn btn-primary"> 搜索 </button>
 </form>
@@ -119,6 +120,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 									type="checkbox"
 									class="batch-checkbox"
 									data-id={comment.id}
+									aria-label={`选择评论 ${comment.id}`}
 								/>
 							</td>
 							<td class="admin-id-cell">

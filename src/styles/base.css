@@ -57,6 +57,25 @@ a:hover {
 	outline-offset: 2px;
 }
 
+.skip-link {
+	position: fixed;
+	top: var(--spacing-2);
+	left: var(--spacing-2);
+	z-index: calc(var(--z-navbar) + 1);
+	padding: var(--spacing-2) var(--spacing-3);
+	border-radius: var(--radius-md);
+	background: var(--color-primary);
+	color: #fff;
+	font-weight: 700;
+	transform: translateY(-200%);
+	transition: transform var(--transition-fast);
+}
+
+.skip-link:focus-visible {
+	transform: translateY(0);
+	color: #fff;
+}
+
 img {
 	max-width: 100%;
 	height: auto;
@@ -1249,11 +1268,6 @@ mark.search-highlight {
 	/* 移动端隐藏顶部频道导航（hamburger 面板内已有频道链接） */
 	.nav-mode-links {
 		display: none;
-	}
-
-	/* 移动端隐藏主题切换（hamburger 面板只保留导航菜单） */
-	.navbar-actions .theme-switcher {
-		display: none !important;
 	}
 
 	/* 移动端登录/注册按钮在 hamburger 面板内展开 */

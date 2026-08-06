@@ -221,7 +221,8 @@ const resolvedOgType = ogType || 'website';
 		</script>
 	</head>
 	<body>
-		<nav class="navbar">
+		<a class="skip-link" href="#main-content">跳到主要内容</a>
+		<nav class="navbar" aria-label="主导航">
 			<div class="navbar-inner">
 				<a href="/" class="navbar-brand">
 					<img src={siteLogoUrl} alt={siteTitle} class="navbar-logo" />
@@ -238,6 +239,9 @@ const resolvedOgType = ogType || 'website';
 										'nav-mode-link',
 										{ 'nav-mode-active': currentPath.startsWith(mode.path) }
 									]}
+									aria-current={
+										currentPath.startsWith(mode.path) ? 'page' : undefined
+									}
 								>
 									{mode.icon} {mode.label}
 								</a>
@@ -249,6 +253,7 @@ const resolvedOgType = ogType || 'website';
 					class="navbar-toggle"
 					id="navbar-toggle"
 					aria-label="菜单"
+					aria-controls="navbar-actions"
 					aria-expanded="false">☰</button
 				>
 				<div class="navbar-actions" id="navbar-actions">
@@ -263,7 +268,7 @@ const resolvedOgType = ogType || 'website';
 						)
 					}
 					<!-- 移动端导航菜单（hamburger 面板内） -->
-					<div class="mobile-user-area">
+					<nav class="mobile-user-area" aria-label="移动端导航">
 						<a href="/" class="mobile-user-link">
 							<span class="mobile-user-icon">🏠</span> 首页
 						</a>
@@ -307,7 +312,7 @@ const resolvedOgType = ogType || 'website';
 								</>
 							)
 						}
-					</div>
+					</nav>
 					{
 						currentUser ? (
 							<>
@@ -426,7 +431,7 @@ const resolvedOgType = ogType || 'website';
 			</div>
 		</nav>
 
-		<main class:list={[narrow && 'container']}>
+		<main id="main-content" tabindex="-1" class:list={[narrow && 'container']}>
 			<slot />
 		</main>
 
@@ -435,7 +440,7 @@ const resolvedOgType = ogType || 'website';
 		</footer>
 
 		<!-- 移动端底部 Tab Bar -->
-		<nav class="tab-bar-mobile">
+		<nav class="tab-bar-mobile" aria-label="移动端主导航">
 			<a
 				href="/"
 				class="tab-bar-item"

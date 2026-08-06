@@ -128,9 +128,16 @@ const navItems = [
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
 	</head>
 	<body class="admin-body">
+		<a class="skip-link" href="#main-content">跳到主要内容</a>
 		<!-- 移动端顶部栏 -->
 		<header class="admin-mobile-header">
-			<button class="admin-sidebar-toggle" id="sidebar-toggle" aria-label="切换侧边栏">
+			<button
+				class="admin-sidebar-toggle"
+				id="sidebar-toggle"
+				aria-label="切换侧边栏"
+				aria-controls="admin-sidebar"
+				aria-expanded="false"
+			>
 				☰
 			</button>
 			<span class="admin-mobile-title">管理后台</span>
@@ -145,7 +152,7 @@ const navItems = [
 			<div class="admin-sidebar-header">
 				<a href="/admin" class="admin-sidebar-brand">🛡️ 管理后台</a>
 			</div>
-			<nav class="admin-sidebar-nav">
+			<nav class="admin-sidebar-nav" aria-label="管理后台导航">
 				{
 					navItems.map((item) => {
 						// 判断当前导航项是否激活
@@ -177,7 +184,7 @@ const navItems = [
 		</aside>
 
 		<!-- 主内容区 -->
-		<main class="admin-main">
+		<main id="main-content" class="admin-main" tabindex="-1">
 			<slot />
 		</main>
 
@@ -274,13 +281,15 @@ const navItems = [
 			const overlay = document.getElementById('sidebar-overlay');
 
 			toggle?.addEventListener('click', () => {
-				sidebar?.classList.toggle('admin-sidebar-open');
+				const isOpen = sidebar?.classList.toggle('admin-sidebar-open') ?? false;
 				overlay?.classList.toggle('admin-sidebar-overlay-visible');
+				toggle?.setAttribute('aria-expanded', String(isOpen));
 			});
 
 			overlay?.addEventListener('click', () => {
 				sidebar?.classList.remove('admin-sidebar-open');
 				overlay?.classList.remove('admin-sidebar-overlay-visible');
+				toggle?.setAttribute('aria-expanded', 'false');
 			});
 		</script>
 	</body>
