@@ -311,9 +311,91 @@
 }
 
 [data-ux-shell='account'] main {
-	display: grid;
-	place-items: center;
 	min-height: calc(100vh - var(--navbar-height) - 88px);
+}
+
+.auth-page-shell {
+	display: grid;
+	grid-template-columns: minmax(0, 0.9fr) minmax(360px, 480px);
+	align-items: center;
+	gap: clamp(var(--spacing-6), 8vw, var(--spacing-12));
+	width: min(100%, 1040px);
+	margin: 0 auto;
+	padding: clamp(var(--spacing-6), 8vw, var(--spacing-12)) 0;
+}
+
+.auth-page-intro {
+	max-width: 32rem;
+}
+
+.auth-page-intro h1 {
+	margin: var(--spacing-3) 0;
+	font-size: clamp(2rem, 4.5vw, 3.25rem);
+	line-height: 1.15;
+	letter-spacing: -0.06em;
+}
+
+.auth-page-intro > p:last-child,
+.ux-page-heading > p:last-child {
+	max-width: 58ch;
+	color: var(--color-muted);
+	line-height: 1.7;
+}
+
+.ux-eyebrow,
+.admin-page-eyebrow {
+	margin: 0;
+	color: var(--color-primary);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.ux-page-heading {
+	margin-bottom: var(--spacing-5);
+}
+
+.ux-page-heading .page-title {
+	margin: var(--spacing-2) 0;
+}
+
+.ux-search-page,
+.ux-notifications-page,
+.ux-channel-page,
+.ux-connections-page,
+.ux-settings-page {
+	width: 100%;
+}
+
+.ux-channel-page > .page-header {
+	margin-top: var(--spacing-2);
+}
+
+.ux-detail-kicker {
+	margin: 0 0 var(--spacing-3);
+	color: var(--color-primary);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+}
+
+.post-detail[data-post-mode='weibo'] {
+	max-width: 720px;
+}
+
+.post-detail[data-post-mode='forum'] {
+	border-top: 3px solid var(--color-primary);
+}
+
+.post-detail[data-post-mode='blog'] {
+	max-width: 900px;
+}
+
+.post-detail[data-post-mode='blog'] .post-detail-content {
+	margin-right: auto;
+	margin-left: auto;
+	font-size: 1.0625rem;
 }
 
 .auth-page {
@@ -338,10 +420,16 @@
 }
 
 .post-detail-blog-title,
-.post-detail-forum-title {
+.post-detail-forum-title,
+.post-detail-weibo-title {
 	font-size: clamp(1.75rem, 4vw, 2.5rem);
 	line-height: 1.2;
 	letter-spacing: -0.05em;
+}
+
+.post-detail-weibo-title {
+	margin: 0 0 var(--spacing-5);
+	font-size: clamp(1.25rem, 3vw, 1.75rem);
 }
 
 .post-detail-content {
@@ -387,6 +475,26 @@
 	letter-spacing: -0.04em;
 }
 
+[data-ux-shell='admin'] .admin-page-workspace {
+	max-width: 1440px;
+	margin: 0 auto;
+}
+
+[data-ux-shell='admin'] .admin-page-heading {
+	margin-bottom: var(--spacing-6);
+	padding-bottom: var(--spacing-5);
+	border-bottom: 1px solid var(--color-border);
+}
+
+[data-ux-shell='admin'] .admin-page-heading .admin-page-title {
+	margin: var(--spacing-2) 0;
+}
+
+[data-ux-shell='admin'] .admin-page-heading > p:last-child {
+	margin: 0;
+	color: var(--color-muted);
+}
+
 [data-ux-shell='admin'] .admin-search-bar,
 [data-ux-shell='admin'] .admin-batch-bar {
 	padding: var(--spacing-3);
@@ -421,6 +529,16 @@
 	.settings-section,
 	.auth-page {
 		padding: var(--spacing-4);
+	}
+
+	.auth-page-shell {
+		grid-template-columns: 1fr;
+		gap: var(--spacing-4);
+		padding: var(--spacing-5) 0;
+	}
+
+	.auth-page-intro {
+		max-width: none;
 	}
 
 	.post-detail {

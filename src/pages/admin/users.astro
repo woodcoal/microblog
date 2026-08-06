@@ -58,15 +58,21 @@ const serializedUsers = users.map((u) => ({
 ---
 
 <AdminLayout title="用户管理">
-	<h1 class="admin-page-title">👥 用户管理</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-users-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">成员工作区</p>
+			<h1 class="admin-page-title" id="admin-users-title">用户管理</h1>
+			<p>查看社区成员状态，并在需要时执行管理操作。</p>
+		</header>
 
-	<AdminUserList
-		users={serializedUsers}
-		total={total}
-		page={page}
-		totalPages={totalPages}
-		hasPrev={hasPrev}
-		hasNext={hasNext}
-		search={search}
-	/>
+		<AdminUserList
+			users={serializedUsers}
+			total={total}
+			page={page}
+			totalPages={totalPages}
+			hasPrev={hasPrev}
+			hasNext={hasNext}
+			search={search}
+		/>
+	</section>
 </AdminLayout>

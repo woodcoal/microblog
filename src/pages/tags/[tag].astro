@@ -126,10 +126,11 @@ const hasPosts = posts.length > 0;
 ---
 
 <WeiboLayout title={`#${tag}# - 标签`}>
-	<div class="tag-page">
+	<section class="tag-page ux-channel-page" aria-labelledby="tag-page-title">
 		<div class="tag-page-header">
 			<div class="tag-page-header-left">
-				<h1 class="tag-page-title">{tag}</h1>
+				<p class="ux-eyebrow">主题标签</p>
+				<h1 class="tag-page-title" id="tag-page-title">{tag}</h1>
 				<span class="tag-page-count">{postCount} 条动态</span>
 			</div>
 			<div class="sort-tabs">
@@ -213,7 +214,7 @@ const hasPosts = posts.length > 0;
 				<p class="tag-page-empty">该标签下暂无动态</p>
 			)
 		}
-	</div>
+	</section>
 </WeiboLayout>
 
 <style>

@@ -73,15 +73,21 @@ const serializedComments = comments.map((c) => ({
 ---
 
 <AdminLayout title="评论管理">
-	<h1 class="admin-page-title">💬 评论管理</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-comments-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">内容工作区</p>
+			<h1 class="admin-page-title" id="admin-comments-title">评论管理</h1>
+			<p>处理讨论中的回复，保持对话清晰、有序。</p>
+		</header>
 
-	<AdminCommentList
-		comments={serializedComments}
-		total={total}
-		page={page}
-		totalPages={totalPages}
-		hasPrev={hasPrev}
-		hasNext={hasNext}
-		search={search}
-	/>
+		<AdminCommentList
+			comments={serializedComments}
+			total={total}
+			page={page}
+			totalPages={totalPages}
+			hasPrev={hasPrev}
+			hasNext={hasNext}
+			search={search}
+		/>
+	</section>
 </AdminLayout>

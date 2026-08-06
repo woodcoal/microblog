@@ -17,15 +17,28 @@ import { prisma } from '@/lib/db';
 import { getModeLabel } from '@/lib/config';
 
 interface PostResult {
-	id: string; content: string; createdAt: string; isPinned: boolean; isGlobalPinned: boolean;
-	likeCount: number; mode: string; title: string | null; categoryId: string | null;
+	id: string;
+	content: string;
+	createdAt: string;
+	isPinned: boolean;
+	isGlobalPinned: boolean;
+	likeCount: number;
+	mode: string;
+	title: string | null;
+	categoryId: string | null;
 	category: { id: string; name: string; slug: string; mode: string } | null;
 	user: { id: string; username: string; displayName: string; avatarUrl: string };
 	tags: Array<{ id: string; name: string }>;
 }
 interface UserResult {
-	id: string; username: string; displayName: string; avatarUrl: string; bio: string;
-	followerCount: number; followingCount: number; postCount: number;
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+	bio: string;
+	followerCount: number;
+	followingCount: number;
+	postCount: number;
 }
 
 // 解析 URL 参数
@@ -249,127 +262,136 @@ function buildSearchUrl(params: {
 ---
 
 <WeiboLayout title={q ? `搜索: ${q}` : '搜索'}>
-	<h1 class="page-title">搜索</h1>
+	<section class="ux-search-page">
+		<header class="ux-page-heading">
+			<p class="ux-eyebrow">发现</p>
+			<h1 class="page-title">搜索</h1>
+			<p>在微博、论坛、博客与社区成员中找到相关内容。</p>
+		</header>
 
-	<!-- 搜索框 + 实时建议 -->
-	<div class="search-box-wrapper">
-		<SearchBox
-			initialQuery={q}
-			placeholder="搜索帖子或用户..."
+		<!-- 搜索框 + 实时建议 -->
+		<div class="search-box-wrapper">
+			<SearchBox
+				initialQuery={q}
+				placeholder="搜索帖子或用户..."
+				tab={tab}
+				mode={modeFilter}
+				categoryId={categoryIdFilter}
+			/>
+			<SearchSuggest initialQuery={q} />
+		</div>
+
+		<!-- 标签页切换 -->
+		<div class="search-tabs">
+			<a
+				href={buildSearchUrl({ tab: 'posts' })}
+				class:list={['search-tab', { 'search-tab-active': isPostsTab }]}
+			>
+				{getModeLabel('weibo')}
+			</a>
+			<a
+				href={buildSearchUrl({ tab: 'users' })}
+				class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
+			>
+				用户
+			</a>
+		</div>
+
+		<!-- 排序切换 + mode 过滤 + 分类选择：仅在帖子标签页显示 -->
+		{
+			isPostsTab && (
+				<div class="search-filters">
+					<div class="search-sort">
+						<a
+							href={buildSearchUrl({ sort: 'latest' })}
+							class:list={['search-sort-btn', { 'search-sort-active': isSortLatest }]}
+						>
+							最新
+						</a>
+						<a
+							href={buildSearchUrl({ sort: 'popular' })}
+							class:list={[
+								'search-sort-btn',
+								{ 'search-sort-active': isSortPopular }
+							]}
+						>
+							热门
+						</a>
+					</div>
+					<div class="search-mode-filter">
+						<a
+							href={buildSearchUrl({ mode: 'all', categoryId: '' })}
+							class:list={['search-mode-btn', { 'search-mode-active': isModeAll }]}
+						>
+							全部
+						</a>
+						<a
+							href={buildSearchUrl({ mode: 'weibo', categoryId: '' })}
+							class:list={['search-mode-btn', { 'search-mode-active': isModeWeibo }]}
+						>
+							{getModeLabel('weibo')}
+						</a>
+						<a
+							href={buildSearchUrl({ mode: 'forum', categoryId: '' })}
+							class:list={['search-mode-btn', { 'search-mode-active': isModeForum }]}
+						>
+							{getModeLabel('forum')}
+						</a>
+						<a
+							href={buildSearchUrl({ mode: 'blog', categoryId: '' })}
+							class:list={['search-mode-btn', { 'search-mode-active': isModeBlog }]}
+						>
+							{getModeLabel('blog')}
+						</a>
+					</div>
+				</div>
+			)
+		}
+
+		<!-- 分类下拉选择器：仅在帖子标签页且有分类时显示 -->
+		{
+			isPostsTab && hasCategories && (
+				<div class="search-category-filter">
+					<label for="category-select" class="search-category-label">
+						分类：
+					</label>
+					<select
+						id="category-select"
+						class="search-category-select"
+						data-base-url={buildSearchUrl({ categoryId: '__CATEGORY_ID__' })}
+					>
+						<option value="" selected={!hasCategoryId}>
+							全部分类
+						</option>
+						{categoryList.map((cat) => {
+							const isSelected = cat.id === categoryIdFilter;
+							/** 分类模式标签 */
+							const modeLabel = getModeLabel(cat.mode);
+							return (
+								<option value={cat.id} selected={isSelected}>
+									[{modeLabel}] {cat.icon ? cat.icon + ' ' : ''}
+									{cat.name}
+								</option>
+							);
+						})}
+					</select>
+				</div>
+			)
+		}
+
+		<!-- 搜索结果 -->
+		<SearchResults
 			tab={tab}
-			mode={modeFilter}
-			categoryId={categoryIdFilter}
+			query={q}
+			sort={sort}
+			modeFilter={modeFilter}
+			categoryIdFilter={categoryIdFilter}
+			posts={posts}
+			nextPostsCursor={nextPostsCursor}
+			users={users}
+			nextUsersCursor={nextUsersCursor}
 		/>
-		<SearchSuggest initialQuery={q} />
-	</div>
-
-	<!-- 标签页切换 -->
-	<div class="search-tabs">
-		<a
-			href={buildSearchUrl({ tab: 'posts' })}
-			class:list={['search-tab', { 'search-tab-active': isPostsTab }]}
-		>
-			{getModeLabel('weibo')}
-		</a>
-		<a
-			href={buildSearchUrl({ tab: 'users' })}
-			class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
-		>
-			用户
-		</a>
-	</div>
-
-	<!-- 排序切换 + mode 过滤 + 分类选择：仅在帖子标签页显示 -->
-	{
-		isPostsTab && (
-			<div class="search-filters">
-				<div class="search-sort">
-					<a
-						href={buildSearchUrl({ sort: 'latest' })}
-						class:list={['search-sort-btn', { 'search-sort-active': isSortLatest }]}
-					>
-						最新
-					</a>
-					<a
-						href={buildSearchUrl({ sort: 'popular' })}
-						class:list={['search-sort-btn', { 'search-sort-active': isSortPopular }]}
-					>
-						热门
-					</a>
-				</div>
-				<div class="search-mode-filter">
-					<a
-						href={buildSearchUrl({ mode: 'all', categoryId: '' })}
-						class:list={['search-mode-btn', { 'search-mode-active': isModeAll }]}
-					>
-						全部
-					</a>
-					<a
-						href={buildSearchUrl({ mode: 'weibo', categoryId: '' })}
-						class:list={['search-mode-btn', { 'search-mode-active': isModeWeibo }]}
-					>
-						{getModeLabel('weibo')}
-					</a>
-					<a
-						href={buildSearchUrl({ mode: 'forum', categoryId: '' })}
-						class:list={['search-mode-btn', { 'search-mode-active': isModeForum }]}
-					>
-						{getModeLabel('forum')}
-					</a>
-					<a
-						href={buildSearchUrl({ mode: 'blog', categoryId: '' })}
-						class:list={['search-mode-btn', { 'search-mode-active': isModeBlog }]}
-					>
-						{getModeLabel('blog')}
-					</a>
-				</div>
-			</div>
-		)
-	}
-
-	<!-- 分类下拉选择器：仅在帖子标签页且有分类时显示 -->
-	{
-		isPostsTab && hasCategories && (
-			<div class="search-category-filter">
-				<label for="category-select" class="search-category-label">
-					分类：
-				</label>
-				<select
-					id="category-select"
-					class="search-category-select"
-					data-base-url={buildSearchUrl({ categoryId: '__CATEGORY_ID__' })}
-				>
-					<option value="" selected={!hasCategoryId}>
-						全部分类
-					</option>
-					{categoryList.map((cat) => {
-						const isSelected = cat.id === categoryIdFilter;
-						/** 分类模式标签 */
-						const modeLabel = getModeLabel(cat.mode);
-						return (
-							<option value={cat.id} selected={isSelected}>
-								[{modeLabel}] {cat.icon ? cat.icon + ' ' : ''}
-								{cat.name}
-							</option>
-						);
-					})}
-				</select>
-			</div>
-		)
-	}
-
-	<!-- 搜索结果 -->
-	<SearchResults
-		tab={tab}
-		query={q}
-		sort={sort}
-		modeFilter={modeFilter}
-		categoryIdFilter={categoryIdFilter}
-		posts={posts}
-		nextPostsCursor={nextPostsCursor}
-		users={users}
-		nextUsersCursor={nextUsersCursor}
-	/>
+	</section>
 </WeiboLayout>
 
 <style>

@@ -100,20 +100,26 @@ const serializedPosts = posts.map((p) => ({
 ---
 
 <AdminLayout title="帖子管理">
-	<h1 class="admin-page-title">📝 帖子管理</h1>
+	<section class="admin-page-workspace" aria-labelledby="admin-posts-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">内容工作区</p>
+			<h1 class="admin-page-title" id="admin-posts-title">帖子管理</h1>
+			<p>检索、筛选并维护社区内的全部内容。</p>
+		</header>
 
-	<AdminPostList
-		posts={serializedPosts}
-		total={total}
-		page={page}
-		totalPages={totalPages}
-		hasPrev={hasPrev}
-		hasNext={hasNext}
-		search={search}
-		mode={mode}
-		username={username}
-		startDate={startDate}
-		endDate={endDate}
-		status={status}
-	/>
+		<AdminPostList
+			posts={serializedPosts}
+			total={total}
+			page={page}
+			totalPages={totalPages}
+			hasPrev={hasPrev}
+			hasNext={hasNext}
+			search={search}
+			mode={mode}
+			username={username}
+			startDate={startDate}
+			endDate={endDate}
+			status={status}
+		/>
+	</section>
 </AdminLayout>

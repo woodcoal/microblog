@@ -28,6 +28,8 @@
 | `blog-editor-a.html`                                               | `/blog/write`、`/[username]/[postId]/edit`、`/[username]/[postId]/revisions`                    |
 | `admin-b.html`、`admin-content-b.html`                             | `/admin`、`/admin/posts`、`/admin/users`、`/admin/comments`、`/admin/tags`、`/admin/categories` |
 
+上述路由均在实际 `.astro` 页面中建立了对应的内容边界和标题区域：账户页使用导语加表单双栏，频道页使用频道标题与内容流，详情页按 `post.mode` 落到微博、论坛、博客的阅读面，后台每个工作区均有独立的运营标题区。共享 CSS 仅负责令牌、响应式和视觉层级，不替代页面结构。
+
 ## 实施顺序
 
 1. 先让 `Base.astro` 和共享样式消费 `src/styles/tokens.css`；保留 light / dark / eye-care / high-contrast 与现有强调色覆盖。

@@ -47,91 +47,94 @@ const hasGroups = groups.length > 0;
 ---
 
 <ForumLayout title={getModeLabel('forum')}>
-	<div class="page-header">
-		<div class="page-header-row">
-			<div>
-				<h1 class="page-title">📋 {getModeLabel('forum')}</h1>
-				<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
+	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
+		<div class="page-header">
+			<div class="page-header-row">
+				<div>
+					<p class="ux-eyebrow">把问题聊透</p>
+					<h1 class="page-title" id="forum-page-title">📋 {getModeLabel('forum')}</h1>
+					<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
+				</div>
+				{
+					currentUser && (
+						<button
+							type="button"
+							class="btn btn-primary"
+							onclick="document.dispatchEvent(new CustomEvent('open-forum-compose-modal'))"
+						>
+							✏️ 发帖
+						</button>
+					)
+				}
 			</div>
-			{
-				currentUser && (
-					<button
-						type="button"
-						class="btn btn-primary"
-						onclick="document.dispatchEvent(new CustomEvent('open-forum-compose-modal'))"
-					>
-						✏️ 发帖
-					</button>
-				)
-			}
 		</div>
-	</div>
 
-	{
-		!hasGroups ? (
-			<div class="empty-state">
-				<p>暂无版块，管理员可在后台创建分类</p>
-			</div>
-		) : (
-			<div class="forum-groups">
-				{groups.map((group) => {
-					// 一级分组下的帖子总数 = 自身帖子 + 子分类帖子
-					const groupPostCount =
-						group._count.posts +
-						group.children.reduce((sum, child) => sum + child._count.posts, 0);
-					const hasChildren = group.children.length > 0;
-					const hasIcon = !!group.icon;
+		{
+			!hasGroups ? (
+				<div class="empty-state">
+					<p>暂无版块，管理员可在后台创建分类</p>
+				</div>
+			) : (
+				<div class="forum-groups">
+					{groups.map((group) => {
+						// 一级分组下的帖子总数 = 自身帖子 + 子分类帖子
+						const groupPostCount =
+							group._count.posts +
+							group.children.reduce((sum, child) => sum + child._count.posts, 0);
+						const hasChildren = group.children.length > 0;
+						const hasIcon = !!group.icon;
 
-					return (
-						<div class="forum-group">
-							<div class="forum-group-header">
-								{hasIcon && <span class="forum-group-icon">{group.icon}</span>}
-								<h2 class="forum-group-name">{group.name}</h2>
-								<span class="forum-group-count">{groupPostCount} 帖</span>
-							</div>
-							{group.description && (
-								<p class="forum-group-desc">{group.description}</p>
-							)}
-							{hasChildren && (
-								<div class="forum-category-list">
-									{group.children.map((cat) => {
-										const catHasIcon = !!cat.icon;
-										return (
-											<a
-												href={`/forum/${cat.slug}`}
-												class="forum-category-item"
-											>
-												<div class="forum-category-info">
-													{catHasIcon && (
-														<span class="forum-category-icon">
-															{cat.icon}
-														</span>
-													)}
-													<div class="forum-category-text">
-														<span class="forum-category-name">
-															{cat.name}
-														</span>
-														{cat.description && (
-															<span class="forum-category-desc">
-																{cat.description}
+						return (
+							<div class="forum-group">
+								<div class="forum-group-header">
+									{hasIcon && <span class="forum-group-icon">{group.icon}</span>}
+									<h2 class="forum-group-name">{group.name}</h2>
+									<span class="forum-group-count">{groupPostCount} 帖</span>
+								</div>
+								{group.description && (
+									<p class="forum-group-desc">{group.description}</p>
+								)}
+								{hasChildren && (
+									<div class="forum-category-list">
+										{group.children.map((cat) => {
+											const catHasIcon = !!cat.icon;
+											return (
+												<a
+													href={`/forum/${cat.slug}`}
+													class="forum-category-item"
+												>
+													<div class="forum-category-info">
+														{catHasIcon && (
+															<span class="forum-category-icon">
+																{cat.icon}
 															</span>
 														)}
+														<div class="forum-category-text">
+															<span class="forum-category-name">
+																{cat.name}
+															</span>
+															{cat.description && (
+																<span class="forum-category-desc">
+																	{cat.description}
+																</span>
+															)}
+														</div>
 													</div>
-												</div>
-												<span class="forum-category-count">
-													{cat._count.posts}
-												</span>
-											</a>
-										);
-									})}
-								</div>
-							)}
-						</div>
-					);
-				})}
-			</div>
-		)
-	}
+													<span class="forum-category-count">
+														{cat._count.posts}
+													</span>
+												</a>
+											);
+										})}
+									</div>
+								)}
+							</div>
+						);
+					})}
+				</div>
+			)
+		}
+	</section>
 </ForumLayout>
 
 <style>

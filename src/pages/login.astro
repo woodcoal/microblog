@@ -10,47 +10,54 @@ import { SITE_TITLE, SITE_LOGO_URL } from '@/lib/config';
 ---
 
 <BaseLayout title="登录" narrow>
-	<div class="auth-page card">
-		<div class="auth-brand">
-			<img src={SITE_LOGO_URL} alt={SITE_TITLE} class="auth-logo" />
-			<h1 class="auth-title">欢迎回来</h1>
+	<div class="auth-page-shell">
+		<section class="auth-page-intro" aria-labelledby="login-welcome">
+			<p class="ux-eyebrow">轻量、多元、自在</p>
+			<h1 id="login-welcome">把想说的，交给愿意听的人。</h1>
+			<p>在微博记录当下，在论坛展开讨论，在博客沉淀观点。</p>
+		</section>
+		<div class="auth-page card">
+			<div class="auth-brand">
+				<img src={SITE_LOGO_URL} alt={SITE_TITLE} class="auth-logo" />
+				<h2 class="auth-title">登录睦谈</h2>
+			</div>
+
+			<form id="login-form" class="auth-form">
+				<div class="form-group">
+					<label for="email" class="form-label"> 邮箱 </label>
+					<input
+						type="email"
+						id="email"
+						name="email"
+						class="form-input"
+						placeholder="请输入邮箱"
+						required
+					/>
+				</div>
+
+				<div class="form-group">
+					<label for="password" class="form-label"> 密码 </label>
+					<input
+						type="password"
+						id="password"
+						name="password"
+						class="form-input"
+						placeholder="请输入密码"
+						required
+					/>
+				</div>
+
+				<div id="form-error" class="form-error"></div>
+
+				<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
+					登录
+				</button>
+			</form>
+
+			<p class="auth-footer">
+				还没有账号？<a href="/register">立即注册</a>
+			</p>
 		</div>
-
-		<form id="login-form" class="auth-form">
-			<div class="form-group">
-				<label for="email" class="form-label"> 邮箱 </label>
-				<input
-					type="email"
-					id="email"
-					name="email"
-					class="form-input"
-					placeholder="请输入邮箱"
-					required
-				/>
-			</div>
-
-			<div class="form-group">
-				<label for="password" class="form-label"> 密码 </label>
-				<input
-					type="password"
-					id="password"
-					name="password"
-					class="form-input"
-					placeholder="请输入密码"
-					required
-				/>
-			</div>
-
-			<div id="form-error" class="form-error"></div>
-
-			<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
-				登录
-			</button>
-		</form>
-
-		<p class="auth-footer">
-			还没有账号？<a href="/register">立即注册</a>
-		</p>
 	</div>
 </BaseLayout>
 

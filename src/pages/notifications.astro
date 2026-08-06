@@ -96,10 +96,13 @@ const filterOptions = [
 ---
 
 <WeiboLayout title="通知">
-	<div>
+	<section class="ux-notifications-page">
 		<!-- 标题栏 -->
 		<div class="notification-header">
-			<h1 class="page-title">通知</h1>
+			<div>
+				<p class="ux-eyebrow">保持同步</p>
+				<h1 class="page-title">通知</h1>
+			</div>
 			<div class="notification-header-actions">
 				{
 					unreadCount > 0 && (
@@ -154,7 +157,7 @@ const filterOptions = [
 				</div>
 			)
 		}
-	</div>
+	</section>
 </WeiboLayout>
 
 <style>
