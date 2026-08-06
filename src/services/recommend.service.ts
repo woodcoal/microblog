@@ -4,18 +4,24 @@
  * 使用站内热门分数、标签和分类生成推荐结果，不依赖外部推荐服务。
  */
 import { calculateTrendingScore } from '@/lib/trending';
+import { ServiceError } from '@/lib/errors';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getLikedPostIds } from '@/lib/queries';
 import { findFollowingIds, findFollowerIds } from '@/lib/social';
 import {
 	findRecommendationCandidates,
 	findRecommendationSource,
+	findRecommendUserCandidates,
 	upsertPostRead
 } from '@/lib/recommend';
 import type { Prisma } from '../../generated/prisma/client';
 
 const CANDIDATE_LIMIT = 200;
 const READ_EXCLUSION_DAYS = 30;
+const RECOMMEND_USER_CANDIDATE_LIMIT = 200;
+const RECOMMEND_USER_ACTIVE_DAYS = 90;
+export const RECOMMEND_USER_MIN_COUNT = 1;
+export const RECOMMEND_USER_MAX_COUNT = 20;
 
 export interface GetRecommendInput {
 	userId: string;
@@ -43,6 +49,27 @@ export interface RecommendItem {
 
 export interface GetRecommendResult {
 	items: RecommendItem[];
+}
+
+/** 首页右栏可安全展示的推荐用户字段。 */
+export interface RecommendUserItem {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+	bio: string;
+	followerCount: number;
+	mutualFollowCount: number;
+	latestPublicPostAt: string;
+}
+
+export interface GetRecommendUsersInput {
+	userId: string;
+	n?: number;
+}
+
+export interface GetRecommendUsersResult {
+	items: RecommendUserItem[];
 }
 
 export interface RecordReadInput {
@@ -131,6 +158,75 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 		calculateTrendingScore(post._count.likes, post._count.comments, post.createdAt)
 	);
 	return { items: items.slice(0, count) };
+}
+
+/**
+ * 获取首页右栏的推荐用户。
+ *
+ * 只读取最近 90 天的公开、未删除帖子；候选查询及当前关注查询各执行一次，
+ * 后续排序仅处理有界候选集，避免 N+1 查询和非确定性排序。
+ */
+export async function getRecommendUsers(
+	input: GetRecommendUsersInput
+): Promise<GetRecommendUsersResult> {
+	const count = normalizeRecommendUserCount(input.n);
+	const publicPostSince = new Date(Date.now() - RECOMMEND_USER_ACTIVE_DAYS * 24 * 60 * 60 * 1000);
+	const currentFollowingIds = await findFollowingIds(input.userId);
+	const candidates = await findRecommendUserCandidates(
+		input.userId,
+		currentFollowingIds,
+		publicPostSince,
+		RECOMMEND_USER_CANDIDATE_LIMIT
+	);
+
+	const items = candidates
+		.map((candidate) => {
+			const latestPublicPost = candidate.posts[0];
+			// posts.some 使用了相同筛选条件，因此这里必定存在；防御性跳过异常数据。
+			if (!latestPublicPost) return null;
+
+			return {
+				item: {
+					id: candidate.id,
+					username: candidate.username,
+					displayName: candidate.displayName,
+					avatarUrl: candidate.avatarUrl,
+					bio: candidate.bio,
+					followerCount: candidate._count.following,
+					mutualFollowCount: candidate._count.followers,
+					latestPublicPostAt: latestPublicPost.createdAt.toISOString()
+				},
+				publicPostCount: candidate._count.posts
+			};
+		})
+		.filter(
+			(candidate): candidate is { item: RecommendUserItem; publicPostCount: number } =>
+				candidate !== null
+		)
+		.sort((a, b) => {
+			return (
+				b.item.mutualFollowCount - a.item.mutualFollowCount ||
+				b.publicPostCount - a.publicPostCount ||
+				b.item.followerCount - a.item.followerCount ||
+				b.item.latestPublicPostAt.localeCompare(a.item.latestPublicPostAt) ||
+				a.item.username.localeCompare(b.item.username)
+			);
+		})
+		.map(({ item }) => item);
+
+	return { items: items.slice(0, count) };
+}
+
+function normalizeRecommendUserCount(count: number | undefined): number {
+	if (count === undefined) return 5;
+	if (
+		!Number.isInteger(count) ||
+		count < RECOMMEND_USER_MIN_COUNT ||
+		count > RECOMMEND_USER_MAX_COUNT
+	) {
+		throw new ServiceError('BAD_REQUEST', '推荐用户数量必须为 1 到 20 的整数');
+	}
+	return count;
 }
 
 /** 按共享标签、相同分类和热门度查找未读相关推荐。 */
