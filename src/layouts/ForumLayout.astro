@@ -30,7 +30,7 @@ const {
 	noindex,
 	jsonLd
 } = Astro.props;
-const hasDiscoveryAside = Astro.slots.has('aside');
+const isThreeColumn = Astro.slots.has('nav') && Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -44,16 +44,23 @@ const hasDiscoveryAside = Astro.slots.has('aside');
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<div class:list={['layout-full', { 'layout-content-with-aside': hasDiscoveryAside }]}>
-		<div class="layout-content-main">
-			<slot />
-		</div>
-		{
-			hasDiscoveryAside && (
+	{
+		isThreeColumn ? (
+			<div class="layout-wide layout-wide-with-aside">
+				<aside class="layout-sidebar" aria-label="论坛导航">
+					<slot name="nav" />
+				</aside>
+				<div class="layout-main">
+					<slot />
+				</div>
 				<div class="layout-discovery-sidebar">
 					<slot name="aside" />
 				</div>
-			)
-		}
-	</div>
+			</div>
+		) : (
+			<div class="layout-full">
+				<slot />
+			</div>
+		)
+	}
 </BaseLayout>

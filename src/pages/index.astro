@@ -270,6 +270,9 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 								commentCount={postCommentCount}
 								bookmarkCount={post._count.bookmarks}
 								bookmarked={postBookmarked}
+								showFollow={!!currentUser}
+								following={followingIds.includes(post.user.id)}
+								isSelf={currentUser?.userId === post.user.id}
 								tags={postTags}
 								isRestricted={isPostRestricted}
 							/>

@@ -185,6 +185,9 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 									commentCount={postCommentCount}
 									bookmarkCount={post._count.bookmarks}
 									bookmarked={postBookmarked}
+									showFollow={true}
+									following={followingIds.includes(post.user.id)}
+									isSelf={currentUser.userId === post.user.id}
 									tags={postTags}
 									isRestricted={isPostRestricted}
 								/>

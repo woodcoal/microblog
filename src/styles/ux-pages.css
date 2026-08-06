@@ -127,16 +127,14 @@
 	box-shadow: var(--shadow-sm);
 }
 
-[data-ux-shell='weibo'] .post-card-footer,
-[data-ux-shell='connections'] .post-card-footer,
-[data-ux-shell='profile'] .post-card-footer {
-	justify-content: space-between;
-}
-
 .post-card-footer > form,
 .post-card-footer > a,
 .post-card-footer > span {
 	flex: 0 0 auto;
+}
+
+.post-card-footer > .post-card-actions {
+	min-width: max-content;
 }
 
 /* 关系页上下区域保持同一信息流，不再叠加装饰卡片边框。 */
@@ -149,23 +147,12 @@
 	background: transparent;
 }
 
-.forum-home-grid {
-	display: grid;
-	grid-template-columns: minmax(11rem, 13rem) minmax(0, var(--layout-content));
-	justify-content: center;
-	gap: clamp(var(--spacing-5), 4vw, var(--spacing-8));
-}
-
 .forum-category-sidebar {
-	position: sticky;
-	top: calc(var(--navbar-height) + var(--spacing-6));
-	height: fit-content;
-	max-height: calc(100vh - var(--navbar-height) - var(--spacing-10));
-	overflow-y: auto;
+	width: 100%;
 }
 
-.forum-sidebar-title,
-.forum-sidebar-group h3 {
+.sidebar-section-label,
+.forum-sidebar-group h2 {
 	margin: 0;
 	font-size: 0.8125rem;
 	font-weight: 700;
@@ -176,25 +163,13 @@
 	margin-top: var(--spacing-4);
 }
 
-.forum-sidebar-group a {
-	display: flex;
-	justify-content: space-between;
-	gap: var(--spacing-2);
-	padding: var(--spacing-2) var(--spacing-3);
-	border-radius: var(--radius-md);
-	color: var(--color-text);
-	font-size: 0.875rem;
-}
-
-.forum-sidebar-group a:hover,
-.forum-sidebar-group a:focus-visible {
-	background: var(--color-sidebar-hover);
-	color: var(--color-primary);
-}
-
 .forum-sidebar-group small,
 .forum-sidebar-empty {
 	color: var(--color-muted);
+}
+
+.forum-sidebar-group .sidebar-link {
+	justify-content: space-between;
 }
 
 .forum-sort-tabs {
@@ -788,16 +763,6 @@
 		grid-template-columns: 1fr;
 	}
 
-	.forum-home-grid {
-		grid-template-columns: 1fr;
-	}
-
-	.forum-category-sidebar {
-		position: static;
-		max-height: none;
-		order: 2;
-	}
-
 	.forum-group,
 	.blog-article-card,
 	.profile-banner,
@@ -852,6 +817,18 @@
 		width: auto;
 		margin: var(--spacing-4) 0;
 		padding: var(--spacing-4);
+	}
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+	.layout-sidebar .sidebar-section-label,
+	.layout-sidebar .forum-sidebar-group h2,
+	.layout-sidebar .forum-sidebar-group small {
+		display: none;
+	}
+
+	.layout-sidebar .forum-sidebar-group {
+		margin-top: 0;
 	}
 }
 
