@@ -18,6 +18,8 @@ interface Props {
 	canonicalUrl?: string;
 	noindex?: boolean;
 	jsonLd?: Record<string, unknown>;
+	/** 内容详情等需要和导航断点对齐的宽阅读工作区。 */
+	wide?: boolean;
 }
 
 const {
@@ -29,7 +31,8 @@ const {
 	ogType,
 	canonicalUrl,
 	noindex,
-	jsonLd
+	jsonLd,
+	wide = false
 } = Astro.props;
 ---
 
@@ -44,7 +47,7 @@ const {
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<div class="layout-user">
+	<div class:list={['layout-user', { 'layout-user-wide': wide }]}>
 		<slot />
 	</div>
 </BaseLayout>
@@ -57,6 +60,11 @@ const {
 		padding: var(--spacing-6) var(--spacing-4);
 		flex: 1;
 		width: 100%;
+	}
+
+	/* 详情页使用和站点头部相同的宽度令牌，内部再按内容形态划分阅读列。 */
+	.layout-user-wide {
+		max-width: var(--layout-wide);
 	}
 
 	@media (max-width: 767px) {
