@@ -1,0 +1,109 @@
+---
+interface MediaItem {
+	id: string;
+	fileStorage: {
+		filePath: string;
+	};
+}
+
+interface Props {
+	images: MediaItem[];
+	lightbox?: boolean;
+}
+
+const { images, lightbox = false } = Astro.props;
+const visibleImages = images.slice(0, 9);
+const hiddenCount = Math.max(0, images.length - visibleImages.length);
+const imageCount = visibleImages.length;
+const columns = imageCount === 1 ? 1 : imageCount === 2 || imageCount === 4 ? 2 : 3;
+---
+
+{
+	imageCount > 0 && (
+		<div
+			class:list={['weibo-media-gallery', { 'weibo-media-gallery-single': imageCount === 1 }]}
+			style={`--weibo-media-columns: ${columns}`}
+		>
+			{visibleImages.map((media, index) => {
+				const isLast = index === visibleImages.length - 1;
+				return (
+					<div class="weibo-media-item">
+						<img
+							src={`/uploads/${media.fileStorage.filePath}`}
+							alt=""
+							loading="lazy"
+							data-lightbox={lightbox ? 'true' : undefined}
+						/>
+						{hiddenCount > 0 && isLast && (
+							<span
+								class="weibo-media-more"
+								aria-label={`另有 ${hiddenCount} 张图片`}
+							>
+								+{hiddenCount}
+							</span>
+						)}
+					</div>
+				);
+			})}
+		</div>
+	)
+}
+
+<style>
+	.weibo-media-gallery {
+		display: grid;
+		grid-template-columns: repeat(var(--weibo-media-columns), minmax(0, 1fr));
+		gap: var(--spacing-1);
+		inline-size: 100%;
+		max-inline-size: min(100%, var(--weibo-media-max-width, 640px));
+		margin-top: var(--spacing-2);
+	}
+
+	.weibo-media-gallery-single {
+		inline-size: fit-content;
+		max-inline-size: min(100%, calc(var(--weibo-media-max-width, 640px) / 3));
+	}
+
+	.weibo-media-item {
+		position: relative;
+		aspect-ratio: 1;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+
+	.weibo-media-item img {
+		display: block;
+		inline-size: 100%;
+		block-size: 100%;
+		object-fit: cover;
+		transition: transform var(--transition-base);
+	}
+
+	.weibo-media-gallery-single .weibo-media-item {
+		aspect-ratio: auto;
+		background: transparent;
+	}
+
+	.weibo-media-gallery-single .weibo-media-item img {
+		inline-size: auto;
+		block-size: auto;
+		max-inline-size: 100%;
+		object-fit: contain;
+	}
+
+	.weibo-media-item img:hover {
+		transform: scale(1.02);
+	}
+
+	.weibo-media-more {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		background: rgb(0 0 0 / 0.55);
+		color: #fff;
+		font-size: 1.5rem;
+		font-weight: 700;
+	}
+</style>

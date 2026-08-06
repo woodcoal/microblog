@@ -12,6 +12,7 @@ import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -55,17 +56,18 @@ const discoveryItems = groups
 		}))
 	)
 	.slice(0, 5);
+const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 ---
 
 <ForumLayout title={getModeLabel('forum')}>
 	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
-				<div>
-					<p class="ux-eyebrow">把问题聊透</p>
-					<h1 class="page-title" id="forum-page-title">📋 {getModeLabel('forum')}</h1>
-					<p class="page-desc">按版块分类讨论，找到你感兴趣的话题</p>
-				</div>
+				<div
+					id="forum-page-title"
+					class="site-copy-content site-copy-content-channel"
+					set:html={heroCopy.html}
+				/>
 				{
 					currentUser && (
 						<button

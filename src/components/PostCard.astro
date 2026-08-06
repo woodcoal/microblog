@@ -12,6 +12,7 @@
  * - blog：标题 + 摘要 + 发布日期
  */
 import LikeButton from '@/components/LikeButton.astro';
+import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
 
@@ -252,22 +253,7 @@ const blogDate = isBlog
 			>
 				{hasTitle && <h3 class="post-card-subtitle">{post.title}</h3>}
 				<div class="post-card-content" set:html={htmlContent} />
-				{/* 多图网格展示 */}
-				{hasImages && (
-					<div
-						class={`post-card-images post-card-images-${images.length >= 5 ? 'grid' : images.length}`}
-					>
-						{images.map((img) => (
-							<div class="post-card-image-item">
-								<img
-									src={`/uploads/${img.fileStorage.filePath}`}
-									alt=""
-									loading="lazy"
-								/>
-							</div>
-						))}
-					</div>
-				)}
+				{hasImages && <WeiboMediaGallery images={images} />}
 			</a>
 		)
 	}

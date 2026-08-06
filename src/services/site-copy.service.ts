@@ -5,20 +5,11 @@
  */
 import { renderSiteCopyMarkdown } from '@/lib/markdown';
 import { findSiteCopy, findSiteCopyVersions, saveSiteCopyWithVersion } from '@/lib/site-copy';
+import { DEFAULT_SITE_COPY, SITE_COPY_KEYS, type SiteCopyKey } from '@/lib/site-copy-definitions';
 import { ServiceError } from '@/lib/errors';
 
-export const SITE_COPY_KEYS = ['home.hero', 'auth.login.intro', 'auth.register.intro'] as const;
-
-export type SiteCopyKey = (typeof SITE_COPY_KEYS)[number];
-
-export const DEFAULT_SITE_COPY: Record<SiteCopyKey, string> = {
-	'home.hero':
-		'轻量、多元、自在\n\n# 在同一个社区，聊聊你关心的事。\n\n微博记录当下，论坛展开讨论，博客沉淀观点。发现值得停留的内容，也分享你的声音。',
-	'auth.login.intro':
-		'轻量、多元、自在\n\n# 把想说的，交给愿意听的人。\n\n在微博记录当下，在论坛展开讨论，在博客沉淀观点。',
-	'auth.register.intro':
-		'加入睦谈\n\n# 在这里，留下一点有用的声音。\n\n选择适合的表达方式，让一段想法获得持续的回应。'
-};
+export { DEFAULT_SITE_COPY, SITE_COPY_KEYS } from '@/lib/site-copy-definitions';
+export type { SiteCopyKey } from '@/lib/site-copy-definitions';
 
 export interface PublicSiteCopy {
 	key: SiteCopyKey;

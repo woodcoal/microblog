@@ -424,6 +424,28 @@
 	line-height: 1.7;
 }
 
+.site-copy-content-channel > p:first-child {
+	margin: 0;
+	color: var(--color-primary);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.site-copy-content-channel h1 {
+	margin: var(--spacing-1) 0;
+	font-size: 1.5rem;
+	font-weight: 700;
+	line-height: 1.25;
+}
+
+.site-copy-content-channel > p:last-child {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: 0.875rem;
+}
+
 .ux-eyebrow,
 .admin-page-eyebrow {
 	margin: 0;

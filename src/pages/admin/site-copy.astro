@@ -5,7 +5,10 @@ import AdminLayout from '@/layouts/Admin.astro';
 const copyEntries = [
 	{ key: 'home.hero', title: '首页 Hero', description: '首页引导区左侧的品牌与社区介绍。' },
 	{ key: 'auth.login.intro', title: '登录页导语', description: '登录表单左侧的欢迎文案。' },
-	{ key: 'auth.register.intro', title: '注册页导语', description: '注册表单左侧的欢迎文案。' }
+	{ key: 'auth.register.intro', title: '注册页导语', description: '注册表单左侧的欢迎文案。' },
+	{ key: 'channel.weibo.hero', title: '微博频道导语', description: '微博列表页顶部文案。' },
+	{ key: 'channel.forum.hero', title: '论坛频道导语', description: '论坛首页顶部文案。' },
+	{ key: 'channel.blog.hero', title: '博客频道导语', description: '博客列表页顶部文案。' }
 ] as const;
 ---
 
@@ -15,7 +18,7 @@ const copyEntries = [
 			<p class="admin-page-eyebrow">站点设置</p>
 			<h1 class="admin-page-title" id="admin-site-copy-title">站点文案</h1>
 			<p>
-				编辑三个固定展示位。Markdown 仅支持安全的文本格式与链接，不支持图片、脚本或原始
+				编辑六个固定展示位。Markdown 仅支持安全的文本格式与链接，不支持图片、脚本或原始
 				HTML。
 			</p>
 		</header>
@@ -83,8 +86,8 @@ const copyEntries = [
 
 <script>
 	import { actions } from 'astro:actions';
+	import type { SiteCopyKey } from '@/lib/site-copy-definitions';
 
-	type SiteCopyKey = 'home.hero' | 'auth.login.intro' | 'auth.register.intro';
 	type SiteCopy = { html: string; markdown: string; updatedAt: string | null };
 
 	function getMessage(error: { message?: string } | undefined, fallback: string): string {
