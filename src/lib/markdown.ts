@@ -350,3 +350,46 @@ export function renderMarkdown(markdown: string): string {
 
 	return html;
 }
+
+/** 站点文案链接仅允许同站相对路径或 http(s) URL。 */
+function isSafeSiteCopyUrl(value: string): boolean {
+	try {
+		const url = new URL(value.trim(), 'https://local.invalid');
+		return url.protocol === 'http:' || url.protocol === 'https:';
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * 渲染站点固定文案。
+ *
+ * 该渲染器与帖子 Markdown 隔离：只输出段落、标题、强调、删除线、行内代码和安全链接；
+ * 原始 HTML、图片及危险 URL 均不进入输出。
+ */
+const siteCopyMarked = new Marked({
+	gfm: true,
+	breaks: true,
+	renderer: {
+		html() {
+			return '';
+		},
+		heading({ text, depth }) {
+			return `<h${depth}>${text}</h${depth}>\n`;
+		},
+		link({ href, title, text }) {
+			if (!isSafeSiteCopyUrl(href)) return text;
+			const titleAttribute = title ? ` title="${escapeHtml(title)}"` : '';
+			return `<a href="${escapeHtml(href)}"${titleAttribute} target="_blank" rel="noopener noreferrer">${text}</a>`;
+		},
+		image({ text }) {
+			return text;
+		}
+	}
+});
+
+/** 受限渲染固定站点文案，供公共读取契约返回。 */
+export function renderSiteCopyMarkdown(markdown: string): string {
+	if (!markdown) return '';
+	return siteCopyMarked.parse(markdown) as string;
+}

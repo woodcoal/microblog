@@ -39,6 +39,8 @@ model User {
   webhooks             Webhook[]
   activityLogs         ActivityLog[]
   postReads            PostRead[]
+  siteCopiesUpdated    SiteCopy[]        @relation("SiteCopyUpdatedBy")
+  siteCopyVersions     SiteCopyVersion[] @relation("SiteCopyVersionUpdatedBy")
 }
 
 /// 帖子表
@@ -311,4 +313,29 @@ model Bookmark {
   post      Post     @relation(fields: [postId], references: [id])
 
   @@unique([userId, postId])  // 每人每帖只能收藏一次
+}
+
+/// 站点固定文案的当前值。键由应用层白名单限定，不能作为任意配置存储使用。
+model SiteCopy {
+  key         String   @id @db.VarChar(191)
+  markdown    String   @db.LongText
+  updatedById String
+  updatedAt   DateTime @updatedAt
+
+  updatedBy   User              @relation("SiteCopyUpdatedBy", fields: [updatedById], references: [id])
+  versions    SiteCopyVersion[]
+}
+
+/// 站点文案不可变审计版本。每次更新必须与 SiteCopy 当前值在同一事务写入。
+model SiteCopyVersion {
+  id          String   @id @default(cuid())
+  key         String   @db.VarChar(191)
+  markdown    String   @db.LongText
+  updatedById String
+  updatedAt   DateTime @default(now())
+
+  siteCopy    SiteCopy @relation(fields: [key], references: [key], onDelete: Cascade)
+  updatedBy   User     @relation("SiteCopyVersionUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([key, updatedAt])
 }
