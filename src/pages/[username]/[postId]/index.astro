@@ -314,6 +314,35 @@ const htmlContent = isDeleted
 	: isForum || isBlog
 		? renderFullMarkdown(post.content)
 		: renderMarkdown(post.content);
+// 博客的目录锚点由服务端在已净化的 HTML 上补齐，避免在客户端重写正文。
+const blogHeadings: Array<{ id: string; text: string; level: number }> = [];
+let blogHeadingIndex = 0;
+const detailHtmlContent = isBlog
+	? htmlContent.replace(
+			/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g,
+			(_match, level, attributes, content) => {
+				const id = `article-section-${blogHeadingIndex + 1}`;
+				blogHeadingIndex += 1;
+				const text = content.replace(/<[^>]+>/g, '').trim();
+				if (text) blogHeadings.push({ id, text, level: Number(level) });
+				const attributesWithoutId = attributes.replace(/\s+id=("[^"]*"|'[^']*')/i, '');
+				return `<h${level}${attributesWithoutId} id="${id}">${content}</h${level}>`;
+			}
+		)
+	: htmlContent;
+const hasBlogHeadings = blogHeadings.length > 0;
+const visibilityLabel =
+	post.visibility === 'public'
+		? '公开可见'
+		: post.visibility === 'logged_in'
+			? '登录用户可见'
+			: post.visibility === 'followers'
+				? '粉丝可见'
+				: post.visibility === 'following'
+					? '我关注的人可见'
+					: post.visibility === 'password'
+						? '密码保护'
+						: '仅自己可见';
 const hasTitle = !!post.title;
 
 // 页面标题：根据模式不同显示不同格式
@@ -542,12 +571,28 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 
 		<!-- 帖子内容（密码保护时默认隐藏，验证后显示） -->
+		{
+			isBlog && hasBlogHeadings && !needPassword && (
+				<nav class="post-detail-toc" aria-label="文章目录">
+					<p class="post-detail-toc-title">目录</p>
+					<ol>
+						{blogHeadings.map((heading) => (
+							<li class={heading.level === 3 ? 'post-detail-toc-subitem' : undefined}>
+								<a href={`#${heading.id}`}>{heading.text}</a>
+							</li>
+						))}
+					</ol>
+				</nav>
+			)
+		}
+
 		<div
 			class="post-detail-content"
-			set:html={htmlContent}
+			set:html={detailHtmlContent}
 			id="post-content"
 			style={needPassword ? 'display:none' : undefined}
 		/>
+		{!isDeleted && !needPassword && <p class="post-detail-visibility">{visibilityLabel}</p>}
 
 		<!-- 标签列表 -->
 		{
@@ -717,6 +762,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					initialComments={serializedComments}
 					initialSort={commentSortOrder}
 					commentCount={commentCount}
+					presentation={isForum ? 'forum' : isBlog ? 'blog' : 'weibo'}
 				/>
 			</section>
 		)
@@ -1075,8 +1121,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		display: inline-block;
 		padding: 0.125rem 0.625rem;
 		font-size: 0.75rem;
-		color: #0891b2;
-		background: color-mix(in srgb, #06b6d4 10%, transparent);
+		color: var(--color-primary);
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 		border-radius: 1rem;
 	}
 	.post-detail-blog-title {

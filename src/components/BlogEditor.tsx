@@ -488,13 +488,14 @@ export default function BlogEditor({
 	return (
 		<div className="blog-editor">
 			{/* 固定工具栏 */}
-			<div className="blog-editor-toolbar">
+			<div className="blog-editor-toolbar" role="toolbar" aria-label="文章格式工具">
 				{/* 标题组 */}
 				<button
 					type="button"
 					className={editor.isActive('heading', { level: 2 }) ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
 					title="二级标题"
+					aria-label="二级标题"
 				>
 					H2
 				</button>
@@ -503,6 +504,7 @@ export default function BlogEditor({
 					className={editor.isActive('heading', { level: 3 }) ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
 					title="三级标题"
+					aria-label="三级标题"
 				>
 					H3
 				</button>
@@ -511,6 +513,7 @@ export default function BlogEditor({
 					className={editor.isActive('paragraph') ? 'active' : ''}
 					onClick={() => editor.chain().focus().setParagraph().run()}
 					title="正文"
+					aria-label="正文"
 				>
 					P
 				</button>
@@ -521,6 +524,7 @@ export default function BlogEditor({
 					className={editor.isActive('bold') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					title="粗体"
+					aria-label="粗体"
 				>
 					<strong>B</strong>
 				</button>
@@ -529,6 +533,7 @@ export default function BlogEditor({
 					className={editor.isActive('italic') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleItalic().run()}
 					title="斜体"
+					aria-label="斜体"
 				>
 					<em>I</em>
 				</button>
@@ -537,6 +542,7 @@ export default function BlogEditor({
 					className={editor.isActive('underline') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleUnderline().run()}
 					title="下划线"
+					aria-label="下划线"
 				>
 					<u>U</u>
 				</button>
@@ -545,6 +551,7 @@ export default function BlogEditor({
 					className={editor.isActive('strike') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleStrike().run()}
 					title="删除线"
+					aria-label="删除线"
 				>
 					<s>S</s>
 				</button>
@@ -553,6 +560,7 @@ export default function BlogEditor({
 					className={editor.isActive('code') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleCode().run()}
 					title="行内代码"
+					aria-label="行内代码"
 				>
 					{'<>'}
 				</button>
@@ -563,6 +571,7 @@ export default function BlogEditor({
 					className={editor.isActive('bulletList') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleBulletList().run()}
 					title="无序列表"
+					aria-label="无序列表"
 				>
 					• 列表
 				</button>
@@ -571,6 +580,7 @@ export default function BlogEditor({
 					className={editor.isActive('orderedList') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleOrderedList().run()}
 					title="有序列表"
+					aria-label="有序列表"
 				>
 					1. 列表
 				</button>
@@ -579,6 +589,7 @@ export default function BlogEditor({
 					className={editor.isActive('taskList') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleTaskList().run()}
 					title="任务列表"
+					aria-label="任务列表"
 				>
 					☑ 任务
 				</button>
@@ -589,6 +600,7 @@ export default function BlogEditor({
 					className={editor.isActive('blockquote') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					title="引用"
+					aria-label="引用"
 				>
 					❝ 引用
 				</button>
@@ -597,6 +609,7 @@ export default function BlogEditor({
 					className={editor.isActive('codeBlock') ? 'active' : ''}
 					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
 					title="代码块"
+					aria-label="代码块"
 				>
 					代码块
 				</button>
@@ -604,18 +617,25 @@ export default function BlogEditor({
 					type="button"
 					onClick={() => editor.chain().focus().setHorizontalRule().run()}
 					title="分割线"
+					aria-label="插入分割线"
 				>
 					—
 				</button>
 				<span className="blog-editor-toolbar-sep" />
 				{/* 插入组 */}
-				<button type="button" onClick={handleLinkInsert} title="链接">
+				<button
+					type="button"
+					onClick={handleLinkInsert}
+					title="链接"
+					aria-label="插入或移除链接"
+				>
 					🔗
 				</button>
 				<button
 					type="button"
 					onClick={() => fileInputRef.current?.click()}
 					title="上传图片"
+					aria-label="上传图片"
 				>
 					📷
 				</button>

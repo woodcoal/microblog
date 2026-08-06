@@ -472,12 +472,71 @@
 
 .post-detail[data-post-mode='blog'] {
 	max-width: 900px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 12.5rem;
+	column-gap: clamp(var(--spacing-5), 5vw, var(--spacing-10));
 }
 
 .post-detail[data-post-mode='blog'] .post-detail-content {
 	margin-right: auto;
 	margin-left: auto;
 	font-size: 1.0625rem;
+}
+
+.post-detail[data-post-mode='blog'] > :not(.post-detail-toc) {
+	grid-column: 1;
+}
+
+.post-detail[data-post-mode='blog'] > .ux-detail-kicker,
+.post-detail[data-post-mode='blog'] > .post-detail-blog-header {
+	grid-column: 1 / -1;
+}
+
+.post-detail-toc {
+	grid-column: 2;
+	grid-row: 3 / span 8;
+	align-self: start;
+	position: sticky;
+	top: calc(var(--navbar-height) + var(--spacing-5));
+	padding-left: var(--spacing-4);
+	border-left: 1px solid var(--color-border);
+}
+
+.post-detail-toc-title {
+	margin: 0 0 var(--spacing-2);
+	font-size: 0.8125rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
+.post-detail-toc ol {
+	display: grid;
+	gap: var(--spacing-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.post-detail-toc a {
+	display: block;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	line-height: 1.45;
+}
+
+.post-detail-toc a:hover,
+.post-detail-toc a:focus-visible {
+	color: var(--color-primary);
+}
+
+.post-detail-toc-subitem {
+	padding-left: var(--spacing-3);
+}
+
+.post-detail-visibility {
+	margin: var(--spacing-3) 0 0;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
 }
 
 .auth-page {
@@ -645,10 +704,43 @@
 		padding: var(--spacing-5) var(--spacing-3);
 	}
 
+	.post-detail[data-post-mode='blog'] {
+		display: block;
+	}
+
+	.post-detail-toc {
+		position: static;
+		margin: var(--spacing-5) 0;
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+
 	.blog-write-toolbar,
 	[data-ux-shell='admin'] .admin-search-bar {
 		align-items: stretch;
 		flex-direction: column;
 		position: static;
+	}
+
+	.blog-write-toolbar-left,
+	.blog-write-toolbar-right {
+		flex-wrap: wrap;
+	}
+
+	.blog-write-doc {
+		width: auto;
+		margin: var(--spacing-4) 0;
+		padding: var(--spacing-4);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.forum-category-item,
+	[data-ux-shell='weibo'] .post-card,
+	[data-ux-shell='connections'] .post-card,
+	[data-ux-shell='profile'] .post-card {
+		transition: none;
 	}
 }

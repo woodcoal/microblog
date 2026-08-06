@@ -42,25 +42,55 @@ const hasInitialContent = initialEditorContent.length > 0;
 
 <div class="forum-editor" id={formId} data-max-length={maxLength} data-category-id={categoryId}>
 	{/* 工具栏 */}
-	<div class="forum-editor-toolbar">
+	<div class="forum-editor-toolbar" role="toolbar" aria-label="论坛 Markdown 工具">
 		<div class="forum-editor-toolbar-group">
 			{/* 标题下拉 */}
-			<button type="button" class="forum-editor-btn" data-action="h1" title="一级标题">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="h1"
+				title="一级标题"
+				aria-label="一级标题"
+			>
 				H1
 			</button>
-			<button type="button" class="forum-editor-btn" data-action="h2" title="二级标题">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="h2"
+				title="二级标题"
+				aria-label="二级标题"
+			>
 				H2
 			</button>
-			<button type="button" class="forum-editor-btn" data-action="h3" title="三级标题">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="h3"
+				title="三级标题"
+				aria-label="三级标题"
+			>
 				H3
 			</button>
 		</div>
 		<div class="forum-editor-toolbar-sep"></div>
 		<div class="forum-editor-toolbar-group">
-			<button type="button" class="forum-editor-btn" data-action="bold" title="粗体">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="bold"
+				title="粗体"
+				aria-label="粗体"
+			>
 				<strong>B</strong>
 			</button>
-			<button type="button" class="forum-editor-btn" data-action="italic" title="斜体">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="italic"
+				title="斜体"
+				aria-label="斜体"
+			>
 				<em>I</em>
 			</button>
 			<button
@@ -68,6 +98,7 @@ const hasInitialContent = initialEditorContent.length > 0;
 				class="forum-editor-btn"
 				data-action="strikethrough"
 				title="删除线"
+				aria-label="删除线"
 			>
 				<s>S</s>
 			</button>
@@ -89,7 +120,13 @@ const hasInitialContent = initialEditorContent.length > 0;
 		</div>
 		<div class="forum-editor-toolbar-sep"></div>
 		<div class="forum-editor-toolbar-group">
-			<button type="button" class="forum-editor-btn" data-action="link" title="链接">
+			<button
+				type="button"
+				class="forum-editor-btn"
+				data-action="link"
+				title="链接"
+				aria-label="插入链接"
+			>
 				🔗
 			</button>
 			<button
@@ -97,6 +134,7 @@ const hasInitialContent = initialEditorContent.length > 0;
 				class="forum-editor-btn"
 				data-action="image-upload"
 				title="上传图片"
+				aria-label="上传图片"
 			>
 				📷
 			</button>
@@ -165,6 +203,11 @@ const hasInitialContent = initialEditorContent.length > 0;
 		background: var(--color-card-bg);
 	}
 
+	.forum-editor:focus-within {
+		border-color: var(--color-primary);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
+	}
+
 	/* 工具栏 */
 	.forum-editor-toolbar {
 		display: flex;
@@ -211,6 +254,11 @@ const hasInitialContent = initialEditorContent.length > 0;
 
 	.forum-editor-btn:hover {
 		background: var(--color-border);
+	}
+
+	.forum-editor-btn:focus-visible {
+		outline: 2px solid var(--color-primary);
+		outline-offset: 2px;
 	}
 
 	.forum-editor-btn-active {
