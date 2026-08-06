@@ -13,6 +13,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -134,17 +135,18 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
+const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 ---
 
 <BlogLayout title={getModeLabel('blog')}>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
-				<div>
-					<p class="ux-eyebrow">为想法留出篇幅</p>
-					<h1 class="page-title" id="blog-page-title">📝 {getModeLabel('blog')}</h1>
-					<p class="page-desc">长文写作，深度思考</p>
-				</div>
+				<div
+					id="blog-page-title"
+					class="site-copy-content site-copy-content-channel"
+					set:html={heroCopy.html}
+				/>
 				{
 					currentUser && (
 						<a href="/blog/write" class="btn btn-primary">

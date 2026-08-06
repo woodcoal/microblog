@@ -19,6 +19,7 @@ import {
 	SITE_LOGO_URL,
 	SITE_FAVICON_URL,
 	SITE_MODES,
+	WEIBO_MEDIA_MAX_WIDTH_PX,
 	isSingleMode,
 	getModeLabel
 } from '@/lib/config';
@@ -157,7 +158,12 @@ const resolvedOgType = ogType || 'website';
 ---
 
 <!doctype html>
-<html lang="zh-CN" data-theme={userTheme} data-accent={userAccent || undefined}>
+<html
+	lang="zh-CN"
+	data-theme={userTheme}
+	data-accent={userAccent || undefined}
+	style={`--weibo-media-max-width: ${WEIBO_MEDIA_MAX_WIDTH_PX}px`}
+>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />

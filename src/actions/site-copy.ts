@@ -4,13 +4,14 @@ import { z } from 'astro/zod';
 import type { APIContext } from 'astro';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
+import { SITE_COPY_KEYS } from '@/lib/site-copy-definitions';
 import {
 	getAdminSiteCopy,
 	getSiteCopyVersions,
 	updateSiteCopy as updateSiteCopyService
 } from '@/services/site-copy.service';
 
-const siteCopyKeySchema = z.enum(['home.hero', 'auth.login.intro', 'auth.register.intro']);
+const siteCopyKeySchema = z.enum(SITE_COPY_KEYS);
 
 function handleServiceError(error: unknown): never {
 	if (error instanceof ServiceError) {

@@ -260,6 +260,35 @@ export const MAX_GLOBAL_PINNED_POSTS = envNumber('MAX_GLOBAL_PINNED_POSTS', 3);
 /** 用户置顶帖上限 */
 export const MAX_USER_PINNED_POSTS = envNumber('MAX_USER_PINNED_POSTS', 1);
 
+/** 微博媒体展示宽度配置（px）。 */
+export const DEFAULT_WEIBO_MEDIA_MAX_WIDTH_PX = 640;
+export const MIN_WEIBO_MEDIA_MAX_WIDTH_PX = 480;
+export const MAX_WEIBO_MEDIA_MAX_WIDTH_PX = 1920;
+
+function isValidWeiboMediaMaxWidth(value: string | undefined): boolean {
+	if (value === undefined || value.trim() === '') return false;
+	const parsed = Number(value);
+	return (
+		Number.isInteger(parsed) &&
+		parsed >= MIN_WEIBO_MEDIA_MAX_WIDTH_PX &&
+		parsed <= MAX_WEIBO_MEDIA_MAX_WIDTH_PX
+	);
+}
+
+/** 将环境变量解析为安全的微博媒体最大宽度，无效值回退 640px。 */
+export function parseWeiboMediaMaxWidth(value: string | undefined): number {
+	return isValidWeiboMediaMaxWidth(value) ? Number(value) : DEFAULT_WEIBO_MEDIA_MAX_WIDTH_PX;
+}
+
+const weiboMediaMaxWidthRaw = getEnv('WEIBO_MEDIA_MAX_WIDTH_PX');
+if (weiboMediaMaxWidthRaw !== undefined && !isValidWeiboMediaMaxWidth(weiboMediaMaxWidthRaw)) {
+	console.warn(
+		`[警告] WEIBO_MEDIA_MAX_WIDTH_PX 必须是 ${MIN_WEIBO_MEDIA_MAX_WIDTH_PX}-${MAX_WEIBO_MEDIA_MAX_WIDTH_PX} 的整数，已回退 ${DEFAULT_WEIBO_MEDIA_MAX_WIDTH_PX}px。`
+	);
+}
+
+export const WEIBO_MEDIA_MAX_WIDTH_PX = parseWeiboMediaMaxWidth(weiboMediaMaxWidthRaw);
+
 /** 解析启用的站点模式 */
 export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo')
 	.split(',')
