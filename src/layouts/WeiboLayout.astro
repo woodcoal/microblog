@@ -34,6 +34,7 @@ const {
 
 const currentUser = await getUserFromRequest(Astro);
 const currentPath = Astro.url.pathname;
+const hasDiscoveryAside = Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -47,7 +48,7 @@ const currentPath = Astro.url.pathname;
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<div class="layout-wide">
+	<div class:list={['layout-wide', { 'layout-wide-with-aside': hasDiscoveryAside }]}>
 		<aside class="layout-sidebar" aria-label="内容导航">
 			<a
 				href="/"
@@ -118,5 +119,12 @@ const currentPath = Astro.url.pathname;
 		<div class="layout-main">
 			<slot />
 		</div>
+		{
+			hasDiscoveryAside && (
+				<div class="layout-discovery-sidebar">
+					<slot name="aside" />
+				</div>
+			)
+		}
 	</div>
 </BaseLayout>

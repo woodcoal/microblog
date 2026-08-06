@@ -9,6 +9,7 @@
  */
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
@@ -107,6 +108,19 @@ const likedPostIds = await getLikedPostIds(
 	currentUser?.userId ?? null,
 	allPosts.map((p) => p.id)
 );
+
+// 列表页发现侧栏只显示可公开访问的真实标签入口。
+const discoveryTags = await prisma.tag.findMany({
+	where: { isHidden: false },
+	orderBy: { posts: { _count: 'desc' } },
+	take: 5,
+	include: { _count: { select: { posts: true } } }
+});
+const discoveryItems = discoveryTags.map((tag) => ({
+	title: `#${tag.name}`,
+	href: `/tags/${encodeURIComponent(tag.name)}`,
+	meta: `${tag._count.posts} 条动态`
+}));
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = allPosts.length > 0;
@@ -238,6 +252,12 @@ const hasPagination = totalPages > 1;
 			)
 		}
 	</section>
+	<ChannelAside
+		slot="aside"
+		title="热门话题"
+		description="从正在被讨论的标签进入内容流。"
+		items={discoveryItems}
+	/>
 </WeiboLayout>
 
 <style>

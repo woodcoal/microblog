@@ -1,0 +1,49 @@
+---
+/**
+ * 频道列表页的辅助发现区。
+ *
+ * 只接受页面已查询到的真实入口数据，避免为布局填充虚构内容；在窄屏由
+ * 内容壳收起，主列表仍保持完整可用。
+ */
+export interface ChannelAsideItem {
+	title: string;
+	href: string;
+	meta?: string;
+	icon?: string;
+}
+
+interface Props {
+	title: string;
+	description?: string;
+	items: ChannelAsideItem[];
+}
+
+const { title, description, items } = Astro.props;
+const hasItems = items.length > 0;
+---
+
+<aside class="channel-aside" aria-label={title}>
+	<h2 class="channel-aside-title">{title}</h2>
+	{description && <p class="channel-aside-description">{description}</p>}
+	{
+		hasItems ? (
+			<nav class="channel-aside-list" aria-label={`${title}入口`}>
+				{items.map((item) => (
+					<a href={item.href} class="channel-aside-link">
+						{item.icon && (
+							<span class="channel-aside-icon" aria-hidden="true">
+								{item.icon}
+							</span>
+						)}
+						<span class="channel-aside-copy">
+							<span class="channel-aside-item-title">{item.title}</span>
+							{item.meta && <span class="channel-aside-meta">{item.meta}</span>}
+						</span>
+					</a>
+				))}
+			</nav>
+		) : (
+			<p class="channel-aside-empty">暂时没有可浏览的内容。</p>
+		)
+	}
+</aside>

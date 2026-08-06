@@ -8,6 +8,7 @@
  * 支持分页浏览。
  */
 import BlogLayout from '@/layouts/BlogLayout.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
@@ -134,6 +135,12 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
+const discoveryItems = categories.slice(0, 5).map((category) => ({
+	title: category.name,
+	href: `/blog?category=${encodeURIComponent(category.id)}`,
+	meta: `${category._count.posts} 篇文章`,
+	icon: category.icon || undefined
+}));
 ---
 
 <BlogLayout title={getModeLabel('blog')}>
@@ -285,6 +292,12 @@ const hasFilter = !!filterCategoryId;
 			)
 		}
 	</section>
+	<ChannelAside
+		slot="aside"
+		title="按主题阅读"
+		description="从分类进入值得沉淀的长文。"
+		items={discoveryItems}
+	/>
 </BlogLayout>
 
 <style>

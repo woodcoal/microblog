@@ -30,6 +30,7 @@ const {
 	noindex,
 	jsonLd
 } = Astro.props;
+const hasDiscoveryAside = Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -43,7 +44,16 @@ const {
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<div class="layout-full">
-		<slot />
+	<div class:list={['layout-full', { 'layout-content-with-aside': hasDiscoveryAside }]}>
+		<div class="layout-content-main">
+			<slot />
+		</div>
+		{
+			hasDiscoveryAside && (
+				<div class="layout-discovery-sidebar">
+					<slot name="aside" />
+				</div>
+			)
+		}
 	</div>
 </BaseLayout>
