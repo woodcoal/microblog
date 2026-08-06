@@ -53,7 +53,7 @@
 	/* ===== 布局 ===== */
 	--max-width: 760px;
 	--layout-content: 760px;
-	--layout-sidebar-width: 220px;
+	--layout-sidebar-width: 192px;
 	--layout-sidebar-collapsed: 64px;
 	--layout-wide: 1320px;
 	--layout-home: 1480px;

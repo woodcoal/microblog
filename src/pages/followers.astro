@@ -11,7 +11,7 @@ import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 
 // 需要认证，未登录重定向
@@ -79,6 +79,10 @@ const likedPostIds = await getLikedPostIds(
 	currentUser.userId,
 	hotPosts.map((p) => p.id)
 );
+const bookmarkedPostIds = await getBookmarkedPostIds(
+	currentUser.userId,
+	hotPosts.map((post) => post.id)
+);
 ---
 
 <WeiboLayout title="我的粉丝">
@@ -136,6 +140,7 @@ const likedPostIds = await getLikedPostIds(
 					<div class="post-list">
 						{hotPosts.map(async (post) => {
 							const postLiked = likedPostIds.has(post.id);
+							const postBookmarked = bookmarkedPostIds.has(post.id);
 							const postLikeCount = post._count.likes;
 							const postCommentCount = post._count.comments;
 							const postTags = post.tags.map((pt) => ({
@@ -178,6 +183,8 @@ const likedPostIds = await getLikedPostIds(
 									likeCount={postLikeCount}
 									liked={postLiked}
 									commentCount={postCommentCount}
+									bookmarkCount={post._count.bookmarks}
+									bookmarked={postBookmarked}
 									tags={postTags}
 									isRestricted={isPostRestricted}
 								/>

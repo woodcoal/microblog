@@ -18,6 +18,7 @@ interface Props {
 	canonicalUrl?: string;
 	noindex?: boolean;
 	jsonLd?: Record<string, unknown>;
+	hasAside?: boolean;
 }
 
 const {
@@ -29,12 +30,13 @@ const {
 	ogType,
 	canonicalUrl,
 	noindex,
-	jsonLd
+	jsonLd,
+	hasAside
 } = Astro.props;
 
 const currentUser = await getUserFromRequest(Astro);
 const currentPath = Astro.url.pathname;
-const hasDiscoveryAside = Astro.slots.has('aside');
+const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -51,9 +53,9 @@ const hasDiscoveryAside = Astro.slots.has('aside');
 	<div class:list={['layout-wide', { 'layout-wide-with-aside': hasDiscoveryAside }]}>
 		<aside class="layout-sidebar" aria-label="内容导航">
 			<a
-				href="/"
+				href="/weibo"
 				class="sidebar-link"
-				aria-current={currentPath === '/' ? 'page' : undefined}
+				aria-current={currentPath === '/weibo' ? 'page' : undefined}
 			>
 				<span class="sidebar-link-icon">🏠</span>
 				<span>首页</span>

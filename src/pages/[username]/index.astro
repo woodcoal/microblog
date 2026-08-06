@@ -13,7 +13,7 @@ import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { getLikedPostIds } from '@/lib/queries';
+import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { SITE_URL, SITE_TITLE, getModeLabel } from '@/lib/config';
 
 // 路由参数
@@ -193,7 +193,7 @@ const posts = await prisma.post.findMany({
 			}
 		},
 		_count: {
-			select: { likes: true, comments: true }
+			select: { likes: true, comments: true, bookmarks: true }
 		}
 	},
 	take: 20
@@ -203,6 +203,10 @@ const posts = await prisma.post.findMany({
 const likedPostIds = await getLikedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((p) => p.id)
+);
+const bookmarkedPostIds = await getBookmarkedPostIds(
+	currentUser?.userId ?? null,
+	posts.map((post) => post.id)
 );
 ---
 
@@ -344,6 +348,7 @@ const likedPostIds = await getLikedPostIds(
 				{posts.map(async (post) => {
 					// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 					const postLiked = likedPostIds.has(post.id);
+					const postBookmarked = bookmarkedPostIds.has(post.id);
 					const postLikeCount = post._count.likes;
 					const postCommentCount = post._count.comments;
 					// 提取标签列表
@@ -388,6 +393,8 @@ const likedPostIds = await getLikedPostIds(
 							likeCount={postLikeCount}
 							liked={postLiked}
 							commentCount={postCommentCount}
+							bookmarkCount={post._count.bookmarks}
+							bookmarked={postBookmarked}
 							tags={postTags}
 							isRestricted={isPostRestricted}
 						/>

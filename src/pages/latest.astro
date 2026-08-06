@@ -10,7 +10,7 @@ import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
-import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
+import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 
 /** 每页显示帖子数量 */
@@ -80,6 +80,10 @@ const likedPostIds = await getLikedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((p) => p.id)
 );
+const bookmarkedPostIds = await getBookmarkedPostIds(
+	currentUser?.userId ?? null,
+	posts.map((p) => p.id)
+);
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -91,9 +95,13 @@ const hasPagination = totalPages > 1;
 <WeiboLayout title="最新 - 睦谈">
 	<section class="ux-channel-page ux-latest-page" aria-labelledby="latest-page-title">
 		<div class="page-header">
-			<p class="ux-eyebrow">实时内容</p>
-			<h1 class="page-title" id="latest-page-title">最新</h1>
-			<p class="page-desc">所有公开动态，按时间倒序排列</p>
+			<div class="page-header-row">
+				<div>
+					<p class="ux-eyebrow">实时内容</p>
+					<h1 class="page-title" id="latest-page-title">最新</h1>
+					<p class="page-desc">所有公开动态，按时间倒序排列</p>
+				</div>
+			</div>
 		</div>
 
 		{
@@ -112,6 +120,7 @@ const hasPagination = totalPages > 1;
 						const postLikeCount = post._count.likes;
 						const postCommentCount = post._count.comments;
 						const postLiked = likedPostIds.has(post.id);
+						const postBookmarked = bookmarkedPostIds.has(post.id);
 
 						// 检查当前用户是否有权查看帖子内容
 						const isPostRestricted = !(await checkPostVisibility(
@@ -153,6 +162,8 @@ const hasPagination = totalPages > 1;
 								likeCount={postLikeCount}
 								liked={postLiked}
 								commentCount={postCommentCount}
+								bookmarkCount={post._count.bookmarks}
+								bookmarked={postBookmarked}
 								tags={postTags}
 								isRestricted={isPostRestricted}
 							/>
