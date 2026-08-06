@@ -171,48 +171,23 @@ export async function getRecommendUsers(
 ): Promise<GetRecommendUsersResult> {
 	const count = normalizeRecommendUserCount(input.n);
 	const publicPostSince = new Date(Date.now() - RECOMMEND_USER_ACTIVE_DAYS * 24 * 60 * 60 * 1000);
-	const currentFollowingIds = await findFollowingIds(input.userId);
 	const candidates = await findRecommendUserCandidates(
 		input.userId,
-		currentFollowingIds,
 		publicPostSince,
 		RECOMMEND_USER_CANDIDATE_LIMIT
 	);
 
 	const items = candidates
-		.map((candidate) => {
-			const latestPublicPost = candidate.posts[0];
-			// posts.some 使用了相同筛选条件，因此这里必定存在；防御性跳过异常数据。
-			if (!latestPublicPost) return null;
-
-			return {
-				item: {
-					id: candidate.id,
-					username: candidate.username,
-					displayName: candidate.displayName,
-					avatarUrl: candidate.avatarUrl,
-					bio: candidate.bio,
-					followerCount: candidate._count.following,
-					mutualFollowCount: candidate._count.followers,
-					latestPublicPostAt: latestPublicPost.createdAt.toISOString()
-				},
-				publicPostCount: candidate._count.posts
-			};
-		})
-		.filter(
-			(candidate): candidate is { item: RecommendUserItem; publicPostCount: number } =>
-				candidate !== null
-		)
-		.sort((a, b) => {
-			return (
-				b.item.mutualFollowCount - a.item.mutualFollowCount ||
-				b.publicPostCount - a.publicPostCount ||
-				b.item.followerCount - a.item.followerCount ||
-				b.item.latestPublicPostAt.localeCompare(a.item.latestPublicPostAt) ||
-				a.item.username.localeCompare(b.item.username)
-			);
-		})
-		.map(({ item }) => item);
+		.map((candidate) => ({
+			id: candidate.id,
+			username: candidate.username,
+			displayName: candidate.displayName,
+			avatarUrl: candidate.avatarUrl,
+			bio: candidate.bio,
+			followerCount: Number(candidate.followerCount),
+			mutualFollowCount: Number(candidate.mutualFollowCount),
+			latestPublicPostAt: new Date(candidate.latestPublicPostAt).toISOString()
+		}));
 
 	return { items: items.slice(0, count) };
 }

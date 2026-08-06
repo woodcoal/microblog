@@ -9,8 +9,11 @@ import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
+	getRecommendUsersActionHandler,
+	RecommendUsersUnauthorizedError
+} from './recommend-users.handler';
+import {
 	getRecommend as getRecommendService,
-	getRecommendUsers as getRecommendUsersService,
 	getSimilarPosts as getSimilarPostsService,
 	recordRead as recordReadService,
 	RECOMMEND_USER_MAX_COUNT,
@@ -69,17 +72,12 @@ export const getRecommendUsersInputSchema = z.object({
 const getRecommendUsers = defineAction({
 	input: getRecommendUsersInputSchema,
 	handler: async (input, context) => {
-		const currentUser = await getUserFromRequest(context);
-		if (!currentUser) {
-			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
-		}
-
 		try {
-			return await getRecommendUsersService({
-				userId: currentUser.userId,
-				n: input.n
-			});
+			return await getRecommendUsersActionHandler(input, context);
 		} catch (e) {
+			if (e instanceof RecommendUsersUnauthorizedError) {
+				throw new ActionError({ code: e.code, message: e.message });
+			}
 			handleServiceError(e);
 		}
 	}

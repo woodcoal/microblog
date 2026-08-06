@@ -5,15 +5,7 @@
  */
 import { prisma } from '@/lib/db';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
-import type { Prisma } from '../../generated/prisma/client';
-
-const RECOMMEND_USER_SELECT = {
-	id: true,
-	username: true,
-	displayName: true,
-	avatarUrl: true,
-	bio: true
-} as const;
+import { Prisma } from '../../generated/prisma/client';
 
 /** 查询推荐候选帖，默认按发布时间由新到旧返回。 */
 export function findRecommendationCandidates(
@@ -54,51 +46,67 @@ export function findRecommendationSource(postId: string) {
 /**
  * 查询首页推荐用户的有界候选集。
  *
- * 共同关注统计基于“当前用户和候选人都关注的用户”计算。当前用户的关注 ID
- * 由调用方一次性提供，使查询始终保持固定次数，避免对每个候选人单独计数。
+ * 聚合、业务排序和候选上限必须在同一条 SQL 中完成：若先按用户名截断，用户名
+ * 靠后的高分候选会被错误排除。查询只返回展示契约所需的公开资料和统计字段，避免
+ * 在 Service 层为每个候选执行额外查询。
  */
 export function findRecommendUserCandidates(
 	userId: string,
-	currentFollowingIds: string[],
 	publicPostSince: Date,
 	limit: number
 ) {
-	const publicPostWhere: Prisma.PostWhereInput = {
-		isDeleted: false,
-		visibility: 'public',
-		createdAt: { gte: publicPostSince }
-	};
+	return prisma.$queryRaw<RecommendUserCandidate[]>(Prisma.sql`
+		SELECT
+			candidate.\`id\`,
+			candidate.\`username\`,
+			candidate.\`displayName\`,
+			candidate.\`avatarUrl\`,
+			candidate.\`bio\`,
+			COUNT(DISTINCT follower.\`followerId\`) AS \`followerCount\`,
+			COUNT(DISTINCT viewerFollowing.\`followingId\`) AS \`mutualFollowCount\`,
+			COUNT(DISTINCT publicPost.\`id\`) AS \`publicPostCount\`,
+			MAX(publicPost.\`createdAt\`) AS \`latestPublicPostAt\`
+		FROM \`User\` AS candidate
+		INNER JOIN \`Post\` AS publicPost
+			ON publicPost.\`userId\` = candidate.\`id\`
+			AND publicPost.\`isDeleted\` = false
+			AND publicPost.\`visibility\` = 'public'
+			AND publicPost.\`createdAt\` >= ${publicPostSince}
+		LEFT JOIN \`Follow\` AS follower ON follower.\`followingId\` = candidate.\`id\`
+		LEFT JOIN \`Follow\` AS candidateFollowing ON candidateFollowing.\`followerId\` = candidate.\`id\`
+		LEFT JOIN \`Follow\` AS viewerFollowing
+			ON viewerFollowing.\`followerId\` = ${userId}
+			AND viewerFollowing.\`followingId\` = candidateFollowing.\`followingId\`
+		WHERE candidate.\`id\` <> ${userId}
+			AND candidate.\`isDisabled\` = false
+			AND NOT EXISTS (
+				SELECT 1
+				FROM \`Follow\` AS existingFollow
+				WHERE existingFollow.\`followerId\` = ${userId}
+					AND existingFollow.\`followingId\` = candidate.\`id\`
+			)
+		GROUP BY candidate.\`id\`, candidate.\`username\`, candidate.\`displayName\`, candidate.\`avatarUrl\`, candidate.\`bio\`
+		ORDER BY
+			\`mutualFollowCount\` DESC,
+			\`publicPostCount\` DESC,
+			\`followerCount\` DESC,
+			\`latestPublicPostAt\` DESC,
+			candidate.\`username\` ASC
+		LIMIT ${limit}
+	`);
+}
 
-	return prisma.user.findMany({
-		where: {
-			id: { not: userId },
-			isDisabled: false,
-			// User.following 是以该用户为被关注方的关系，即其粉丝。
-			following: { none: { followerId: userId } },
-			posts: { some: publicPostWhere }
-		},
-		select: {
-			...RECOMMEND_USER_SELECT,
-			posts: {
-				where: publicPostWhere,
-				orderBy: { createdAt: 'desc' },
-				take: 1,
-				select: { createdAt: true }
-			},
-			_count: {
-				select: {
-					// User.following 代表该用户拥有的粉丝数。
-					following: true,
-					// User.followers 代表该用户主动关注的关系。
-					followers: { where: { followingId: { in: currentFollowingIds } } },
-					posts: { where: publicPostWhere }
-				}
-			}
-		},
-		// 限制候选集时先给出稳定顺序，避免底层数据库的任意行顺序泄漏到结果。
-		orderBy: { username: 'asc' },
-		take: limit
-	});
+/** 原始聚合查询返回的内部行；只在 lib → service 边界使用。 */
+export interface RecommendUserCandidate {
+	id: string;
+	username: string;
+	displayName: string;
+	avatarUrl: string;
+	bio: string;
+	followerCount: number | bigint;
+	mutualFollowCount: number | bigint;
+	publicPostCount: number | bigint;
+	latestPublicPostAt: Date | string;
 }
 
 /** 幂等记录用户已阅读的帖子。 */

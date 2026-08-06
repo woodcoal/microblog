@@ -2,6 +2,10 @@
 import { after, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/db';
+import {
+	getRecommendUsersActionHandler,
+	RecommendUsersUnauthorizedError
+} from '../src/actions/recommend-users.handler';
 import { getRecommendUsers } from '../src/services/recommend.service';
 
 const now = Date.now();
@@ -148,4 +152,60 @@ test('数量边界为 1 到 20，服务对绕过 Action 的调用也防御性校
 	await assert.rejects(getRecommendUsers({ userId: current.id, n: 0 }), /1 到 20/);
 	await assert.rejects(getRecommendUsers({ userId: current.id, n: 21 }), /1 到 20/);
 	await assert.rejects(getRecommendUsers({ userId: current.id, n: 1.5 }), /1 到 20/);
+});
+
+test('超过候选上限时，用户名尾部的最高分候选仍会被返回', async () => {
+	const current = await createUser('candidate_viewer');
+	const commonFollow = await createUser('common_follow');
+	const highestScoringAtTail = await createUser('zzzz_highest_scoring');
+
+	await prisma.follow.createMany({
+		data: [
+			{ followerId: current.id, followingId: commonFollow.id },
+			{ followerId: highestScoringAtTail.id, followingId: commonFollow.id }
+		]
+	});
+
+	const lowerScoringCandidates = await Promise.all(
+		Array.from({ length: 200 }, (_, index) => createUser(`candidate_${String(index).padStart(3, '0')}`))
+	);
+	await prisma.post.createMany({
+		data: [
+			{
+				id: 'tail_high_score_post',
+				userId: highestScoringAtTail.id,
+				content: 'highest score',
+				createdAt: recent(1),
+				updatedAt: recent(1)
+			},
+			...lowerScoringCandidates.map((candidate, index) => ({
+				id: `candidate_cap_${index}`,
+				userId: candidate.id,
+				content: `candidate ${index}`,
+				createdAt: recent(1),
+				updatedAt: recent(1)
+			}))
+		]
+	});
+
+	assert.deepEqual(
+		(await getRecommendUsers({ userId: current.id, n: 1 })).items.map((item) => item.username),
+		['zzzz_highest_scoring']
+	);
+});
+
+test('未登录调用 getRecommendUsers Action 返回 UNAUTHORIZED', async () => {
+	const anonymousActionContext = {
+		request: new Request('http://localhost/_actions/server.getRecommendUsers', { method: 'POST' }),
+		cookies: { get: () => undefined }
+	} as unknown as Parameters<typeof getRecommendUsersActionHandler>[1];
+
+	await assert.rejects(
+		getRecommendUsersActionHandler({}, anonymousActionContext),
+		(error: unknown) => {
+			assert.ok(error instanceof RecommendUsersUnauthorizedError);
+			assert.equal(error.code, 'UNAUTHORIZED');
+			return true;
+		}
+	);
 });

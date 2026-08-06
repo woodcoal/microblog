@@ -79,6 +79,7 @@ model Post {
   reads      PostRead[]
 
   @@index([isDeleted, visibility, createdAt])
+  @@index([userId, isDeleted, visibility, createdAt])
 }
 
 /// 帖子版本历史
@@ -165,6 +166,7 @@ model Follow {
   following   User     @relation("UserFollowing", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
+  @@index([followingId, followerId])
 }
 
 /// 标签表
