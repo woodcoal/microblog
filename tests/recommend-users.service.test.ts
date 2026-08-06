@@ -2,6 +2,7 @@
 import { after, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/db';
+import { explainRecommendUserCandidates } from '../src/lib/recommend';
 import {
 	getRecommendUsersActionHandler,
 	RecommendUsersUnauthorizedError
@@ -191,6 +192,57 @@ test('超过候选上限时，用户名尾部的最高分候选仍会被返回',
 	assert.deepEqual(
 		(await getRecommendUsers({ userId: current.id, n: 1 })).items.map((item) => item.username),
 		['zzzz_highest_scoring']
+	);
+});
+
+test('多关系规模下使用独立索引统计，不产生明细表行数乘法', async () => {
+	const current = await createUser('performance_viewer');
+	const candidate = await createUser('performance_candidate');
+	const [sharedTargets, followers] = await Promise.all([
+		Promise.all(Array.from({ length: 100 }, (_, index) => createUser(`shared_target_${index}`))),
+		Promise.all(Array.from({ length: 100 }, (_, index) => createUser(`candidate_follower_${index}`)))
+	]);
+
+	await prisma.follow.createMany({
+		data: [
+			...sharedTargets.flatMap((sharedTarget) => [
+				{ followerId: current.id, followingId: sharedTarget.id },
+				{ followerId: candidate.id, followingId: sharedTarget.id }
+			]),
+			...followers.map((follower) => ({ followerId: follower.id, followingId: candidate.id }))
+		]
+	});
+	await prisma.post.createMany({
+		data: Array.from({ length: 100 }, (_, index) => ({
+			id: `performance_post_${index}`,
+			userId: candidate.id,
+			content: `performance post ${index}`,
+			createdAt: recent(1),
+			updatedAt: recent(1)
+		}))
+	});
+
+	const plan = await explainRecommendUserCandidates(current.id, recent(90), 200);
+	const planDetails = plan.map((row) => row.detail);
+	assert.ok(
+		planDetails.filter((detail) => detail.includes('CORRELATED SCALAR SUBQUERY')).length >= 4,
+		`应分别执行统计子查询，实际计划：${planDetails.join(' | ')}`
+	);
+	assert.equal(
+		planDetails.some((detail) => detail.includes('USE TEMP B-TREE FOR count(DISTINCT)')),
+		false,
+		`不应通过 COUNT(DISTINCT) 消除并联行数，实际计划：${planDetails.join(' | ')}`
+	);
+
+	const startedAt = performance.now();
+	const result = await getRecommendUsers({ userId: current.id, n: 1 });
+	const elapsedMilliseconds = performance.now() - startedAt;
+	assert.deepEqual(result.items.map((item) => item.username), ['performance_candidate']);
+	assert.equal(result.items[0].mutualFollowCount, 100);
+	assert.equal(result.items[0].followerCount, 100);
+	assert.ok(
+		elapsedMilliseconds < 1_000,
+		`100×100×100 关系规模的候选查询耗时 ${elapsedMilliseconds.toFixed(1)}ms，疑似发生行数乘法`
 	);
 });
 

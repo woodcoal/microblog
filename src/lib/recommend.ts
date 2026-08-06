@@ -55,37 +55,85 @@ export function findRecommendUserCandidates(
 	publicPostSince: Date,
 	limit: number
 ) {
-	return prisma.$queryRaw<RecommendUserCandidate[]>(Prisma.sql`
+	return prisma.$queryRaw<RecommendUserCandidate[]>(
+		recommendUserCandidatesQuery(userId, publicPostSince, limit)
+	);
+}
+
+/** SQLite 查询计划行，仅用于推荐查询的性能回归测试。 */
+export interface RecommendUserCandidateQueryPlanRow {
+	detail: string;
+}
+
+/** 返回候选查询计划，以验证统计使用独立相关子查询而非多路明细并联。 */
+export function explainRecommendUserCandidates(
+	userId: string,
+	publicPostSince: Date,
+	limit: number
+) {
+	return prisma.$queryRaw<RecommendUserCandidateQueryPlanRow[]>(Prisma.sql`
+		EXPLAIN QUERY PLAN ${recommendUserCandidatesQuery(userId, publicPostSince, limit)}
+	`);
+}
+
+/**
+ * 构造候选查询：每项统计都以 candidate.id 为键独立计算，禁止将 Post 与两条
+ * Follow 一对多关系直接并联。这样不会产生帖子数 × 粉丝数 × 主动关注数的中间行。
+ */
+function recommendUserCandidatesQuery(userId: string, publicPostSince: Date, limit: number) {
+	return Prisma.sql`
 		SELECT
 			candidate.\`id\`,
 			candidate.\`username\`,
 			candidate.\`displayName\`,
 			candidate.\`avatarUrl\`,
 			candidate.\`bio\`,
-			COUNT(DISTINCT follower.\`followerId\`) AS \`followerCount\`,
-			COUNT(DISTINCT viewerFollowing.\`followingId\`) AS \`mutualFollowCount\`,
-			COUNT(DISTINCT publicPost.\`id\`) AS \`publicPostCount\`,
-			MAX(publicPost.\`createdAt\`) AS \`latestPublicPostAt\`
+			(
+				SELECT COUNT(*)
+				FROM \`Follow\` AS follower
+				WHERE follower.\`followingId\` = candidate.\`id\`
+			) AS \`followerCount\`,
+			(
+				SELECT COUNT(*)
+				FROM \`Follow\` AS candidateFollowing
+				INNER JOIN \`Follow\` AS viewerFollowing
+					ON viewerFollowing.\`followingId\` = candidateFollowing.\`followingId\`
+					AND viewerFollowing.\`followerId\` = ${userId}
+				WHERE candidateFollowing.\`followerId\` = candidate.\`id\`
+			) AS \`mutualFollowCount\`,
+			(
+				SELECT COUNT(*)
+				FROM \`Post\` AS publicPost
+				WHERE publicPost.\`userId\` = candidate.\`id\`
+					AND publicPost.\`isDeleted\` = false
+					AND publicPost.\`visibility\` = 'public'
+					AND publicPost.\`createdAt\` >= ${publicPostSince}
+			) AS \`publicPostCount\`,
+			(
+				SELECT MAX(publicPost.\`createdAt\`)
+				FROM \`Post\` AS publicPost
+				WHERE publicPost.\`userId\` = candidate.\`id\`
+					AND publicPost.\`isDeleted\` = false
+					AND publicPost.\`visibility\` = 'public'
+					AND publicPost.\`createdAt\` >= ${publicPostSince}
+			) AS \`latestPublicPostAt\`
 		FROM \`User\` AS candidate
-		INNER JOIN \`Post\` AS publicPost
-			ON publicPost.\`userId\` = candidate.\`id\`
-			AND publicPost.\`isDeleted\` = false
-			AND publicPost.\`visibility\` = 'public'
-			AND publicPost.\`createdAt\` >= ${publicPostSince}
-		LEFT JOIN \`Follow\` AS follower ON follower.\`followingId\` = candidate.\`id\`
-		LEFT JOIN \`Follow\` AS candidateFollowing ON candidateFollowing.\`followerId\` = candidate.\`id\`
-		LEFT JOIN \`Follow\` AS viewerFollowing
-			ON viewerFollowing.\`followerId\` = ${userId}
-			AND viewerFollowing.\`followingId\` = candidateFollowing.\`followingId\`
 		WHERE candidate.\`id\` <> ${userId}
 			AND candidate.\`isDisabled\` = false
+			AND EXISTS (
+				SELECT 1
+				FROM \`Post\` AS publicPost
+				WHERE publicPost.\`userId\` = candidate.\`id\`
+					AND publicPost.\`isDeleted\` = false
+					AND publicPost.\`visibility\` = 'public'
+					AND publicPost.\`createdAt\` >= ${publicPostSince}
+			)
 			AND NOT EXISTS (
 				SELECT 1
 				FROM \`Follow\` AS existingFollow
 				WHERE existingFollow.\`followerId\` = ${userId}
 					AND existingFollow.\`followingId\` = candidate.\`id\`
 			)
-		GROUP BY candidate.\`id\`, candidate.\`username\`, candidate.\`displayName\`, candidate.\`avatarUrl\`, candidate.\`bio\`
 		ORDER BY
 			\`mutualFollowCount\` DESC,
 			\`publicPostCount\` DESC,
@@ -93,7 +141,7 @@ export function findRecommendUserCandidates(
 			\`latestPublicPostAt\` DESC,
 			candidate.\`username\` ASC
 		LIMIT ${limit}
-	`);
+	`;
 }
 
 /** 原始聚合查询返回的内部行；只在 lib → service 边界使用。 */
