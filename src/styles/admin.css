@@ -180,6 +180,126 @@
 	margin-bottom: var(--spacing-6);
 }
 
+/* ===== 站点文案 ===== */
+
+.site-copy-admin-list {
+	display: grid;
+	gap: var(--spacing-5);
+}
+
+.site-copy-admin-card {
+	min-width: 0;
+	padding: clamp(var(--spacing-4), 3vw, var(--spacing-6));
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-card-bg);
+	box-shadow: var(--shadow-sm);
+}
+
+.site-copy-admin-card-header,
+.site-copy-admin-footer,
+.site-copy-admin-actions {
+	display: flex;
+	gap: var(--spacing-4);
+	align-items: center;
+	justify-content: space-between;
+}
+
+.site-copy-admin-card-header {
+	margin-bottom: var(--spacing-5);
+}
+
+.site-copy-admin-card h2,
+.site-copy-admin-preview-title {
+	margin: 0;
+	font-size: 1.125rem;
+}
+
+.site-copy-admin-card-header p,
+.site-copy-admin-help,
+.site-copy-admin-updated {
+	margin: var(--spacing-1) 0 0;
+	color: var(--color-muted);
+	font-size: 0.875rem;
+}
+
+.site-copy-admin-card code {
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	padding: 0.25rem 0.5rem;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--color-primary) 8%, transparent);
+	color: var(--color-primary);
+}
+
+.site-copy-admin-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: var(--spacing-5);
+}
+
+.site-copy-admin-textarea {
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 12rem;
+	resize: vertical;
+}
+
+.site-copy-admin-preview-title {
+	margin-bottom: var(--spacing-2);
+}
+
+.site-copy-admin-preview {
+	min-height: 12rem;
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	overflow-wrap: anywhere;
+	background: var(--color-surface);
+}
+
+.site-copy-admin-preview :first-child {
+	margin-top: 0;
+}
+
+.site-copy-admin-preview :last-child {
+	margin-bottom: 0;
+}
+
+.site-copy-admin-preview h1,
+.site-copy-admin-preview h2,
+.site-copy-admin-preview h3,
+.site-copy-admin-preview h4,
+.site-copy-admin-preview h5,
+.site-copy-admin-preview h6 {
+	line-height: 1.25;
+}
+
+.site-copy-admin-preview a {
+	color: var(--color-primary);
+}
+
+.site-copy-admin-footer {
+	margin-top: var(--spacing-5);
+	padding-top: var(--spacing-4);
+	border-top: 1px solid var(--color-border);
+}
+
+.site-copy-admin-updated {
+	margin: 0;
+}
+
+.site-copy-admin-status {
+	min-height: 1.5em;
+	margin: 0;
+	color: var(--color-success);
+	font-size: 0.875rem;
+}
+
+.site-copy-admin-status-error {
+	color: var(--color-danger);
+}
+
 /* ===== 统计卡片网格 ===== */
 
 .admin-stats-grid {
@@ -233,6 +353,24 @@
 	border-radius: var(--radius-md);
 	overflow-x: auto;
 	max-width: 100%;
+}
+
+@media (max-width: 767px) {
+	.site-copy-admin-card-header,
+	.site-copy-admin-footer,
+	.site-copy-admin-actions {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.site-copy-admin-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.site-copy-admin-actions,
+	.site-copy-admin-actions .btn {
+		width: 100%;
+	}
 }
 
 .admin-table {

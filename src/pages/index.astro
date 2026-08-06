@@ -18,6 +18,7 @@ import { calculateTrendingScore } from '@/lib/trending';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isSingleMode, singleMode } from '@/lib/config';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 单模式时直接重定向到该模式首页
 if (isSingleMode && singleMode) {
@@ -132,16 +133,14 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const canShowRecommendations = !!currentUser;
+const heroCopy = await getPublicSiteCopy('home.hero');
 ---
 
 <HomeLayout title="首页">
-	<section class="home-hero" aria-labelledby="home-title">
+	<section class="home-hero">
 		<div class="home-hero-copy">
-			<p class="home-eyebrow">轻量、多元、自在</p>
-			<h1 class="home-title" id="home-title">在同一个社区，聊聊你关心的事。</h1>
-			<p class="home-lede">
-				微博记录当下，论坛展开讨论，博客沉淀观点。发现值得停留的内容，也分享你的声音。
-			</p>
+			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->
+			<div class="site-copy-content site-copy-content-home" set:html={heroCopy.html} />
 			<div class="home-hero-actions">
 				{
 					currentUser ? (

@@ -13,17 +13,18 @@ import {
 	SITE_TITLE,
 	SITE_LOGO_URL
 } from '@/lib/config';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 从环境变量读取是否允许注册
 const allowRegistration = ALLOW_REGISTRATION;
+const introCopy = await getPublicSiteCopy('auth.register.intro');
 ---
 
 <BaseLayout title="注册" narrow>
 	<div class="auth-page-shell">
-		<section class="auth-page-intro" aria-labelledby="register-welcome">
-			<p class="ux-eyebrow">加入睦谈</p>
-			<h1 id="register-welcome">在这里，留下一点有用的声音。</h1>
-			<p>选择适合的表达方式，让一段想法获得持续的回应。</p>
+		<section class="auth-page-intro">
+			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->
+			<div class="site-copy-content site-copy-content-auth" set:html={introCopy.html} />
 		</section>
 		<div class="auth-page card">
 			<div class="auth-brand">
