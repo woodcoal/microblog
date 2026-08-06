@@ -287,10 +287,21 @@ const resolvedOgType = ogType || 'website';
 					aria-expanded="false">☰</button
 				>
 				<div class="navbar-actions" id="navbar-actions">
-					<a href="/search" class="nav-search-btn" aria-label="搜索睦谈">
-						<span aria-hidden="true">🔍</span>
-						<span class="nav-search-label">搜索睦谈</span>
-					</a>
+					{
+						!currentPath.startsWith('/search') && (
+							<form class="nav-search-form" action="/search" method="GET" role="search">
+								<label class="sr-only" for="global-search-input">搜索睦谈</label>
+								<span class="nav-search-icon" aria-hidden="true">⌕</span>
+								<input
+									id="global-search-input"
+									class="nav-search-input"
+									type="search"
+									name="q"
+									placeholder="搜索睦谈"
+								/>
+							</form>
+						)
+					}
 					<ThemeSwitcher />
 					{
 						currentUser && notificationsEnabled && (

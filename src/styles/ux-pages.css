@@ -366,6 +366,93 @@
 	box-shadow: var(--shadow-sm);
 }
 
+/* search-a：单列、克制的搜索结果阅读节奏。 */
+[data-ux-shell='search'] .search-form {
+	margin: 0;
+	padding: var(--spacing-2);
+	border: 1px solid var(--color-primary);
+	border-radius: var(--radius-lg);
+	background: var(--color-card-bg);
+}
+
+[data-ux-shell='search'] .search-input-wrap {
+	display: flex;
+	align-items: center;
+}
+
+[data-ux-shell='search'] .search-input {
+	min-height: 2.75rem;
+	border: 0;
+	box-shadow: none;
+}
+
+[data-ux-shell='search'] .search-input:focus {
+	border: 0;
+	box-shadow: none;
+}
+
+[data-ux-shell='search'] .search-btn {
+	padding-inline: var(--spacing-4);
+	border-radius: var(--radius-md);
+}
+
+[data-ux-shell='search'] .search-box-wrapper {
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+}
+
+.search-result-list {
+	margin-top: var(--spacing-1);
+}
+
+.search-result-item {
+	display: grid;
+	grid-template-columns: 4.875rem minmax(0, 1fr);
+	gap: var(--spacing-4);
+	padding: var(--spacing-5) 0;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.search-result-kind {
+	padding-top: 0.2rem;
+	color: var(--color-primary);
+	font-size: 0.75rem;
+	font-weight: 700;
+}
+
+.search-result-content h2 {
+	margin: 0 0 var(--spacing-2);
+	font-size: 1.125rem;
+	line-height: 1.35;
+}
+
+.search-result-content h2 a {
+	color: var(--color-text);
+}
+
+.search-result-content h2 a:hover {
+	color: var(--color-primary);
+}
+
+.search-result-excerpt {
+	margin: 0 0 var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+	line-height: 1.65;
+}
+
+.search-result-excerpt p {
+	margin: 0;
+}
+
+.search-result-meta {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+}
+
 .search-tabs,
 .notification-filters,
 .mode-tabs,
@@ -799,6 +886,17 @@
 	.forum-category-list,
 	.user-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.search-template {
+		width: min(100% - 2 * var(--spacing-3), 980px) !important;
+		padding-bottom: calc(var(--spacing-12) + 56px + env(safe-area-inset-bottom, 0)) !important;
+	}
+
+	.search-result-item {
+		grid-template-columns: 1fr;
+		gap: var(--spacing-2);
+		padding: var(--spacing-4) 0;
 	}
 
 	.forum-group,
