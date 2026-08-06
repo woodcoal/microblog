@@ -1270,11 +1270,6 @@ mark.search-highlight {
 		display: none;
 	}
 
-	/* 移动端隐藏主题切换（hamburger 面板只保留导航菜单） */
-	.navbar-actions .theme-switcher {
-		display: none !important;
-	}
-
 	/* 移动端登录/注册按钮在 hamburger 面板内展开 */
 	.nav-auth-buttons {
 		display: flex;

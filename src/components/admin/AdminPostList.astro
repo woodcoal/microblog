@@ -92,6 +92,7 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		name="search"
 		value={search}
 		placeholder="搜索帖子内容..."
+		aria-label="搜索帖子内容"
 	/>
 	<select class="admin-search-input" name="mode" aria-label="帖子类型">
 		<option value="">全部类型</option>
@@ -105,6 +106,7 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		name="username"
 		value={username}
 		placeholder="作者用户名"
+		aria-label="按作者用户名筛选"
 	/>
 	<label class="admin-filter-date">
 		<span>起始日期</span>
@@ -171,7 +173,12 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 					return (
 						<tr>
 							<td>
-								<input type="checkbox" class="batch-checkbox" data-id={post.id} />
+								<input
+									type="checkbox"
+									class="batch-checkbox"
+									data-id={post.id}
+									aria-label={`选择帖子 ${post.id}`}
+								/>
 							</td>
 							<td>
 								<a
