@@ -14,6 +14,7 @@ import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
+import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
@@ -157,6 +158,7 @@ const images = post.media.filter((m) => m.fileType === 'image');
 const attachments = post.media.filter((m) => m.fileType === 'attachment');
 const hasImages = images.length > 0;
 const hasAttachments = attachments.length > 0;
+const isWeiboPost = post.mode === 'weibo';
 
 // 提取标签列表
 const postTags = post.tags.map((pt) => pt.tag);
@@ -622,22 +624,27 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 
 		{
-			hasImages && !isDeleted && !needPassword && (
-				<div
-					class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
-				>
-					{images.map((media) => (
-						<div class="post-detail-image-item">
-							<img
-								src={`/uploads/${media.fileStorage.filePath}`}
-								alt=""
-								loading="lazy"
-								data-lightbox="true"
-							/>
-						</div>
-					))}
-				</div>
-			)
+			hasImages &&
+				!isDeleted &&
+				!needPassword &&
+				(isWeiboPost ? (
+					<WeiboMediaGallery images={images} lightbox />
+				) : (
+					<div
+						class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
+					>
+						{images.map((media) => (
+							<div class="post-detail-image-item">
+								<img
+									src={`/uploads/${media.fileStorage.filePath}`}
+									alt=""
+									loading="lazy"
+									data-lightbox="true"
+								/>
+							</div>
+						))}
+					</div>
+				))
 		}
 
 		{
