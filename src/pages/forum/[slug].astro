@@ -196,7 +196,13 @@ const discoverySections =
 							aria-label={item.name}
 							title={item.name}
 						>
-							<span class="sidebar-link-icon" aria-hidden="true">
+							<span
+								class:list={[
+									'sidebar-link-icon',
+									{ 'sidebar-link-icon-fallback': !item.icon }
+								]}
+								aria-hidden="true"
+							>
 								{item.icon || item.name.trim().charAt(0).toUpperCase()}
 							</span>
 							<span>{item.name}</span>

@@ -174,7 +174,13 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 								aria-label={category.name}
 								title={category.name}
 							>
-								<span class="sidebar-link-icon" aria-hidden="true">
+								<span
+									class:list={[
+										'sidebar-link-icon',
+										{ 'sidebar-link-icon-fallback': !category.icon }
+									]}
+									aria-hidden="true"
+								>
 									{category.icon || category.name.trim().charAt(0).toUpperCase()}
 								</span>
 								<span>{category.name}</span>

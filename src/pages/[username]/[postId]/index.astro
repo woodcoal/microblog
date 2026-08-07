@@ -562,7 +562,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 									aria-label={category.name}
 									title={category.name}
 								>
-									<span class="sidebar-link-icon" aria-hidden="true">
+									<span
+										class:list={[
+											'sidebar-link-icon',
+											{ 'sidebar-link-icon-fallback': !category.icon }
+										]}
+										aria-hidden="true"
+									>
 										{category.icon ||
 											category.name.trim().charAt(0).toUpperCase()}
 									</span>
@@ -1884,13 +1890,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			display: none;
 		}
 
-		/* 论坛导航在窄屏保留在内容上方，并按一级分组呈现。 */
+		/* 论坛导航在窄屏保留在内容上方，一级分类作为整体参与换行。 */
 		.post-detail-layout-forum .post-detail-local-nav {
 			display: flex;
 			position: static;
-			flex-direction: column;
-			align-items: stretch;
-			gap: var(--spacing-3);
+			flex-flow: row wrap;
+			align-items: center;
+			gap: var(--spacing-2);
 			height: auto;
 			width: 100%;
 			margin: 0 0 var(--spacing-4);
