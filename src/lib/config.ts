@@ -113,12 +113,6 @@ export const API_UPLOAD_BODY_LIMIT_BYTES = Math.max(
 	Math.floor(envNumber('API_UPLOAD_BODY_LIMIT_BYTES', 10 * 1024 * 1024))
 );
 
-/** Agent 帖子热门排序时参与评分的最新候选数量。 */
-export const HOT_SORT_CANDIDATE_WINDOW = Math.max(
-	1,
-	Math.floor(envNumber('HOT_SORT_CANDIDATE_WINDOW', 200))
-);
-
 /** 内置保留用户名，禁止注册（不可覆盖） */
 const BUILTIN_RESERVED_USERNAMES = [
 	'login',

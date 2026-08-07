@@ -65,12 +65,10 @@ const unifiedTrending = isPopularSort
 			includeGlobalPinned: true
 	})
 	: null;
-const timelineOrderBy: Prisma.PostOrderByWithRelationInput[] = isPopularSort
-	? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-	: [{ createdAt: 'desc' }];
+const timelineOrderBy: Prisma.PostOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
 
 // 查询全局置顶帖（weibo 模式，始终在最前面）
-const pinnedPosts = await prisma.post.findMany({
+const pinnedPosts = unifiedTrending ? [] : await prisma.post.findMany({
 	where: {
 		isDeleted: false,
 		isGlobalPinned: true,
@@ -102,7 +100,7 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的微博帖子。热门视图复用既有互动计数排序，不改变数据契约。
-const legacyPosts = await prisma.post.findMany({
+const legacyPosts = unifiedTrending ? [] : await prisma.post.findMany({
 	where: {
 		isDeleted: false,
 		isGlobalPinned: false,

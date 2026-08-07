@@ -222,7 +222,8 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 	// Do not add mode, category, visibility, or pin filters here: each is an
 	// in-memory filter on the same fixed chronological candidate window.
 	const candidates = await prisma.post.findMany({
-		where: { isDeleted: false },
+		// Pins are deliberately excluded before the fixed 200-post window.
+		where: { isDeleted: false, isGlobalPinned: false },
 		orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
 		take: CANDIDATE_LIMIT,
 		include: POST_CARD_INCLUDE
@@ -238,7 +239,6 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 		if (input.keyword && !post.content.includes(input.keyword) && !(post.title?.includes(input.keyword))) continue;
 		if (input.from && post.createdAt < input.from) continue;
 		if (input.to && post.createdAt > input.to) continue;
-		if (post.isGlobalPinned) continue;
 		const visible = await checkPostVisibility(
 			{
 				visibility: post.visibility,
@@ -329,7 +329,7 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: Math.max(count, 50) });
 	const ordered = profile.strategy === 'blended'
 		? allocateBlendedRecommendations(feed.items, profile, count)
-		: feed.items.map((post) => ({ post, source: 'trending' as const }));
+		: allocateColdStartRecommendations(feed.items, count);
 	return {
 		items: ordered.slice(0, count).map(({ post, source }) => ({
 			id: post.id, content: post.content, createdAt: post.createdAt.toISOString(), user: post.user,
@@ -371,6 +371,16 @@ export function allocateBlendedRecommendations(
 	take(exploration, explorationCount, 'exploration');
 	// Sparse pools still return a full page, without pretending fallback items are exploration.
 	take(candidates, count, 'trending');
+	return output;
+}
+
+/** Cold start keeps a real 70/30 hot/exploration split (14/6 for 20 results). */
+export function allocateColdStartRecommendations(candidates: TrendingFeedItem[], count: number): Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> {
+	const hotCount = Math.floor(count * 0.7);
+	const output: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> = candidates.slice(0, hotCount).map((post) => ({ post, source: 'trending' }));
+	const chosen = new Set(output.map((item) => item.post.id));
+	const exploration = [...candidates].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
+	for (const post of exploration) if (!chosen.has(post.id) && output.length < count) { output.push({ post, source: 'exploration' }); chosen.add(post.id); }
 	return output;
 }
 

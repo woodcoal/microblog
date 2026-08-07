@@ -25,7 +25,8 @@ test('200-window paging excludes self interaction and pins only when explicitly 
 	assert.equal(feed.items.some((post) => post.id === 'p200'), false);
 	assert.deepEqual((await getTrendingFeed({ viewerId: visitor.id, page: 3, pageSize: 100 })).items, []);
 	await prisma.post.update({ where: { id: 'p0' }, data: { isGlobalPinned: true } });
-	assert.equal((await getTrendingFeed({ viewerId: visitor.id, page: 1, pageSize: 20 })).items.some((post) => post.id === 'p0'), false);
+	const withoutPin = await getTrendingFeed({ viewerId: visitor.id, page: 2, pageSize: 100 });
+	assert.equal(withoutPin.total, 200); assert.equal(withoutPin.items.some((post) => post.id === 'p200'), true);
 	assert.equal((await getTrendingFeed({ viewerId: visitor.id, page: 1, pageSize: 20, includeGlobalPinned: true })).items[0].id, 'p0');
 });
 
