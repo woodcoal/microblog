@@ -24,7 +24,7 @@ export const POST: APIRoute = async (context) => {
 
 		// Agent API 默认只支持图片上传
 		try {
-			const result = await uploadFile({ file, fileType: 'image' });
+			const result = await uploadFile({ userId: authResult.userId, file, fileType: 'image' });
 			return textResponse(`ok: ${result.url}`, 201);
 		} catch (e) {
 			if (e instanceof ServiceError) {

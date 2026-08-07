@@ -42,6 +42,15 @@ export const POST: APIRoute = async (context) => {
 			Array.isArray(body.mediaIds) && body.mediaIds.every((id) => typeof id === 'string')
 				? body.mediaIds
 				: undefined;
+		const attachmentFileStorageIds =
+			Array.isArray(body.attachmentFileStorageIds) &&
+			body.attachmentFileStorageIds.every((id) => typeof id === 'string')
+				? body.attachmentFileStorageIds
+				: undefined;
+		const thumbnailFileStorageId =
+			body.thumbnailFileStorageId === null
+				? null
+				: stringValue(body.thumbnailFileStorageId, 'thumbnailFileStorageId', false);
 		const allowedUserIds =
 			Array.isArray(body.allowedUserIds) &&
 			body.allowedUserIds.every((id) => typeof id === 'string')
@@ -54,6 +63,8 @@ export const POST: APIRoute = async (context) => {
 			mode: stringValue(body.mode, 'mode', false),
 			visibility: stringValue(body.visibility, 'visibility', false),
 			mediaIds,
+			thumbnailFileStorageId,
+			attachmentFileStorageIds,
 			password: stringValue(body.password, 'password', false),
 			allowedUserIds,
 			categoryId: stringValue(body.categoryId, 'categoryId', false),

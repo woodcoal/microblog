@@ -20,7 +20,12 @@ import {
 	createCommentRecord,
 	softDeleteComment
 } from '@/lib/comment';
-import { findFileStoragesByIds, deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
+import {
+	cleanupExpiredUploadReservations,
+	cleanupUnreferencedFiles,
+	findFileStoragesByIds,
+	MAX_IMAGE_COUNT
+} from '@/lib/upload';
 import { findTagByName, findPostIdsByTagId } from '@/lib/tag';
 import { findMentionedUserIds, findUserByUsername } from '@/lib/user';
 import { countChildCategories, findCategoryById } from '@/lib/category';
@@ -46,6 +51,7 @@ import {
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 import type { Prisma } from '../../generated/prisma/client';
 import { hashPassword } from '@/lib/auth';
+import { resolvePostAssets } from '@/services/post-assets.service';
 
 /** 评论内容最大长度 */
 const COMMENT_MAX_LENGTH = 1000;
@@ -214,6 +220,8 @@ export interface CreatePostInput {
 	content: string;
 	visibility?: string;
 	mediaIds?: string[];
+	thumbnailFileStorageId?: string | null;
+	attachmentFileStorageIds?: string[];
 	/** 图片 URL 数组（Agent API 专用，service 层自动转为 mediaIds） */
 	images?: string[];
 	password?: string;
@@ -231,6 +239,8 @@ export interface UpdatePostInput {
 	content: string;
 	visibility?: string;
 	mediaIds?: string[];
+	thumbnailFileStorageId?: string | null;
+	attachmentFileStorageIds?: string[];
 	password?: string;
 	allowedUserIds?: string[];
 	mode?: string;
@@ -299,6 +309,8 @@ export async function createPost(input: CreatePostInput) {
 		content,
 		visibility,
 		mediaIds,
+		thumbnailFileStorageId,
+		attachmentFileStorageIds,
 		password,
 		allowedUserIds,
 		mode,
@@ -372,6 +384,7 @@ export async function createPost(input: CreatePostInput) {
 	}
 
 	let dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
+	const legacyBodyFileStorageIds = new Set<string>();
 
 	// Agent API 传入 images URL 数组，转换为 mediaIds
 	if (input.images && input.images.length > 0 && dedupedMediaIds.length === 0) {
@@ -393,28 +406,34 @@ export async function createPost(input: CreatePostInput) {
 			throw new ServiceError('BAD_REQUEST', '仅支持图片类型的文件');
 		}
 		dedupedMediaIds = fileStorages.map((f) => f.id);
+		for (const id of dedupedMediaIds) legacyBodyFileStorageIds.add(id);
 	}
 
-	if (dedupedMediaIds.length > 0) {
-		const fileStorages = await findFileStoragesByIds(dedupedMediaIds);
-		const fileTypeMap = new Map(fileStorages.map((f) => [f.id, f.fileType]));
-		const imageCount = dedupedMediaIds.filter((id) => fileTypeMap.get(id) === 'image').length;
-		if (imageCount > MAX_IMAGE_COUNT) {
-			throw new ServiceError('BAD_REQUEST', `图片最多 ${MAX_IMAGE_COUNT} 张`);
-		}
+	const requestedFiles = await findFileStoragesByIds(dedupedMediaIds);
+	if (requestedFiles.length !== dedupedMediaIds.length) {
+		throw new ServiceError('BAD_REQUEST', '部分文件不存在');
 	}
+	const requestedById = new Map(requestedFiles.map((file) => [file.id, file]));
+	const bodyFileStorageIds = dedupedMediaIds.filter(
+		(id) => requestedById.get(id)?.fileType === 'image'
+	);
+	if (bodyFileStorageIds.length > MAX_IMAGE_COUNT) {
+		throw new ServiceError('BAD_REQUEST', `图片最多 ${MAX_IMAGE_COUNT} 张`);
+	}
+	const legacyAttachmentIds = dedupedMediaIds.filter(
+		(id) => requestedById.get(id)?.fileType === 'attachment'
+	);
 
 	const id = generateShortId();
 
-	let mediaItems: Array<{ fileStorageId: string; fileType: string; sortOrder: number }> = [];
-	if (dedupedMediaIds.length > 0) {
-		const fileStorages = await findFileStoragesByIds(dedupedMediaIds);
-		mediaItems = fileStorages.map((fs, index) => ({
-			fileStorageId: fs.id,
-			fileType: fs.fileType,
-			sortOrder: index
-		}));
-	}
+	const mediaItems = await resolvePostAssets({
+		userId,
+		mode: postMode,
+		bodyFileStorageIds,
+		thumbnailFileStorageId,
+		attachmentFileStorageIds: attachmentFileStorageIds ?? legacyAttachmentIds,
+		legacyBodyFileStorageIds
+	});
 
 	const mentionUsernames = parseMentions(content.trim());
 	const tagNames = parseTags(content.trim());
@@ -437,6 +456,9 @@ export async function createPost(input: CreatePostInput) {
 		password,
 		allowedUserIds
 	});
+	await cleanupExpiredUploadReservations().catch((error) =>
+		console.error('清理过期上传凭证失败:', error)
+	);
 
 	const fullPost = await findPostWithRelations(id);
 
@@ -469,6 +491,8 @@ export async function updatePost(input: UpdatePostInput) {
 		content,
 		visibility,
 		mediaIds,
+		thumbnailFileStorageId,
+		attachmentFileStorageIds,
 		password,
 		allowedUserIds,
 		mode,
@@ -587,21 +611,36 @@ export async function updatePost(input: UpdatePostInput) {
 		);
 	}
 
-	// 7. mediaIds 去重
-	const dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
-
-	// 校验图片数量限制
-	if (dedupedMediaIds.length > 0) {
-		const fileStorages = await findFileStoragesByIds(dedupedMediaIds);
-		const fileTypeMap = new Map(fileStorages.map((f) => [f.id, f.fileType]));
-		const imageCount = dedupedMediaIds.filter((id) => fileTypeMap.get(id) === 'image').length;
-		if (imageCount > MAX_IMAGE_COUNT) {
-			throw new ServiceError('BAD_REQUEST', '图片最多 ' + MAX_IMAGE_COUNT + ' 张');
-		}
-	}
-
-	// 8. 查询当前帖子的 Media 关联
+	// 7. 查询当前帖子的 Media 关联并解析完整资产集合
 	const currentMedia = await findMediaByPostId(post.id);
+	const dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
+	const requestedFiles = await findFileStoragesByIds(dedupedMediaIds);
+	if (requestedFiles.length !== dedupedMediaIds.length) {
+		throw new ServiceError('BAD_REQUEST', '部分文件不存在');
+	}
+	const requestedById = new Map(requestedFiles.map((file) => [file.id, file]));
+	const bodyFileStorageIds = dedupedMediaIds.filter(
+		(id) => requestedById.get(id)?.fileType === 'image'
+	);
+	if (bodyFileStorageIds.length > MAX_IMAGE_COUNT) {
+		throw new ServiceError('BAD_REQUEST', '图片最多 ' + MAX_IMAGE_COUNT + ' 张');
+	}
+	const legacyAttachmentIds = dedupedMediaIds.filter(
+		(id) => requestedById.get(id)?.fileType === 'attachment'
+	);
+	const mediaItems = await resolvePostAssets({
+		userId,
+		mode: postMode,
+		bodyFileStorageIds,
+		thumbnailFileStorageId,
+		attachmentFileStorageIds:
+			attachmentFileStorageIds ?? (mediaIds === undefined ? undefined : legacyAttachmentIds),
+		currentMedia,
+		preserveBody: mediaIds === undefined,
+		preserveThumbnail: thumbnailFileStorageId === undefined,
+		preserveAttachments:
+			attachmentFileStorageIds === undefined && legacyAttachmentIds.length === 0
+	});
 
 	// 9. 构建更新数据
 	const updateData: Record<string, unknown> = {
@@ -649,25 +688,22 @@ export async function updatePost(input: UpdatePostInput) {
 	const tagNames = parseTags(content.trim());
 
 	// 11. 委托 lib 层事务更新帖子
-	const updated = await updatePostTransaction({
+	const { post: updated, releasedFileStorageIds } = await updatePostTransaction({
 		postId,
+		previousContent: post.content,
 		updateData,
 		currentMedia,
-		mediaIds: dedupedMediaIds,
+		mediaItems,
 		mentionUsernames,
 		tagNames,
 		currentUserId: userId
 	});
 
-	// 12. 事务完成后，处理删除的 Media 对应的 FileStorage refCount - 1
-	const deletedFileStorageIds = new Set(
-		currentMedia
-			.filter((m) => !new Set(dedupedMediaIds).has(m.fileStorageId))
-			.map((m) => m.fileStorageId)
+	// 12. 数据库事务提交后再清理归零的物理文件，失败可安全重试。
+	await cleanupUnreferencedFiles(releasedFileStorageIds);
+	await cleanupExpiredUploadReservations().catch((error) =>
+		console.error('清理过期上传凭证失败:', error)
 	);
-	for (const fileStorageId of deletedFileStorageIds) {
-		await deleteFileRef(fileStorageId);
-	}
 
 	// 13. 记录编辑帖子活动（异步，不阻塞主流程）
 	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => {});

@@ -290,7 +290,9 @@ export async function uploadAvatar(input: UploadAvatarInput): Promise<UploadAvat
 	const { userId, image } = input;
 
 	// 保存文件
-	const fileResult = await uploadFileService({ file: image, fileType: 'image' });
+	const fileResult = await uploadFileService({ userId, file: image, fileType: 'image' });
+	const { consumeStandaloneUpload } = await import('@/services/media.service');
+	await consumeStandaloneUpload(userId, fileResult.reservationId);
 	const newAvatarUrl = fileResult.url;
 
 	// 获取旧头像 URL

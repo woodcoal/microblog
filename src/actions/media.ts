@@ -8,7 +8,10 @@ import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
-import { uploadFile as uploadFileService } from '@/services/media.service';
+import {
+	cancelUpload as cancelUploadService,
+	uploadFile as uploadFileService
+} from '@/services/media.service';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -35,9 +38,25 @@ export const uploadMedia = defineAction({
 
 		try {
 			return await uploadFileService({
+				userId: currentUser.userId,
 				file: input.file,
 				fileType: input.fileType
 			});
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+/** 取消未消费的上传 reservation。 */
+export const cancelUpload = defineAction({
+	input: z.object({ reservationId: z.string().min(1) }),
+	handler: async (input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		try {
+			await cancelUploadService(currentUser.userId, input.reservationId);
+			return { success: true };
 		} catch (e) {
 			handleServiceError(e);
 		}

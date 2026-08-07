@@ -154,6 +154,9 @@ export async function saveFile(
 	});
 
 	if (existing) {
+		if (existing.fileType !== fileType) {
+			throw new Error('相同文件已按其他用途上传，不能跨图片与附件类型复用');
+		}
 		// 已存在：引用计数 +1
 		await prisma.fileStorage.update({
 			where: { id: existing.id },
@@ -166,9 +169,8 @@ export async function saveFile(
 	const subDir = fileType === 'image' ? 'images' : 'attachments';
 	const dir = await ensureUploadDir(subDir);
 
-	// 确定文件名：图片用哈希+扩展名，附件用哈希前缀+原始文件名避免冲突
-	const fileName =
-		fileType === 'image' ? `${md5Hash}.${ext}` : `${md5Hash.slice(0, 8)}_${originalName}`;
+	// 磁盘文件名只使用服务端哈希，原始文件名仅保存在 reservation/Media 中。
+	const fileName = `${md5Hash}.${ext}`;
 	const filePath = join(subDir, fileName).split('\\').join('/');
 
 	// 写入物理文件
@@ -241,27 +243,85 @@ export function findFileStoragesByFilePaths(filePaths: string[], select?: Record
  * @param fileStorageId - FileStorage 记录 ID
  */
 export async function deleteFileRef(fileStorageId: string): Promise<void> {
-	// 原子操作：refCount - 1
-	const updated = await prisma.fileStorage.update({
-		where: { id: fileStorageId },
+	await prisma.fileStorage.updateMany({
+		where: { id: fileStorageId, refCount: { gt: 0 } },
 		data: { refCount: { decrement: 1 } }
 	});
+	await cleanupUnreferencedFiles([fileStorageId]);
+}
 
-	// 归零时删除物理文件和数据库记录
-	if (updated.refCount <= 0) {
-		const fullPath = join(UPLOAD_DIR, updated.filePath);
-		try {
-			if (existsSync(fullPath)) {
-				await unlink(fullPath);
-			}
-		} catch (err) {
-			// 物理文件删除失败仅记录日志，不影响数据库操作
-			console.error('删除物理文件失败:', fullPath, err);
+/** 在数据库引用已提交为零后删除物理文件；失败时保留记录供下次重试。 */
+export async function cleanupUnreferencedFiles(fileStorageIds?: string[]): Promise<number> {
+	const files = await prisma.fileStorage.findMany({
+		where: {
+			refCount: { lte: 0 },
+			media: { none: {} },
+			uploadReservations: { none: { consumedAt: null, cancelledAt: null } },
+			...(fileStorageIds ? { id: { in: [...new Set(fileStorageIds)] } } : {})
 		}
-
-		// 删除数据库记录
-		await prisma.fileStorage.delete({
-			where: { id: fileStorageId }
-		});
+	});
+	let deleted = 0;
+	for (const file of files) {
+		try {
+			const fullPath = join(UPLOAD_DIR, file.filePath);
+			if (existsSync(fullPath)) await unlink(fullPath);
+			const result = await prisma.$transaction(async (tx) => {
+				// reservation 已取消或已消费后不再拥有引用，可随零引用文件清理。
+				await tx.uploadReservation.deleteMany({
+					where: {
+						fileStorageId: file.id,
+						OR: [{ cancelledAt: { not: null } }, { consumedAt: { not: null } }]
+					}
+				});
+				return tx.fileStorage.deleteMany({
+					where: { id: file.id, refCount: { lte: 0 } }
+				});
+			});
+			deleted += result.count;
+		} catch (err) {
+			console.error('清理零引用文件失败:', file.id, err);
+		}
 	}
+	return deleted;
+}
+
+/** 取消指定用户尚未消费的 reservation，并原子释放其文件引用。 */
+export async function cancelUploadReservation(
+	userId: string,
+	reservationId: string
+): Promise<boolean> {
+	let fileStorageId: string | undefined;
+	const cancelled = await prisma.$transaction(async (tx) => {
+		const reservation = await tx.uploadReservation.findFirst({
+			where: { id: reservationId, userId, consumedAt: null, cancelledAt: null }
+		});
+		if (!reservation) return false;
+		const result = await tx.uploadReservation.updateMany({
+			where: { id: reservation.id, consumedAt: null, cancelledAt: null },
+			data: { cancelledAt: new Date() }
+		});
+		if (result.count !== 1) return false;
+		fileStorageId = reservation.fileStorageId;
+		await tx.fileStorage.updateMany({
+			where: { id: reservation.fileStorageId, refCount: { gt: 0 } },
+			data: { refCount: { decrement: 1 } }
+		});
+		return true;
+	});
+	if (fileStorageId) await cleanupUnreferencedFiles([fileStorageId]);
+	return cancelled;
+}
+
+/** 机会式清理已过期 reservation；重复调用是幂等的。 */
+export async function cleanupExpiredUploadReservations(now = new Date()): Promise<number> {
+	const expired = await prisma.uploadReservation.findMany({
+		where: { expiresAt: { lte: now }, consumedAt: null, cancelledAt: null },
+		select: { id: true, userId: true }
+	});
+	let count = 0;
+	for (const reservation of expired) {
+		if (await cancelUploadReservation(reservation.userId, reservation.id)) count++;
+	}
+	await cleanupUnreferencedFiles();
+	return count;
 }

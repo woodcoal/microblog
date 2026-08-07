@@ -12,7 +12,7 @@ import { toggleLike, toggleFollow, toggleBookmark } from './social';
 import { createPost, updatePost, deletePost, createComment, deleteComment } from './content';
 
 // 媒体处理模块
-import { uploadMedia } from './media';
+import { cancelUpload, uploadMedia } from './media';
 
 // 搜索功能模块
 import { searchUsers, searchSuggest } from './search';
@@ -55,10 +55,24 @@ import {
 import { getPostLikers, togglePin, verifyPostPassword } from './posts';
 
 // 推荐模块
-import { getRecommend, getRecommendUsers, getSimilarPosts, recordRead, saveInterests, getRecommendationProfile } from './recommend';
+import {
+	getRecommend,
+	getRecommendUsers,
+	getSimilarPosts,
+	recordRead,
+	saveInterests,
+	getRecommendationProfile
+} from './recommend';
 
 // 管理后台模块
-import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility, queryAdminAuditLogs } from './admin';
+import {
+	batchUsers,
+	createUser,
+	batchPosts,
+	batchComments,
+	toggleTagVisibility,
+	queryAdminAuditLogs
+} from './admin';
 
 // 工具模块
 import { markdownPreview } from './misc';
@@ -77,6 +91,7 @@ export const server = {
 	createComment,
 	deleteComment,
 	uploadMedia,
+	cancelUpload,
 	searchUsers,
 	updateTheme,
 	searchSuggest,

@@ -114,6 +114,10 @@ const posts =
 		orderBy: blogPostOrder,
 		include: {
 			...POST_CARD_INCLUDE,
+			media: {
+				where: { slot: 'thumbnail' },
+				include: { fileStorage: true }
+			},
 			likes: { select: { id: true } },
 			comments: { select: { id: true } }
 		},

@@ -16,8 +16,14 @@ export interface MediaDto {
 	id: string;
 	url: string;
 	mimeType: string;
+	size: number;
 	type: 'image' | 'attachment';
 	slot: 'thumbnail' | null;
+}
+
+export interface AttachmentDto extends MediaDto {
+	originalName: string;
+	downloadUrl: string;
 }
 
 export type AdminAuditAction =
@@ -64,6 +70,9 @@ export interface PostDto {
 	isEdited: boolean;
 	isPasswordProtected: boolean;
 	media: MediaDto[];
+	thumbnail: MediaDto | null;
+	bodyMedia: MediaDto[];
+	attachments: AttachmentDto[];
 	tags: TagDto[];
 	createdAt: string;
 	updatedAt: string;

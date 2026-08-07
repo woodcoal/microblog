@@ -320,7 +320,7 @@ const {
 				<div class="post-detail-attachments">
 					{attachments.map((media) => (
 						<a
-							href={`/uploads/${media.fileStorage.filePath}`}
+							href={`/media/${media.id}/download`}
 							class="post-detail-attachment"
 							download
 						>
