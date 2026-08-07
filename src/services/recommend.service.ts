@@ -371,7 +371,7 @@ export function allocateBlendedRecommendations(
 	take(exploration, explorationCount, 'exploration');
 	// Sparse pools still return a full page, without pretending fallback items are exploration.
 	take(candidates, count, 'trending');
-	return output;
+	return interleaveAndDiversify(output);
 }
 
 /** Cold start keeps a real 70/30 hot/exploration split (14/6 for 20 results). */
@@ -381,7 +381,30 @@ export function allocateColdStartRecommendations(candidates: TrendingFeedItem[],
 	const chosen = new Set(output.map((item) => item.post.id));
 	const exploration = [...candidates].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
 	for (const post of exploration) if (!chosen.has(post.id) && output.length < count) { output.push({ post, source: 'exploration' }); chosen.add(post.id); }
-	return output;
+	return interleaveAndDiversify(output);
+}
+
+/** Interleave the three sources and avoid author/key streaks beyond two items. */
+function interleaveAndDiversify(items: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }>) {
+	const queues = new Map(['interest', 'trending', 'exploration'].map((source) => [source, items.filter((item) => item.source === source)]));
+	const result: typeof items = []; const authorCounts = new Map<string, number>(); let previousKey = ''; let run = 0;
+	while (result.length < items.length) {
+		let selected: (typeof items)[number] | undefined;
+		for (const source of ['interest', 'trending', 'exploration'] as const) {
+			const queue = queues.get(source)!;
+			const index = queue.findIndex((item) => {
+				const key = item.post.categoryId ?? item.post.tags[0]?.tag.id ?? '';
+				return (authorCounts.get(item.post.userId) ?? 0) < 2 && !(key && key === previousKey && run >= 2);
+			});
+			if (index >= 0) { selected = queue.splice(index, 1)[0]; break; }
+		}
+		if (!selected) selected = [...queues.values()].find((queue) => queue.length)?.shift();
+		if (!selected) break;
+		const key = selected.post.categoryId ?? selected.post.tags[0]?.tag.id ?? '';
+		run = key && key === previousKey ? run + 1 : 1; previousKey = key;
+		authorCounts.set(selected.post.userId, (authorCounts.get(selected.post.userId) ?? 0) + 1); result.push(selected);
+	}
+	return result;
 }
 
 /**
