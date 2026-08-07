@@ -12,6 +12,9 @@
 import UserLayout from '@/layouts/UserLayout.astro';
 import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
+import FollowButton from '@/components/FollowButton.astro';
+import WeiboPostActions from '@/components/WeiboPostActions.astro';
+import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
@@ -320,6 +323,20 @@ const isBlog = postMode === 'blog';
 const getAsideExcerpt = (content: string, length: number) =>
 	content.replace(/[#*`>\-[\]()!]/g, '').slice(0, length);
 
+// 论坛详情复用频道列表的版块导航，而不是使用右侧辅助栏。
+const forumGroups = isForum
+	? await prisma.category.findMany({
+			where: { mode: 'forum', parentId: null },
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			include: {
+				children: {
+					orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+					include: { _count: { select: { posts: true } } }
+				}
+			}
+		})
+	: [];
+
 // 右侧信息只使用可见的真实记录：博客显示同主题文章，论坛显示同类版块，
 // 微博则显示作者的其他动态。这样详情页不需要等待客户端推荐接口才完整。
 const relatedPosts = isForum
@@ -358,6 +375,41 @@ const relatedForums = isForum
 			select: { name: true, slug: true, description: true, icon: true }
 		})
 	: [];
+
+// 博客文章导航只链接作者公开、未删除的其他博客，避免在公开详情中暴露不可访问文章。
+const [previousBlog, nextBlog] = isBlog
+	? await Promise.all([
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { lt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { lt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+				select: { id: true, title: true, content: true }
+			}),
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { gt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { gt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+				select: { id: true, title: true, content: true }
+			})
+		])
+	: [null, null];
+const blogCategoryLabel = post.customCategory ?? post.category?.name ?? '博客';
 
 // 渲染内容：forum/blog 模式使用 renderFullMarkdown（支持图片），weibo 使用受限版
 const htmlContent = isDeleted
@@ -480,6 +532,57 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				</nav>
 			)
 		}
+		{
+			isForum && (
+				<nav class="post-detail-local-nav forum-category-sidebar" aria-label="论坛版块">
+					<a href="/forum" class="sidebar-link" aria-label="首页" title="首页">
+						<>
+							<span class="sidebar-link-icon">🏠</span>
+							<span>首页</span>
+						</>
+					</a>
+					{forumGroups.map((group) => (
+						<section
+							class="forum-sidebar-group"
+							aria-labelledby={`forum-group-${group.id}`}
+						>
+							<h2 id={`forum-group-${group.id}`}>
+								{group.icon && (
+									<span class="forum-sidebar-group-icon" aria-hidden="true">
+										{group.icon}
+									</span>
+								)}
+								{group.name}
+							</h2>
+							{group.children.map((category) => (
+								<a
+									href={`/forum/${category.slug}`}
+									class="sidebar-link"
+									aria-current={
+										category.id === post.categoryId ? 'page' : undefined
+									}
+									aria-label={category.name}
+									title={category.name}
+								>
+									<span
+										class:list={[
+											'sidebar-link-icon',
+											{ 'sidebar-link-icon-fallback': !category.icon }
+										]}
+										aria-hidden="true"
+									>
+										{category.icon ||
+											category.name.trim().charAt(0).toUpperCase()}
+									</span>
+									<span>{category.name}</span>
+									<small>{category._count.posts}</small>
+								</a>
+							))}
+						</section>
+					))}
+				</nav>
+			)
+		}
 		<div class="post-detail-primary">
 			<div class="post-detail-topbar">
 				<nav class="post-detail-breadcrumb" aria-label="详情导航">
@@ -490,7 +593,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							</a>
 						) : isBlog ? (
 							<a href={post.category ? `/blog/${post.category.slug}` : '/blog'}>
-								← 博客{post.category ? ` / ${post.category.name}` : ''}
+								← 博客
+								{blogCategoryLabel !== '博客' ? ` / ${blogCategoryLabel}` : ''}
 							</a>
 						) : (
 							<a href="/weibo">← 微博</a>
@@ -544,9 +648,9 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				<p class="ux-detail-kicker">
 					{
 						post.mode === 'forum'
-							? '论坛讨论'
+							? `${post.category?.name ?? '论坛'} · 讨论主题`
 							: post.mode === 'blog'
-								? '博客文章'
+								? blogCategoryLabel
 								: '微博动态'
 					}
 				</p>
@@ -559,11 +663,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				}
 				{
 					isForum && !isDeleted ? (
-						/* 论坛模式：标题大字 + 版块面包屑 */
+						/* 论坛模式：版块主题、标题、作者与操作在同一主题卡片内。 */
 						<div class="post-detail-forum-header">
-							{post.category && (
-								<p class="post-detail-forum-category">{post.category.name}</p>
-							)}
 							{hasTitle && <h1 class="post-detail-forum-title">{post.title}</h1>}
 							<div class="post-detail-header">
 								<a href={`/${post.user.username}`} class="post-detail-author">
@@ -584,38 +685,29 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 											{post.user.displayName}
 										</span>
 										<span class="post-detail-username">
-											@{post.user.username}
+											@{post.user.username} ·{' '}
+											{formatRelativeTime(post.createdAt)}
 										</span>
 									</div>
 								</a>
-								<div class="post-detail-time-group">
-									<time
-										class="post-detail-time"
-										datetime={post.createdAt.toISOString()}
-									>
-										{formatRelativeTime(post.createdAt)}
-									</time>
-									{post.isEdited && (
-										<span class="post-detail-edited">
-											已编辑 ·{' '}
-											<time datetime={post.updatedAt.toISOString()}>
-												{formatRelativeTime(post.updatedAt)}
-											</time>
-										</span>
-									)}
+								<div class="post-detail-forum-actions" aria-label="作者与帖子操作">
+									<FollowButton
+										username={post.user.username}
+										initialFollowing={isFollower}
+										isSelf={isAuthor}
+									/>
+									<BookmarkButton
+										postId={post.id}
+										initialBookmarked={bookmarked}
+										initialBookmarkCount={bookmarkCount}
+										textOnly={true}
+									/>
 								</div>
 							</div>
 						</div>
 					) : isBlog && !isDeleted ? (
 						/* 博客模式：文章标题 + 分类 + 发布日期 */
 						<div class="post-detail-blog-header">
-							{post.category && (
-								<div class="post-detail-blog-category">
-									<span class="post-detail-blog-category-name">
-										{post.category.name}
-									</span>
-								</div>
-							)}
 							{hasTitle && <h1 class="post-detail-blog-title">{post.title}</h1>}
 							<div class="post-detail-blog-meta">
 								<a href={`/${post.user.username}`} class="post-detail-author">
@@ -636,12 +728,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 											{post.user.displayName}
 										</span>
 										<span class="post-detail-username">
-											@{post.user.username} ·{' '}
 											{post.createdAt.toLocaleDateString('zh-CN', {
 												year: 'numeric',
 												month: 'long',
 												day: 'numeric'
-											})}
+											})}{' '}
+											· 喜欢 {likeCount} · 收藏 {bookmarkCount} ·{' '}
+											{commentCount} 条讨论
 										</span>
 									</div>
 								</a>
@@ -656,43 +749,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							</div>
 						</div>
 					) : (
-						/* 微博模式：现有样式，title 显示在内容上方 */
-						<div class="post-detail-header">
-							<a href={`/${post.user.username}`} class="post-detail-author">
-								{post.user.avatarUrl ? (
-									<img
-										src={post.user.avatarUrl}
-										alt={post.user.displayName}
-										class="post-detail-avatar"
-										loading="lazy"
-									/>
-								) : (
-									<div class="post-detail-avatar post-detail-avatar-placeholder">
-										{post.user.displayName.charAt(0).toUpperCase()}
-									</div>
-								)}
-								<div class="post-detail-author-info">
-									<span class="post-detail-name">{post.user.displayName}</span>
-									<span class="post-detail-username">@{post.user.username}</span>
-								</div>
-							</a>
-							<div class="post-detail-time-group">
-								<time
-									class="post-detail-time"
-									datetime={post.createdAt.toISOString()}
-								>
-									{formatRelativeTime(post.createdAt)}
-								</time>
-								{post.isEdited && !isDeleted && (
-									<span class="post-detail-edited">
-										已编辑 ·{' '}
-										<time datetime={post.updatedAt.toISOString()}>
-											{formatRelativeTime(post.updatedAt)}
-										</time>
-									</span>
-								)}
-							</div>
-						</div>
+						/* 微博模式：与列表复用同一作者信息行。 */
+						<WeiboPostHeader
+							user={post.user}
+							createdAt={post.createdAt}
+							updatedAt={post.updatedAt}
+							isEdited={post.isEdited && !isDeleted}
+						/>
 					)
 				}
 
@@ -818,23 +881,39 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 
 				<!-- 点赞区域：单行布局，头像 + 数量 + 用户头像列表 -->
 				{
-					!isDeleted && !needPassword && (
+					!isDeleted && !needPassword && !isBlog && (
 						<div class="post-detail-like" id="post-like-section">
-							<LikeButton
-								postId={post.id}
-								initialLiked={liked}
-								initialLikeCount={likeCount}
-								textOnly={isForum || isBlog}
-							/>
-							<BookmarkButton
-								postId={post.id}
-								initialBookmarked={bookmarked}
-								initialBookmarkCount={bookmarkCount}
-								textOnly={isForum || isBlog}
-							/>
-							<a href="#post-comments" class="post-detail-comment-link">
-								{isBlog ? '讨论' : '回复'} {commentCount}
-							</a>
+							{
+								isWeibo ? (
+									<WeiboPostActions
+										postId={post.id}
+										username={post.user.username}
+										likeCount={likeCount}
+										liked={liked}
+										bookmarkCount={bookmarkCount}
+										bookmarked={bookmarked}
+										commentCount={commentCount}
+									/>
+								) : (
+									<>
+										<LikeButton
+											postId={post.id}
+											initialLiked={liked}
+											initialLikeCount={likeCount}
+											textOnly={true}
+										/>
+										<BookmarkButton
+											postId={post.id}
+											initialBookmarked={bookmarked}
+											initialBookmarkCount={bookmarkCount}
+											textOnly={true}
+										/>
+										<a href="#post-comments" class="post-detail-comment-link">
+											回复 {commentCount}
+										</a>
+									</>
+								)
+							}
 							{likeUsers.length > 0 && (
 								<div class="like-users" id="like-users-list">
 									{likeUsers.slice(0, 10).map((u) => (
@@ -867,6 +946,37 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 								</div>
 							)}
 						</div>
+					)
+				}
+				{
+					isBlog && !isDeleted && !needPassword && (previousBlog || nextBlog) && (
+						<nav class="post-detail-article-nav" aria-label="同作者文章导航">
+							{previousBlog ? (
+								<a href={`/${post.user.username}/${previousBlog.id}`}>
+									<span>上一篇</span>
+									<strong>
+										{previousBlog.title ||
+											getAsideExcerpt(previousBlog.content, 48)}
+									</strong>
+								</a>
+							) : (
+								<span class="post-detail-article-nav-empty">
+									上一篇：没有更早的文章
+								</span>
+							)}
+							{nextBlog ? (
+								<a href={`/${post.user.username}/${nextBlog.id}`}>
+									<span>下一篇</span>
+									<strong>
+										{nextBlog.title || getAsideExcerpt(nextBlog.content, 48)}
+									</strong>
+								</a>
+							) : (
+								<span class="post-detail-article-nav-empty">
+									下一篇：没有更新的文章
+								</span>
+							)}
+						</nav>
 					)
 				}
 			</article>
@@ -936,6 +1046,24 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					</>
 				) : isBlog ? (
 					<>
+						{hasBlogHeadings && !needPassword && (
+							<nav class="post-detail-toc" aria-label="文章目录">
+								<p class="post-detail-toc-title">目录</p>
+								<ol>
+									{blogHeadings.map((heading) => (
+										<li
+											class={
+												heading.level === 3
+													? 'post-detail-toc-subitem'
+													: undefined
+											}
+										>
+											<a href={`#${heading.id}`}>{heading.text}</a>
+										</li>
+									))}
+								</ol>
+							</nav>
+						)}
 						<section class="post-detail-aside-section">
 							<h2>相关博客</h2>
 							{relatedPosts.length ? (
@@ -956,24 +1084,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 								<p class="post-detail-aside-empty">暂时没有相关博客。</p>
 							)}
 						</section>
-						{hasBlogHeadings && !needPassword && (
-							<nav class="post-detail-toc" aria-label="文章目录">
-								<p class="post-detail-toc-title">目录</p>
-								<ol>
-									{blogHeadings.map((heading) => (
-										<li
-											class={
-												heading.level === 3
-													? 'post-detail-toc-subitem'
-													: undefined
-											}
-										>
-											<a href={`#${heading.id}`}>{heading.text}</a>
-										</li>
-									))}
-								</ol>
-							</nav>
-						)}
 					</>
 				) : (
 					<>
@@ -1222,6 +1332,44 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		padding-top: 0.75rem;
 		border-top: 1px solid var(--color-border);
 	}
+	.post-detail-article-nav {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		margin-top: 2.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-article-nav a,
+	.post-detail-article-nav-empty {
+		display: grid;
+		gap: 0.375rem;
+		min-width: 0;
+		color: var(--color-text);
+		font-size: 0.875rem;
+	}
+	.post-detail-article-nav a {
+		text-decoration: none;
+	}
+	.post-detail-article-nav a:hover strong {
+		color: var(--color-primary);
+	}
+	.post-detail-article-nav span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.post-detail-article-nav strong {
+		overflow: hidden;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.post-detail-article-nav a:last-child {
+		text-align: right;
+	}
+	.post-detail-article-nav-empty:last-child {
+		text-align: right;
+	}
 
 	.post-detail-comments {
 		margin-top: 1.5rem;
@@ -1347,17 +1495,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	.post-detail-blog-header {
 		margin-bottom: 1rem;
 	}
-	.post-detail-blog-category {
-		margin-bottom: 0.5rem;
-	}
-	.post-detail-blog-category-name {
-		display: inline-block;
-		padding: 0.125rem 0.625rem;
-		font-size: 0.75rem;
-		color: var(--color-primary);
-		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-		border-radius: 1rem;
-	}
 	.post-detail-blog-title {
 		font-size: 1.75rem;
 		font-weight: 700;
@@ -1390,6 +1527,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	.post-detail-layout-blog {
 		grid-template-columns: minmax(0, 1fr) 220px;
 		gap: 56px;
+	}
+
+	.post-detail-layout-forum {
+		grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
 	}
 
 	.post-detail-layout-weibo {
@@ -1475,16 +1616,44 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		margin-bottom: 1.25rem;
 	}
 
-	.post-detail-forum-category {
-		margin: 0 0 6px;
-		color: var(--color-primary);
-		font-size: 0.75rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-	}
-
 	.post-detail-layout-forum .post-detail-forum-title {
 		font-size: clamp(1.5rem, 3vw, 1.75rem);
+		margin-bottom: 1.25rem;
+	}
+
+	.post-detail-layout-forum .post-detail-header {
+		margin-bottom: 0;
+		padding: 0.75rem 0.875rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card-bg));
+	}
+
+	.post-detail-forum-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-left: auto;
+	}
+
+	.post-detail-forum-actions :global(.follow-form),
+	.post-detail-forum-actions :global(.bookmark-btn-form) {
+		margin: 0;
+	}
+
+	.post-detail-forum-actions :global(.follow-btn),
+	.post-detail-forum-actions :global(.bookmark-btn) {
+		min-height: 2rem;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8125rem;
+	}
+
+	.post-detail-forum-actions :global(.bookmark-count) {
+		display: none;
+	}
+
+	.post-detail-layout-forum .post-detail-aside {
+		display: none;
 	}
 
 	.post-detail-layout-weibo .post-detail {
@@ -1675,6 +1844,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			grid-template-columns: 48px minmax(0, 1fr) 190px;
 		}
 
+		.post-detail-layout-forum {
+			grid-template-columns: 48px minmax(0, 1fr);
+		}
+
 		.post-detail-local-nav .sidebar-link {
 			justify-content: center;
 			width: 48px;
@@ -1686,17 +1859,39 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		.post-detail-local-nav .sidebar-link span:not(.sidebar-link-icon) {
 			display: none;
 		}
+
+		.post-detail-layout-forum .forum-sidebar-group .sidebar-link-icon {
+			display: block;
+		}
 	}
 
 	@media (max-width: 767px) {
 		.post-detail-layout,
 		.post-detail-layout-blog,
-		.post-detail-layout-weibo {
+		.post-detail-layout-weibo,
+		.post-detail-layout-forum {
 			display: block;
 			padding: var(--spacing-5) 0 calc(56px + var(--spacing-6));
 		}
 
-		.post-detail-local-nav {
+		.post-detail-layout-weibo .post-detail-local-nav {
+			display: none;
+		}
+
+		/* 论坛导航在窄屏保留在内容上方，一级分类作为整体参与换行。 */
+		.post-detail-layout-forum .post-detail-local-nav {
+			display: flex;
+			position: static;
+			flex-flow: row wrap;
+			align-items: center;
+			gap: var(--spacing-2);
+			height: auto;
+			width: 100%;
+			margin: 0 0 var(--spacing-4);
+			padding: 0;
+		}
+
+		.post-detail-layout-forum .post-detail-local-nav .sidebar-section-label {
 			display: none;
 		}
 
@@ -1744,6 +1939,26 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			align-items: flex-start;
 			gap: var(--spacing-3);
 			flex-direction: column;
+		}
+
+		.post-detail-layout-forum .post-detail-header {
+			align-items: flex-start;
+			gap: var(--spacing-3);
+		}
+
+		.post-detail-forum-actions {
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
+
+		.post-detail-article-nav {
+			grid-template-columns: 1fr;
+			gap: 0.875rem;
+		}
+
+		.post-detail-article-nav a:last-child,
+		.post-detail-article-nav-empty:last-child {
+			text-align: left;
 		}
 	}
 </style>

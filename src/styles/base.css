@@ -249,14 +249,6 @@ body[data-ux-shell='home'] .navbar-inner {
 	border: 2px solid var(--color-navbar-bg, var(--color-bg));
 }
 
-/* 通知链接（含徽章） */
-.nav-notification {
-	position: relative;
-	display: inline-flex;
-	align-items: center;
-	min-width: var(--control-min-height);
-}
-
 /* 未读通知徽章 */
 .notification-badge {
 	position: absolute;
@@ -345,7 +337,7 @@ body[data-ux-shell='home'] .navbar-inner {
 	position: absolute;
 	top: calc(100% + 6px);
 	right: 0;
-	min-width: 180px;
+	min-width: 168px;
 	background: var(--color-surface);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-md);
@@ -376,6 +368,12 @@ body[data-ux-shell='home'] .navbar-inner {
 	border: none;
 	background: none;
 	font-family: inherit;
+	text-align: left;
+}
+
+/* 覆盖导航通用链接的居中规则，确保用户菜单条目始终从左侧开始排布。 */
+.navbar-actions .nav-dropdown-item {
+	justify-content: flex-start;
 	text-align: left;
 }
 
@@ -1362,8 +1360,9 @@ mark.search-highlight {
 		border-radius: var(--radius-sm);
 	}
 
+	/* 主题设置保留在桌面导航；移动端菜单只展示站内导航与账户操作。 */
 	.navbar-actions .theme-switcher {
-		padding: var(--spacing-2) var(--spacing-3);
+		display: none;
 	}
 
 	/* 移动端 hamburger 面板内显示扁平用户菜单，隐藏二级下拉 */

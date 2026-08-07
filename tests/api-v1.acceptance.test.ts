@@ -357,6 +357,50 @@ test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除
 	assert.equal((await json<ErrorResponse>(repeatPostDelete)).error.code, 'NOT_FOUND');
 });
 
+test('博客文章可保存自定义分类，且不能与系统分类同时设置', async () => {
+	const auth = { authorization: `Bearer ${aliceToken}`, 'content-type': 'application/json' };
+	const create = await request('/api/v1/posts', {
+		method: 'POST',
+		headers: auth,
+		body: JSON.stringify({
+			content: 'custom category acceptance post',
+			title: '自定义分类文章',
+			mode: 'blog',
+			customCategory: '随笔'
+		})
+	});
+	assert.equal(create.status, 201);
+	const created = await json<{ id: string; customCategory: string | null }>(create);
+	assert.equal(created.customCategory, '随笔');
+	const update = await request(`/api/v1/posts/${created.id}`, {
+		method: 'PUT',
+		headers: auth,
+		body: JSON.stringify({
+			content: 'custom category acceptance post updated',
+			customCategory: '开发笔记'
+		})
+	});
+	assert.equal(update.status, 200);
+	assert.equal(
+		(await json<{ customCategory: string | null }>(update)).customCategory,
+		'开发笔记'
+	);
+
+	const invalid = await request('/api/v1/posts', {
+		method: 'POST',
+		headers: auth,
+		body: JSON.stringify({
+			content: 'invalid custom category post',
+			title: '冲突分类文章',
+			mode: 'blog',
+			categoryId: 'missing-category',
+			customCategory: '随笔'
+		})
+	});
+	assert.equal(invalid.status, 400);
+	assert.equal((await json<ErrorResponse>(invalid)).error.code, 'BAD_REQUEST');
+});
+
 test('mt_ Bearer token 与 JWT token 均可通过 /api/v1 认证', async () => {
 	const response = await request('/api/v1/timeline/following', {
 		headers: { authorization: `Bearer ${apiToken}` }

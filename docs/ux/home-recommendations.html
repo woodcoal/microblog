@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>睦谈 · 首页推荐体验原型</title>
+		<style>
+			:root {
+				--bg: #fff;
+				--surface: #f8fafc;
+				--card: #fff;
+				--text: #1a1a2e;
+				--muted: #64748b;
+				--border: #e2e8f0;
+				--primary: #4f46e5;
+				--primary-fg: #fff;
+				--danger: #b91c1c;
+				--radius-sm: 6px;
+				--radius-md: 8px;
+				--radius-lg: 12px;
+				--s1: 4px;
+				--s2: 8px;
+				--s3: 12px;
+				--s4: 16px;
+				--s5: 20px;
+				--s6: 24px;
+				--s8: 32px;
+				--s10: 40px;
+				--shadow: 0 1px 3px rgb(15 23 42 / 0.1);
+				color-scheme: light;
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC',
+					'Microsoft YaHei', sans-serif;
+			}
+			[data-theme='dark'] {
+				--bg: #0f172a;
+				--surface: #1e293b;
+				--card: #1e293b;
+				--text: #e2e8f0;
+				--muted: #94a3b8;
+				--border: #334155;
+				--primary: #818cf8;
+				--primary-fg: #000;
+				--danger: #fca5a5;
+				color-scheme: dark;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-width: 320px;
+				background: var(--bg);
+				color: var(--text);
+				line-height: 1.55;
+			}
+			button,
+			a {
+				font: inherit;
+			}
+			button {
+				cursor: pointer;
+			}
+			a {
+				color: inherit;
+				text-decoration: none;
+			}
+			:focus-visible {
+				outline: 3px solid var(--primary);
+				outline-offset: 3px;
+			}
+			.skip-link {
+				position: absolute;
+				z-index: 20;
+				top: 8px;
+				left: 8px;
+				padding: 8px 12px;
+				border-radius: var(--radius-sm);
+				background: var(--primary);
+				color: var(--primary-fg);
+				font-weight: 700;
+				transform: translateY(-160%);
+			}
+			.skip-link:focus {
+				transform: translateY(0);
+			}
+			.prototype-tools {
+				position: sticky;
+				top: 0;
+				z-index: 5;
+				display: flex;
+				justify-content: center;
+				gap: 10px;
+				padding: 10px 16px;
+				border-bottom: 1px solid var(--border);
+				background: color-mix(in srgb, var(--bg) 94%, transparent);
+				backdrop-filter: blur(8px);
+			}
+			.tool-button,
+			.btn {
+				display: inline-flex;
+				min-height: 44px;
+				align-items: center;
+				justify-content: center;
+				gap: 8px;
+				padding: 0 16px;
+				border: 1px solid var(--border);
+				border-radius: var(--radius-sm);
+				background: var(--card);
+				color: var(--text);
+				font-weight: 700;
+				font-size: 14px;
+			}
+			.tool-button[aria-pressed='true'],
+			.btn-primary {
+				border-color: var(--primary);
+				background: var(--primary);
+				color: var(--primary-fg);
+			}
+			.btn:hover,
+			.tool-button:hover {
+				border-color: var(--primary);
+			}
+			.btn-quiet {
+				border-color: transparent;
+				background: transparent;
+				color: var(--muted);
+			}
+			.shell {
+				width: min(100%, 1180px);
+				margin: 0 auto;
+				padding: 0 24px 72px;
+			}
+			.page-intro {
+				display: grid;
+				grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+				gap: clamp(40px, 6vw, 68px);
+				align-items: center;
+				padding: clamp(50px, 8vw, 96px) 0 clamp(40px, 6vw, 64px);
+			}
+			.eyebrow {
+				margin: 0 0 8px;
+				color: var(--primary);
+				font-size: 13px;
+				font-weight: 800;
+				letter-spacing: 0.06em;
+			}
+			.page-intro h1,
+			.section-title {
+				margin: 0;
+				letter-spacing: -0.04em;
+			}
+			.page-intro h1 {
+				font-size: clamp(42px, 5.5vw, 76px);
+				line-height: 1.02;
+				letter-spacing: -0.08em;
+				text-wrap: pretty;
+			}
+			.page-intro p:last-child {
+				max-width: 530px;
+				margin: 20px 0 28px;
+				color: var(--muted);
+				font-size: 18px;
+			}
+			.prototype-note {
+				align-self: start;
+				margin: 3px 0 0;
+				padding: 7px 10px;
+				border: 1px solid var(--border);
+				border-radius: 99px;
+				color: var(--muted);
+				font-size: 12px;
+				white-space: nowrap;
+			}
+			.hero-actions {
+				display: flex;
+				flex-wrap: wrap;
+				gap: var(--s2);
+			}
+			.hero-preview {
+				padding: var(--s5);
+				border: 1px solid var(--border);
+				border-radius: var(--radius-lg);
+				background: var(--card);
+				box-shadow: var(--shadow);
+			}
+			.hero-preview-head {
+				display: flex;
+				justify-content: space-between;
+				gap: var(--s3);
+				align-items: center;
+				padding-bottom: var(--s3);
+			}
+			.hero-preview-head h2 {
+				margin: 0;
+				font-size: 16px;
+				letter-spacing: -0.02em;
+			}
+			.hero-preview-head span {
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.trend-row {
+				display: grid;
+				grid-template-columns: 40px minmax(0, 1fr);
+				gap: var(--s3);
+				padding: var(--s4) 0;
+				border-top: 1px solid var(--border);
+			}
+			.trend-mark {
+				display: grid;
+				place-items: center;
+				width: 40px;
+				height: 40px;
+				border-radius: var(--radius-md);
+				background: color-mix(in srgb, var(--primary) 10%, transparent);
+				color: var(--primary);
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.trend-copy {
+				min-width: 0;
+			}
+			.trend-copy strong,
+			.trend-copy small {
+				display: block;
+			}
+			.trend-copy strong {
+				overflow: hidden;
+				font-size: 14px;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.trend-copy small {
+				margin-top: 2px;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.avatar {
+				display: grid;
+				place-items: center;
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				background: color-mix(in srgb, var(--primary) 14%, var(--surface));
+				color: var(--primary);
+				font-size: 13px;
+				font-weight: 800;
+			}
+			.recommend {
+				border-top: 1px solid var(--border);
+				padding-top: 40px;
+			}
+			.recommend-head {
+				display: flex;
+				justify-content: space-between;
+				gap: 16px;
+				align-items: end;
+				margin-bottom: 20px;
+			}
+			.recommend-head h2 {
+				font-size: 25px;
+			}
+			.recommend-head p:last-child {
+				margin: 4px 0 0;
+				color: var(--muted);
+				font-size: 14px;
+			}
+			.all-link {
+				color: var(--primary);
+				font-size: 14px;
+				font-weight: 750;
+				white-space: nowrap;
+			}
+			.onboarding {
+				display: grid;
+				grid-template-columns: minmax(200px, 1fr) minmax(340px, 1.4fr) auto;
+				align-items: center;
+				gap: 20px;
+				margin-bottom: 20px;
+				padding: 20px;
+				border: 1px solid color-mix(in srgb, var(--primary) 30%, var(--border));
+				border-radius: var(--radius-lg);
+				background: color-mix(in srgb, var(--primary) 5%, var(--card));
+			}
+			.onboarding h3 {
+				margin: 0;
+				font-size: 16px;
+			}
+			.onboarding p {
+				margin: 3px 0 0;
+				color: var(--muted);
+				font-size: 13px;
+			}
+			.interest-list {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+			.interest {
+				min-height: 44px;
+				padding: 0 12px;
+				border: 1px solid var(--border);
+				border-radius: 99px;
+				background: var(--card);
+				color: var(--text);
+				font-size: 13px;
+			}
+			.interest[aria-pressed='true'] {
+				border-color: var(--primary);
+				background: var(--primary);
+				color: var(--primary-fg);
+			}
+			.onboarding-actions {
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: end;
+				gap: 4px;
+			}
+			.onboarding-actions .btn {
+				min-height: 44px;
+				padding-inline: 12px;
+				font-size: 13px;
+			}
+			.recommend-grid {
+				display: grid;
+				grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+				gap: 20px;
+				align-items: start;
+			}
+			.panel {
+				min-width: 0;
+				padding: 20px;
+				border: 1px solid var(--border);
+				border-radius: var(--radius-lg);
+				background: var(--card);
+			}
+			.panel-head {
+				display: flex;
+				justify-content: space-between;
+				gap: 12px;
+				align-items: baseline;
+				margin-bottom: 14px;
+			}
+			.panel-head h3 {
+				margin: 0;
+				font-size: 16px;
+			}
+			.panel-head span {
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.recommend-list,
+			.creator-list {
+				display: flex;
+				flex-direction: column;
+			}
+			.recommend-row {
+				display: grid;
+				grid-template-columns: 42px minmax(0, 1fr);
+				gap: 12px;
+				padding: 14px 0;
+				border-top: 1px solid var(--border);
+			}
+			.recommend-row:first-child,
+			.creator:first-child {
+				padding-top: 0;
+				border-top: 0;
+			}
+			.mini-avatar {
+				display: grid;
+				place-items: center;
+				width: 42px;
+				height: 42px;
+				border-radius: 50%;
+				background: var(--surface);
+				color: var(--primary);
+				font-weight: 800;
+				font-size: 13px;
+			}
+			.recommend-copy {
+				min-width: 0;
+			}
+			.recommend-title {
+				display: block;
+				overflow: hidden;
+				font-weight: 750;
+				font-size: 14px;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.recommend-summary {
+				display: -webkit-box;
+				overflow: hidden;
+				margin: 3px 0 0;
+				color: var(--muted);
+				font-size: 13px;
+				line-height: 1.45;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+			}
+			.recommend-meta {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 7px;
+				align-items: center;
+				margin-top: 7px;
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.reason {
+				display: inline-flex;
+				align-items: center;
+				min-height: 23px;
+				padding: 1px 7px;
+				border-radius: 99px;
+				background: color-mix(in srgb, var(--primary) 9%, transparent);
+				color: var(--primary);
+				font-size: 12px;
+				font-weight: 700;
+			}
+			.creator {
+				display: grid;
+				grid-template-columns: 44px minmax(0, 1fr) auto;
+				gap: 12px;
+				align-items: start;
+				padding: 14px 0;
+				border-top: 1px solid var(--border);
+			}
+			.creator .avatar {
+				width: 44px;
+				height: 44px;
+			}
+			.creator-name {
+				display: block;
+				overflow: hidden;
+				font-size: 14px;
+				font-weight: 800;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.creator-bio,
+			.creator-reason {
+				margin: 2px 0 0;
+				color: var(--muted);
+				font-size: 12px;
+				line-height: 1.4;
+			}
+			.creator-reason {
+				color: var(--primary);
+				font-weight: 700;
+			}
+			.follow {
+				min-height: 44px;
+				padding: 0 11px;
+				align-self: center;
+				font-size: 13px;
+			}
+			.notice {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 16px;
+				padding: 18px 0 0;
+				color: var(--muted);
+				font-size: 14px;
+			}
+			.notice[hidden],
+			.onboarding[hidden] {
+				display: none;
+			}
+			.notice-error {
+				color: var(--danger);
+			}
+			.skeleton {
+				overflow: hidden;
+				position: relative;
+				height: 57px;
+				margin: 14px 0;
+				border-radius: var(--radius-sm);
+				background: var(--surface);
+			}
+			.skeleton::after {
+				position: absolute;
+				inset: 0;
+				content: '';
+				background: linear-gradient(
+					90deg,
+					transparent,
+					color-mix(in srgb, var(--card) 70%, transparent),
+					transparent
+				);
+				transform: translateX(-100%);
+				animation: shimmer 1.2s infinite;
+			}
+			@keyframes shimmer {
+				to {
+					transform: translateX(100%);
+				}
+			}
+			.toast {
+				position: fixed;
+				right: 20px;
+				bottom: 20px;
+				z-index: 10;
+				max-width: calc(100% - 40px);
+				padding: 12px 16px;
+				border: 1px solid var(--border);
+				border-radius: var(--radius-md);
+				background: var(--card);
+				box-shadow: var(--shadow);
+				font-size: 14px;
+			}
+			.toast[hidden] {
+				display: none;
+			}
+			@media (max-width: 1023px) {
+				.onboarding {
+					grid-template-columns: 1fr;
+					gap: 14px;
+				}
+				.onboarding-actions {
+					justify-content: start;
+				}
+				.recommend-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+			@media (max-width: 767px) {
+				.prototype-tools {
+					justify-content: flex-start;
+					overflow-x: auto;
+				}
+				.shell {
+					padding-inline: 16px;
+				}
+				.page-intro {
+					grid-template-columns: 1fr;
+					gap: var(--s8);
+					padding-top: 28px;
+				}
+				.prototype-note {
+					display: inline-flex;
+					margin-top: 14px;
+				}
+				.activity-head,
+				.recommend-head {
+					align-items: start;
+					flex-direction: column;
+				}
+				.onboarding {
+					padding: 16px;
+				}
+				.recommend {
+					padding-top: 28px;
+				}
+				.panel {
+					padding: 16px;
+				}
+				.creator {
+					grid-template-columns: 44px minmax(0, 1fr);
+				}
+				.follow {
+					grid-column: 2;
+					justify-self: start;
+					min-width: 100%;
+					min-height: 44px;
+				}
+				.notice {
+					align-items: start;
+					flex-direction: column;
+				}
+			}
+			@media (prefers-reduced-motion: reduce) {
+				*,
+				*::before,
+				*::after {
+					animation-duration: 0.01ms !important;
+					transition-duration: 0.01ms !important;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<a class="skip-link" href="#main">跳到主要内容</a>
+		<nav class="prototype-tools" aria-label="原型状态切换">
+			<button class="tool-button" type="button" data-state="default" aria-pressed="true">
+				默认
+			</button>
+			<button class="tool-button" type="button" data-state="loading" aria-pressed="false">
+				加载
+			</button>
+			<button class="tool-button" type="button" data-state="empty" aria-pressed="false">
+				空态
+			</button>
+			<button class="tool-button" type="button" data-state="error" aria-pressed="false">
+				失败重试
+			</button>
+			<button class="tool-button" id="theme" type="button" aria-pressed="false">
+				深色主题
+			</button>
+		</nav>
+		<main class="shell" id="main">
+			<header class="page-intro">
+				<div>
+					<p class="eyebrow">轻量、多元、自在</p>
+					<h1>在同一个社区，聊聊你关心的事。</h1>
+					<p>
+						微博记录当下，论坛展开讨论，博客沉淀观点。发现值得停留的内容，也分享你的声音。
+					</p>
+					<div class="hero-actions">
+						<a class="btn btn-primary" href="#hero-trending">浏览热门内容</a>
+						<a class="btn" href="#recommend">探索频道</a>
+					</div>
+				</div>
+				<aside class="hero-preview" aria-labelledby="hero-trending">
+					<div class="hero-preview-head">
+						<h2 id="hero-trending">正在被讨论</h2>
+						<span>示例内容</span>
+					</div>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">微</span>
+						<span class="trend-copy"
+							><strong>把一个小习惯坚持下去</strong
+							><small>微博 · 18 分钟前</small></span
+						>
+					</a>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">论</span>
+						<span class="trend-copy"
+							><strong>你会怎样开始一段新的学习？</strong
+							><small>论坛 · 32 条回复</small></span
+						>
+					</a>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">博</span>
+						<span class="trend-copy"
+							><strong>给第一次写长文的朋友</strong
+							><small>博客 · 近期更新</small></span
+						>
+					</a>
+				</aside>
+			</header>
+			<section class="recommend" id="recommend" aria-labelledby="recommend-title">
+				<div class="recommend-head">
+					<div>
+						<p class="eyebrow">为你准备</p>
+						<h2 class="section-title" id="recommend-title">
+							从感兴趣的话题，认识这里的人
+						</h2>
+						<p>内容与创作者各自加载，不影响你继续浏览全站动态。</p>
+					</div>
+					<a class="all-link" href="#hero-trending">全站动态 →</a>
+				</div>
+				<section class="onboarding" id="onboarding" aria-labelledby="onboarding-title">
+					<div>
+						<h3 id="onboarding-title">先选几个感兴趣的话题？</h3>
+						<p>可多选，也可以跳过；这不会阻止你浏览或发布。</p>
+					</div>
+					<div class="interest-list" aria-label="兴趣标签">
+						<button class="interest" type="button" aria-pressed="false">设计</button
+						><button class="interest" type="button" aria-pressed="true">前端</button
+						><button class="interest" type="button" aria-pressed="false">摄影</button
+						><button class="interest" type="button" aria-pressed="false">游戏</button
+						><button class="interest" type="button" aria-pressed="false">生活</button>
+					</div>
+					<div class="onboarding-actions">
+						<button class="btn btn-primary" id="save-interests" type="button">
+							开始看看</button
+						><button class="btn btn-quiet" id="skip-interests" type="button">
+							跳过
+						</button>
+					</div>
+				</section>
+				<div class="recommend-grid">
+					<section
+						class="panel"
+						id="posts-panel"
+						aria-busy="false"
+						aria-labelledby="posts-title"
+					>
+						<div class="panel-head">
+							<h3 id="posts-title">内容推荐</h3>
+							<span id="posts-count">依据你的兴趣与全站热度</span>
+						</div>
+						<div class="recommend-list" id="posts-list">
+							<a class="recommend-row" href="#posts-title"
+								><span class="mini-avatar" aria-hidden="true">一</span
+								><span class="recommend-copy"
+									><span class="recommend-title"
+										>我把设计笔记整理成了一个可以持续更新的清单</span
+									><span class="recommend-summary"
+										>把零散记录归到同一条时间线上，回看时才发现自己的变化。</span
+									><span class="recommend-meta"
+										><span class="reason">来自你选择的「前端」</span
+										><span>@一页纸 · 28 赞 · 9 评论</span></span
+									></span
+								></a
+							><a class="recommend-row" href="#posts-title"
+								><span class="mini-avatar" aria-hidden="true">阿</span
+								><span class="recommend-copy"
+									><span class="recommend-title"
+										>一个小工具如何从自用走到被更多人使用</span
+									><span class="recommend-summary"
+										>从第一次分享开始，记录功能取舍和真实反馈。</span
+									><span class="recommend-meta"
+										><span class="reason">正在被讨论</span
+										><span>@阿江 · 16 赞 · 7 评论</span></span
+									></span
+								></a
+							><a class="recommend-row" href="#posts-title"
+								><span class="mini-avatar" aria-hidden="true">程</span
+								><span class="recommend-copy"
+									><span class="recommend-title"
+										>给刚开始写博客的朋友：先写下你正在解决的问题</span
+									><span class="recommend-summary"
+										>不急着写成结论，把过程留住也是一种表达。</span
+									><span class="recommend-meta"
+										><span class="reason">与你关注的话题相近</span
+										><span>@程子 · 博客</span></span
+									></span
+								></a
+							>
+						</div>
+						<div
+							class="notice"
+							id="posts-notice"
+							role="status"
+							aria-live="polite"
+							hidden
+						></div>
+					</section>
+					<section
+						class="panel"
+						id="creators-panel"
+						aria-busy="false"
+						aria-labelledby="creators-title"
+					>
+						<div class="panel-head">
+							<h3 id="creators-title">推荐创作者</h3>
+							<span>可随时关注</span>
+						</div>
+						<div class="creator-list" id="creators-list">
+							<article class="creator">
+								<a
+									class="avatar"
+									href="#creators-title"
+									aria-label="查看 宁一 的主页"
+									>宁</a
+								>
+								<div>
+									<a class="creator-name" href="#creators-title">宁一</a>
+									<p class="creator-bio">记录产品观察和轻量工具。</p>
+									<p class="creator-reason">3 位共同关注</p>
+								</div>
+								<button
+									class="btn btn-primary follow"
+									type="button"
+									data-name="宁一"
+								>
+									关注
+								</button>
+							</article>
+							<article class="creator">
+								<a
+									class="avatar"
+									href="#creators-title"
+									aria-label="查看 小麦 的主页"
+									>麦</a
+								>
+								<div>
+									<a class="creator-name" href="#creators-title">小麦</a>
+									<p class="creator-bio">每周写一点前端和生活。</p>
+									<p class="creator-reason">最近仍在持续创作</p>
+								</div>
+								<button
+									class="btn btn-primary follow"
+									type="button"
+									data-name="小麦"
+								>
+									关注
+								</button>
+							</article>
+							<article class="creator">
+								<a
+									class="avatar"
+									href="#creators-title"
+									aria-label="查看 南枝 的主页"
+									>南</a
+								>
+								<div>
+									<a class="creator-name" href="#creators-title">南枝</a>
+									<p class="creator-bio">把阅读里有意思的想法留下来。</p>
+									<p class="creator-reason">与你选择的兴趣相近</p>
+								</div>
+								<button
+									class="btn btn-primary follow"
+									type="button"
+									data-name="南枝"
+								>
+									关注
+								</button>
+							</article>
+						</div>
+						<div
+							class="notice"
+							id="creators-notice"
+							role="status"
+							aria-live="polite"
+							hidden
+						></div>
+					</section>
+				</div>
+			</section>
+		</main>
+		<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+		<script>
+			const posts = document.querySelector('#posts-list');
+			const creators = document.querySelector('#creators-list');
+			const postsNotice = document.querySelector('#posts-notice');
+			const creatorsNotice = document.querySelector('#creators-notice');
+			const postsPanel = document.querySelector('#posts-panel');
+			const creatorsPanel = document.querySelector('#creators-panel');
+			const defaultPosts = posts.innerHTML;
+			const defaultCreators = creators.innerHTML;
+			const setNotice = (el, message, error = false) => {
+				el.hidden = !message;
+				el.textContent = message;
+				el.classList.toggle('notice-error', error);
+			};
+			const setState = (state) => {
+				document
+					.querySelectorAll('[data-state]')
+					.forEach((button) =>
+						button.setAttribute('aria-pressed', String(button.dataset.state === state))
+					);
+				postsPanel.setAttribute('aria-busy', String(state === 'loading'));
+				creatorsPanel.setAttribute('aria-busy', String(state === 'loading'));
+				setNotice(postsNotice, '');
+				setNotice(creatorsNotice, '');
+				if (state === 'default') {
+					posts.innerHTML = defaultPosts;
+					creators.innerHTML = defaultCreators;
+				}
+				if (state === 'loading') {
+					posts.innerHTML =
+						'<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+					creators.innerHTML =
+						'<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>';
+				}
+				if (state === 'empty') {
+					posts.innerHTML = '';
+					creators.innerHTML = '';
+					setNotice(postsNotice, '暂时没有新的内容推荐。你可以继续浏览全站动态。');
+					setNotice(creatorsNotice, '暂时没有可推荐的创作者，稍后再来看看。');
+				}
+				if (state === 'error') {
+					posts.innerHTML = '';
+					creators.innerHTML = '';
+					postsNotice.innerHTML =
+						'推荐内容暂时加载失败。 <button class="btn" type="button" data-retry>重试</button>';
+					creatorsNotice.innerHTML =
+						'推荐创作者暂时加载失败。 <button class="btn" type="button" data-retry>重试</button>';
+					postsNotice.hidden = false;
+					creatorsNotice.hidden = false;
+					postsNotice.classList.add('notice-error');
+					creatorsNotice.classList.add('notice-error');
+				}
+			};
+			document
+				.querySelectorAll('[data-state]')
+				.forEach((button) =>
+					button.addEventListener('click', () => setState(button.dataset.state))
+				);
+			document.addEventListener('click', (event) => {
+				if (event.target.closest('[data-retry]')) setState('default');
+				const follow = event.target.closest('[data-name]');
+				if (follow) {
+					const name = follow.dataset.name;
+					follow.disabled = true;
+					follow.textContent = '关注中…';
+					setTimeout(() => {
+						follow.closest('.creator').remove();
+						document.querySelector('#toast').textContent = `已关注 ${name}`;
+						document.querySelector('#toast').hidden = false;
+						setTimeout(() => (document.querySelector('#toast').hidden = true), 2400);
+						if (!creators.children.length)
+							setNotice(creatorsNotice, '暂时没有可推荐的创作者。');
+					}, 350);
+				}
+			});
+			document
+				.querySelectorAll('.interest')
+				.forEach((button) =>
+					button.addEventListener('click', () =>
+						button.setAttribute(
+							'aria-pressed',
+							String(button.getAttribute('aria-pressed') !== 'true')
+						)
+					)
+				);
+			const closeOnboarding = (message) => {
+				document.querySelector('#onboarding').hidden = true;
+				const toast = document.querySelector('#toast');
+				toast.textContent = message;
+				toast.hidden = false;
+				setTimeout(() => (toast.hidden = true), 2400);
+			};
+			document
+				.querySelector('#save-interests')
+				.addEventListener('click', () =>
+					closeOnboarding('已保存兴趣；推荐将从这些话题开始。')
+				);
+			document
+				.querySelector('#skip-interests')
+				.addEventListener('click', () => closeOnboarding('已跳过；先为你展示多样化内容。'));
+			document.querySelector('#theme').addEventListener('click', (event) => {
+				const dark = document.body.dataset.theme !== 'dark';
+				document.body.dataset.theme = dark ? 'dark' : '';
+				event.currentTarget.setAttribute('aria-pressed', String(dark));
+				event.currentTarget.textContent = dark ? '浅色主题' : '深色主题';
+			});
+		</script>
+	</body>
+</html>

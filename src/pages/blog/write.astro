@@ -69,6 +69,14 @@ const hasCategories = categories.length > 0;
 						</select>
 					)
 				}
+				<input
+					type="text"
+					class="form-input blog-write-select"
+					id="blog-compose-custom-category"
+					placeholder="自定义分类（可选）"
+					maxlength="50"
+					aria-label="自定义分类"
+				/>
 				<select
 					class="form-input blog-write-select"
 					id="blog-compose-visibility"
@@ -140,6 +148,9 @@ const hasCategories = categories.length > 0;
 		const categorySelect = container.querySelector(
 			'#blog-compose-category'
 		) as HTMLSelectElement | null;
+		const customCategoryInput = container.querySelector(
+			'#blog-compose-custom-category'
+		) as HTMLInputElement | null;
 		const visibilitySelect = container.querySelector(
 			'#blog-compose-visibility'
 		) as HTMLSelectElement;
@@ -175,6 +186,7 @@ const hasCategories = categories.length > 0;
 			const data = {
 				title: titleInput?.value || '',
 				categoryId: categorySelect?.value || '',
+				customCategory: customCategoryInput?.value || '',
 				visibility: visibilitySelect?.value || 'public',
 				savedAt: new Date().toISOString()
 			};
@@ -208,6 +220,10 @@ const hasCategories = categories.length > 0;
 				const data = JSON.parse(saved);
 				if (data.title && titleInput) titleInput.value = data.title;
 				if (data.categoryId && categorySelect) categorySelect.value = data.categoryId;
+				if (data.customCategory && customCategoryInput) {
+					customCategoryInput.value = data.customCategory;
+					if (categorySelect) categorySelect.value = '';
+				}
 				if (data.visibility && visibilitySelect) visibilitySelect.value = data.visibility;
 			} catch {
 				// 草稿解析失败，静默处理
@@ -231,7 +247,16 @@ const hasCategories = categories.length > 0;
 		}
 		// 分类选择时保存草稿
 		if (categorySelect) {
-			categorySelect.addEventListener('change', saveBlogDraftDebounced);
+			categorySelect.addEventListener('change', () => {
+				if (categorySelect.value && customCategoryInput) customCategoryInput.value = '';
+				saveBlogDraftDebounced();
+			});
+		}
+		if (customCategoryInput) {
+			customCategoryInput.addEventListener('input', () => {
+				if (customCategoryInput.value.trim() && categorySelect) categorySelect.value = '';
+				saveBlogDraftDebounced();
+			});
 		}
 		// 可见度选择时保存草稿
 		if (visibilitySelect) {
@@ -252,6 +277,7 @@ const hasCategories = categories.length > 0;
 			const content = customEvent.detail as string;
 			const title = titleInput.value.trim();
 			const categoryId = categorySelect?.value || '';
+			const customCategory = customCategoryInput?.value.trim() || '';
 
 			if (!title) {
 				showError('请输入文章标题');
@@ -288,6 +314,9 @@ const hasCategories = categories.length > 0;
 			// 有分类时传入 categoryId
 			if (categoryId) {
 				actionInput.categoryId = categoryId;
+			}
+			if (customCategory) {
+				actionInput.customCategory = customCategory;
 			}
 
 			const result = await actions.createPost(actionInput);

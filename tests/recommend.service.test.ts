@@ -30,6 +30,23 @@ test('200-window paging excludes self interaction and pins only when explicitly 
 	assert.equal((await getTrendingFeed({ viewerId: visitor.id, page: 1, pageSize: 20, includeGlobalPinned: true })).items[0].id, 'p0');
 });
 
+test('blog trending feed preserves custom categories for the article-list contract', async () => {
+	const author = await user('blog_author');
+	await prisma.post.create({
+		data: {
+			id: 'blog_custom_category',
+			userId: author.id,
+			content: '一篇使用作者自定义分类的热门文章',
+			mode: 'blog',
+			customCategory: '工程随笔'
+		}
+	});
+
+	const feed = await getTrendingFeed({ page: 1, pageSize: 20, mode: 'blog' });
+	assert.equal(feed.items.length, 1);
+	assert.equal(feed.items[0].customCategory, '工程随笔');
+});
+
 test('skip persists only completion state and five positive signals switch to blended', async () => {
 	const viewer = await user('viewer'); const targets = await Promise.all(Array.from({ length: 5 }, (_, index) => user(`target${index}`)));
 	await saveInterests({ userId: viewer.id, tagIds: [], categoryIds: [], skip: true });

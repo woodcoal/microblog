@@ -10,12 +10,19 @@ interface Props {
 	navLabel: string;
 	/** 允许页面在发现数据为空时显式收起右栏。 */
 	hasAside?: boolean;
+	/** 频道可选的响应式布局变体。 */
+	variant?: 'forum';
 }
 
-const { navLabel, hasAside = Astro.slots.has('aside') } = Astro.props;
+const { navLabel, hasAside = Astro.slots.has('aside'), variant } = Astro.props;
 ---
 
-<div class:list={['layout-wide', { 'layout-wide-with-aside': hasAside }]}>
+<div
+	class:list={[
+		'layout-wide',
+		{ 'layout-wide-with-aside': hasAside, 'layout-wide-forum': variant === 'forum' }
+	]}
+>
 	<aside class="layout-sidebar" aria-label={navLabel}>
 		<slot name="nav" />
 	</aside>

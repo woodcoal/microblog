@@ -16,6 +16,7 @@ interface BlogArticle {
 	createdAt: Date;
 	user: ArticleUser;
 	category: ArticleCategory | null;
+	customCategory: string | null;
 	_count: { likes: number; comments: number };
 }
 
@@ -51,7 +52,9 @@ function formatDate(date: Date): string {
 			const isRestricted = restrictedIds.has(post.id);
 			return (
 				<article class="blog-article">
-					<span class="blog-article-eyebrow">{post.category?.name ?? '文章'}</span>
+					<span class="blog-article-eyebrow">
+						{post.category?.name ?? post.customCategory ?? '文章'}
+					</span>
 					<h2>
 						<a href={`/${post.user.username}/${post.id}`}>
 							{post.title || '无标题文章'}

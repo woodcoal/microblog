@@ -1,0 +1,57 @@
+---
+/**
+ * 微博作者信息行。
+ *
+ * 列表和详情页共用，保证显示名、@用户名与发布时间始终遵循同一信息层级。
+ */
+import { formatRelativeTime } from '@/lib/utils';
+
+interface Props {
+	user: {
+		username: string;
+		displayName: string;
+		avatarUrl: string | null;
+	};
+	createdAt: Date | string;
+	updatedAt?: Date | string;
+	isEdited?: boolean;
+}
+
+const { user, createdAt, updatedAt, isEdited = false } = Astro.props;
+const publishedAt = new Date(createdAt);
+const editedAt = updatedAt ? new Date(updatedAt) : undefined;
+const hasAvatar = !!user.avatarUrl;
+---
+
+<div class="weibo-post-header">
+	<a href={`/${user.username}`} class="weibo-post-author">
+		{
+			hasAvatar ? (
+				<img
+					src={user.avatarUrl}
+					alt={`${user.displayName} 的头像`}
+					class="weibo-post-avatar"
+					loading="lazy"
+				/>
+			) : (
+				<div class="weibo-post-avatar weibo-post-avatar-placeholder" aria-hidden="true">
+					{user.displayName.charAt(0).toUpperCase()}
+				</div>
+			)
+		}
+		<span class="weibo-post-author-info">
+			<span class="weibo-post-name">{user.displayName}</span>
+			<span class="weibo-post-meta">
+				@{user.username} <span aria-hidden="true">·</span>{' '}
+				<time datetime={publishedAt.toISOString()}>{formatRelativeTime(publishedAt)}</time>
+				{
+					isEdited && editedAt && (
+						<>
+							{' '}<span aria-hidden="true">·</span> 已编辑
+						</>
+					)
+				}
+			</span>
+		</span>
+	</a>
+</div>

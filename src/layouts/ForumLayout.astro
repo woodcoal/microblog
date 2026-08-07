@@ -49,7 +49,7 @@ const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('as
 >
 	{
 		isThreeColumn ? (
-			<ContentListShell navLabel="论坛导航" hasAside={true}>
+			<ContentListShell navLabel="论坛导航" hasAside={true} variant="forum">
 				<Fragment slot="nav">
 					<slot name="nav" />
 				</Fragment>

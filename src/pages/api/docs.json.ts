@@ -222,6 +222,7 @@ const spec = {
 				properties: {
 					id: { type: 'string' },
 					title: { type: 'string', nullable: true },
+					customCategory: { type: 'string', nullable: true },
 					content: { type: 'string' },
 					contentHtml: { type: 'string', description: 'API 适配层安全渲染的 HTML' },
 					mode: { type: 'string', enum: ['weibo', 'forum', 'blog'] },
@@ -346,7 +347,8 @@ const spec = {
 					mediaIds: { type: 'array', items: { type: 'string' }, uniqueItems: true },
 					password: { type: 'string', writeOnly: true },
 					allowedUserIds: { type: 'array', items: { type: 'string' }, uniqueItems: true },
-					categoryId: { type: 'string', nullable: true }
+					categoryId: { type: 'string', nullable: true },
+					customCategory: { type: 'string', nullable: true, maxLength: 50 }
 				},
 				required: ['content']
 			},

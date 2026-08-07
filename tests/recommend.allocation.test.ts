@@ -16,7 +16,7 @@ function recommendationCandidate(index: number, options: { author?: string; cate
 		updatedAt: new Date(1_000_000 - index),
 		visibility: 'public', passwordHash: null, allowedUserIds: null,
 		isPinned: false, isGlobalPinned: false, isLocked: false, isEdited: false,
-		mode: 'weibo', title: null, categoryId: options.categoryId ?? null,
+		mode: 'weibo', title: null, categoryId: options.categoryId ?? null, customCategory: null,
 		user: { id: options.author ?? `author_${index}`, username: `user_${index}`, displayName: `User ${index}`, avatarUrl: '' },
 		media: [],
 		tags: (options.tagIds ?? []).map((tagId) => ({ tag: { id: tagId, name: tagId } })),

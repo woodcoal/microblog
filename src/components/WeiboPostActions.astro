@@ -1,0 +1,30 @@
+---
+/** 微博互动文字行。列表与详情共用既有互动 Action，仅统一文案及顺序。 */
+import LikeButton from '@/components/LikeButton.astro';
+import BookmarkButton from '@/components/BookmarkButton.astro';
+
+interface Props {
+	postId: string;
+	username: string;
+	likeCount: number;
+	liked: boolean;
+	bookmarkCount: number;
+	bookmarked: boolean;
+	commentCount: number;
+}
+
+const { postId, username, likeCount, liked, bookmarkCount, bookmarked, commentCount } = Astro.props;
+---
+
+<div class="weibo-post-actions" aria-label="微博互动">
+	<a href={`/${username}/${postId}#post-comments`} class="weibo-post-action">
+		评论 {commentCount}
+	</a>
+	<LikeButton postId={postId} initialLiked={liked} initialLikeCount={likeCount} textOnly={true} />
+	<BookmarkButton
+		postId={postId}
+		initialBookmarked={bookmarked}
+		initialBookmarkCount={bookmarkCount}
+		textOnly={true}
+	/>
+</div>
