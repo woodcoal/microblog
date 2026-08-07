@@ -489,11 +489,16 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				)
 			}
 			{
-				isWeibo && isAuthor && !isDeleted && !isLocked && (
-					<div class="post-detail-weibo-owner-toolbar" aria-label="微博操作">
-						<a href={`/${post.user.username}/${post.id}/edit`} class="btn btn-outline">
-							编辑
-						</a>
+				isAuthor && !isDeleted && (isWeibo ? !isLocked : true) && (
+					<div class="post-detail-owner-toolbar" aria-label="作者操作">
+						{!isLocked && (
+							<a
+								href={`/${post.user.username}/${post.id}/edit`}
+								class="btn btn-outline"
+							>
+								编辑
+							</a>
+						)}
 						<button
 							class="btn btn-danger"
 							id="delete-btn"
@@ -503,6 +508,14 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						>
 							删除
 						</button>
+						{!isWeibo && post.isEdited && (
+							<a
+								href={`/${post.user.username}/${post.id}/revisions`}
+								class="btn btn-outline"
+							>
+								版本历史
+							</a>
+						)}
 						{canPin && (
 							<button
 								class="btn btn-outline"
@@ -988,51 +1001,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					</>
 				)
 			}
-			{
-				!isWeibo && isAuthor && !isDeleted && (
-					<section class="post-detail-aside-section post-detail-owner-actions">
-						<h2>文章操作</h2>
-						<div class="post-detail-actions">
-							{!isLocked && (
-								<a
-									href={`/${post.user.username}/${post.id}/edit`}
-									class="btn btn-outline"
-								>
-									编辑
-								</a>
-							)}
-							<button
-								class="btn btn-danger"
-								id="delete-btn"
-								data-post-id={post.id}
-								data-username={post.user.username}
-								type="button"
-							>
-								删除
-							</button>
-							{post.isEdited && (
-								<a
-									href={`/${post.user.username}/${post.id}/revisions`}
-									class="btn btn-outline"
-								>
-									版本历史
-								</a>
-							)}
-							{canPin && (
-								<button
-									class="btn btn-outline"
-									id="pin-btn"
-									data-post-id={post.id}
-									data-pinned={post.isPinned ? 'true' : 'false'}
-									type="button"
-								>
-									{post.isPinned ? '取消置顶' : '置顶'}
-								</button>
-							)}
-						</div>
-					</section>
-				)
-			}
 		</aside>
 	</main>
 	<ImageLightbox />
@@ -1099,13 +1067,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		font-size: 0.75rem;
 		color: var(--color-muted);
 	}
-	.post-detail-weibo-owner-toolbar {
+	.post-detail-owner-toolbar {
 		display: flex;
 		justify-content: flex-end;
 		gap: 0.5rem;
 		margin-bottom: 0.625rem;
 	}
-	.post-detail-weibo-owner-toolbar .btn {
+	.post-detail-owner-toolbar .btn {
 		min-height: 2.25rem;
 		padding: 0.375rem 0.625rem;
 	}
@@ -1244,13 +1212,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		border-top: 1px solid var(--color-border);
 	}
 
-	.post-detail-actions {
-		display: flex;
-		gap: 0.5rem;
-		margin-top: 1rem;
-		padding-top: 1rem;
-		border-top: 1px solid var(--color-border);
-	}
 	.post-detail-comments {
 		margin-top: 1.5rem;
 		padding-top: 1rem;
@@ -1633,18 +1594,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		color: var(--color-primary);
 	}
 
-	.post-detail-owner-actions .post-detail-actions {
-		display: grid;
-		gap: 8px;
-		margin: 0;
-		padding: 0;
-		border: 0;
-	}
-
-	.post-detail-owner-actions .btn {
-		width: 100%;
-	}
-
 	.post-detail-layout :global(.comment-list-header) {
 		margin-bottom: 12px;
 		padding-bottom: 12px;
@@ -1754,11 +1703,11 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			padding: 16px;
 		}
 
-		.post-detail-weibo-owner-toolbar {
+		.post-detail-owner-toolbar {
 			gap: 0.375rem;
 		}
 
-		.post-detail-weibo-owner-toolbar .btn {
+		.post-detail-owner-toolbar .btn {
 			min-height: 2rem;
 			padding: 0.25rem 0.5rem;
 			font-size: 0.8125rem;
