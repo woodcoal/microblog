@@ -8,7 +8,7 @@ const recommendService = await readFile(
 	'utf8'
 );
 
-test('首页推荐区保留冷启动、独立状态和无障碍交互契约', () => {
+test('首页推荐区保留冷启动、独立状态和无障碍关注时序契约', () => {
 	assert.match(page, /getRecommendationProfile/);
 	assert.match(page, /home-preview-chrome/);
 	assert.match(page, /includeGlobalPinned: true/);
@@ -44,6 +44,14 @@ test('首页推荐区保留冷启动、独立状态和无障碍交互契约', ()
 	assert.match(page, /animation: recommend-user-card-leave 180ms ease-out forwards/);
 	assert.match(page, /card\.classList\.add\('is-removing'\)/);
 	assert.match(page, /card\.addEventListener\('animationend', finishRemoval, \{ once: true \}\)/);
+	assert.match(
+		page,
+		/if \(followButton\.disabled \|\| card\.classList\.contains\('is-removing'\)\) return;/
+	);
+	assert.match(
+		page,
+		/if \(card\.isConnected && !card\.classList\.contains\('is-removing'\)\)/
+	);
 	assert.match(page, /card\.nextElementSibling\?\.querySelector<HTMLElement>\(/);
 	assert.match(page, /nextFocusTarget\.focus\(\)/);
 	assert.match(page, /showUsersEmptyState\(\)\.focus\(\)/);

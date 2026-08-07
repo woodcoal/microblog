@@ -1636,6 +1636,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				followButton.textContent = '关注';
 				followButton.setAttribute('aria-label', `关注 ${item.displayName}`);
 				followButton.addEventListener('click', async () => {
+					if (followButton.disabled || card.classList.contains('is-removing')) return;
 					followButton.disabled = true;
 					followButton.textContent = '关注中…';
 					if (usersFeedback) usersFeedback.textContent = '';
@@ -1652,7 +1653,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						if (usersFeedback)
 							usersFeedback.textContent = `关注 ${item.displayName} 失败，请重试。`;
 					} finally {
-						if (card.isConnected) {
+						if (card.isConnected && !card.classList.contains('is-removing')) {
 							followButton.disabled = false;
 							followButton.textContent = '重试关注';
 							followButton.setAttribute('aria-label', `重试关注 ${item.displayName}`);
