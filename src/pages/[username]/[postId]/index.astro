@@ -13,6 +13,8 @@ import UserLayout from '@/layouts/UserLayout.astro';
 import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
 import FollowButton from '@/components/FollowButton.astro';
+import WeiboPostActions from '@/components/WeiboPostActions.astro';
+import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
@@ -747,43 +749,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							</div>
 						</div>
 					) : (
-						/* 微博模式：现有样式，title 显示在内容上方 */
-						<div class="post-detail-header">
-							<a href={`/${post.user.username}`} class="post-detail-author">
-								{post.user.avatarUrl ? (
-									<img
-										src={post.user.avatarUrl}
-										alt={post.user.displayName}
-										class="post-detail-avatar"
-										loading="lazy"
-									/>
-								) : (
-									<div class="post-detail-avatar post-detail-avatar-placeholder">
-										{post.user.displayName.charAt(0).toUpperCase()}
-									</div>
-								)}
-								<div class="post-detail-author-info">
-									<span class="post-detail-name">{post.user.displayName}</span>
-									<span class="post-detail-username">@{post.user.username}</span>
-								</div>
-							</a>
-							<div class="post-detail-time-group">
-								<time
-									class="post-detail-time"
-									datetime={post.createdAt.toISOString()}
-								>
-									{formatRelativeTime(post.createdAt)}
-								</time>
-								{post.isEdited && !isDeleted && (
-									<span class="post-detail-edited">
-										已编辑 ·{' '}
-										<time datetime={post.updatedAt.toISOString()}>
-											{formatRelativeTime(post.updatedAt)}
-										</time>
-									</span>
-								)}
-							</div>
-						</div>
+						/* 微博模式：与列表复用同一作者信息行。 */
+						<WeiboPostHeader
+							user={post.user}
+							createdAt={post.createdAt}
+							updatedAt={post.updatedAt}
+							isEdited={post.isEdited && !isDeleted}
+						/>
 					)
 				}
 
@@ -911,21 +883,37 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 				{
 					!isDeleted && !needPassword && !isBlog && (
 						<div class="post-detail-like" id="post-like-section">
-							<LikeButton
-								postId={post.id}
-								initialLiked={liked}
-								initialLikeCount={likeCount}
-								textOnly={isForum || isBlog}
-							/>
-							<BookmarkButton
-								postId={post.id}
-								initialBookmarked={bookmarked}
-								initialBookmarkCount={bookmarkCount}
-								textOnly={isForum || isBlog}
-							/>
-							<a href="#post-comments" class="post-detail-comment-link">
-								{isBlog ? '讨论' : '回复'} {commentCount}
-							</a>
+							{
+								isWeibo ? (
+									<WeiboPostActions
+										postId={post.id}
+										username={post.user.username}
+										likeCount={likeCount}
+										liked={liked}
+										bookmarkCount={bookmarkCount}
+										bookmarked={bookmarked}
+										commentCount={commentCount}
+									/>
+								) : (
+									<>
+										<LikeButton
+											postId={post.id}
+											initialLiked={liked}
+											initialLikeCount={likeCount}
+											textOnly={true}
+										/>
+										<BookmarkButton
+											postId={post.id}
+											initialBookmarked={bookmarked}
+											initialBookmarkCount={bookmarkCount}
+											textOnly={true}
+										/>
+										<a href="#post-comments" class="post-detail-comment-link">
+											回复 {commentCount}
+										</a>
+									</>
+								)
+							}
 							{likeUsers.length > 0 && (
 								<div class="like-users" id="like-users-list">
 									{likeUsers.slice(0, 10).map((u) => (
