@@ -384,25 +384,96 @@ export function allocateColdStartRecommendations(candidates: TrendingFeedItem[],
 	return interleaveAndDiversify(output);
 }
 
-/** Interleave the three sources and avoid author/key streaks beyond two items. */
-function interleaveAndDiversify(items: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }>) {
-	const queues = new Map(['interest', 'trending', 'exploration'].map((source) => [source, items.filter((item) => item.source === source)]));
-	const result: typeof items = []; const authorCounts = new Map<string, number>(); let previousKey = ''; let run = 0;
+type RecommendationSource = 'interest' | 'trending' | 'exploration';
+type RecommendationAllocation = { post: TrendingFeedItem; source: RecommendationSource };
+
+const RECOMMENDATION_SOURCES: RecommendationSource[] = ['interest', 'trending', 'exploration'];
+
+/**
+ * Merge allocated source queues with weighted round-robin scheduling.
+ *
+ * Sources with the lowest emitted quota ratio go first, while a quota-aware
+ * streak guard prevents any source from being exhausted as one block.
+ * Diversity is strict while a suitable candidate exists. Only when every
+ * remaining candidate would violate a constraint do we use the stable fallback
+ * so sparse pools still produce a deterministic result.
+ */
+function interleaveAndDiversify(items: RecommendationAllocation[]): RecommendationAllocation[] {
+	const queues = new Map<RecommendationSource, RecommendationAllocation[]>(
+		RECOMMENDATION_SOURCES.map((source) => [source, items.filter((item) => item.source === source)])
+	);
+	const allocated = new Map<RecommendationSource, number>(
+		RECOMMENDATION_SOURCES.map((source) => [source, queues.get(source)!.length])
+	);
+	const emitted = new Map<RecommendationSource, number>(RECOMMENDATION_SOURCES.map((source) => [source, 0]));
+	const result: RecommendationAllocation[] = [];
+	const authorCounts = new Map<string, number>();
+
+	const sourceOrder = () => RECOMMENDATION_SOURCES
+		.filter((source) => queues.get(source)!.length > 0)
+		.sort((left, right) => {
+			const leftRatio = (emitted.get(left) ?? 0) / (allocated.get(left) ?? 1);
+			const rightRatio = (emitted.get(right) ?? 0) / (allocated.get(right) ?? 1);
+			return leftRatio - rightRatio || RECOMMENDATION_SOURCES.indexOf(left) - RECOMMENDATION_SOURCES.indexOf(right);
+		});
+	const preservesSourceInterleave = (source: RecommendationSource) => {
+		const remaining = RECOMMENDATION_SOURCES.map((candidate) =>
+			queues.get(candidate)!.length - (candidate === source ? 1 : 0)
+		);
+		return remaining.every((count, index) =>
+			count <= 2 * (remaining.reduce((sum, other, otherIndex) => sum + (index === otherIndex ? 0 : other), 0) + 1)
+		);
+	};
+	const canUse = (item: RecommendationAllocation) => {
+		if ((authorCounts.get(item.post.userId) ?? 0) >= 2) return false;
+		const previousTwo = result.slice(-2);
+		if (
+			item.post.categoryId &&
+			previousTwo.length === 2 &&
+			previousTwo.every(({ post }) => post.categoryId === item.post.categoryId)
+		) return false;
+		const tagIds = item.post.tags.map(({ tag }) => tag.id);
+		return !tagIds.some((tagId) =>
+			previousTwo.length === 2 && previousTwo.every(({ post }) => post.tags.some(({ tag }) => tag.id === tagId))
+		);
+	};
+	const append = (item: RecommendationAllocation) => {
+		result.push(item);
+		authorCounts.set(item.post.userId, (authorCounts.get(item.post.userId) ?? 0) + 1);
+		emitted.set(item.source, (emitted.get(item.source) ?? 0) + 1);
+	};
+
 	while (result.length < items.length) {
-		let selected: (typeof items)[number] | undefined;
-		for (const source of ['interest', 'trending', 'exploration'] as const) {
-			const queue = queues.get(source)!;
-			const index = queue.findIndex((item) => {
-				const key = item.post.categoryId ?? item.post.tags[0]?.tag.id ?? '';
-				return (authorCounts.get(item.post.userId) ?? 0) < 2 && !(key && key === previousKey && run >= 2);
-			});
-			if (index >= 0) { selected = queue.splice(index, 1)[0]; break; }
+		const sources = sourceOrder();
+		let selected: RecommendationAllocation | undefined;
+		// Prefer a source other than the last two. This is an additional
+		// interleaving constraint, relaxed only if its quota is exhausted.
+		for (const avoidSourceStreak of [true, false]) {
+			for (const source of sources) {
+				if (!preservesSourceInterleave(source) && sources.some(preservesSourceInterleave)) continue;
+				if (
+					avoidSourceStreak &&
+					result.length >= 2 &&
+					result.slice(-2).every((item) => item.source === source)
+				) continue;
+				const queue = queues.get(source)!;
+				const index = queue.findIndex(canUse);
+				if (index >= 0) {
+					selected = queue.splice(index, 1)[0];
+					break;
+				}
+			}
+			if (selected) break;
 		}
-		if (!selected) selected = [...queues.values()].find((queue) => queue.length)?.shift();
+		if (!selected) {
+			// No remaining item satisfies all constraints: choose the next weighted
+			// source and its stable queue head, rather than silently dropping a slot.
+			const source = sources[0];
+			if (!source) break;
+			selected = queues.get(source)!.shift();
+		}
 		if (!selected) break;
-		const key = selected.post.categoryId ?? selected.post.tags[0]?.tag.id ?? '';
-		run = key && key === previousKey ? run + 1 : 1; previousKey = key;
-		authorCounts.set(selected.post.userId, (authorCounts.get(selected.post.userId) ?? 0) + 1); result.push(selected);
+		append(selected);
 	}
 	return result;
 }
