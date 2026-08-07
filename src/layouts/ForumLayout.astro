@@ -2,11 +2,12 @@
 /**
  * 论坛频道布局
  *
- * 基于 BaseLayout，全宽单列布局，无侧边栏。
- * 用于论坛频道页、版块详情页、论坛帖子详情页。
+ * 基于 BaseLayout 的论坛频道壳。
+ * 左侧导航由本布局统一提供，用于论坛首页与版块详情页，避免各页面重复维护。
  */
 import BaseLayout from './Base.astro';
 import ContentListShell from '@/components/ContentListShell.astro';
+import ForumNavigation from '@/components/ForumNavigation.astro';
 
 interface Props {
 	title?: string;
@@ -33,7 +34,7 @@ const {
 	jsonLd,
 	hasAside
 } = Astro.props;
-const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('aside'));
+const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -47,21 +48,13 @@ const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('as
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	{
-		isThreeColumn ? (
-			<ContentListShell navLabel="论坛导航" hasAside={true} variant="forum">
-				<Fragment slot="nav">
-					<slot name="nav" />
-				</Fragment>
-				<slot />
-				<Fragment slot="aside">
-					<slot name="aside" />
-				</Fragment>
-			</ContentListShell>
-		) : (
-			<div class="layout-full">
-				<slot />
-			</div>
-		)
-	}
+	<ContentListShell navLabel="论坛导航" hasAside={hasDiscoveryAside} variant="forum">
+		<Fragment slot="nav">
+			<ForumNavigation />
+		</Fragment>
+		<slot />
+		<Fragment slot="aside">
+			<slot name="aside" />
+		</Fragment>
+	</ContentListShell>
 </BaseLayout>

@@ -1,0 +1,106 @@
+---
+/**
+ * 论坛频道共享导航。
+ *
+ * 菜单由 ForumLayout 统一渲染，首页、板块页只负责各自的内容区，避免频道入口与
+ * 板块分组在多个页面之间漂移。一级分类与二级板块均直接读取真实分类数据。
+ */
+import { prisma } from '@/lib/db';
+
+interface Props {
+	/** 主题详情沿用相同菜单数据，仅追加详情页的定位与响应式布局类。 */
+	presentation?: 'channel' | 'detail';
+}
+
+const { presentation = 'channel' } = Astro.props;
+const pathname = Astro.url.pathname;
+const sort = Astro.url.searchParams.get('sort') || 'latest';
+const isForumHome = pathname === '/forum';
+const groups = await prisma.category.findMany({
+	where: { mode: 'forum', parentId: null },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		children: {
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			include: { _count: { select: { posts: true } } }
+		}
+	}
+});
+
+const primaryItems = [
+	{ href: '/forum', icon: '⌂', label: '首页', current: isForumHome && sort === 'latest' },
+	{ href: '/forum?sort=hot', icon: '🔥', label: '热门', current: isForumHome && sort === 'hot' },
+	{
+		href: '/forum?sort=featured',
+		icon: '✦',
+		label: '推荐',
+		current: isForumHome && sort === 'featured'
+	}
+];
+---
+
+<nav
+	class:list={['forum-category-sidebar', { 'post-detail-local-nav': presentation === 'detail' }]}
+	aria-label="论坛导航"
+>
+	<section class="forum-sidebar-group forum-sidebar-primary" aria-labelledby="forum-primary-nav">
+		<h2 id="forum-primary-nav">导航</h2>
+		{
+			primaryItems.map((item) => (
+				<a
+					href={item.href}
+					class="sidebar-link"
+					aria-current={item.current ? 'page' : undefined}
+					aria-label={item.label}
+					title={item.label}
+				>
+					<span class="sidebar-link-icon" aria-hidden="true">
+						{item.icon}
+					</span>
+					<span>{item.label}</span>
+				</a>
+			))
+		}
+	</section>
+	{
+		groups.length > 0 ? (
+			groups.map((group) => (
+				<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
+					<h2 id={`forum-group-${group.id}`}>
+						{group.icon && (
+							<span class="forum-sidebar-group-icon" aria-hidden="true">
+								{group.icon}
+							</span>
+						)}
+						{group.name}
+					</h2>
+					{group.children.map((category) => (
+						<a
+							href={`/forum/${category.slug}`}
+							class="sidebar-link"
+							aria-current={
+								pathname === `/forum/${category.slug}` ? 'page' : undefined
+							}
+							aria-label={category.name}
+							title={category.name}
+						>
+							<span
+								class:list={[
+									'sidebar-link-icon',
+									{ 'sidebar-link-icon-fallback': !category.icon }
+								]}
+								aria-hidden="true"
+							>
+								{category.icon || category.name.trim().charAt(0).toUpperCase()}
+							</span>
+							<span>{category.name}</span>
+							<small>{category._count.posts}</small>
+						</a>
+					))}
+				</section>
+			))
+		) : (
+			<p class="forum-sidebar-empty">暂无版块</p>
+		)
+	}
+</nav>
