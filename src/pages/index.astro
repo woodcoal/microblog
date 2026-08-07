@@ -70,6 +70,8 @@ const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
 
 const posts = unifiedTrending.items;
+const heroTrending = posts.slice(0, 3);
+const modeLabels: Record<string, string> = { weibo: '微博', forum: '论坛', blog: '博客' };
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(
@@ -130,23 +132,36 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				<a class="btn btn-outline" href="#home-channels">探索频道</a>
 			</div>
 		</div>
-		<div class="home-preview" aria-label="睦谈内容类型">
-			<div class="home-preview-chrome" aria-hidden="true">
-				<span></span><span></span><span></span>
+		<aside class="home-preview" aria-labelledby="hero-trending-title">
+			<div class="home-preview-head">
+				<h2 id="hero-trending-title">正在被讨论</h2>
+				<span>全站热门</span>
 			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">微</span>
-				<div><strong>记录此刻的想法</strong><small>短内容与即时互动</small></div>
-			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">论</span>
-				<div><strong>把问题聊透</strong><small>主题讨论与楼层回复</small></div>
-			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">博</span>
-				<div><strong>留下一篇长文</strong><small>可持续阅读与沉淀</small></div>
-			</div>
-		</div>
+			{
+				heroTrending.length > 0 ? (
+					heroTrending.map((post) => (
+						<a class="home-preview-item" href={`/${post.user.username}/${post.id}`}>
+							<span class="home-preview-mark" aria-hidden="true">
+								{modeLabels[post.mode]!.slice(0, 1)}
+							</span>
+							<span class="home-preview-copy">
+								<>
+									<strong>{post.title || post.content.slice(0, 30)}</strong>
+									<small>
+										{modeLabels[post.mode]} ·{' '}
+										{post._count.comments > 0
+											? `${post._count.comments} 条讨论`
+											: '近期更新'}
+									</small>
+								</>
+							</span>
+						</a>
+					))
+				) : (
+					<p class="home-preview-empty">新的讨论正在出现。</p>
+				)
+			}
+		</aside>
 	</section>
 
 	<section class="home-channels" id="home-channels" aria-labelledby="home-channels-title">
@@ -258,11 +273,14 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				<div class="recommend-section-header">
 					<div>
 						<p class="home-eyebrow">为你准备</p>
-						<h2 id="recommend-title">从正在发生的讨论开始</h2>
+						<h2 id="recommend-title">从感兴趣的话题，认识这里的人</h2>
 						<p class="recommend-section-lede">
-							根据你的兴趣与社区中的真实互动，挑选值得停留的内容。
+							内容与创作者各自加载，不影响你继续浏览全站动态。
 						</p>
 					</div>
+					<a class="recommend-all-link" href="#home-feed">
+						全站动态 <span aria-hidden="true">→</span>
+					</a>
 				</div>
 				{shouldShowInterestOnboarding && (
 					<section
@@ -271,45 +289,38 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						aria-labelledby="interest-onboarding-title"
 					>
 						<div class="interest-onboarding-copy">
-							<p class="home-eyebrow">刚来睦谈？</p>
-							<h3 id="interest-onboarding-title">选几个感兴趣的话题</h3>
-							<p>可跳过；不选也会为你准备多样化的热门内容。</p>
+							<h3 id="interest-onboarding-title">先选几个感兴趣的话题？</h3>
+							<p>可多选，也可以跳过；这不会阻止你浏览或发布。</p>
 						</div>
 						<div class="interest-option-groups">
 							{interestTags.length > 0 && (
-								<div class="interest-option-group">
-									<span class="interest-option-label">话题</span>
-									<div class="interest-option-list">
-										{interestTags.map((tag) => (
-											<button
-												type="button"
-												class="interest-option"
-												aria-pressed="false"
-												data-interest-kind="tag"
-												data-interest-id={tag.id}
-											>
-												#{tag.name}
-											</button>
-										))}
-									</div>
+								<div class="interest-option-list">
+									{interestTags.map((tag) => (
+										<button
+											type="button"
+											class="interest-option"
+											aria-pressed="false"
+											data-interest-kind="tag"
+											data-interest-id={tag.id}
+										>
+											#{tag.name}
+										</button>
+									))}
 								</div>
 							)}
 							{interestCategories.length > 0 && (
-								<div class="interest-option-group">
-									<span class="interest-option-label">分类</span>
-									<div class="interest-option-list">
-										{interestCategories.map((category) => (
-											<button
-												type="button"
-												class="interest-option"
-												aria-pressed="false"
-												data-interest-kind="category"
-												data-interest-id={category.id}
-											>
-												{category.name}
-											</button>
-										))}
-									</div>
+								<div class="interest-option-list">
+									{interestCategories.map((category) => (
+										<button
+											type="button"
+											class="interest-option"
+											aria-pressed="false"
+											data-interest-kind="category"
+											data-interest-id={category.id}
+										>
+											{category.name}
+										</button>
+									))}
 								</div>
 							)}
 							{interestTags.length === 0 && interestCategories.length === 0 && (
@@ -322,10 +333,9 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 							<button type="button" class="btn btn-primary" data-interest-save>
 								开始看看
 							</button>
-							<button type="button" class="btn btn-outline" data-interest-skip>
+							<button type="button" class="btn btn-quiet" data-interest-skip>
 								跳过
 							</button>
-							<a href="/settings">稍后设置</a>
 						</div>
 						<p
 							class="interest-feedback"
@@ -341,7 +351,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						id="recommend-posts-panel"
 						aria-labelledby="recommend-posts-title"
 					>
-						<h3 id="recommend-posts-title">推荐帖子</h3>
+						<div class="recommend-panel-head">
+							<>
+								<h3 id="recommend-posts-title">内容推荐</h3>
+								<span>依据你的兴趣与全站热度</span>
+							</>
+						</div>
 						<div
 							class="recommend-status"
 							id="recommend-posts-status"
@@ -364,7 +379,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						id="recommend-users-panel"
 						aria-labelledby="recommend-users-title"
 					>
-						<h3 id="recommend-users-title">推荐用户</h3>
+						<div class="recommend-panel-head">
+							<>
+								<h3 id="recommend-users-title">推荐创作者</h3>
+								<span>可随时关注</span>
+							</>
+						</div>
 						<div
 							class="recommend-status"
 							id="recommend-users-status"
@@ -920,12 +940,225 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		font-size: 0.8125rem;
 	}
 
+	/* 与 home-recommendations.html 原稿保持同一阅读顺序与视觉节奏。 */
+	:global(.layout-home) {
+		display: flex;
+		flex-direction: column;
+	}
+	.home-hero {
+		order: 0;
+	}
+	.recommend-section {
+		order: 1;
+	}
+	.home-feed {
+		order: 2;
+	}
+	.home-channels {
+		order: 3;
+	}
+	.pagination {
+		order: 4;
+	}
+	.home-hero {
+		grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+		gap: clamp(2.5rem, 6vw, 4.25rem);
+		padding: clamp(3.125rem, 8vw, 6rem) 0 clamp(2.5rem, 6vw, 4rem);
+	}
+	.home-preview {
+		padding: var(--spacing-5);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow);
+	}
+	.home-preview-head {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		align-items: center;
+		padding-bottom: var(--spacing-3);
+	}
+	.home-preview-head h2 {
+		margin: 0;
+		font-size: 1rem;
+		letter-spacing: -0.02em;
+	}
+	.home-preview-head span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.home-preview-item {
+		color: var(--color-text);
+		text-decoration: none;
+	}
+	.home-preview-copy {
+		min-width: 0;
+	}
+	.home-preview-copy strong {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.home-preview-empty {
+		margin: 0;
+		padding-top: var(--spacing-4);
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	.recommend-section {
+		margin-top: 0;
+		padding-top: var(--spacing-10);
+	}
+	.recommend-section-header {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+		align-items: end;
+		margin-bottom: var(--spacing-5);
+	}
+	.recommend-section-header h2 {
+		font-size: 1.5625rem;
+	}
+	.recommend-all-link {
+		color: var(--color-primary);
+		font-size: 0.875rem;
+		font-weight: 750;
+		white-space: nowrap;
+	}
+	.interest-onboarding {
+		grid-template-columns: minmax(200px, 1fr) minmax(340px, 1.4fr) auto;
+		gap: var(--spacing-5);
+		padding: var(--spacing-5);
+		border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card-bg));
+	}
+	.interest-onboarding-copy .home-eyebrow {
+		display: none;
+	}
+	.interest-option-groups {
+		display: block;
+	}
+	.interest-option-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+	.interest-option {
+		min-height: 44px;
+		font-size: 0.8125rem;
+	}
+	.interest-onboarding-actions {
+		justify-content: end;
+		gap: var(--spacing-1);
+	}
+	.interest-onboarding-actions .btn {
+		min-height: 44px;
+		padding-inline: var(--spacing-3);
+		font-size: 0.8125rem;
+	}
+	.recommend-grid {
+		gap: var(--spacing-5);
+	}
+	.recommend-panel {
+		padding: var(--spacing-5);
+		border-radius: var(--radius-lg);
+	}
+	.recommend-panel h3 {
+		margin: 0;
+	}
+	.recommend-panel-head {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		align-items: baseline;
+		margin-bottom: var(--spacing-4);
+	}
+	.recommend-panel-head span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.recommend-list,
+	.recommend-user-list {
+		gap: 0;
+	}
+	.recommend-item {
+		grid-template-columns: 42px minmax(0, 1fr);
+		gap: var(--spacing-3);
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+		border-radius: 0;
+		background: transparent;
+	}
+	.recommend-item:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	.recommend-item:hover {
+		background: transparent;
+	}
+	.recommend-item-avatar,
+	.recommend-item-avatar-placeholder {
+		width: 42px;
+		height: 42px;
+		background: var(--color-surface);
+		color: var(--color-primary);
+	}
+	.recommend-item-title-link {
+		font-size: 0.875rem;
+		font-weight: 750;
+	}
+	.recommend-item-summary {
+		display: -webkit-box;
+		overflow: hidden;
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	.recommend-item-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		align-items: center;
+		margin-top: var(--spacing-2);
+	}
+	.recommend-item-reason {
+		display: inline-flex;
+		align-items: center;
+		min-height: 23px;
+		margin: 0;
+		padding: 1px 7px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+		font-size: 0.75rem;
+	}
+	.recommend-user-card {
+		gap: var(--spacing-3);
+		padding: var(--spacing-4) 0;
+	}
+	.recommend-follow-button {
+		min-height: 44px;
+		padding-inline: 11px;
+		font-size: 0.8125rem;
+	}
+	.home-feed {
+		max-width: none;
+		padding-top: var(--spacing-10);
+	}
+	.home-channels {
+		margin-top: var(--spacing-10);
+	}
+
 	@media (max-width: 1023px) {
 		.recommend-grid {
 			grid-template-columns: minmax(0, 1fr);
 		}
 		.interest-onboarding {
 			grid-template-columns: minmax(0, 1fr);
+		}
+		.interest-onboarding-actions {
+			justify-content: start;
 		}
 	}
 
@@ -967,8 +1200,8 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			padding-top: var(--spacing-8);
 		}
 		.recommend-section {
-			margin-top: var(--spacing-8);
-			padding-top: var(--spacing-6);
+			margin-top: 0;
+			padding-top: var(--spacing-8);
 		}
 		.recommend-panel {
 			padding: var(--spacing-4);
@@ -987,17 +1220,27 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			min-height: 44px;
 		}
 		.interest-onboarding-actions {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
+			display: flex;
 		}
 		.interest-onboarding-actions .btn {
 			min-height: 44px;
 		}
-		.interest-onboarding-actions a {
-			grid-column: 1 / -1;
+		.recommend-section-header {
+			align-items: start;
+			flex-direction: column;
+		}
+		.recommend-all-link {
+			min-height: 44px;
 			display: flex;
 			align-items: center;
-			min-height: 44px;
+		}
+		.recommend-user-card {
+			grid-template-columns: 44px minmax(0, 1fr);
+		}
+		.recommend-follow-button {
+			grid-column: 2;
+			justify-self: stretch;
+			width: 100%;
 		}
 		.recommend-follow-button {
 			min-height: 44px;
@@ -1142,6 +1385,9 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				author.href = profileUrl;
 				author.className = 'recommend-item-author';
 				author.textContent = `@${item.user.username}`;
+				const summary = document.createElement('p');
+				summary.className = 'recommend-item-summary';
+				summary.textContent = item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 100);
 
 				const metaDiv = document.createElement('div');
 				metaDiv.className = 'recommend-item-meta';
@@ -1157,7 +1403,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 							? '带你发现新的话题'
 							: '正在被讨论';
 
-				contentDiv.append(titleLink, author, metaDiv, reason);
+				metaDiv.append(
+					reason,
+					author,
+					document.createTextNode(metaDiv.textContent ? ` · ${metaDiv.textContent}` : '')
+				);
+				contentDiv.append(titleLink, summary, metaDiv);
 				card.append(authorLink, contentDiv);
 				fragment.appendChild(card);
 			}
