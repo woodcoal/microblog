@@ -158,6 +158,17 @@ const nextPage = page + 1;
 			const action = (btn as HTMLElement).dataset.action;
 			const tagId = (btn as HTMLElement).dataset.tagId || '';
 			if ((action !== 'hide' && action !== 'show') || !tagId) return;
+			if (
+				action === 'hide' &&
+				!(await MutanDialog.confirm(
+					'确认要隐藏这个标签吗？相关内容将不再公开展示该标签。',
+					{
+						title: '隐藏标签',
+						danger: true
+					}
+				))
+			)
+				return;
 
 			const result = await actions.toggleTagVisibility({ tagId, action });
 			if (result.error) {

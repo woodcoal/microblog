@@ -12,6 +12,8 @@
 import { getUserFromRequest } from '@/lib/auth';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_FAVICON_URL } from '@/lib/config';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
+import { getAccentFromUserSettings, getThemeFromUserSettings } from '@/lib/theme';
+import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 
 // 导入样式依赖（主题变量 + 全局样式 + 管理后台样式）
 import '@/styles/tokens.css';
@@ -51,21 +53,34 @@ const pageTitle = title ? `${title} - 管理后台 - ${siteTitle}` : `管理后�
 // 当前路径，用于侧边栏高亮
 const currentPath = Astro.url.pathname;
 const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
+const userTheme = await getThemeFromUserSettings(currentUser.userId);
+const userAccent = await getAccentFromUserSettings(currentUser.userId);
+const currentPageTitle = title || '仪表盘';
 
-// 侧边栏导航项
-const navItems = [
-	{ name: '仪表盘', path: '/admin', icon: '📊' },
-	{ name: '用户管理', path: '/admin/users', icon: '👥' },
-	{ name: '帖子管理', path: '/admin/posts', icon: '📝' },
-	{ name: '评论管理', path: '/admin/comments', icon: '💬' },
-	{ name: '标签管理', path: '/admin/tags', icon: '🏷️' },
-	{ name: '分类管理', path: '/admin/categories', icon: '📂' },
-	{ name: '站点文案', path: '/admin/site-copy', icon: '✍️' }
+// 按真实信息架构分组，避免把内容治理与站点设置混为同一层级。
+const navGroups = [
+	{ label: '概览', items: [{ name: '仪表盘', path: '/admin', icon: '📊' }] },
+	{
+		label: '内容治理',
+		items: [
+			{ name: '帖子管理', path: '/admin/posts', icon: '📝' },
+			{ name: '评论管理', path: '/admin/comments', icon: '💬' },
+			{ name: '标签管理', path: '/admin/tags', icon: '🏷️' },
+			{ name: '分类管理', path: '/admin/categories', icon: '📂' }
+		]
+	},
+	{
+		label: '成员与站点',
+		items: [
+			{ name: '用户管理', path: '/admin/users', icon: '👥' },
+			{ name: '站点文案', path: '/admin/site-copy', icon: '✍️' }
+		]
+	}
 ];
 ---
 
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme={userTheme} data-accent={userAccent || undefined}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -128,6 +143,14 @@ const navItems = [
 		<meta name="description" content={siteDesc} />
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
+		<script is:inline>
+			(function () {
+				const savedTheme = localStorage.getItem('theme');
+				const savedAccent = localStorage.getItem('accent');
+				if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+				if (savedAccent) document.documentElement.setAttribute('data-accent', savedAccent);
+			})();
+		</script>
 	</head>
 	<body class="admin-body" data-ux-shell="admin" data-ux-template="admin-b">
 		<a class="skip-link" href="#main-content">跳到主要内容</a>
@@ -156,25 +179,32 @@ const navItems = [
 			</div>
 			<nav class="admin-sidebar-nav" aria-label="管理后台导航">
 				{
-					navItems.map((item) => {
-						// 判断当前导航项是否激活
-						const isActive =
-							item.path === '/admin'
-								? currentPath === '/admin' || currentPath === '/admin/'
-								: currentPath.startsWith(item.path);
-						return (
-							<a
-								href={item.path}
-								class:list={[
-									'admin-sidebar-link',
-									{ 'admin-sidebar-link-active': isActive }
-								]}
-							>
-								<span class="admin-sidebar-icon">{item.icon}</span>
-								<span>{item.name}</span>
-							</a>
-						);
-					})
+					navGroups.map((group) => (
+						<section class="admin-nav-group" aria-label={group.label}>
+							<h2>{group.label}</h2>
+							{group.items.map((item) => {
+								const isActive =
+									item.path === '/admin'
+										? currentPath === '/admin' || currentPath === '/admin/'
+										: currentPath.startsWith(item.path);
+								return (
+									<a
+										href={item.path}
+										class:list={[
+											'admin-sidebar-link',
+											{ 'admin-sidebar-link-active': isActive }
+										]}
+										aria-current={isActive ? 'page' : undefined}
+									>
+										<span class="admin-sidebar-icon" aria-hidden="true">
+											{item.icon}
+										</span>
+										<span>{item.name}</span>
+									</a>
+								);
+							})}
+						</section>
+					))
 				}
 			</nav>
 			<div class="admin-sidebar-footer">
@@ -184,6 +214,23 @@ const navItems = [
 				<a href="/" class="admin-sidebar-back">← 返回前台</a>
 			</div>
 		</aside>
+
+		<header class="admin-desktop-header">
+			<nav class="admin-breadcrumb" aria-label="面包屑">
+				<a href="/admin">后台管理</a>
+				<span aria-hidden="true">/</span>
+				<strong aria-current="page">{currentPageTitle}</strong>
+			</nav>
+			<div class="admin-desktop-actions">
+				<ThemeSwitcher />
+				<a class="admin-account-link" href="/settings" aria-label="打开个人设置">
+					<span class="admin-account-avatar" aria-hidden="true">
+						{currentUser.username.slice(0, 1).toUpperCase()}
+					</span>
+					<span>{currentUser.username}</span>
+				</a>
+			</div>
+		</header>
 
 		<!-- 主内容区 -->
 		<main id="main-content" class="admin-main" tabindex="-1">

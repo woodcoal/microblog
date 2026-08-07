@@ -905,3 +905,301 @@ dialog.admin-modal::backdrop {
 	background: color-mix(in srgb, #f59e0b 12%, transparent);
 	color: #92400e;
 }
+
+/* ===== B 型后台工作壳 =====
+ * 将后台与前台内容流明确分离：浅色导航轨、固定白色工具栏和可横向滚动的数据面板。
+ */
+
+body.admin-body {
+	display: block;
+	min-width: 0;
+	overflow-x: hidden;
+	background: var(--color-surface);
+}
+
+[data-ux-shell='admin'] .admin-sidebar {
+	width: 232px;
+	padding: var(--spacing-5) var(--spacing-3);
+	background: var(--color-sidebar-bg);
+}
+
+[data-ux-shell='admin'] .admin-sidebar-header {
+	padding: 0 var(--spacing-2) var(--spacing-6);
+	border: 0;
+}
+
+[data-ux-shell='admin'] .admin-sidebar-brand {
+	color: var(--color-text);
+	letter-spacing: -0.035em;
+}
+
+[data-ux-shell='admin'] .admin-sidebar-nav {
+	padding: 0;
+}
+
+.admin-nav-group + .admin-nav-group {
+	margin-top: var(--spacing-5);
+}
+
+.admin-nav-group h2 {
+	margin: 0 0 var(--spacing-2);
+	padding: 0 var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+[data-ux-shell='admin'] .admin-sidebar-link {
+	margin: 2px 0;
+	padding: 0.625rem var(--spacing-3);
+	border-radius: var(--radius-sm);
+	color: var(--color-muted);
+}
+
+[data-ux-shell='admin'] .admin-sidebar-link:hover {
+	background: var(--color-sidebar-hover);
+	color: var(--color-text);
+}
+
+[data-ux-shell='admin'] .admin-sidebar-link-active {
+	border-right: 0;
+	background: var(--color-sidebar-active);
+	color: var(--color-primary);
+}
+
+[data-ux-shell='admin'] .admin-sidebar-footer {
+	padding: var(--spacing-4) var(--spacing-2) 0;
+	border-top: 1px solid var(--color-border);
+}
+
+.admin-desktop-header {
+	position: sticky;
+	top: 0;
+	z-index: 100;
+	display: flex;
+	min-width: 0;
+	height: 64px;
+	margin-left: 232px;
+	padding: 0 clamp(var(--spacing-4), 4vw, var(--spacing-8));
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-4);
+	border-bottom: 1px solid var(--color-border);
+	background: var(--color-card-bg);
+}
+
+.admin-breadcrumb,
+.admin-desktop-actions,
+.admin-account-link {
+	display: flex;
+	align-items: center;
+}
+
+.admin-breadcrumb {
+	min-width: 0;
+	gap: var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+}
+
+.admin-breadcrumb a {
+	color: var(--color-muted);
+	text-decoration: none;
+}
+
+.admin-breadcrumb a:hover {
+	color: var(--color-primary);
+}
+
+.admin-breadcrumb strong {
+	overflow: hidden;
+	color: var(--color-text);
+	font-weight: 650;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.admin-desktop-actions {
+	flex: 0 0 auto;
+	gap: var(--spacing-3);
+}
+
+.admin-account-link {
+	gap: var(--spacing-2);
+	min-height: 36px;
+	padding: 0.25rem 0.625rem 0.25rem 0.25rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-full);
+	color: var(--color-text);
+	font-size: 0.8125rem;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.admin-account-link:hover {
+	border-color: var(--color-primary);
+	color: var(--color-primary);
+}
+
+.admin-account-avatar {
+	display: grid;
+	width: 28px;
+	height: 28px;
+	place-items: center;
+	border-radius: 50%;
+	background: var(--color-primary);
+	color: var(--color-primary-foreground);
+	font-size: 0.75rem;
+	font-weight: 800;
+}
+
+[data-ux-shell='admin'] .admin-main {
+	min-width: 0;
+	margin-left: 232px;
+	padding: clamp(var(--spacing-5), 4vw, var(--spacing-8));
+	overflow: clip;
+	background: var(--color-surface);
+}
+
+[data-ux-shell='admin'] .admin-page-workspace {
+	max-width: 1400px;
+}
+
+[data-ux-shell='admin'] .admin-page-heading {
+	margin-bottom: var(--spacing-6);
+	padding-bottom: var(--spacing-5);
+}
+
+[data-ux-shell='admin'] .admin-stats-grid {
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: var(--spacing-4);
+}
+
+[data-ux-shell='admin'] .admin-stat-card,
+[data-ux-shell='admin'] .admin-trend-chart,
+[data-ux-shell='admin'] .admin-activity-list,
+[data-ux-shell='admin'] .site-copy-admin-card {
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+}
+
+[data-ux-shell='admin'] .admin-search-bar {
+	display: flex;
+	align-items: flex-end;
+	gap: var(--spacing-2);
+	flex-wrap: wrap;
+	margin-bottom: var(--spacing-3);
+}
+
+[data-ux-shell='admin'] .admin-search-input {
+	min-width: 0;
+	min-height: 38px;
+}
+
+[data-ux-shell='admin'] .admin-table-wrapper {
+	width: 100%;
+	overscroll-behavior-inline: contain;
+}
+
+[data-ux-shell='admin'] .admin-table {
+	min-width: 700px;
+}
+
+[data-ux-shell='admin'] .admin-table td,
+[data-ux-shell='admin'] .admin-table th {
+	padding: 0.8125rem var(--spacing-3);
+}
+
+/* 文字标签不能只依靠色相，也在浅色主题确保前景满足对比度。 */
+.admin-badge-active,
+.admin-badge-visible {
+	color: #166534;
+}
+
+.admin-badge-disabled,
+.admin-badge-deleted {
+	color: #b91c1c;
+}
+
+[data-theme='dark'] .admin-badge-active,
+[data-theme='dark'] .admin-badge-visible {
+	color: #86efac;
+}
+
+[data-theme='dark'] .admin-badge-disabled,
+[data-theme='dark'] .admin-badge-deleted {
+	color: #fca5a5;
+}
+
+[data-theme='high-contrast'] .admin-badge-active,
+[data-theme='high-contrast'] .admin-badge-visible {
+	color: var(--color-success);
+}
+
+[data-theme='high-contrast'] .admin-badge-disabled,
+[data-theme='high-contrast'] .admin-badge-deleted {
+	color: var(--color-danger);
+}
+
+@media (max-width: 768px) {
+	[data-ux-shell='admin'] .admin-sidebar {
+		width: min(88vw, 280px);
+		padding: var(--spacing-5) var(--spacing-3);
+	}
+
+	.admin-desktop-header {
+		display: none;
+	}
+
+	[data-ux-shell='admin'] .admin-main {
+		margin-left: 0;
+		padding: calc(56px + var(--spacing-5)) var(--spacing-4) var(--spacing-6);
+	}
+
+	[data-ux-shell='admin'] .admin-page-heading {
+		margin-bottom: var(--spacing-5);
+	}
+
+	[data-ux-shell='admin'] .admin-stats-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	[data-ux-shell='admin'] .admin-search-bar,
+	[data-ux-shell='admin'] .admin-batch-bar,
+	[data-ux-shell='admin'] .admin-pagination {
+		align-items: stretch;
+		flex-wrap: wrap;
+	}
+
+	[data-ux-shell='admin'] .admin-search-bar > .admin-search-input,
+	[data-ux-shell='admin'] .admin-search-bar > .admin-filter-date {
+		flex: 1 1 12rem;
+	}
+
+	.admin-account-link span:last-child {
+		display: none;
+	}
+}
+
+@media (max-width: 440px) {
+	[data-ux-shell='admin'] .admin-stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	[data-ux-shell='admin'] .admin-pagination {
+		justify-content: flex-start;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.admin-sidebar,
+	.admin-sidebar-link,
+	.admin-btn,
+	.admin-btn-sm,
+	.admin-pagination-btn,
+	.admin-account-link {
+		transition: none;
+	}
+}
