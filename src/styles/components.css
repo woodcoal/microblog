@@ -168,6 +168,24 @@
 	animation: modal-fade-in 0.2s ease;
 }
 
+/*
+ * 全局提示使用原生 <dialog>，确保在编辑器等原生弹窗打开时仍位于顶层。
+ * <dialog> 的 backdrop 属于顶层，不能依赖普通元素的 z-index 覆盖。
+ */
+dialog.dialog-overlay {
+	width: auto;
+	height: auto;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+dialog.dialog-overlay::backdrop {
+	background: var(--color-overlay);
+}
+
 .dialog-box {
 	background: var(--color-card-bg);
 	border-radius: var(--radius-lg);

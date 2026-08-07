@@ -563,6 +563,64 @@ const resolvedOgType = ogType || 'website';
 
 		<!-- 全局模拟弹窗（替代 alert/confirm） -->
 		<script is:inline>
+			function getDialogMessage(message, fallback) {
+				if (typeof message !== 'string' || !message.trim()) return fallback;
+
+				try {
+					const objectStart = message.indexOf('{');
+					const arrayStart = message.indexOf('[');
+					const jsonStart =
+						objectStart === -1
+							? arrayStart
+							: arrayStart === -1
+								? objectStart
+								: Math.min(objectStart, arrayStart);
+					const parsed = JSON.parse(jsonStart === -1 ? message : message.slice(jsonStart));
+					const findMessage = function (value) {
+						if (typeof value === 'string' && value.trim()) return value;
+						if (Array.isArray(value)) {
+							for (const item of value) {
+								const found = findMessage(item);
+								if (found) return found;
+							}
+							return '';
+						}
+						if (value && typeof value === 'object') {
+							for (const key of ['message', 'error', 'issues', 'errors', 'detail']) {
+								if (key in value) {
+									const found = findMessage(value[key]);
+									if (found) return found;
+								}
+							}
+						}
+						return '';
+					};
+					return findMessage(parsed) || fallback;
+				} catch {
+					return message;
+				}
+			}
+
+			function createDialog(options) {
+				const dialog = document.createElement('dialog');
+				dialog.className = 'dialog-overlay';
+				const box = document.createElement('div');
+				box.className = 'dialog-box';
+				if (options.title) {
+					const title = document.createElement('div');
+					title.className = 'dialog-title';
+					title.textContent = options.title;
+					box.appendChild(title);
+				}
+				const content = document.createElement('div');
+				content.className = 'dialog-message';
+				content.textContent = getDialogMessage(options.message, options.fallback);
+				box.appendChild(content);
+				dialog.appendChild(box);
+				document.body.appendChild(dialog);
+				return { dialog: dialog, box: box };
+			}
+
 			/**
 			 * 模拟弹窗工具
 			 *
@@ -584,31 +642,36 @@ const resolvedOgType = ogType || 'website';
 				alert: function (message, options) {
 					options = options || {};
 					return new Promise(function (resolve) {
-						const overlay = document.createElement('div');
-						overlay.className = 'dialog-overlay';
-						overlay.innerHTML =
-							'<div class="dialog-box">' +
-							(options.title
-								? '<div class="dialog-title">' + options.title + '</div>'
-								: '') +
-							'<div class="dialog-message">' +
-							message +
-							'</div>' +
-							'<div class="dialog-actions">' +
-							'<button class="dialog-btn dialog-btn-primary" data-role="ok">确定</button>' +
-							'</div></div>';
-						document.body.appendChild(overlay);
+						const { dialog, box } = createDialog({
+							title: options.title,
+							message: message,
+							fallback: '操作失败，请稍后重试'
+						});
+						const actions = document.createElement('div');
+						actions.className = 'dialog-actions';
+						const okButton = document.createElement('button');
+						okButton.className = 'dialog-btn dialog-btn-primary';
+						okButton.type = 'button';
+						okButton.textContent = '确定';
+						actions.appendChild(okButton);
+						box.appendChild(actions);
 
 						function close() {
-							overlay.remove();
+							dialog.close();
+							dialog.remove();
 							resolve();
 						}
 
-						overlay.querySelector('[data-role="ok"]').addEventListener('click', close);
-						overlay.addEventListener('click', function (e) {
-							if (e.target === overlay) close();
+						okButton.addEventListener('click', close);
+						dialog.addEventListener('click', function (e) {
+							if (e.target === dialog) close();
 						});
-						overlay.querySelector('[data-role="ok"]').focus();
+						dialog.addEventListener('cancel', function (e) {
+							e.preventDefault();
+							close();
+						});
+						dialog.showModal();
+						okButton.focus();
 					});
 				},
 
@@ -622,46 +685,47 @@ const resolvedOgType = ogType || 'website';
 				confirm: function (message, options) {
 					options = options || {};
 					return new Promise(function (resolve) {
-						const overlay = document.createElement('div');
-						const confirmClass = options.danger
+						const { dialog, box } = createDialog({
+							title: options.title,
+							message: message,
+							fallback: '请确认操作'
+						});
+						const actions = document.createElement('div');
+						actions.className = 'dialog-actions';
+						const cancelButton = document.createElement('button');
+						cancelButton.className = 'dialog-btn';
+						cancelButton.type = 'button';
+						cancelButton.textContent = '取消';
+						const confirmButton = document.createElement('button');
+						confirmButton.className = options.danger
 							? 'dialog-btn dialog-btn-danger'
 							: 'dialog-btn dialog-btn-primary';
-						overlay.className = 'dialog-overlay';
-						overlay.innerHTML =
-							'<div class="dialog-box">' +
-							(options.title
-								? '<div class="dialog-title">' + options.title + '</div>'
-								: '') +
-							'<div class="dialog-message">' +
-							message +
-							'</div>' +
-							'<div class="dialog-actions">' +
-							'<button class="dialog-btn" data-role="cancel">取消</button>' +
-							'<button class="' +
-							confirmClass +
-							'" data-role="confirm">确定</button>' +
-							'</div></div>';
-						document.body.appendChild(overlay);
+						confirmButton.type = 'button';
+						confirmButton.textContent = '确定';
+						actions.append(cancelButton, confirmButton);
+						box.appendChild(actions);
 
 						function close(result) {
-							overlay.remove();
+							dialog.close();
+							dialog.remove();
 							resolve(result);
 						}
 
-						overlay
-							.querySelector('[data-role="confirm"]')
-							.addEventListener('click', function () {
-								close(true);
-							});
-						overlay
-							.querySelector('[data-role="cancel"]')
-							.addEventListener('click', function () {
-								close(false);
-							});
-						overlay.addEventListener('click', function (e) {
-							if (e.target === overlay) close(false);
+						confirmButton.addEventListener('click', function () {
+							close(true);
 						});
-						overlay.querySelector('[data-role="cancel"]').focus();
+						cancelButton.addEventListener('click', function () {
+							close(false);
+						});
+						dialog.addEventListener('click', function (e) {
+							if (e.target === dialog) close(false);
+						});
+						dialog.addEventListener('cancel', function (e) {
+							e.preventDefault();
+							close(false);
+						});
+						dialog.showModal();
+						cancelButton.focus();
 					});
 				}
 			};
