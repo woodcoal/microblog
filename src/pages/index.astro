@@ -139,13 +139,13 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			</div>
 			{
 				heroTrending.length > 0 ? (
-					heroTrending.map((post) => (
-						<a class="home-preview-item" href={`/${post.user.username}/${post.id}`}>
-							<span class="home-preview-mark" aria-hidden="true">
-								{modeLabels[post.mode]!.slice(0, 1)}
-							</span>
-							<span class="home-preview-copy">
-								<>
+					<div class="home-preview-grid">
+						{heroTrending.map((post) => (
+							<a class="home-preview-item" href={`/${post.user.username}/${post.id}`}>
+								<span class="home-preview-mark" aria-hidden="true">
+									{modeLabels[post.mode]!.slice(0, 1)}
+								</span>
+								<span class="home-preview-copy">
 									<strong>{post.title || post.content.slice(0, 30)}</strong>
 									<small>
 										{modeLabels[post.mode]} ·{' '}
@@ -153,10 +153,10 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 											? `${post._count.comments} 条讨论`
 											: '近期更新'}
 									</small>
-								</>
-							</span>
-						</a>
-					))
+								</span>
+							</a>
+						))}
+					</div>
 				) : (
 					<p class="home-preview-empty">新的讨论正在出现。</p>
 				)
@@ -986,17 +986,49 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		color: var(--color-muted);
 		font-size: 0.75rem;
 	}
+	.home-preview-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-2);
+	}
 	.home-preview-item {
+		display: flex;
+		min-width: 0;
+		min-height: 112px;
+		flex-direction: column;
+		gap: var(--spacing-3);
+		padding: var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
 		color: var(--color-text);
 		text-decoration: none;
+		transition: border-color 0.2s, background 0.2s;
+	}
+	.home-preview-item:hover,
+	.home-preview-item:focus-visible {
+		border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+	}
+	.home-preview-mark {
+		width: 30px;
+		height: 30px;
+		border-radius: var(--radius-sm);
 	}
 	.home-preview-copy {
 		min-width: 0;
 	}
 	.home-preview-copy strong {
+		display: -webkit-box;
 		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		font-size: 0.8125rem;
+		line-height: 1.4;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	.home-preview-copy small {
+		margin-top: var(--spacing-1);
+		font-size: 0.75rem;
 	}
 	.home-preview-empty {
 		margin: 0;
@@ -1181,6 +1213,14 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		.home-hero-actions .btn {
 			width: 100%;
 		}
+		.home-preview-grid {
+			grid-template-columns: 1fr;
+		}
+		.home-preview-item {
+			min-height: 0;
+			flex-direction: row;
+			align-items: flex-start;
+		}
 		.home-channels {
 			margin-inline: calc(50% - 50vw);
 			padding: var(--spacing-8) var(--spacing-4);
@@ -1244,6 +1284,283 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		}
 		.recommend-follow-button {
 			min-height: 44px;
+		}
+	}
+</style>
+
+<!-- 推荐数据在浏览器内异步插入；这些类需要全局样式，不能依赖 Astro 的服务端作用域标记。 -->
+<style is:global>
+	#recommend-posts-list .recommend-skeleton {
+		position: relative;
+		height: 92px;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	#recommend-posts-list .recommend-skeleton::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+		content: '';
+		animation: recommend-skeleton-pulse 1.2s ease-in-out infinite alternate;
+	}
+	#recommend-posts-list .recommend-post {
+		color: var(--color-text);
+	}
+	#recommend-posts-list .recommend-post a {
+		color: inherit;
+		text-decoration: none;
+	}
+	#recommend-posts-list .recommend-post a:hover,
+	#recommend-posts-list .recommend-post a:focus-visible {
+		color: var(--color-primary);
+	}
+
+	/* 微博：作者行、正文和互动行，沿用微博动态的阅读顺序。 */
+	#recommend-posts-list .recommend-post-weibo {
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-posts-list .recommend-post-weibo:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-posts-list .recommend-weibo-header {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr) auto;
+		gap: var(--spacing-2);
+		align-items: center;
+	}
+	#recommend-posts-list .recommend-weibo-avatar {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-surface);
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	#recommend-posts-list .recommend-weibo-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-posts-list .recommend-weibo-author {
+		overflow: hidden;
+		font-size: 0.8125rem;
+		font-weight: 750;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#recommend-posts-list .recommend-weibo-header time,
+	#recommend-posts-list .recommend-weibo-actions {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	#recommend-posts-list .recommend-weibo-body {
+		display: -webkit-box;
+		overflow: hidden;
+		margin-top: var(--spacing-3);
+		line-height: 1.6;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+	}
+	#recommend-posts-list .recommend-weibo-actions {
+		margin-top: var(--spacing-3);
+	}
+
+	/* 论坛：保留头像、讨论标签、摘要和回复数的三段式信息。 */
+	#recommend-posts-list .recommend-post-forum {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr) 54px;
+		gap: var(--spacing-3);
+		align-items: start;
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
+	}
+	#recommend-posts-list .recommend-post-forum:hover {
+		border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+	}
+	#recommend-posts-list .recommend-forum-avatar {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-muted);
+		color: var(--color-primary-foreground);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	#recommend-posts-list .recommend-forum-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-posts-list .recommend-forum-tag,
+	#recommend-posts-list .recommend-blog-eyebrow {
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	#recommend-posts-list .recommend-forum-copy h4,
+	#recommend-posts-list .recommend-post-blog h4 {
+		margin: 3px 0 7px;
+		font-size: 1rem;
+		line-height: 1.35;
+	}
+	#recommend-posts-list .recommend-forum-copy p,
+	#recommend-posts-list .recommend-forum-meta {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.55;
+	}
+	#recommend-posts-list .recommend-forum-meta {
+		margin-top: 6px;
+	}
+	#recommend-posts-list .recommend-forum-replies {
+		color: var(--color-muted) !important;
+		font-size: 0.75rem;
+		text-align: center;
+	}
+	#recommend-posts-list .recommend-forum-replies b {
+		display: block;
+		color: var(--color-text);
+		font-size: 1.125rem;
+	}
+
+	/* 博客：恢复无卡片分隔文章行，而不是统一摘要条。 */
+	#recommend-posts-list .recommend-post-blog {
+		padding: var(--spacing-5) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-posts-list .recommend-post-blog:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-posts-list .recommend-post-blog h4 {
+		margin: 6px 0 8px;
+		font-size: 1.125rem;
+	}
+	#recommend-posts-list .recommend-blog-summary {
+		display: -webkit-box;
+		overflow: hidden;
+		max-width: 650px;
+		margin: 0 0 var(--spacing-3);
+		color: var(--color-muted);
+		line-height: 1.65;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	#recommend-posts-list .recommend-blog-meta {
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+
+	/* 推荐创作者与重新插入的骨架也不再丢失样式。 */
+	#recommend-users-list .recommend-skeleton {
+		position: relative;
+		height: 76px;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	#recommend-users-list .recommend-skeleton::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+		content: '';
+		animation: recommend-skeleton-pulse 1.2s ease-in-out infinite alternate;
+	}
+	#recommend-users-list .recommend-user-card {
+		display: grid;
+		grid-template-columns: 44px minmax(0, 1fr) auto;
+		gap: var(--spacing-3);
+		align-items: start;
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-users-list .recommend-user-card:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-users-list .recommend-user-avatar,
+	#recommend-users-list .recommend-user-avatar-placeholder {
+		display: grid;
+		width: 44px;
+		height: 44px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-size: 0.875rem;
+		font-weight: 700;
+	}
+	#recommend-users-list .recommend-user-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-users-list .recommend-user-copy {
+		min-width: 0;
+	}
+	#recommend-users-list .recommend-user-name {
+		display: block;
+		overflow: hidden;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 750;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#recommend-users-list .recommend-user-handle,
+	#recommend-users-list .recommend-user-bio,
+	#recommend-users-list .recommend-user-social {
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		line-height: 1.45;
+	}
+	#recommend-users-list .recommend-user-bio {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	#recommend-users-list .recommend-user-social {
+		color: var(--color-primary);
+		font-weight: 650;
+	}
+	#recommend-users-list .recommend-follow-button {
+		align-self: center;
+		min-height: 44px;
+		padding-inline: 11px;
+		font-size: 0.8125rem;
+	}
+	@media (max-width: 767px) {
+		#recommend-posts-list .recommend-post-forum {
+			grid-template-columns: 36px minmax(0, 1fr) 42px;
+			padding: 14px;
+		}
+		#recommend-posts-list .recommend-forum-avatar {
+			width: 36px;
+			height: 36px;
+		}
+		#recommend-users-list .recommend-user-card {
+			grid-template-columns: 44px minmax(0, 1fr);
+		}
+		#recommend-users-list .recommend-follow-button {
+			grid-column: 2;
+			justify-self: stretch;
+			width: 100%;
 		}
 	}
 </style>
@@ -1348,69 +1665,114 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			?.querySelector<HTMLButtonElement>('[data-interest-skip]')
 			?.addEventListener('click', () => void saveInterestSelection(true));
 
+		function plainText(value: string, length: number) {
+			const text = value
+				.replace(/[#*`>\-[\]()!]/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim();
+			return text.length > length ? `${text.slice(0, length)}…` : text;
+		}
+
+		function recommendationReason(item: RecommendItem) {
+			return item.source === 'interest'
+				? '来自你已选的兴趣'
+				: item.source === 'exploration'
+					? '带你发现新的话题'
+					: '正在被讨论';
+		}
+
+		function appendAvatar(parent: HTMLElement, item: RecommendItem, className: string) {
+			const profile = document.createElement('a');
+			profile.href = `/${item.user.username}`;
+			profile.className = className;
+			profile.setAttribute('aria-label', `查看 ${item.user.displayName} 的主页`);
+			if (item.user.avatarUrl) {
+				const image = document.createElement('img');
+				image.src = item.user.avatarUrl;
+				image.alt = '';
+				image.loading = 'lazy';
+				profile.append(image);
+			} else {
+				profile.textContent = item.user.displayName.charAt(0).toUpperCase();
+			}
+			parent.append(profile);
+		}
+
+		function postLink(item: RecommendItem, className: string, text: string) {
+			const link = document.createElement('a');
+			link.href = `/${item.user.username}/${item.id}`;
+			link.className = className;
+			link.textContent = text;
+			return link;
+		}
+
 		function renderPosts(items: RecommendItem[]) {
 			const fragment = document.createDocumentFragment();
 			for (const item of items) {
+				const detail = `/${item.user.username}/${item.id}`;
+				const excerpt = plainText(item.content, item.mode === 'weibo' ? 140 : 120);
+				const title = item.title || excerpt || '查看内容';
+				const reason = recommendationReason(item);
 				const card = document.createElement('article');
-				card.className = 'recommend-item';
-				const profileUrl = `/${item.user.username}`;
 
-				const authorLink = document.createElement('a');
-				authorLink.href = profileUrl;
-				authorLink.setAttribute('aria-label', `查看 ${item.user.displayName} 的主页`);
-				if (item.user.avatarUrl) {
-					const img = document.createElement('img');
-					img.src = item.user.avatarUrl;
-					img.alt = '';
-					img.className = 'recommend-item-avatar';
-					img.loading = 'lazy';
-					authorLink.appendChild(img);
+				if (item.mode === 'forum') {
+					card.className = 'recommend-post recommend-post-forum';
+					appendAvatar(card, item, 'recommend-forum-avatar');
+					const copy = document.createElement('div');
+					copy.className = 'recommend-forum-copy';
+					const tag = document.createElement('span');
+					tag.className = 'recommend-forum-tag';
+					tag.textContent = item.category?.name || '讨论';
+					const heading = document.createElement('h4');
+					heading.append(postLink(item, 'recommend-forum-title', title));
+					const summary = document.createElement('p');
+					summary.textContent = excerpt;
+					const meta = document.createElement('p');
+					meta.className = 'recommend-forum-meta';
+					meta.textContent = `${item.user.displayName} · ${reason}`;
+					copy.append(tag, heading, summary, meta);
+					const replies = document.createElement('a');
+					replies.href = detail;
+					replies.className = 'recommend-forum-replies';
+					replies.setAttribute('aria-label', `${item.commentCount} 条回复`);
+					const count = document.createElement('b');
+					count.textContent = String(item.commentCount);
+					replies.append(count, document.createTextNode('回复'));
+					card.append(copy, replies);
+				} else if (item.mode === 'blog') {
+					card.className = 'recommend-post recommend-post-blog';
+					const eyebrow = document.createElement('span');
+					eyebrow.className = 'recommend-blog-eyebrow';
+					eyebrow.textContent = item.category?.name || '文章';
+					const heading = document.createElement('h4');
+					heading.append(postLink(item, 'recommend-blog-title', title));
+					const summary = document.createElement('p');
+					summary.className = 'recommend-blog-summary';
+					summary.textContent = excerpt;
+					const meta = document.createElement('footer');
+					meta.className = 'recommend-blog-meta';
+					meta.textContent = `${item.user.displayName} · ${new Date(item.createdAt).toLocaleDateString('zh-CN')} · ${item.likeCount} 喜欢 · ${item.commentCount} 评论 · ${reason}`;
+					card.append(eyebrow, heading, summary, meta);
 				} else {
-					const span = document.createElement('span');
-					span.className = 'recommend-item-avatar-placeholder';
-					span.textContent = item.user.displayName.charAt(0).toUpperCase();
-					authorLink.appendChild(span);
+					card.className = 'recommend-post recommend-post-weibo';
+					const header = document.createElement('header');
+					header.className = 'recommend-weibo-header';
+					appendAvatar(header, item, 'recommend-weibo-avatar');
+					const author = document.createElement('a');
+					author.href = `/${item.user.username}`;
+					author.className = 'recommend-weibo-author';
+					author.textContent = `${item.user.displayName} · @${item.user.username}`;
+					const time = document.createElement('time');
+					time.dateTime = item.createdAt;
+					time.textContent = new Date(item.createdAt).toLocaleDateString('zh-CN');
+					header.append(author, time);
+					const body = postLink(item, 'recommend-weibo-body', excerpt);
+					const footer = document.createElement('footer');
+					footer.className = 'recommend-weibo-actions';
+					footer.textContent = `${reason} · ${item.likeCount} 喜欢 · ${item.commentCount} 评论`;
+					card.append(header, body, footer);
 				}
-
-				// 内容区
-				const contentDiv = document.createElement('div');
-				contentDiv.className = 'recommend-item-content';
-
-				const titleLink = document.createElement('a');
-				titleLink.href = `/${item.user.username}/${item.id}`;
-				titleLink.className = 'recommend-item-title-link';
-				titleLink.textContent =
-					item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
-				const author = document.createElement('a');
-				author.href = profileUrl;
-				author.className = 'recommend-item-author';
-				author.textContent = `@${item.user.username}`;
-				const summary = document.createElement('p');
-				summary.className = 'recommend-item-summary';
-				summary.textContent = item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 100);
-
-				const metaDiv = document.createElement('div');
-				metaDiv.className = 'recommend-item-meta';
-				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
-				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-				metaDiv.textContent = `${likeText.slice(3)}${commentText}`.replace(/^ · /, '');
-				const reason = document.createElement('p');
-				reason.className = 'recommend-item-reason';
-				reason.textContent =
-					item.source === 'interest'
-						? '来自你已选的兴趣'
-						: item.source === 'exploration'
-							? '带你发现新的话题'
-							: '正在被讨论';
-
-				metaDiv.append(
-					reason,
-					author,
-					document.createTextNode(metaDiv.textContent ? ` · ${metaDiv.textContent}` : '')
-				);
-				contentDiv.append(titleLink, summary, metaDiv);
-				card.append(authorLink, contentDiv);
-				fragment.appendChild(card);
+				fragment.append(card);
 			}
 			postsListElement.replaceChildren(fragment);
 		}

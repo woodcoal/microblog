@@ -17,7 +17,12 @@ test('首页推荐区保留冷启动、独立状态和无障碍交互契约', ()
 	assert.match(page, /role="status"/);
 	assert.match(page, /来自你已选的兴趣/);
 	assert.match(page, /正在被讨论/);
-	assert.match(page, /recommend-item-summary/);
+	assert.match(page, /home-preview-grid/);
+	assert.match(page, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+	assert.match(page, /recommend-post-forum/);
+	assert.match(page, /recommend-post-blog/);
+	assert.match(page, /recommend-post-weibo/);
+	assert.match(page, /style is:global/);
 	assert.match(page, /actions\.toggleFollow/);
 	assert.match(page, /已关注 \$\{item\.displayName\}/);
 	assert.match(page, /min-height: 44px/);
