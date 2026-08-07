@@ -34,6 +34,8 @@ const introCopy = await getPublicSiteCopy('auth.login.intro');
 						class="form-input"
 						placeholder="请输入邮箱"
 						required
+						autocomplete="username"
+						aria-describedby="form-error"
 					/>
 				</div>
 
@@ -46,10 +48,12 @@ const introCopy = await getPublicSiteCopy('auth.login.intro');
 						class="form-input"
 						placeholder="请输入密码"
 						required
+						autocomplete="current-password"
+						aria-describedby="form-error"
 					/>
 				</div>
 
-				<div id="form-error" class="form-error"></div>
+				<div id="form-error" class="form-error" role="alert" aria-live="assertive"></div>
 
 				<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
 					登录

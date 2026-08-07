@@ -13,7 +13,7 @@
  * - tokens     — API Token
  * - note       — 用户记录
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import TokenManager from '@/components/TokenManager.astro';
 import WebhookManager from '@/components/WebhookManager.astro';
 import { prisma } from '@/lib/db';
@@ -103,7 +103,7 @@ const tabs = [
 const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
 
-<WeiboLayout title="设置">
+<UserLayout title="设置">
 	<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
 		<header class="ux-page-heading">
 			<p class="ux-eyebrow">账户中心</p>
@@ -111,10 +111,14 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			<p>集中管理资料、安全、外观与通知偏好。</p>
 		</header>
 
-		<nav class="settings-tabs">
+		<nav class="settings-tabs" aria-label="设置分类">
 			{
 				tabs.map((t) => (
-					<a href={tabUrl(t.id)} class:list={['settings-tab', { active: tab === t.id }]}>
+					<a
+						href={tabUrl(t.id)}
+						class:list={['settings-tab', { active: tab === t.id }]}
+						aria-current={tab === t.id ? 'page' : undefined}
+					>
 						{t.label}
 					</a>
 				))
@@ -204,7 +208,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 								<button type="submit" class="btn btn-primary">
 									保存资料
 								</button>
-								<span id="profile-msg" class="form-msg" />
+								<span
+									id="profile-msg"
+									class="form-msg"
+									role="status"
+									aria-live="polite"
+								/>
 							</div>
 						</form>
 					</section>
@@ -261,7 +270,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 								<button type="submit" class="btn btn-primary">
 									修改密码
 								</button>
-								<span id="password-msg" class="form-msg" />
+								<span
+									id="password-msg"
+									class="form-msg"
+									role="status"
+									aria-live="polite"
+								/>
 							</div>
 						</form>
 					</section>
@@ -311,7 +325,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 							<button type="button" id="save-appearance" class="btn btn-primary">
 								保存偏好
 							</button>
-							<span id="appearance-msg" class="form-msg" />
+							<span
+								id="appearance-msg"
+								class="form-msg"
+								role="status"
+								aria-live="polite"
+							/>
 						</div>
 					</section>
 				)
@@ -340,7 +359,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 							<button type="button" id="save-notification" class="btn btn-primary">
 								保存设置
 							</button>
-							<span id="notification-msg" class="form-msg" />
+							<span
+								id="notification-msg"
+								class="form-msg"
+								role="status"
+								aria-live="polite"
+							/>
 						</div>
 
 						<hr class="settings-divider" />
@@ -379,7 +403,12 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 								<button type="submit" class="btn btn-primary">
 									保存记录
 								</button>
-								<span id="note-msg" class="form-msg" />
+								<span
+									id="note-msg"
+									class="form-msg"
+									role="status"
+									aria-live="polite"
+								/>
 							</div>
 						</form>
 					</section>
@@ -387,7 +416,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			}
 		</div><!-- /.settings-content -->
 	</section>
-</WeiboLayout>
+</UserLayout>
 
 <script>
 	import { actions } from 'astro:actions';
