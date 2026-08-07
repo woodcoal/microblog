@@ -6,13 +6,7 @@
  * 如果注册已关闭，显示提示信息；否则显示注册表单。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import {
-	PASSWORD_MIN_LENGTH,
-	ALLOW_REGISTRATION,
-	RESERVED_USERNAMES,
-	SITE_TITLE,
-	SITE_LOGO_URL
-} from '@/lib/config';
+import { PASSWORD_MIN_LENGTH, ALLOW_REGISTRATION, RESERVED_USERNAMES } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 从环境变量读取是否允许注册
@@ -26,11 +20,9 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->
 			<div class="site-copy-content site-copy-content-auth" set:html={introCopy.html} />
 		</section>
-		<div class="auth-page card">
-			<div class="auth-brand">
-				<img src={SITE_LOGO_URL} alt={SITE_TITLE} class="auth-logo" />
-				<h2 class="auth-title">创建账号</h2>
-			</div>
+		<section class="auth-page" aria-labelledby="register-title">
+			<h2 id="register-title" class="auth-title">创建账号</h2>
+			<p class="auth-panel-lead">创建一个睦谈账号，开始参与讨论。</p>
 
 			{
 				allowRegistration ? (
@@ -160,67 +152,11 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 					</p>
 				)
 			}
-		</div>
+		</section>
 	</div>
 </BaseLayout>
 
 <style>
-	.auth-page {
-		max-width: 440px;
-		margin: var(--spacing-8) auto;
-	}
-
-	.auth-brand {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		margin-bottom: var(--spacing-6);
-	}
-
-	.auth-title {
-		font-size: 1.375rem;
-		font-weight: 700;
-		margin-bottom: var(--spacing-5);
-		text-align: center;
-		letter-spacing: -0.02em;
-	}
-
-	.auth-logo {
-		width: 48px;
-		height: 48px;
-		margin-bottom: var(--spacing-3);
-		border-radius: var(--radius-md);
-	}
-
-	.auth-form {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.auth-submit {
-		margin-top: var(--spacing-1);
-		width: 100%;
-	}
-
-	.auth-footer {
-		text-align: center;
-		margin-top: var(--spacing-4);
-		font-size: 0.875rem;
-		color: var(--color-muted);
-		padding-top: var(--spacing-4);
-		border-top: 1px solid var(--color-border);
-	}
-
-	.auth-footer a {
-		color: var(--color-primary);
-		text-decoration: none;
-		font-weight: 500;
-	}
-
-	.auth-footer a:hover {
-		text-decoration: underline;
-	}
-
 	.form-hint {
 		font-size: 0.75rem;
 		color: var(--color-muted);
