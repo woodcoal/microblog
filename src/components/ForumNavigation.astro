@@ -16,20 +16,17 @@ const { presentation = 'channel' } = Astro.props;
 const pathname = Astro.url.pathname;
 const sort = Astro.url.searchParams.get('sort') || 'latest';
 const isForumHome = pathname === '/forum';
-// 热门、推荐只保留内容流入口；分级板块数据只属于论坛首页。
-const showCategoryGroups = isForumHome && sort === 'latest';
-const groups = showCategoryGroups
-	? await prisma.category.findMany({
-			where: { mode: 'forum', parentId: null },
+// 左侧板块入口是论坛频道的全局导航，首页、热门与推荐都应保持一致。
+const groups = await prisma.category.findMany({
+	where: { mode: 'forum', parentId: null },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		children: {
 			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-			include: {
-				children: {
-					orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-					include: { _count: { select: { posts: true } } }
-				}
-			}
-		})
-	: [];
+			include: { _count: { select: { posts: true } } }
+		}
+	}
+});
 
 const primaryItems = [
 	{ href: '/forum', icon: '⌂', label: '首页', current: isForumHome && sort === 'latest' },
@@ -67,7 +64,7 @@ const primaryItems = [
 		}
 	</section>
 	{
-		showCategoryGroups && groups.length > 0 ? (
+		groups.length > 0 ? (
 			groups.map((group) => (
 				<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
 					<h2 id={`forum-group-${group.id}`}>
@@ -103,8 +100,8 @@ const primaryItems = [
 					))}
 				</section>
 			))
-		) : showCategoryGroups ? (
+		) : (
 			<p class="forum-sidebar-empty">暂无版块</p>
-		) : null
+		)
 	}
 </nav>

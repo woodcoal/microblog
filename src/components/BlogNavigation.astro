@@ -4,28 +4,23 @@
  *
  * 浏览入口与分类都在此维护，博客首页和分类页只负责内容区，避免菜单在各页漂移。
  */
-import { getUserFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-const [currentUser, categories] = await Promise.all([
-	getUserFromRequest(Astro),
-	prisma.category.findMany({
-		where: { mode: 'blog' },
-		orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-		select: { id: true, name: true, slug: true, icon: true }
-	})
-]);
+const categories = await prisma.category.findMany({
+	where: { mode: 'blog' },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	select: { id: true, name: true, slug: true, icon: true }
+});
 
 const pathname = Astro.url.pathname;
 const sort = Astro.url.searchParams.get('sort') || 'latest';
-const scope = Astro.url.searchParams.get('scope');
 const isBlogHome = pathname === '/blog';
 const primaryItems = [
 	{
 		href: '/blog',
 		icon: '⏰',
 		label: '最新',
-		current: isBlogHome && sort === 'latest' && !scope
+		current: isBlogHome && sort === 'latest'
 	},
 	{
 		href: '/blog?sort=recommended',
@@ -33,13 +28,7 @@ const primaryItems = [
 		label: '推荐',
 		current: isBlogHome && sort === 'recommended'
 	},
-	{ href: '/blog?sort=hot', icon: '🔥', label: '热门', current: isBlogHome && sort === 'hot' },
-	{
-		href: currentUser ? '/blog?scope=bookmarks' : '/login',
-		icon: '🔖',
-		label: '收藏',
-		current: isBlogHome && scope === 'bookmarks'
-	}
+	{ href: '/blog?sort=hot', icon: '🔥', label: '热门', current: isBlogHome && sort === 'hot' }
 ];
 ---
 
