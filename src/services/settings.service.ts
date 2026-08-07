@@ -169,7 +169,7 @@ export async function getSettings(input: GetSettingsInput): Promise<GetSettingsR
 	return {
 		theme: settings?.theme ?? DEFAULT_THEME,
 		accent: settings?.accent ?? DEFAULT_ACCENT,
-		commentSortOrder: settings?.commentSortOrder ?? 'asc',
+		commentSortOrder: settings?.commentSortOrder ?? 'desc',
 		notificationsEnabled: settings?.notificationsEnabled ?? true,
 		displayName: user?.displayName ?? '',
 		bio: user?.bio ?? '',
@@ -215,7 +215,7 @@ export async function updateSettings(input: UpdateSettingsInput): Promise<Update
 		userId,
 		theme: theme ?? DEFAULT_THEME,
 		accent: accent ?? DEFAULT_ACCENT,
-		commentSortOrder: commentSortOrder ?? 'asc',
+		commentSortOrder: commentSortOrder ?? 'desc',
 		notificationsEnabled: notificationsEnabled ?? true
 	});
 
