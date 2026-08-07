@@ -52,6 +52,7 @@ export interface RecommendItem {
 
 export interface GetRecommendResult {
 	items: RecommendItem[];
+	profile?: RecommendationProfile;
 }
 
 export interface TrendingFeedInput {
@@ -61,6 +62,12 @@ export interface TrendingFeedInput {
 	mode?: 'weibo' | 'forum' | 'blog';
 	categoryId?: string;
 	excludePostIds?: string[];
+	/** Optional scope constraints, evaluated after the shared 200-post window. */
+	postIds?: string[];
+	userIds?: string[];
+	keyword?: string;
+	from?: Date;
+	to?: Date;
 	/** Only homepage and the weibo channel first page may prepend global pins. */
 	includeGlobalPinned?: boolean;
 }
@@ -225,6 +232,11 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 		if (input.mode && post.mode !== input.mode) continue;
 		if (input.categoryId && post.categoryId !== input.categoryId) continue;
 		if (input.excludePostIds?.includes(post.id)) continue;
+		if (input.postIds && !input.postIds.includes(post.id)) continue;
+		if (input.userIds && !input.userIds.includes(post.userId)) continue;
+		if (input.keyword && !post.content.includes(input.keyword) && !(post.title?.includes(input.keyword))) continue;
+		if (input.from && post.createdAt < input.from) continue;
+		if (input.to && post.createdAt > input.to) continue;
 		if (post.isGlobalPinned) continue;
 		const visible = await checkPostVisibility(
 			{
@@ -312,15 +324,24 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 /** 获取未读的站内热门帖子。 */
 export async function getRecommend(input: GetRecommendInput): Promise<GetRecommendResult> {
 	const count = input.n ?? 5;
-	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: count });
+	const profile = await getRecommendationProfile(input.userId);
+	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: Math.max(count, 50) });
+	const ordered = profile.strategy === 'blended'
+		? [...feed.items].sort((a, b) => {
+			const interest = (post: TrendingFeedItem) =>
+				post.tags.filter(({ tag }) => profile.interestTagIds.includes(tag.id)).length +
+				(profile.interestCategoryIds.includes(post.categoryId ?? '') ? 1 : 0);
+			return (interest(b) * 0.5 + b.score * 0.4) - (interest(a) * 0.5 + a.score * 0.4) || b.score - a.score;
+		})
+		: feed.items;
 	return {
-		items: feed.items.map((post) => ({
+		items: ordered.slice(0, count).map((post) => ({
 			id: post.id, content: post.content, createdAt: post.createdAt.toISOString(), user: post.user,
 			media: post.media.map(({ id, fileType }) => ({ id, fileType })), visibility: post.visibility,
 			mode: post.mode, title: post.title, categoryId: post.categoryId, category: post.category,
 			tags: post.tags.map(({ tag }) => tag), likeCount: post._count.likes,
 			commentCount: post._count.comments, liked: post.liked, score: post.score
-		}))
+		})), profile
 	};
 }
 

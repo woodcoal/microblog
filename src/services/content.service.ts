@@ -707,6 +707,8 @@ export async function getPosts(input: GetPostsInput) {
 		isDeleted: false,
 		...visibilityFilter
 	};
+	let tagPostIds: string[] | undefined;
+	let scopedUserIds: string[] | undefined;
 
 	// keyword 过滤
 	if (keyword) {
@@ -732,6 +734,7 @@ export async function getPosts(input: GetPostsInput) {
 		if (postIdsByTag.length === 0) {
 			return [];
 		}
+		tagPostIds = postIdsByTag;
 		where.id = { in: postIdsByTag };
 	}
 
@@ -742,10 +745,13 @@ export async function getPosts(input: GetPostsInput) {
 			return [];
 		}
 		where.userId = targetUser.id;
+		scopedUserIds = [targetUser.id];
 	} else if (userScope === 'following') {
 		where.userId = { in: [...followingIds, userId] };
+		scopedUserIds = [...followingIds, userId];
 	} else if (userScope === 'followers') {
 		where.userId = { in: [...followerIds, userId] };
+		scopedUserIds = [...followerIds, userId];
 	}
 
 	// 查询帖子
@@ -761,7 +767,12 @@ export async function getPosts(input: GetPostsInput) {
 		const hot = await getTrendingFeed({
 			viewerId: userId,
 			page: Math.floor(skip / limit) + 1,
-			pageSize: limit
+			pageSize: limit,
+			postIds: tagPostIds,
+			userIds: scopedUserIds,
+			keyword,
+			from,
+			to
 		});
 		posts = hot.items;
 	} else {
