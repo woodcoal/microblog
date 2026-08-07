@@ -10,13 +10,10 @@
  * 使用 SearchBox 和 SearchResults Astro 组件，完全服务端渲染。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import ContentListShell from '@/components/ContentListShell.astro';
-import ChannelAside from '@/components/ChannelAside.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
 import { prisma } from '@/lib/db';
-import { getModeLabel, SITE_MODES } from '@/lib/config';
-import { getPopularTagItems } from '@/lib/discovery';
+import { getModeLabel } from '@/lib/config';
 
 interface PostResult {
 	id: string;
@@ -25,8 +22,10 @@ interface PostResult {
 	isPinned: boolean;
 	isGlobalPinned: boolean;
 	likeCount: number;
+	commentCount: number;
 	mode: string;
 	title: string | null;
+	customCategory: string | null;
 	categoryId: string | null;
 	category: { id: string; name: string; slug: string; mode: string } | null;
 	user: { id: string; username: string; displayName: string; avatarUrl: string };
@@ -41,7 +40,12 @@ interface UserResult {
 	followerCount: number;
 	followingCount: number;
 	postCount: number;
+	createdAt: string;
 }
+
+type AllResult =
+	| { type: 'post'; createdAt: string; value: PostResult }
+	| { type: 'user'; createdAt: string; value: UserResult };
 
 // 解析 URL 参数
 const q = Astro.url.searchParams.get('q')?.trim() || '';
@@ -73,6 +77,8 @@ let nextPostsCursor: string | null = null;
 // 用户搜索结果
 let users: UserResult[] = [];
 let nextUsersCursor: string | null = null;
+let allResults: AllResult[] = [];
+let nextAllCursor: string | null = null;
 
 if (q) {
 	if (tab !== 'users') {
@@ -91,7 +97,7 @@ if (q) {
 
 		// 根据排序方式决定排序规则
 		const orderBy =
-			sort === 'popular'
+			tab !== 'all' && sort === 'popular'
 				? [{ likes: { _count: 'desc' as const } }, { createdAt: 'desc' as const }]
 				: [{ createdAt: 'desc' as const }];
 
@@ -127,7 +133,7 @@ if (q) {
 					}
 				},
 				_count: {
-					select: { likes: true }
+					select: { likes: true, comments: true }
 				}
 			}
 		});
@@ -143,8 +149,10 @@ if (q) {
 			isPinned: post.isPinned,
 			isGlobalPinned: post.isGlobalPinned,
 			likeCount: post._count.likes,
+			commentCount: post._count.comments,
 			mode: post.mode,
 			title: post.title,
+			customCategory: post.customCategory,
 			categoryId: post.categoryId,
 			category: post.category,
 			user: {
@@ -204,8 +212,29 @@ if (q) {
 			bio: user.bio,
 			followerCount: user._count.followers,
 			followingCount: user._count.following,
-			postCount: user._count.posts
+			postCount: user._count.posts,
+			createdAt: user.createdAt.toISOString()
 		}));
+	}
+
+	// 综合页将帖子与用户按创建时间合并，保持单一的时间线阅读顺序。
+	if (tab === 'all') {
+		const orderedResults: AllResult[] = [
+			...posts.map((post) => ({
+				type: 'post' as const,
+				createdAt: post.createdAt,
+				value: post
+			})),
+			...users.map((user) => ({
+				type: 'user' as const,
+				createdAt: user.createdAt,
+				value: user
+			}))
+		].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+		allResults = orderedResults.slice(0, 20);
+		const hasMoreResults =
+			orderedResults.length > allResults.length || !!nextPostsCursor || !!nextUsersCursor;
+		nextAllCursor = hasMoreResults ? (allResults.at(-1)?.createdAt ?? null) : null;
 	}
 }
 
@@ -217,20 +246,6 @@ const isModeAll = modeFilter === 'all';
 const isModeWeibo = modeFilter === 'weibo';
 const isModeForum = modeFilter === 'forum';
 const isModeBlog = modeFilter === 'blog';
-const discoveryItems = await getPopularTagItems();
-const discoverySections =
-	discoveryItems.length > 0
-		? [
-				{
-					title: q ? '热门话题' : '从话题开始',
-					description: q
-						? '换一个热门标签，继续发现相关内容。'
-						: '选择一个正在讨论的标签开始浏览。',
-					items: discoveryItems
-				}
-			]
-		: [];
-
 /** 构建搜索 URL 的辅助函数，保持所有筛选参数 */
 function buildSearchUrl(params: {
 	q?: string;
@@ -260,106 +275,72 @@ function buildSearchUrl(params: {
 ---
 
 <BaseLayout title={q ? `搜索: ${q}` : '搜索'}>
-	<ContentListShell navLabel="探索导航" hasAside={true}>
-		<nav slot="nav" aria-label="内容频道">
-			<p class="sidebar-section-label">探索内容</p>
-			{
-				SITE_MODES.includes('weibo') && (
-					<a href="/weibo" class="sidebar-link">
-						<>
-							<span class="sidebar-link-icon">💬</span>
-							<span>{getModeLabel('weibo')}</span>
-						</>
-					</a>
-				)
-			}
-			{
-				SITE_MODES.includes('forum') && (
-					<a href="/forum" class="sidebar-link">
-						<>
-							<span class="sidebar-link-icon">📋</span>
-							<span>{getModeLabel('forum')}</span>
-						</>
-					</a>
-				)
-			}
-			{
-				SITE_MODES.includes('blog') && (
-					<a href="/blog" class="sidebar-link">
-						<>
-							<span class="sidebar-link-icon">📝</span>
-							<span>{getModeLabel('blog')}</span>
-						</>
-					</a>
-				)
-			}
-		</nav>
-		<section class="search-template" aria-labelledby="search-page-title">
-			<h1 id="search-page-title">搜索</h1>
+	<section class="search-template" aria-labelledby="search-page-title">
+		<h1 id="search-page-title">搜索</h1>
 
-			<!-- search-a 的简洁搜索框 -->
-			<div class="search-box-wrapper">
-				<SearchBox
-					initialQuery={q}
-					placeholder="搜索帖子或用户..."
-					tab={tab}
-					mode={modeFilter}
-					categoryId={categoryIdFilter}
-				/>
-			</div>
-
-			<!-- 标签页切换 -->
-			<div class="search-tabs">
-				<a
-					href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
-				>
-					综合
-				</a>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}
-					>{getModeLabel('weibo')}</a
-				>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}
-					>{getModeLabel('forum')}</a
-				>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}
-					>{getModeLabel('blog')}</a
-				>
-				<a
-					href={buildSearchUrl({ tab: 'users', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
-				>
-					用户
-				</a>
-			</div>
-
-			<!-- 搜索结果 -->
-			<SearchResults
+		<!-- search-a 的简洁搜索框 -->
+		<div class="search-box-wrapper">
+			<SearchBox
+				initialQuery={q}
+				placeholder="搜索帖子或用户..."
 				tab={tab}
-				query={q}
-				sort={sort}
-				modeFilter={modeFilter}
-				categoryIdFilter={categoryIdFilter}
-				posts={posts}
-				nextPostsCursor={nextPostsCursor}
-				users={users}
-				nextUsersCursor={nextUsersCursor}
+				mode={modeFilter}
+				categoryId={categoryIdFilter}
 			/>
-		</section>
-		<ChannelAside slot="aside" sections={discoverySections} />
-	</ContentListShell>
+		</div>
+
+		<!-- 标签页切换 -->
+		<div class="search-tabs">
+			<a
+				href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
+				class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
+			>
+				综合
+			</a>
+			<a
+				href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
+				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}
+				>{getModeLabel('weibo')}</a
+			>
+			<a
+				href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
+				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}
+				>{getModeLabel('forum')}</a
+			>
+			<a
+				href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
+				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}
+				>{getModeLabel('blog')}</a
+			>
+			<a
+				href={buildSearchUrl({ tab: 'users', categoryId: '' })}
+				class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
+			>
+				用户
+			</a>
+		</div>
+
+		<!-- 搜索结果 -->
+		<SearchResults
+			tab={tab}
+			query={q}
+			sort={sort}
+			modeFilter={modeFilter}
+			categoryIdFilter={categoryIdFilter}
+			posts={posts}
+			nextPostsCursor={nextPostsCursor}
+			users={users}
+			nextUsersCursor={nextUsersCursor}
+			allResults={allResults}
+			nextAllCursor={nextAllCursor}
+		/>
+	</section>
 </BaseLayout>
 
 <style>
 	.search-template {
-		width: 100%;
-		margin: 0;
+		width: min(100% - 2 * var(--spacing-4), 980px);
+		margin: 0 auto;
 		padding: clamp(var(--spacing-6), 5vw, 2.5rem) 0 var(--spacing-12);
 	}
 

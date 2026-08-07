@@ -2320,7 +2320,9 @@ dialog.dialog-overlay::backdrop {
 	box-shadow: var(--shadow-dropdown);
 	z-index: var(--z-dropdown);
 	max-height: 360px;
+	overflow-x: hidden;
 	overflow-y: auto;
+	overscroll-behavior: contain;
 	margin-top: 4px;
 }
 .search-suggest-loading {
@@ -2349,6 +2351,9 @@ dialog.dialog-overlay::backdrop {
 	color: var(--color-primary);
 	text-decoration: none;
 	font-size: 0.875rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	transition: background var(--transition-fast);
 }
 .search-suggest-tag:hover {
@@ -2381,10 +2386,46 @@ dialog.dialog-overlay::backdrop {
 .search-suggest-user-name {
 	font-size: 0.875rem;
 	font-weight: 500;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .search-suggest-user-handle {
 	font-size: 0.75rem;
 	color: var(--color-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.search-suggest-post {
+	display: block;
+	min-width: 0;
+	padding: var(--spacing-2) var(--spacing-4);
+	color: var(--color-text);
+	text-decoration: none;
+	transition: background var(--transition-fast);
+}
+.search-suggest-post:hover {
+	background: var(--color-surface);
+}
+.search-suggest-post-title,
+.search-suggest-post-meta {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.search-suggest-post-title {
+	font-size: 0.875rem;
+	font-weight: 500;
+}
+.search-suggest-post-meta {
+	margin-top: 0.125rem;
+	color: var(--color-muted);
+	font-size: 0.75rem;
+}
+.search-suggest-post-mode::before {
+	content: ' · ';
 }
 .search-suggest-category {
 	display: flex;
@@ -2394,12 +2435,20 @@ dialog.dialog-overlay::backdrop {
 	color: var(--color-text);
 	text-decoration: none;
 	font-size: 0.875rem;
+	min-width: 0;
 	transition: background var(--transition-fast);
 }
 .search-suggest-category:hover {
 	background: var(--color-surface);
 }
+.search-suggest-category-name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .search-suggest-category-mode {
+	flex: 0 0 auto;
 	font-size: 0.6875rem;
 	color: var(--color-muted);
 	background: var(--color-surface);

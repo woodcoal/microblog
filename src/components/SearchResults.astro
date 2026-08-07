@@ -17,6 +17,9 @@ import { renderMarkdown } from '@/lib/markdown';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
 import { escapeHtml } from '@/lib/html';
+import PostCard from '@/components/PostCard.astro';
+import ForumTopicList from '@/components/ForumTopicList.astro';
+import BlogArticleList from '@/components/BlogArticleList.astro';
 
 /**
  * 对 HTML 内容中的关键词包裹高亮标记
@@ -46,8 +49,10 @@ interface PostResult {
 	isPinned: boolean;
 	isGlobalPinned: boolean;
 	likeCount: number;
+	commentCount: number;
 	mode?: string;
 	title?: string;
+	customCategory?: string | null;
 	categoryId?: string;
 	category?: {
 		id: string;
@@ -74,7 +79,12 @@ interface UserResult {
 	followerCount: number;
 	followingCount: number;
 	postCount: number;
+	createdAt: string;
 }
+
+type AllResult =
+	| { type: 'post'; createdAt: string; value: PostResult }
+	| { type: 'user'; createdAt: string; value: UserResult };
 
 interface Props {
 	tab: 'all' | 'posts' | 'users';
@@ -86,6 +96,8 @@ interface Props {
 	nextPostsCursor: string | null;
 	users: UserResult[];
 	nextUsersCursor: string | null;
+	allResults: AllResult[];
+	nextAllCursor: string | null;
 	currentCursor?: string;
 }
 
@@ -98,22 +110,28 @@ const {
 	posts,
 	nextPostsCursor,
 	users,
-	nextUsersCursor
+	nextUsersCursor,
+	allResults,
+	nextAllCursor
 } = Astro.props as Props;
 
-// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
-const showPosts = tab !== 'users';
-const showUsers = tab !== 'posts';
 const isAllTab = tab === 'all';
 const hasNoQuery = !query;
 const hasPosts = posts.length > 0;
 const hasMorePosts = !!nextPostsCursor;
+const isUsersTab = tab === 'users';
 const hasUsers = users.length > 0;
 const hasMoreUsers = !!nextUsersCursor;
+const hasAllResults = allResults.length > 0;
+const hasMoreAllResults = !!nextAllCursor;
+const isWeiboResults = tab === 'posts' && modeFilter === 'weibo';
+const isForumResults = tab === 'posts' && modeFilter === 'forum';
+const isBlogResults = tab === 'posts' && modeFilter === 'blog';
 
 /** 构建帖子分页链接，保持所有筛选参数 */
 const postsPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=${tab}&sort=${sort}&mode=${modeFilter}${categoryIdFilter ? `&categoryId=${categoryIdFilter}` : ''}`;
-const usersPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=${tab}`;
+const allPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=all&mode=all`;
+const usersPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=users`;
 ---
 
 {
@@ -121,38 +139,183 @@ const usersPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=${tab}`;
 		<div class="empty-state">
 			<p>请输入搜索关键词</p>
 		</div>
-	) : (
-		<div class="search-result-groups">
-			{showPosts && (
-				<section class="search-result-group" aria-labelledby={isAllTab ? 'search-post-results' : undefined}>
-					{isAllTab && <h2 id="search-post-results" class="search-result-group-title">内容</h2>}
-					{!hasPosts ? <div class="empty-state"><p>没有找到相关帖子</p></div> : (
-						<div class="search-result-list">
-							{posts.map((post) => {
-								const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
-								const relativeTime = formatRelativeTime(new Date(post.createdAt));
-								const isPinned = post.isPinned || post.isGlobalPinned;
-								const postMode = post.mode || 'weibo';
-								const modeLabel = postMode === 'forum' ? getModeLabel('forum') : postMode === 'blog' ? getModeLabel('blog') : null;
-								const kind = modeLabel || getModeLabel('weibo');
-								return <article class="search-result-item"><span class="search-result-kind">{kind}</span><div class="search-result-content"><h2><a href={`/${post.user.username}/${post.id}`}>{post.title || post.content.slice(0, 50)}</a></h2><div class="search-result-excerpt" set:html={htmlContent} /><p class="search-result-meta">{post.user.displayName} · {kind} · {post.likeCount} 赞 · {relativeTime}{isPinned && ' · 已置顶'}</p></div></article>;
-							})}
-							{hasMorePosts && <a href={`${postsPaginationBase}&cursor=${nextPostsCursor}`} class="btn btn-outline load-more-btn">加载更多</a>}
+	) : isAllTab ? (
+		!hasAllResults ? (
+			<div class="empty-state">
+				<p>没有找到相关内容或用户</p>
+			</div>
+		) : (
+			<div class="search-result-list">
+				{allResults.map((result) => {
+					if (result.type === 'post') {
+						const post = result.value;
+						const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
+						const relativeTime = formatRelativeTime(new Date(post.createdAt));
+						const postMode = post.mode || 'weibo';
+						const kind = getModeLabel(postMode);
+						return (
+							<article class="search-result-item">
+								<span class="search-result-kind">{kind}</span>
+								<div class="search-result-content">
+									<h2>
+										<a href={`/${post.user.username}/${post.id}`}>
+											{post.title || post.content.slice(0, 50)}
+										</a>
+									</h2>
+									<div class="search-result-excerpt" set:html={htmlContent} />
+									<p class="search-result-meta">
+										{post.user.displayName} · {relativeTime}
+									</p>
+								</div>
+							</article>
+						);
+					}
+
+					const user = result.value;
+					return (
+						<article class="search-result-item">
+							<span class="search-result-kind">用户</span>
+							<div class="search-result-content">
+								<h2>
+									<a href={`/${user.username}`}>{user.displayName}</a>
+								</h2>
+								{user.bio && (
+									<p
+										class="search-result-excerpt"
+										set:html={highlightKeyword(escapeHtml(user.bio), query)}
+									/>
+								)}
+								<p class="search-result-meta">
+									@{user.username} · {user.followerCount} 粉丝 · 已发布{' '}
+									{user.postCount} 条内容
+								</p>
+							</div>
+						</article>
+					);
+				})}
+				{hasMoreAllResults && (
+					<a
+						href={`${allPaginationBase}&cursor=${nextAllCursor}`}
+						class="btn btn-outline load-more-btn"
+					>
+						加载更多
+					</a>
+				)}
+			</div>
+		)
+	) : isUsersTab ? (
+		!hasUsers ? (
+			<div class="empty-state">
+				<p>没有找到相关用户</p>
+			</div>
+		) : (
+			<div class="search-result-list">
+				{users.map((user) => (
+					<article class="search-result-item">
+						<span class="search-result-kind">用户</span>
+						<div class="search-result-content">
+							<h2>
+								<a href={`/${user.username}`}>{user.displayName}</a>
+							</h2>
+							{user.bio && (
+								<p
+									class="search-result-excerpt"
+									set:html={highlightKeyword(escapeHtml(user.bio), query)}
+								/>
+							)}
+							<p class="search-result-meta">
+								@{user.username} · {user.followerCount} 粉丝 · 已发布{' '}
+								{user.postCount} 条内容
+							</p>
 						</div>
-					)}
-				</section>
-			)}
-			{showUsers && (
-				<section class="search-result-group" aria-labelledby={isAllTab ? 'search-user-results' : undefined}>
-					{isAllTab && <h2 id="search-user-results" class="search-result-group-title">用户</h2>}
-					{!hasUsers ? <div class="empty-state"><p>没有找到相关用户</p></div> : (
-						<div class="search-result-list">
-							{users.map((user) => <article class="search-result-item"><span class="search-result-kind">用户</span><div class="search-result-content"><h2><a href={`/${user.username}`}>{user.displayName}</a></h2>{user.bio && <p class="search-result-excerpt" set:html={highlightKeyword(escapeHtml(user.bio), query)} />}<p class="search-result-meta">@{user.username} · {user.followerCount} 粉丝 · 已发布 {user.postCount} 条内容</p></div></article>)}
-							{hasMoreUsers && <a href={`${usersPaginationBase}&cursor=${nextUsersCursor}`} class="btn btn-outline load-more-btn">加载更多</a>}
-						</div>
-					)}
-				</section>
-			)}
+					</article>
+				))}
+				{hasMoreUsers && (
+					<a
+						href={`${usersPaginationBase}&cursor=${nextUsersCursor}`}
+						class="btn btn-outline load-more-btn"
+					>
+						加载更多
+					</a>
+				)}
+			</div>
+		)
+	) : !hasPosts ? (
+		<div class="empty-state">
+			<p>没有找到相关帖子</p>
 		</div>
+	) : (
+		<>
+			{isWeiboResults && (
+				<div class="post-list">
+					{posts.map((post) => (
+						<PostCard
+							post={post}
+							htmlContent={renderMarkdown(post.content)}
+							likeCount={post.likeCount}
+							commentCount={post.commentCount}
+							tags={post.tags}
+						/>
+					))}
+				</div>
+			)}
+			{isForumResults && (
+				<ForumTopicList
+					posts={posts.map((post) => ({
+						...post,
+						title: post.title ?? null,
+						category: post.category ?? null,
+						createdAt: new Date(post.createdAt),
+						_count: { comments: post.commentCount }
+					}))}
+				/>
+			)}
+			{isBlogResults && (
+				<BlogArticleList
+					posts={posts.map((post) => ({
+						...post,
+						title: post.title ?? null,
+						category: post.category ?? null,
+						createdAt: new Date(post.createdAt),
+						customCategory: post.customCategory ?? null,
+						_count: { likes: post.likeCount, comments: post.commentCount }
+					}))}
+				/>
+			)}
+			{!isWeiboResults && !isForumResults && !isBlogResults && (
+				<div class="search-result-list">
+					{posts.map((post) => {
+						const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
+						return (
+							<article class="search-result-item">
+								<span class="search-result-kind">
+									{getModeLabel(post.mode || 'weibo')}
+								</span>
+								<div class="search-result-content">
+									<h2>
+										<a href={`/${post.user.username}/${post.id}`}>
+											{post.title || post.content.slice(0, 50)}
+										</a>
+									</h2>
+									<div class="search-result-excerpt" set:html={htmlContent} />
+									<p class="search-result-meta">
+										{post.user.displayName} ·{' '}
+										{formatRelativeTime(new Date(post.createdAt))}
+									</p>
+								</div>
+							</article>
+						);
+					})}
+				</div>
+			)}
+			{hasMorePosts && (
+				<a
+					href={`${postsPaginationBase}&cursor=${nextPostsCursor}`}
+					class="btn btn-outline load-more-btn"
+				>
+					加载更多
+				</a>
+			)}
+		</>
 	)
 }

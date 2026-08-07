@@ -117,7 +117,7 @@ const globalSearchMode = currentPath.startsWith('/forum')
 	? 'forum'
 	: currentPath.startsWith('/blog')
 		? 'blog'
-		: currentPath.startsWith('/weibo') ||
+	: currentPath.startsWith('/weibo') ||
 				  currentPath.startsWith('/latest') ||
 				  currentPath.startsWith('/tags') ||
 				  currentPath.startsWith('/bookmarks')
@@ -302,9 +302,21 @@ const resolvedOgType = ogType || 'website';
 				<div class="navbar-actions" id="navbar-actions">
 					{
 						!currentPath.startsWith('/search') && (
-							<form class="nav-search-form" action="/search" method="GET" role="search">
-								<label class="sr-only" for="global-search-input">搜索睦谈</label>
-								{globalSearchMode !== 'all' && <input type="hidden" name="mode" value={globalSearchMode} />}
+							<form
+								class="nav-search-form"
+								action="/search"
+								method="GET"
+								role="search"
+							>
+								<label class="sr-only" for="global-search-input">
+									搜索睦谈
+								</label>
+								{globalSearchMode !== 'all' && (
+									<input type="hidden" name="mode" value={globalSearchMode} />
+								)}
+								<span class="nav-search-icon" aria-hidden="true">
+									🔍
+								</span>
 								<input
 									id="global-search-input"
 									class="nav-search-input"
@@ -312,7 +324,10 @@ const resolvedOgType = ogType || 'website';
 									name="q"
 									placeholder={globalSearchPlaceholder}
 								/>
-								<SearchSuggest inputId="global-search-input" mode={globalSearchMode} />
+								<SearchSuggest
+									inputId="global-search-input"
+									mode={globalSearchMode}
+								/>
 							</form>
 						)
 					}

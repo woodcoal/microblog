@@ -194,11 +194,13 @@ const modeLabels = JSON.stringify({
 				};
 			}>
 		) {
-			const orderedPosts = preferredMode === 'all'
-				? posts
-				: [...posts].sort(
-						(a, b) => Number(b.mode === preferredMode) - Number(a.mode === preferredMode)
-					);
+			const orderedPosts =
+				preferredMode === 'all'
+					? posts
+					: [...posts].sort(
+							(a, b) =>
+								Number(b.mode === preferredMode) - Number(a.mode === preferredMode)
+						);
 			if (orderedPosts.length === 0) {
 				postsSection.style.display = 'none';
 				return;
@@ -247,7 +249,7 @@ const modeLabels = JSON.stringify({
 					/** 分类模式标签 */
 					const modeLabel = escapeHtml(modeLabels[cat.mode] || cat.mode);
 					const icon = cat.icon ? escapeHtml(cat.icon) + ' ' : '';
-					return `<a href="/search?q=&tab=posts&mode=${encodeURIComponent(cat.mode)}&categoryId=${encodeURIComponent(cat.id)}" class="search-suggest-category">${icon}${escapeHtml(cat.name)} <span class="search-suggest-category-mode">${modeLabel}</span></a>`;
+					return `<a href="/search?q=&tab=posts&mode=${encodeURIComponent(cat.mode)}&categoryId=${encodeURIComponent(cat.id)}" class="search-suggest-category"><span class="search-suggest-category-name">${icon}${escapeHtml(cat.name)}</span><span class="search-suggest-category-mode">${modeLabel}</span></a>`;
 				})
 				.join('');
 		}
