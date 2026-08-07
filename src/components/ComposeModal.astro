@@ -25,6 +25,17 @@ const forumCategories = isModeEnabled('forum')
 		})
 	: [];
 
+// 论坛分类目前最多两级：有子分类的一级分组仅用于归类，只有末级分类可以发布。
+const forumCategoryGroups = forumCategories
+	.filter((category) => !category.parentId)
+	.map((group) => ({
+		group,
+		children: forumCategories.filter((category) => category.parentId === group.id)
+	}));
+const standaloneForumCategories = forumCategoryGroups
+	.filter(({ children }) => children.length === 0)
+	.map(({ group }) => group);
+
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const showWeiboModal = isModeEnabled('weibo');
 const showForumModal = isModeEnabled('forum');
@@ -88,16 +99,30 @@ const hasForumCategories = forumCategories.length > 0;
 						maxlength="200"
 					/>
 
-					{/* 分类选择 */}
+					{/* 分类选择：一级分组不可选，仅末级版块可发布。 */}
 					{hasForumCategories && (
 						<select class="form-input forum-editor-category" id="forum-modal-category">
-							<option value="">选择版块（可选）</option>
-							{forumCategories.map((cat) => (
+							<option value="">选择末级版块（必填）</option>
+							{standaloneForumCategories.map((cat) => (
 								<option value={cat.id}>
 									{cat.icon && `${cat.icon} `}
 									{cat.name}
 								</option>
 							))}
+							{forumCategoryGroups
+								.filter(({ children }) => children.length > 0)
+								.map(({ group, children }) => (
+									<optgroup
+										label={`${group.icon ? `${group.icon} ` : ''}${group.name}`}
+									>
+										{children.map((category) => (
+											<option value={category.id}>
+												{category.icon && `${category.icon} `}
+												{category.name}
+											</option>
+										))}
+									</optgroup>
+								))}
 						</select>
 					)}
 
@@ -396,6 +421,11 @@ const hasForumCategories = forumCategories.length > 0;
 			// 校验标题
 			if (!title) {
 				showError('请输入帖子标题');
+				return;
+			}
+			if (!categoryId) {
+				showError('请选择末级版块');
+				forumCategorySelect?.focus();
 				return;
 			}
 			// 校验内容

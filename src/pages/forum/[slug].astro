@@ -3,8 +3,7 @@
  * 论坛版块详情页
  *
  * 根据 slug 显示该版块下的帖子列表（forum 模式卡片）。
- * 顶部"发帖"按钮打开论坛编辑器弹窗（预设当前版块分类）。
- * 发布时 mode 自动设为 'forum'，categoryId 自动设为当前版块。
+ * 顶部"发帖"按钮打开论坛编辑器弹窗；仅末级版块会预设当前分类。
  * 支持分页浏览。
  */
 import ForumLayout from '@/layouts/ForumLayout.astro';
@@ -35,7 +34,8 @@ const category = await prisma.category.findUnique({
 	include: {
 		parent: {
 			select: { id: true, name: true, slug: true }
-		}
+		},
+		_count: { select: { children: true } }
 	}
 });
 
@@ -152,6 +152,7 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasIcon = !!category.icon;
+const isLeafCategory = category._count.children === 0;
 const recommendationItems = await getPopularPostItems({
 	mode: 'forum',
 	visibilityFilter,
@@ -228,7 +229,11 @@ const discoverySections =
 			</div>
 			{
 				currentUser && (
-					<button type="button" class="btn btn-primary" data-forum-post-btn={category.id}>
+					<button
+						type="button"
+						class="btn btn-primary"
+						data-forum-post-btn={isLeafCategory ? category.id : ''}
+					>
 						✏️ 发帖
 					</button>
 				)

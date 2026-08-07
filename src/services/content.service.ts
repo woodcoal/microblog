@@ -23,7 +23,7 @@ import {
 import { findFileStoragesByIds, deleteFileRef, MAX_IMAGE_COUNT } from '@/lib/upload';
 import { findTagByName, findPostIdsByTagId } from '@/lib/tag';
 import { findMentionedUserIds, findUserByUsername } from '@/lib/user';
-import { findCategoryById } from '@/lib/category';
+import { countChildCategories, findCategoryById } from '@/lib/category';
 import { findFollow } from '@/lib/social';
 import { ServiceError } from '@/lib/errors';
 import { createNotification } from '@/lib/notification';
@@ -328,6 +328,9 @@ export async function createPost(input: CreatePostInput) {
 		if (category.mode !== postMode) {
 			throw new ServiceError('BAD_REQUEST', '分类模式与帖子模式不匹配');
 		}
+		if (postMode === 'forum' && (await countChildCategories(category.id)) > 0) {
+			throw new ServiceError('BAD_REQUEST', '论坛帖子只能发布到末级版块');
+		}
 	}
 
 	const vis = (visibility || 'public') as Visibility;
@@ -532,6 +535,9 @@ export async function updatePost(input: UpdatePostInput) {
 		}
 		if (category.mode !== postMode) {
 			throw new ServiceError('BAD_REQUEST', '分类模式与帖子模式不匹配');
+		}
+		if (postMode === 'forum' && (await countChildCategories(category.id)) > 0) {
+			throw new ServiceError('BAD_REQUEST', '论坛帖子只能发布到末级版块');
 		}
 	}
 
