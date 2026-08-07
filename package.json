@@ -44,6 +44,7 @@
 		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts",
 		"test:site-config": "tsx --test tests/site-config.test.ts",
 		"test:color-contrast": "tsx --test tests/primary-color-contrast.test.ts",
+		"test:post-detail-browser": "node scripts/run-post-detail-browser-test.mjs",
 		"test:recommend-users": "node scripts/run-recommend-users-test.mjs"
 	},
 	"dependencies": {
