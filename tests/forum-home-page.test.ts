@@ -42,6 +42,11 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.doesNotMatch(navigation, /forum-menu-disclosure/);
 	assert.match(topMenu, /<ForumNavigationItems/);
 	assert.match(pageStyles, /forum-top-menu/);
+	assert.match(
+		pageStyles,
+		/\.forum-top-menu \.sidebar-link span:not\(\.sidebar-link-icon\)[\s\S]*display: inline/
+	);
+	assert.match(pageStyles, /\.post-detail-layout-forum > \.post-detail-primary/);
 	assert.doesNotMatch(pageStyles, /\.forum-sidebar-primary h2 \{/);
 	assert.match(page, /const showCategoryOverview = forumSort === 'latest'/);
 	assert.match(page, /showCategoryOverview && \(/);
