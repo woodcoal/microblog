@@ -15,8 +15,8 @@ import BookmarkButton from '@/components/BookmarkButton.astro';
 import FollowButton from '@/components/FollowButton.astro';
 import WeiboPostActions from '@/components/WeiboPostActions.astro';
 import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
-import ForumFloatingMenu from '@/components/ForumFloatingMenu.astro';
 import ForumNavigation from '@/components/ForumNavigation.astro';
+import ForumTopMenu from '@/components/ForumTopMenu.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
@@ -522,8 +522,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 		{isForum && <ForumNavigation presentation="detail" />}
 		<div class="post-detail-primary">
-			<div class:list={['post-detail-topbar', { 'post-detail-topbar--forum': isForum }]}>
-				{isForum && <ForumFloatingMenu />}
+			{isForum && <ForumTopMenu />}
+			<div class="post-detail-topbar">
 				<nav class="post-detail-breadcrumb" aria-label="详情导航">
 					{
 						isForum ? (

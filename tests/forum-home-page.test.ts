@@ -9,8 +9,7 @@ const [
 	layout,
 	navigation,
 	navigationItems,
-	floatingMenu,
-	forumFloatingMenu,
+	topMenu,
 	pageStyles
 ] = await Promise.all([
 	readFile(new URL('../src/pages/forum/index.astro', import.meta.url), 'utf8'),
@@ -19,8 +18,7 @@ const [
 	readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/components/ForumNavigationItems.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/FloatingMenu.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/ForumFloatingMenu.astro', import.meta.url), 'utf8'),
+	readFile(new URL('../src/components/ForumTopMenu.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
 ]);
 
@@ -42,20 +40,16 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.match(navigationItems, /groups\.map/);
 	assert.match(navigation, /ForumNavigationItems/);
 	assert.doesNotMatch(navigation, /forum-menu-disclosure/);
-	assert.match(floatingMenu, /<details/);
-	assert.match(floatingMenu, /floating-menu-panel/);
-	assert.match(forumFloatingMenu, /<FloatingMenu/);
-	assert.match(forumFloatingMenu, /<ForumNavigationItems/);
-	assert.match(pageStyles, /forum-floating-menu/);
+	assert.match(topMenu, /<ForumNavigationItems/);
+	assert.match(pageStyles, /forum-top-menu/);
 	assert.doesNotMatch(pageStyles, /\.forum-sidebar-primary h2 \{/);
 	assert.match(page, /const showCategoryOverview = forumSort === 'latest'/);
 	assert.match(page, /showCategoryOverview && \(/);
 	assert.doesNotMatch(page, /slot="nav"/);
 	assert.doesNotMatch(categoryPage, /slot="nav"/);
 	assert.match(detailPage, /<ForumNavigation presentation="detail" \/>/);
-	assert.match(page, /<ForumFloatingMenu \/>/);
-	assert.match(categoryPage, /<ForumFloatingMenu \/>/);
-	assert.match(detailPage, /<ForumFloatingMenu \/>/);
-	assert.match(detailPage, /post-detail-topbar--forum/);
+	assert.match(page, /<ForumTopMenu \/>/);
+	assert.match(categoryPage, /<ForumTopMenu \/>/);
+	assert.match(detailPage, /<ForumTopMenu \/>/);
 	assert.doesNotMatch(detailPage, /forumGroups/);
 });
