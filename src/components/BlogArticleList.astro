@@ -53,8 +53,7 @@ function formatDate(date: Date): string {
 			return (
 				<article class="blog-article">
 					<span class="blog-article-eyebrow">
-						{post.category?.name ?? post.customCategory ?? '文章'} ·{' '}
-						{formatDate(post.createdAt)}
+						{post.category?.name ?? post.customCategory ?? '文章'}
 					</span>
 					<h2>
 						<a href={`/${post.user.username}/${post.id}`}>
@@ -62,10 +61,13 @@ function formatDate(date: Date): string {
 						</a>
 					</h2>
 					<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
-					<span class="blog-article-meta">
-						{post.user.displayName} · {post._count.likes} 喜欢 · {post._count.comments}{' '}
-						评论
-					</span>
+					<footer class="blog-article-meta">
+						{post.user.displayName} ·{' '}
+						<time datetime={post.createdAt.toISOString()}>
+							{formatDate(post.createdAt)}
+						</time>{' '}
+						· {post._count.likes} 喜欢 · {post._count.comments} 评论
+					</footer>
 				</article>
 			);
 		})
