@@ -3,6 +3,7 @@
  * 帖子卡片组件（Astro 版本）
  *
  * 在列表中展示帖子摘要，包含作者信息、相对时间、渲染后的内容。
+ * 个人主页可启用紧凑变体，省略与页面资料头重复的作者信息。
  * 点击可跳转到帖子详情页。
  * 底部包含点赞按钮（React island）和评论数统计。
  * 支持可见度门控：受限帖子显示提示信息而非内容。
@@ -94,6 +95,8 @@ interface Props {
 	commentCount?: number;
 	bookmarkCount?: number;
 	bookmarked?: boolean;
+	/** 个人主页等已明确内容归属的场景使用，隐藏重复的作者头像与名称。 */
+	compact?: boolean;
 	/** 兼容旧页面调用；列表中不再渲染关注操作。 */
 	following?: boolean;
 	/** 兼容旧页面调用；列表中不再渲染关注操作。 */
@@ -112,6 +115,7 @@ const {
 	commentCount = 0,
 	bookmarkCount = 0,
 	bookmarked = false,
+	compact = false,
 	tags = [],
 	isRestricted = false
 } = Astro.props;
@@ -178,9 +182,19 @@ const blogDate = isBlog
 	: '';
 ---
 
-<article class:list={['card post-card', `post-card-${postMode}`, { 'post-card-pinned': isPinned }]}>
+<article
+	class:list={[
+		'card post-card',
+		`post-card-${postMode}`,
+		{ 'post-card-pinned': isPinned, 'post-card-compact': compact }
+	]}
+>
 	{
-		postMode === 'weibo' ? (
+		compact ? (
+			<div class="post-card-compact-meta">
+				<time datetime={post.createdAt}>{isBlog ? blogDate : relativeTime}</time>
+			</div>
+		) : postMode === 'weibo' ? (
 			<WeiboPostHeader user={post.user} createdAt={post.createdAt} />
 		) : (
 			<div class="post-card-header">

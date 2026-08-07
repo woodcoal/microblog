@@ -448,6 +448,7 @@ const [recentFollows, recommendedTags] = await Promise.all([
 									commentCount={postCommentCount}
 									bookmarkCount={post._count.bookmarks}
 									bookmarked={postBookmarked}
+									compact
 									showFollow={!!currentUser}
 									following={followingIds.includes(post.user.id)}
 									isSelf={currentUser?.userId === post.user.id}
@@ -714,6 +715,21 @@ const [recentFollows, recommendedTags] = await Promise.all([
 		font-weight: 600;
 	}
 
+	/* 资料头已明确内容归属，列表仅保留时间、内容与互动，避免重复人物信息。 */
+	:global(.profile-main .post-card-compact) {
+		padding: var(--spacing-5);
+	}
+
+	:global(.profile-main .post-card-compact-meta) {
+		display: flex;
+		align-items: center;
+		min-height: 1.25rem;
+		margin-bottom: var(--spacing-2);
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.4;
+	}
+
 	@media (max-width: 767px) {
 		.profile-page-layout {
 			display: block;
@@ -750,6 +766,10 @@ const [recentFollows, recommendedTags] = await Promise.all([
 
 		.profile-stats {
 			justify-content: center;
+		}
+
+		:global(.profile-main .post-card-compact) {
+			padding: var(--spacing-4);
 		}
 	}
 </style>
