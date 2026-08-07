@@ -31,6 +31,7 @@ import Underline from '@tiptap/extension-underline';
 import { Markdown } from 'tiptap-markdown';
 import { common, createLowlight } from 'lowlight';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ChangeEvent, ReactNode, SyntheticEvent } from 'react';
 import type { Editor } from '@tiptap/core';
 import { actions } from 'astro:actions';
 
@@ -82,6 +83,32 @@ interface MarkdownStorage {
 	markdown: {
 		getMarkdown(): string;
 	};
+}
+
+interface ToolbarButtonProps {
+	label: string;
+	active?: boolean;
+	onClick: () => void;
+	children: ReactNode;
+}
+
+/**
+ * 统一编辑器工具按钮的视觉、提示和按下状态。
+ * 可见内容保持紧凑，完整名称始终由辅助技术和原生提示提供。
+ */
+function ToolbarButton({ label, active = false, onClick, children }: ToolbarButtonProps) {
+	return (
+		<button
+			type="button"
+			className={active ? 'active' : undefined}
+			onClick={onClick}
+			title={label}
+			aria-label={label}
+			aria-pressed={active}
+		>
+			{children}
+		</button>
+	);
 }
 
 function getMarkdown(editor: Editor): string {
@@ -136,6 +163,10 @@ export default function BlogEditor({
 	const [loading, setLoading] = useState(false);
 	/** 图片上传错误信息 */
 	const [uploadError, setUploadError] = useState<string | null>(null);
+	/** 链接编辑面板状态；避免使用不可访问的浏览器 prompt。 */
+	const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
+	const [linkValue, setLinkValue] = useState('https://');
+	const [linkError, setLinkError] = useState<string | null>(null);
 	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
 	const editorRef = useRef<Editor | null>(null);
 	/** 图片上传文件输入引用 */
@@ -186,7 +217,7 @@ export default function BlogEditor({
 			 * @param event - 剪贴板事件
 			 * @returns true 表示已处理该事件
 			 */
-			handlePaste: (view, event: ClipboardEvent) => {
+			handlePaste: (_view, event: ClipboardEvent) => {
 				const items = event.clipboardData?.items;
 				if (!items) return false;
 
@@ -446,7 +477,7 @@ export default function BlogEditor({
 	 * @param e - 文件输入变化事件
 	 */
 	const handleFileChange = useCallback(
-		async (e: React.ChangeEvent<HTMLInputElement>) => {
+		async (e: ChangeEvent<HTMLInputElement>) => {
 			const files = e.target.files;
 			if (!files || !editor) return;
 
@@ -465,181 +496,213 @@ export default function BlogEditor({
 	);
 
 	/**
-	 * 处理链接插入
-	 *
-	 * 如果当前光标在链接中，则取消链接；
-	 * 否则弹出输入框让用户输入 URL 并设置链接。
+	 * 打开链接编辑面板，或在已有链接上直接移除链接。
 	 */
-	const handleLinkInsert = useCallback(() => {
+	const handleLinkButton = useCallback(() => {
 		if (!editor) return;
 		if (editor.isActive('link')) {
 			editor.chain().focus().unsetLink().run();
 			return;
 		}
-		const url = window.prompt('输入链接 URL:', 'https://');
-		if (url) {
-			editor.chain().focus().setLink({ href: url }).run();
-		}
+		setLinkValue('https://');
+		setLinkError(null);
+		setIsLinkEditorOpen(true);
 	}, [editor]);
+
+	/** 提交经过协议校验的链接，阻止脚本协议写入文稿。 */
+	const handleLinkSubmit = useCallback(
+		(event: SyntheticEvent<HTMLFormElement>) => {
+			event.preventDefault();
+			if (!editor) return;
+
+			const href = linkValue.trim();
+			try {
+				const url = new URL(href);
+				if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) {
+					throw new Error('unsupported protocol');
+				}
+			} catch {
+				setLinkError('请输入以 http://、https:// 或 mailto: 开头的有效链接。');
+				return;
+			}
+
+			editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+			setLinkError(null);
+			setIsLinkEditorOpen(false);
+		},
+		[editor, linkValue]
+	);
 
 	// 编辑器未就绪时不渲染
 	if (!editor) return null;
 
 	return (
 		<div className="blog-editor">
-			{/* 固定工具栏 */}
-			<div className="blog-editor-toolbar" role="toolbar" aria-label="文章格式工具">
-				{/* 标题组 */}
-				<button
-					type="button"
-					className={editor.isActive('heading', { level: 2 }) ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-					title="二级标题"
-					aria-label="二级标题"
-				>
-					H2
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('heading', { level: 3 }) ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-					title="三级标题"
-					aria-label="三级标题"
-				>
-					H3
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('paragraph') ? 'active' : ''}
-					onClick={() => editor.chain().focus().setParagraph().run()}
-					title="正文"
-					aria-label="正文"
-				>
-					P
-				</button>
-				<span className="blog-editor-toolbar-sep" />
-				{/* 格式组 */}
-				<button
-					type="button"
-					className={editor.isActive('bold') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleBold().run()}
-					title="粗体"
-					aria-label="粗体"
-				>
-					<strong>B</strong>
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('italic') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleItalic().run()}
-					title="斜体"
-					aria-label="斜体"
-				>
-					<em>I</em>
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('underline') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleUnderline().run()}
-					title="下划线"
-					aria-label="下划线"
-				>
-					<u>U</u>
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('strike') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleStrike().run()}
-					title="删除线"
-					aria-label="删除线"
-				>
-					<s>S</s>
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('code') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleCode().run()}
-					title="行内代码"
-					aria-label="行内代码"
-				>
-					{'<>'}
-				</button>
-				<span className="blog-editor-toolbar-sep" />
-				{/* 列表组 */}
-				<button
-					type="button"
-					className={editor.isActive('bulletList') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleBulletList().run()}
-					title="无序列表"
-					aria-label="无序列表"
-				>
-					• 列表
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('orderedList') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleOrderedList().run()}
-					title="有序列表"
-					aria-label="有序列表"
-				>
-					1. 列表
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('taskList') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleTaskList().run()}
-					title="任务列表"
-					aria-label="任务列表"
-				>
-					☑ 任务
-				</button>
-				<span className="blog-editor-toolbar-sep" />
-				{/* 块级组 */}
-				<button
-					type="button"
-					className={editor.isActive('blockquote') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleBlockquote().run()}
-					title="引用"
-					aria-label="引用"
-				>
-					❝ 引用
-				</button>
-				<button
-					type="button"
-					className={editor.isActive('codeBlock') ? 'active' : ''}
-					onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-					title="代码块"
-					aria-label="代码块"
-				>
-					代码块
-				</button>
-				<button
-					type="button"
-					onClick={() => editor.chain().focus().setHorizontalRule().run()}
-					title="分割线"
-					aria-label="插入分割线"
-				>
-					—
-				</button>
-				<span className="blog-editor-toolbar-sep" />
-				{/* 插入组 */}
-				<button
-					type="button"
-					onClick={handleLinkInsert}
-					title="链接"
-					aria-label="插入或移除链接"
-				>
-					🔗
-				</button>
-				<button
-					type="button"
-					onClick={() => fileInputRef.current?.click()}
-					title="上传图片"
-					aria-label="上传图片"
-				>
-					📷
-				</button>
+			{/* 与 Notion 类似：按写作、格式、内容块、插入分组，名称在提示和读屏中保持一致。 */}
+			<div className="blog-editor-toolbar" role="toolbar" aria-label="文章编辑工具">
+				<div className="blog-editor-toolbar-group" role="group" aria-label="历史记录">
+					<ToolbarButton
+						label="撤销（Ctrl+Z）"
+						onClick={() => editor.chain().focus().undo().run()}
+					>
+						↶
+					</ToolbarButton>
+					<ToolbarButton
+						label="重做（Ctrl+Shift+Z）"
+						onClick={() => editor.chain().focus().redo().run()}
+					>
+						↷
+					</ToolbarButton>
+				</div>
+				<span className="blog-editor-toolbar-sep" aria-hidden="true" />
+				<div className="blog-editor-toolbar-group" role="group" aria-label="段落样式">
+					<ToolbarButton
+						label="二级标题"
+						active={editor.isActive('heading', { level: 2 })}
+						onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+					>
+						H2
+					</ToolbarButton>
+					<ToolbarButton
+						label="三级标题"
+						active={editor.isActive('heading', { level: 3 })}
+						onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+					>
+						H3
+					</ToolbarButton>
+					<ToolbarButton
+						label="正文"
+						active={editor.isActive('paragraph')}
+						onClick={() => editor.chain().focus().setParagraph().run()}
+					>
+						¶
+					</ToolbarButton>
+				</div>
+				<span className="blog-editor-toolbar-sep" aria-hidden="true" />
+				<div className="blog-editor-toolbar-group" role="group" aria-label="文字格式">
+					<ToolbarButton
+						label="粗体（Ctrl+B）"
+						active={editor.isActive('bold')}
+						onClick={() => editor.chain().focus().toggleBold().run()}
+					>
+						<strong>B</strong>
+					</ToolbarButton>
+					<ToolbarButton
+						label="斜体（Ctrl+I）"
+						active={editor.isActive('italic')}
+						onClick={() => editor.chain().focus().toggleItalic().run()}
+					>
+						<em>I</em>
+					</ToolbarButton>
+					<ToolbarButton
+						label="下划线（Ctrl+U）"
+						active={editor.isActive('underline')}
+						onClick={() => editor.chain().focus().toggleUnderline().run()}
+					>
+						<u>U</u>
+					</ToolbarButton>
+					<ToolbarButton
+						label="删除线"
+						active={editor.isActive('strike')}
+						onClick={() => editor.chain().focus().toggleStrike().run()}
+					>
+						<s>S</s>
+					</ToolbarButton>
+					<ToolbarButton
+						label="行内代码"
+						active={editor.isActive('code')}
+						onClick={() => editor.chain().focus().toggleCode().run()}
+					>
+						{'<>'}
+					</ToolbarButton>
+				</div>
+				<span className="blog-editor-toolbar-sep" aria-hidden="true" />
+				<div className="blog-editor-toolbar-group" role="group" aria-label="内容块">
+					<ToolbarButton
+						label="无序列表"
+						active={editor.isActive('bulletList')}
+						onClick={() => editor.chain().focus().toggleBulletList().run()}
+					>
+						•
+					</ToolbarButton>
+					<ToolbarButton
+						label="有序列表"
+						active={editor.isActive('orderedList')}
+						onClick={() => editor.chain().focus().toggleOrderedList().run()}
+					>
+						1.
+					</ToolbarButton>
+					<ToolbarButton
+						label="待办列表"
+						active={editor.isActive('taskList')}
+						onClick={() => editor.chain().focus().toggleTaskList().run()}
+					>
+						☑
+					</ToolbarButton>
+					<ToolbarButton
+						label="引用"
+						active={editor.isActive('blockquote')}
+						onClick={() => editor.chain().focus().toggleBlockquote().run()}
+					>
+						❝
+					</ToolbarButton>
+					<ToolbarButton
+						label="代码块"
+						active={editor.isActive('codeBlock')}
+						onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+					>
+						{'{ }'}
+					</ToolbarButton>
+					<ToolbarButton
+						label="插入分割线"
+						onClick={() => editor.chain().focus().setHorizontalRule().run()}
+					>
+						—
+					</ToolbarButton>
+				</div>
+				<span className="blog-editor-toolbar-sep" aria-hidden="true" />
+				<div className="blog-editor-toolbar-group" role="group" aria-label="插入内容">
+					<ToolbarButton
+						label={editor.isActive('link') ? '移除链接' : '插入链接（Ctrl+K）'}
+						active={editor.isActive('link')}
+						onClick={handleLinkButton}
+					>
+						↗
+					</ToolbarButton>
+					<ToolbarButton label="上传图片" onClick={() => fileInputRef.current?.click()}>
+						▧
+					</ToolbarButton>
+				</div>
 			</div>
+			{isLinkEditorOpen && (
+				<form className="blog-editor-link-panel" onSubmit={handleLinkSubmit}>
+					<label htmlFor="blog-editor-link-input">链接地址</label>
+					<input
+						id="blog-editor-link-input"
+						type="url"
+						value={linkValue}
+						onChange={(event) => setLinkValue(event.target.value)}
+						autoFocus
+						placeholder="https://example.com"
+						aria-describedby={linkError ? 'blog-editor-link-error' : undefined}
+					/>
+					<button type="submit" className="btn btn-primary">
+						确认
+					</button>
+					<button
+						type="button"
+						className="btn"
+						onClick={() => setIsLinkEditorOpen(false)}
+					>
+						取消
+					</button>
+					{linkError && (
+						<p id="blog-editor-link-error" className="form-error" role="alert">
+							{linkError}
+						</p>
+					)}
+				</form>
+			)}
 
 			{/* 编辑区 */}
 			<div className="blog-editor-body">
