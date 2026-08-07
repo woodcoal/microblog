@@ -10,6 +10,7 @@
  * 使用 SearchBox 和 SearchResults Astro 组件，完全服务端渲染。
  */
 import BaseLayout from '@/layouts/Base.astro';
+import ChannelShell from '@/components/ChannelShell.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
 import { prisma } from '@/lib/db';
@@ -275,66 +276,68 @@ function buildSearchUrl(params: {
 ---
 
 <BaseLayout title={q ? `搜索: ${q}` : '搜索'}>
-	<section class="search-template" aria-labelledby="search-page-title">
-		<h1 id="search-page-title">搜索</h1>
+	<ChannelShell variant="single">
+		<section class="search-template" aria-labelledby="search-page-title">
+			<h1 id="search-page-title">搜索</h1>
 
-		<!-- search-a 的简洁搜索框 -->
-		<div class="search-box-wrapper">
-			<SearchBox
-				initialQuery={q}
-				placeholder="搜索帖子或用户..."
+			<!-- search-a 的简洁搜索框 -->
+			<div class="search-box-wrapper">
+				<SearchBox
+					initialQuery={q}
+					placeholder="搜索帖子或用户..."
+					tab={tab}
+					mode={modeFilter}
+					categoryId={categoryIdFilter}
+				/>
+			</div>
+
+			<!-- 标签页切换 -->
+			<div class="search-tabs">
+				<a
+					href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
+				>
+					综合
+				</a>
+				<a
+					href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}
+					>{getModeLabel('weibo')}</a
+				>
+				<a
+					href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}
+					>{getModeLabel('forum')}</a
+				>
+				<a
+					href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}
+					>{getModeLabel('blog')}</a
+				>
+				<a
+					href={buildSearchUrl({ tab: 'users', categoryId: '' })}
+					class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
+				>
+					用户
+				</a>
+			</div>
+
+			<!-- 搜索结果 -->
+			<SearchResults
 				tab={tab}
-				mode={modeFilter}
-				categoryId={categoryIdFilter}
+				query={q}
+				sort={sort}
+				modeFilter={modeFilter}
+				categoryIdFilter={categoryIdFilter}
+				posts={posts}
+				nextPostsCursor={nextPostsCursor}
+				users={users}
+				nextUsersCursor={nextUsersCursor}
+				allResults={allResults}
+				nextAllCursor={nextAllCursor}
 			/>
-		</div>
-
-		<!-- 标签页切换 -->
-		<div class="search-tabs">
-			<a
-				href={buildSearchUrl({ tab: 'all', mode: 'all', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isAllTab && isModeAll }]}
-			>
-				综合
-			</a>
-			<a
-				href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}
-				>{getModeLabel('weibo')}</a
-			>
-			<a
-				href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}
-				>{getModeLabel('forum')}</a
-			>
-			<a
-				href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}
-				>{getModeLabel('blog')}</a
-			>
-			<a
-				href={buildSearchUrl({ tab: 'users', categoryId: '' })}
-				class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
-			>
-				用户
-			</a>
-		</div>
-
-		<!-- 搜索结果 -->
-		<SearchResults
-			tab={tab}
-			query={q}
-			sort={sort}
-			modeFilter={modeFilter}
-			categoryIdFilter={categoryIdFilter}
-			posts={posts}
-			nextPostsCursor={nextPostsCursor}
-			users={users}
-			nextUsersCursor={nextUsersCursor}
-			allResults={allResults}
-			nextAllCursor={nextAllCursor}
-		/>
-	</section>
+		</section>
+	</ChannelShell>
 </BaseLayout>
 
 <style>

@@ -178,7 +178,7 @@
 }
 
 /* 非大屏不保留侧栏的导航列；顶部菜单在正常文档流内显示。 */
-@media (max-width: 1199px) {
+@media (max-width: 767px) {
 	.layout-wide-forum,
 	.layout-wide-forum.layout-wide-with-aside {
 		grid-template-columns: minmax(0, 1fr);
@@ -2176,7 +2176,7 @@
 }
 
 /* 旧版折叠／悬浮菜单规则位于文件前部；最终以顶部菜单模式收口，防止详情侧栏被重新显示。 */
-@media (max-width: 1199px) {
+@media (max-width: 767px) {
 	.layout-wide-forum .layout-sidebar,
 	.layout-wide-forum .forum-navigation--sidebar,
 	.post-detail-layout-forum .forum-navigation--sidebar {
@@ -2231,36 +2231,6 @@
 		flex-basis: 100%;
 		padding-bottom: var(--spacing-3);
 		border-bottom: 1px solid var(--color-border);
-	}
-}
-
-/*
- * 1024–1199px 已没有足够空间同时容纳频道导航、阅读列与发现栏。
- * 此区间统一收为居中的单列，避免从 1200px 宽屏切换时内容区突然拉宽；
- * 论坛详情不使用 ContentListShell，因此单独约束其正文主列。
- */
-@media (min-width: 1024px) and (max-width: 1199px) {
-	[data-ux-shell='weibo'] .layout-wide,
-	[data-ux-shell='forum'] .layout-wide,
-	[data-ux-shell='blog'] .layout-wide {
-		grid-template-columns: minmax(0, 1fr);
-	}
-
-	[data-ux-shell='weibo'] .layout-wide .layout-sidebar,
-	[data-ux-shell='forum'] .layout-wide .layout-sidebar,
-	[data-ux-shell='blog'] .layout-wide .layout-sidebar,
-	[data-ux-shell='weibo'] .layout-wide .layout-discovery-sidebar,
-	[data-ux-shell='forum'] .layout-wide .layout-discovery-sidebar,
-	[data-ux-shell='blog'] .layout-wide .layout-discovery-sidebar {
-		display: none;
-	}
-
-	[data-ux-shell='weibo'] .layout-wide .layout-main,
-	[data-ux-shell='forum'] .layout-wide .layout-main,
-	[data-ux-shell='blog'] .layout-wide .layout-main,
-	.post-detail-layout-forum > .post-detail-primary {
-		max-width: var(--layout-content);
-		margin-inline: auto;
 	}
 }
 

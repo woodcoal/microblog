@@ -6,7 +6,7 @@
  * 用于博客频道页、博客文章详情页、写文章页。
  */
 import BaseLayout from './Base.astro';
-import ContentListShell from '@/components/ContentListShell.astro';
+import ChannelShell from '@/components/ChannelShell.astro';
 import BlogNavigation from '@/components/BlogNavigation.astro';
 
 interface Props {
@@ -53,7 +53,11 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 >
 	{
 		showNavigation ? (
-			<ContentListShell navLabel="博客导航" hasAside={hasDiscoveryAside}>
+			<ChannelShell
+				navLabel="博客导航"
+				hasAside={hasDiscoveryAside}
+				variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
+			>
 				<Fragment slot="nav">
 					<BlogNavigation />
 				</Fragment>
@@ -63,7 +67,7 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 						<slot name="aside" />
 					</Fragment>
 				)}
-			</ContentListShell>
+			</ChannelShell>
 		) : (
 			<div class="layout-full">
 				<slot />
