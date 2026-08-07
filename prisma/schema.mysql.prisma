@@ -67,6 +67,7 @@ model Post {
   mode           String    @default("weibo")  // weibo | forum | blog — 帖子模式
   title          String?   // weibo=可选摘要, forum/blog=标题
   categoryId     String?   // 外键 → Category
+  customCategory String?   // 博客作者自行填写的分类名称
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

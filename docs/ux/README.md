@@ -26,27 +26,32 @@
 
 ## 文件
 
-| 文件                | 说明                                  |
-| ------------------- | ------------------------------------- |
-| `prototype.css`     | 全部样式（令牌、布局、组件）          |
-| `prototype.js`      | 主题切换、用户菜单、Toast、点赞、Tabs |
-| `index.html`        | 首页                                  |
-| `weibo.html`        | 微博频道（三栏）                      |
-| `forum.html`        | 论坛频道（主题列表+右栏）             |
-| `blog.html`         | 博客频道（卡片网格+右栏）             |
-| `weibo-detail.html` | 微博详情（短文+扁平评论）             |
-| `forum-detail.html` | 论坛帖详情（长文+楼层回复）           |
-| `blog-detail.html`  | 博客详情（长文+目录+评论）            |
-| `profile.html`      | 个人主页                              |
-| `user-center.html`  | 用户中心/设置                         |
-| `admin.html`        | 管理后台仪表盘                        |
-| `admin-posts.html`  | 帖子管理列表                          |
+| 文件                        | 说明                                                                 |
+| --------------------------- | -------------------------------------------------------------------- |
+| `prototype.css`             | 全部样式（令牌、布局、组件）                                         |
+| `prototype.js`              | 主题切换、用户菜单、Toast、点赞、Tabs                                |
+| `index.html`                | 首页                                                                 |
+| `home-recommendations.html` | 首页登录态推荐门面原型（内容理由、创作者关注、兴趣冷启动及关键状态） |
+| `weibo.html`                | 微博频道（三栏）                                                     |
+| `forum.html`                | 论坛频道（主题列表+右栏）                                            |
+| `blog.html`                 | 博客频道（卡片网格+右栏）                                            |
+| `weibo-detail.html`         | 微博详情（短文+扁平评论）                                            |
+| `forum-detail.html`         | 论坛帖详情（长文+楼层回复）                                          |
+| `blog-detail.html`          | 博客详情（长文+目录+评论）                                           |
+| `profile.html`              | 个人主页                                                             |
+| `user-center.html`          | 用户中心/设置                                                        |
+| `admin.html`                | 管理后台仪表盘                                                       |
+| `admin-posts.html`          | 帖子管理列表                                                         |
 
 ## 导航
 
 还原项目 `Base.astro` 原始导航结构：左侧品牌、中部频道链接 (md+)、右侧操作区（搜索/主题/用户下拉菜单）。
 
 用户下拉菜单项：个人主页 / 用户中心 / 通知(带 badge) / 管理后台 / 登出。
+
+## 首页推荐补充规格
+
+`home-recommendations.html` 与同名 `.md` 为 MT-87 的推荐体验验收基线。原型顶部可切换默认、加载、空态、失败重试及深色主题；文档定义字段边界、冷启动和可访问性要求。它补充 `home-c.html`，不替代该首页壳的既有验收职责。
 
 移动端底部 tab bar：首页 / 搜索 / 通知 / 我的。
 

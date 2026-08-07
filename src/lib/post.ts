@@ -436,7 +436,7 @@ export function updatePostPinStatus(tx: Prisma.TransactionClient, id: string, pi
  * visibility=password 时自动哈希密码，visibility=users 时序列化 allowedUserIds。
  *
  * @param data - 创建帖子事务数据
- * @param data.postData - 帖子基础数据（id, userId, content, visibility, mode, title, categoryId）
+ * @param data.postData - 帖子基础数据（id, userId, content, visibility, mode, title, 分类字段）
  * @param data.mediaItems - Media 关联数据列表（fileStorageId, fileType, sortOrder）
  * @param data.mentionUsernames - 被提及的用户名列表（需查询 user 表验证存在性）
  * @param data.tagNames - 标签名称列表（需 upsert Tag 记录）
@@ -454,6 +454,7 @@ export async function createPostTransaction(data: {
 		mode: string;
 		title?: string | null;
 		categoryId?: string | null;
+		customCategory?: string | null;
 	};
 	mediaItems: Array<{ fileStorageId: string; fileType: string; sortOrder: number }>;
 	mentionUsernames: string[];
@@ -498,7 +499,8 @@ export async function createPostTransaction(data: {
 				allowedUserIds: allowedUserIdsJson,
 				mode: postData.mode,
 				title: postData.title || null,
-				categoryId: postData.categoryId || null
+				categoryId: postData.categoryId || null,
+				customCategory: postData.customCategory || null
 			}
 		});
 

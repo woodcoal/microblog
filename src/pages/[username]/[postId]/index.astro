@@ -490,7 +490,12 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							</a>
 						) : isBlog ? (
 							<a href={post.category ? `/blog/${post.category.slug}` : '/blog'}>
-								← 博客{post.category ? ` / ${post.category.name}` : ''}
+								← 博客
+								{post.category
+									? ` / ${post.category.name}`
+									: post.customCategory
+										? ` / ${post.customCategory}`
+										: ''}
 							</a>
 						) : (
 							<a href="/weibo">← 微博</a>
@@ -609,10 +614,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					) : isBlog && !isDeleted ? (
 						/* 博客模式：文章标题 + 分类 + 发布日期 */
 						<div class="post-detail-blog-header">
-							{post.category && (
+							{(post.category || post.customCategory) && (
 								<div class="post-detail-blog-category">
 									<span class="post-detail-blog-category-name">
-										{post.category.name}
+										{post.category?.name ?? post.customCategory}
 									</span>
 								</div>
 							)}

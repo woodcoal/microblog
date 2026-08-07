@@ -41,6 +41,7 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 	return {
 		id: post.id,
 		title: post.title,
+		customCategory: post.customCategory,
 		content: contentRestricted ? '[受限内容]' : post.content,
 		contentHtml: contentRestricted ? '' : renderMarkdown(post.content),
 		mode,
