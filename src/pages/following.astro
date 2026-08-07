@@ -6,7 +6,7 @@
  * 下半部分：这些用户近 7 天最热门的 10 条帖子。
  * 需要认证，未登录重定向到登录页。
  */
-import UserLayout from '@/layouts/UserLayout.astro';
+import AccountLayout from '@/layouts/AccountLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import FollowButton from '@/components/FollowButton.astro';
 import { prisma } from '@/lib/db';
@@ -87,14 +87,12 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 );
 ---
 
-<UserLayout title="我的关注">
+<AccountLayout
+	title="我的关注"
+	user={{ username: currentUser.username }}
+	activePersonal="following"
+>
 	<section class="ux-connections-page" aria-labelledby="following-page-title">
-		<div class="relationship-context">
-			<span class="relationship-context-avatar" aria-hidden="true">
-				{currentUser.username.charAt(0).toUpperCase()}
-			</span>
-			<span><strong>{currentUser.username}</strong><small>我的关系</small></span>
-		</div>
 		<header class="ux-page-heading">
 			<p class="ux-eyebrow">我的关系</p>
 			<h1 class="page-title" id="following-page-title">我的关注</h1>
@@ -223,7 +221,7 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 			}
 		</section>
 	</section>
-</UserLayout>
+</AccountLayout>
 
 <style>
 	.page-title {

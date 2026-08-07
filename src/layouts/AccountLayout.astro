@@ -1,0 +1,253 @@
+---
+/**
+ * 账户相关页面的统一壳。
+ * 设置、收藏、关注、粉丝始终共享同一套资料摘要、个人入口和设置入口。
+ */
+import UserLayout from './UserLayout.astro';
+import { prisma } from '@/lib/db';
+
+interface Props {
+	title: string;
+	user: {
+		username: string;
+		displayName?: string;
+		avatarUrl?: string | null;
+	};
+	activePersonal?: 'profile' | 'bookmarks' | 'following' | 'followers';
+	activeSettings?: string;
+}
+
+const { title, user, activePersonal, activeSettings } = Astro.props;
+const accountUser = await prisma.user.findUnique({
+	where: { username: user.username },
+	select: { displayName: true, avatarUrl: true }
+});
+const displayName = accountUser?.displayName || user.displayName || user.username;
+const avatarUrl = accountUser?.avatarUrl || user.avatarUrl;
+const initial = displayName.charAt(0).toUpperCase();
+const settingItems = [
+	{ id: 'profile', label: '个人资料' },
+	{ id: 'security', label: '账号安全' },
+	{ id: 'appearance', label: '外观' },
+	{ id: 'notification', label: '通知' },
+	{ id: 'tokens', label: 'API Token' },
+	{ id: 'note', label: '用户记录' }
+];
+const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
+---
+
+<UserLayout title={title} wide>
+	<div class="account-layout">
+		<aside class="account-sidebar" aria-label="账户导航">
+			<a href={`/${user.username}`} class="account-user-summary">
+				{
+					avatarUrl ? (
+						<img src={avatarUrl} alt="" class="account-user-avatar" />
+					) : (
+						<span
+							class="account-user-avatar account-user-avatar-placeholder"
+							aria-hidden="true"
+						>
+							{initial}
+						</span>
+					)
+				}
+				<span><strong>{displayName}</strong><small>@{user.username}</small></span>
+			</a>
+
+			<nav class="account-nav" aria-label="个人页面">
+				<h2>个人</h2>
+				<a
+					href={`/${user.username}`}
+					aria-current={activePersonal === 'profile' ? 'page' : undefined}
+				>
+					我的主页
+				</a>
+				<a
+					href="/bookmarks"
+					aria-current={activePersonal === 'bookmarks' ? 'page' : undefined}
+				>
+					收藏
+				</a>
+				<a
+					href="/following"
+					aria-current={activePersonal === 'following' ? 'page' : undefined}
+				>
+					关注
+				</a>
+				<a
+					href="/followers"
+					aria-current={activePersonal === 'followers' ? 'page' : undefined}
+				>
+					粉丝
+				</a>
+			</nav>
+
+			<nav class="account-nav" aria-label="设置菜单">
+				<h2>设置</h2>
+				{
+					settingItems.map((item) => (
+						<a
+							href={settingHref(item.id)}
+							aria-current={activeSettings === item.id ? 'page' : undefined}
+						>
+							{item.label}
+						</a>
+					))
+				}
+			</nav>
+		</aside>
+		<section class="account-content">
+			<slot />
+		</section>
+	</div>
+</UserLayout>
+
+<style>
+	.account-layout {
+		display: grid;
+		grid-template-columns: 200px minmax(0, 680px);
+		justify-content: center;
+		gap: 36px;
+		max-width: 1040px;
+		margin: 0 auto;
+		padding: 32px 24px 80px;
+	}
+
+	.account-sidebar {
+		min-width: 0;
+	}
+
+	.account-user-summary {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		margin: 0 10px var(--spacing-5);
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.account-user-summary > span:last-child {
+		display: grid;
+		min-width: 0;
+		gap: 0.125rem;
+	}
+
+	.account-user-summary strong,
+	.account-user-summary small {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.account-user-summary strong {
+		font-size: 0.875rem;
+	}
+
+	.account-user-summary small {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+
+	.account-user-avatar {
+		width: 36px;
+		height: 36px;
+		flex: 0 0 36px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.account-user-avatar-placeholder {
+		display: grid;
+		place-items: center;
+		background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg));
+		color: var(--color-primary);
+		font-size: 0.8125rem;
+		font-weight: 700;
+	}
+
+	.account-nav + .account-nav {
+		margin-top: var(--spacing-5);
+	}
+
+	.account-nav h2 {
+		margin: 0 10px var(--spacing-2);
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+	}
+
+	.account-nav a {
+		display: block;
+		padding: 10px 12px;
+		border-left: 2px solid transparent;
+		color: var(--color-muted);
+		font-size: 0.875rem;
+		text-decoration: none;
+	}
+
+	.account-nav a:hover {
+		color: var(--color-text);
+	}
+
+	.account-nav a[aria-current='page'] {
+		border-left-color: var(--color-primary);
+		color: var(--color-primary);
+		font-weight: 700;
+	}
+
+	.account-content {
+		min-width: 0;
+	}
+
+	@media (max-width: 767px) {
+		.account-layout {
+			display: block;
+			padding: 20px 14px calc(80px + env(safe-area-inset-bottom, 0));
+		}
+
+		.account-sidebar {
+			display: flex;
+			align-items: flex-end;
+			gap: var(--spacing-3);
+			overflow-x: auto;
+			padding-bottom: 2px;
+			margin-bottom: var(--spacing-5);
+		}
+
+		.account-user-summary {
+			flex: 0 0 auto;
+			margin: 0;
+		}
+
+		.account-user-summary > span:last-child {
+			display: none;
+		}
+
+		.account-nav {
+			display: flex;
+			gap: 2px;
+			flex: 0 0 auto;
+		}
+
+		.account-nav + .account-nav {
+			margin-top: 0;
+		}
+
+		.account-nav h2 {
+			display: none;
+		}
+
+		.account-nav a {
+			padding: 10px 8px;
+			border-left: 0;
+			border-bottom: 2px solid transparent;
+			white-space: nowrap;
+		}
+
+		.account-nav a[aria-current='page'] {
+			border-bottom-color: var(--color-primary);
+		}
+	}
+</style>

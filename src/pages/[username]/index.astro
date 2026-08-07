@@ -574,13 +574,13 @@ const [recentFollows, recommendedTags] = await Promise.all([
 		border-radius: 12px;
 		margin-bottom: var(--spacing-6);
 		overflow: hidden;
-		padding: 0 var(--spacing-6) var(--spacing-6);
+		padding: 0;
 		position: relative;
 	}
 
 	.profile-cover {
 		height: 156px;
-		margin: 0 calc(-1 * var(--spacing-6));
+		margin: 0;
 		background:
 			linear-gradient(
 				120deg,
@@ -592,13 +592,17 @@ const [recentFollows, recommendedTags] = await Promise.all([
 	}
 
 	.profile-header {
-		margin-top: -44px;
+		display: block;
+		padding: 0 var(--spacing-6) var(--spacing-6);
 	}
 
 	.profile-avatar-img,
 	.profile-avatar-placeholder {
 		width: 88px;
 		height: 88px;
+		position: relative;
+		z-index: 1;
+		margin-top: -44px;
 		border-radius: 50%;
 		object-fit: cover;
 		flex-shrink: 0;
@@ -622,7 +626,7 @@ const [recentFollows, recommendedTags] = await Promise.all([
 
 	.profile-info {
 		min-width: 0;
-		padding-top: 32px;
+		padding-top: 12px;
 	}
 
 	.profile-top-row {
@@ -772,7 +776,6 @@ const [recentFollows, recommendedTags] = await Promise.all([
 		}
 
 		.profile-banner {
-			padding: 0 var(--spacing-4) var(--spacing-4);
 			margin-left: calc(-1 * var(--spacing-3));
 			margin-right: calc(-1 * var(--spacing-3));
 			border-radius: 0;
@@ -780,11 +783,11 @@ const [recentFollows, recommendedTags] = await Promise.all([
 
 		.profile-cover {
 			height: 7.5rem;
-			margin: 0 calc(-1 * var(--spacing-4));
+			margin: 0;
 		}
 
 		.profile-header {
-			text-align: center;
+			padding: 0 var(--spacing-4) var(--spacing-4);
 		}
 
 		.profile-avatar-img,

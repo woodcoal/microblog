@@ -6,16 +6,14 @@
  * 每个帖子卡片显示取消收藏按钮。
  * 需要认证，未登录重定向到登录页。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import AccountLayout from '@/layouts/AccountLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import InfinitePostList from '@/components/InfinitePostList.astro';
-import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { checkPostVisibility } from '@/lib/visibility';
-import { getPopularTagItems } from '@/lib/discovery';
 
 // 需要认证，未登录重定向
 const currentUser = await getUserFromRequest(Astro);
@@ -73,35 +71,13 @@ const likedPostIds = await getLikedPostIds(currentUser.userId, postIds);
 
 // 是否有收藏
 const hasBookmarks = validItems.length > 0;
-const discoveryItems = await getPopularTagItems();
-const bookmarkedAuthorItems = Array.from(
-	new Map(
-		validItems.map((bookmark) => [
-			bookmark.post.user.username,
-			{
-				title: bookmark.post.user.displayName,
-				href: `/${bookmark.post.user.username}`,
-				meta: `@${bookmark.post.user.username}`,
-				icon: '👤'
-			}
-		])
-	).values()
-).slice(0, 5);
-const discoverySections = [
-	{
-		title: '热门话题',
-		description: '从正在被讨论的话题继续探索。',
-		items: discoveryItems
-	},
-	{
-		title: '收藏的作者',
-		description: '从最近保存的内容回到作者主页。',
-		items: bookmarkedAuthorItems
-	}
-];
 ---
 
-<WeiboLayout title="我的收藏" hasAside={true}>
+<AccountLayout
+	title="我的收藏"
+	user={{ username: currentUser.username }}
+	activePersonal="bookmarks"
+>
 	<section class="ux-channel-page ux-bookmarks-page" aria-labelledby="bookmarks-page-title">
 		<header class="ux-page-heading">
 			<p class="ux-eyebrow">稍后再读</p>
@@ -196,8 +172,7 @@ const discoverySections = [
 			)
 		}
 	</section>
-	<ChannelAside slot="aside" sections={discoverySections} label="收藏页辅助信息" />
-</WeiboLayout>
+</AccountLayout>
 
 <style>
 	.page-title {

@@ -13,7 +13,7 @@
  * - tokens     — API Token
  * - note       — 用户记录
  */
-import UserLayout from '@/layouts/UserLayout.astro';
+import AccountLayout from '@/layouts/AccountLayout.astro';
 import TokenManager from '@/components/TokenManager.astro';
 import WebhookManager from '@/components/WebhookManager.astro';
 import { prisma } from '@/lib/db';
@@ -98,334 +98,313 @@ const tabs = [
 	{ id: 'tokens', label: 'API Token' },
 	{ id: 'note', label: '用户记录' }
 ];
-
-// 简写构建选项卡链接
-const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
 
-<UserLayout title="设置" wide>
-	<div class="settings-layout">
-		<aside class="settings-sidebar">
-			<nav class="settings-tabs" aria-label="设置菜单">
-				{
-					tabs.map((t) => (
-						<a
-							href={tabUrl(t.id)}
-							class:list={['settings-tab', { active: tab === t.id }]}
-							aria-current={tab === t.id ? 'page' : undefined}
-						>
-							{t.label}
-						</a>
-					))
-				}
-			</nav>
-		</aside>
+<AccountLayout
+	title="设置"
+	user={{ username: currentUser.username, displayName, avatarUrl }}
+	activeSettings={tab}
+>
+	<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
+		<header class="ux-page-heading">
+			<h1 class="page-title" id="settings-page-title">
+				{tabs.find((item) => item.id === tab)?.label ?? '个人设置'}
+			</h1>
+			<p>管理你的公开资料与账号偏好。</p>
+		</header>
 
-		<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
-			<header class="ux-page-heading">
-				<h1 class="page-title" id="settings-page-title">
-					{tabs.find((item) => item.id === tab)?.label ?? '个人设置'}
-				</h1>
-				<p>管理你的公开资料与账号偏好。</p>
-			</header>
-
-			<div class="settings-content">
-				{
-					tab === 'profile' && (
-						<section class="settings-section">
-							<h2 class="section-title">个人资料</h2>
-							<p class="section-desc">管理你的公开个人信息</p>
-							<form id="profile-form" class="settings-form">
-								<div class="form-group">
-									<label for="displayName" class="form-label">
-										显示名
-									</label>
-									<input
-										type="text"
-										id="displayName"
-										name="displayName"
-										class="form-input"
-										value={displayName}
-										maxlength="50"
-										placeholder="输入显示名"
-									/>
-									<span class="form-hint">1-50 个字符</span>
-								</div>
-								<div class="form-group">
-									<label for="bio" class="form-label">
-										简介
-									</label>
-									<textarea
-										id="bio"
-										name="bio"
-										class="form-input form-textarea"
-										maxlength="160"
-										rows="3"
-										placeholder="介绍一下自己"
-										set:text={initialBio}
-									/>
-									<span class="form-hint">最多 160 个字符</span>
-								</div>
-								<div class="form-group">
-									<label class="form-label">头像</label>
-									<div class="avatar-upload">
-										<div class="avatar-preview" id="avatar-preview">
-											{avatarUrl ? (
-												<img
-													src={avatarUrl}
-													alt="当前头像"
-													class="avatar-img"
-												/>
-											) : (
-												<span class="avatar-placeholder">
-													{displayName.charAt(0).toUpperCase() || 'U'}
-												</span>
-											)}
-										</div>
-										<div class="avatar-actions">
-											<label
-												for="avatar-file"
-												class="btn btn-outline avatar-upload-btn"
-											>
-												选择图片
-											</label>
-											<input
-												type="file"
-												id="avatar-file"
-												name="avatar-file"
-												accept="image/jpeg,image/png,image/gif,image/webp"
-												class="avatar-file-input"
+		<div class="settings-content">
+			{
+				tab === 'profile' && (
+					<section class="settings-section">
+						<h2 class="section-title">个人资料</h2>
+						<p class="section-desc">管理你的公开个人信息</p>
+						<form id="profile-form" class="settings-form">
+							<div class="form-group">
+								<label for="displayName" class="form-label">
+									显示名
+								</label>
+								<input
+									type="text"
+									id="displayName"
+									name="displayName"
+									class="form-input"
+									value={displayName}
+									maxlength="50"
+									placeholder="输入显示名"
+								/>
+								<span class="form-hint">1-50 个字符</span>
+							</div>
+							<div class="form-group">
+								<label for="bio" class="form-label">
+									简介
+								</label>
+								<textarea
+									id="bio"
+									name="bio"
+									class="form-input form-textarea"
+									maxlength="160"
+									rows="3"
+									placeholder="介绍一下自己"
+									set:text={initialBio}
+								/>
+								<span class="form-hint">最多 160 个字符</span>
+							</div>
+							<div class="form-group">
+								<label class="form-label">头像</label>
+								<div class="avatar-upload">
+									<div class="avatar-preview" id="avatar-preview">
+										{avatarUrl ? (
+											<img
+												src={avatarUrl}
+												alt="当前头像"
+												class="avatar-img"
 											/>
-											<span class="avatar-hint">
-												支持 JPG/PNG/GIF/WebP，最大 2MB
+										) : (
+											<span class="avatar-placeholder">
+												{displayName.charAt(0).toUpperCase() || 'U'}
 											</span>
-										</div>
+										)}
 									</div>
-									<input
-										type="hidden"
-										id="avatarUrl"
-										name="avatarUrl"
-										value={avatarUrl}
-									/>
+									<div class="avatar-actions">
+										<label
+											for="avatar-file"
+											class="btn btn-outline avatar-upload-btn"
+										>
+											选择图片
+										</label>
+										<input
+											type="file"
+											id="avatar-file"
+											name="avatar-file"
+											accept="image/jpeg,image/png,image/gif,image/webp"
+											class="avatar-file-input"
+										/>
+										<span class="avatar-hint">
+											支持 JPG/PNG/GIF/WebP，最大 2MB
+										</span>
+									</div>
 								</div>
-								<div class="form-actions">
-									<button type="submit" class="btn btn-primary">
-										保存资料
-									</button>
-									<span
-										id="profile-msg"
-										class="form-msg"
-										role="status"
-										aria-live="polite"
-									/>
-								</div>
-							</form>
-						</section>
-					)
-				}
-
-				{
-					tab === 'security' && (
-						<section class="settings-section">
-							<h2 class="section-title">账号安全</h2>
-							<p class="section-desc">修改你的登录密码</p>
-							<form id="password-form" class="settings-form">
-								<div class="form-group">
-									<label for="oldPassword" class="form-label">
-										旧密码
-									</label>
-									<input
-										type="password"
-										id="oldPassword"
-										name="oldPassword"
-										class="form-input"
-										placeholder="输入当前密码"
-										autocomplete="current-password"
-									/>
-								</div>
-								<div class="form-group">
-									<label for="newPassword" class="form-label">
-										新密码
-									</label>
-									<input
-										type="password"
-										id="newPassword"
-										name="newPassword"
-										class="form-input"
-										placeholder="输入新密码"
-										autocomplete="new-password"
-									/>
-									<span class="form-hint">至少 8 个字符</span>
-								</div>
-								<div class="form-group">
-									<label for="confirmPassword" class="form-label">
-										确认新密码
-									</label>
-									<input
-										type="password"
-										id="confirmPassword"
-										name="confirmPassword"
-										class="form-input"
-										placeholder="再次输入新密码"
-										autocomplete="new-password"
-									/>
-								</div>
-								<div class="form-actions">
-									<button type="submit" class="btn btn-primary">
-										修改密码
-									</button>
-									<span
-										id="password-msg"
-										class="form-msg"
-										role="status"
-										aria-live="polite"
-									/>
-								</div>
-							</form>
-						</section>
-					)
-				}
-
-				{
-					tab === 'appearance' && (
-						<section class="settings-section">
-							<h2 class="section-title">外观</h2>
-							<p class="section-desc">自定义界面显示偏好</p>
-
-							<div class="form-group">
-								<span class="form-label" aria-label="主题偏好">
-									主题
-								</span>
-								<div class="theme-buttons">
-									{THEMES.map((theme) => {
-										const isActive = theme.id === currentTheme;
-										return (
-											<button
-												type="button"
-												class:list={['theme-btn', { active: isActive }]}
-												data-theme-id={theme.id}
-											>
-												{theme.name}
-											</button>
-										);
-									})}
-								</div>
-							</div>
-
-							<div class="form-group">
-								<label for="commentSortOrder" class="form-label">
-									评论排序
-								</label>
-								<select id="commentSortOrder" class="form-input form-select">
-									<option value="asc" selected={currentSortOrder === 'asc'}>
-										正序（最早优先）
-									</option>
-									<option value="desc" selected={currentSortOrder === 'desc'}>
-										倒序（最新优先）
-									</option>
-								</select>
+								<input
+									type="hidden"
+									id="avatarUrl"
+									name="avatarUrl"
+									value={avatarUrl}
+								/>
 							</div>
 							<div class="form-actions">
-								<button type="button" id="save-appearance" class="btn btn-primary">
-									保存偏好
+								<button type="submit" class="btn btn-primary">
+									保存资料
 								</button>
 								<span
-									id="appearance-msg"
+									id="profile-msg"
 									class="form-msg"
 									role="status"
 									aria-live="polite"
 								/>
 							</div>
-						</section>
-					)
-				}
+						</form>
+					</section>
+				)
+			}
 
-				{
-					tab === 'notification' && (
-						<section class="settings-section">
-							<h2 class="section-title">通知</h2>
-							<p class="section-desc">管理通知接收偏好</p>
+			{
+				tab === 'security' && (
+					<section class="settings-section">
+						<h2 class="section-title">账号安全</h2>
+						<p class="section-desc">修改你的登录密码</p>
+						<form id="password-form" class="settings-form">
 							<div class="form-group">
-								<label class="toggle-label">
-									<input
-										type="checkbox"
-										id="notificationsEnabled"
-										name="notificationsEnabled"
-										checked={notificationsEnabled}
-									/>
-									<span>接收通知</span>
+								<label for="oldPassword" class="form-label">
+									旧密码
 								</label>
-								<span class="form-hint">
-									关闭后将不再接收任何通知，通知栏目也会隐藏
-								</span>
+								<input
+									type="password"
+									id="oldPassword"
+									name="oldPassword"
+									class="form-input"
+									placeholder="输入当前密码"
+									autocomplete="current-password"
+								/>
+							</div>
+							<div class="form-group">
+								<label for="newPassword" class="form-label">
+									新密码
+								</label>
+								<input
+									type="password"
+									id="newPassword"
+									name="newPassword"
+									class="form-input"
+									placeholder="输入新密码"
+									autocomplete="new-password"
+								/>
+								<span class="form-hint">至少 8 个字符</span>
+							</div>
+							<div class="form-group">
+								<label for="confirmPassword" class="form-label">
+									确认新密码
+								</label>
+								<input
+									type="password"
+									id="confirmPassword"
+									name="confirmPassword"
+									class="form-input"
+									placeholder="再次输入新密码"
+									autocomplete="new-password"
+								/>
 							</div>
 							<div class="form-actions">
-								<button
-									type="button"
-									id="save-notification"
-									class="btn btn-primary"
-								>
-									保存设置
+								<button type="submit" class="btn btn-primary">
+									修改密码
 								</button>
 								<span
-									id="notification-msg"
+									id="password-msg"
 									class="form-msg"
 									role="status"
 									aria-live="polite"
 								/>
 							</div>
+						</form>
+					</section>
+				)
+			}
 
-							<hr class="settings-divider" />
+			{
+				tab === 'appearance' && (
+					<section class="settings-section">
+						<h2 class="section-title">外观</h2>
+						<p class="section-desc">自定义界面显示偏好</p>
 
-							<WebhookManager initialWebhooks={JSON.stringify(serializedWebhooks)} />
-						</section>
-					)
-				}
+						<div class="form-group">
+							<span class="form-label" aria-label="主题偏好">
+								主题
+							</span>
+							<div class="theme-buttons">
+								{THEMES.map((theme) => {
+									const isActive = theme.id === currentTheme;
+									return (
+										<button
+											type="button"
+											class:list={['theme-btn', { active: isActive }]}
+											data-theme-id={theme.id}
+										>
+											{theme.name}
+										</button>
+									);
+								})}
+							</div>
+						</div>
 
-				{
-					tab === 'tokens' && (
-						<section class="settings-section">
-							<TokenManager initialTokens={JSON.stringify(serializedTokens)} />
-						</section>
-					)
-				}
+						<div class="form-group">
+							<label for="commentSortOrder" class="form-label">
+								评论排序
+							</label>
+							<select id="commentSortOrder" class="form-input form-select">
+								<option value="asc" selected={currentSortOrder === 'asc'}>
+									正序（最早优先）
+								</option>
+								<option value="desc" selected={currentSortOrder === 'desc'}>
+									倒序（最新优先）
+								</option>
+							</select>
+						</div>
+						<div class="form-actions">
+							<button type="button" id="save-appearance" class="btn btn-primary">
+								保存偏好
+							</button>
+							<span
+								id="appearance-msg"
+								class="form-msg"
+								role="status"
+								aria-live="polite"
+							/>
+						</div>
+					</section>
+				)
+			}
 
-				{
-					tab === 'note' && (
-						<section class="settings-section">
-							<h2 class="section-title">用户记录</h2>
-							<p class="section-desc">记录私人信息，仅自己可见</p>
-							<form id="note-form" class="settings-form">
-								<div class="form-group">
-									<textarea
-										id="note"
-										name="note"
-										class="form-input form-textarea note-textarea"
-										maxlength="2000"
-										placeholder="记录一些私人信息，仅自己可见"
-										set:text={initialNote}
-									/>
-									<span class="form-hint">最多 2000 个字符，仅自己可见</span>
-								</div>
-								<div class="form-actions">
-									<button type="submit" class="btn btn-primary">
-										保存记录
-									</button>
-									<span
-										id="note-msg"
-										class="form-msg"
-										role="status"
-										aria-live="polite"
-									/>
-								</div>
-							</form>
-						</section>
-					)
-				}
-			</div><!-- /.settings-content -->
-		</section>
-	</div>
-</UserLayout>
+			{
+				tab === 'notification' && (
+					<section class="settings-section">
+						<h2 class="section-title">通知</h2>
+						<p class="section-desc">管理通知接收偏好</p>
+						<div class="form-group">
+							<label class="toggle-label">
+								<input
+									type="checkbox"
+									id="notificationsEnabled"
+									name="notificationsEnabled"
+									checked={notificationsEnabled}
+								/>
+								<span>接收通知</span>
+							</label>
+							<span class="form-hint">
+								关闭后将不再接收任何通知，通知栏目也会隐藏
+							</span>
+						</div>
+						<div class="form-actions">
+							<button type="button" id="save-notification" class="btn btn-primary">
+								保存设置
+							</button>
+							<span
+								id="notification-msg"
+								class="form-msg"
+								role="status"
+								aria-live="polite"
+							/>
+						</div>
+
+						<hr class="settings-divider" />
+
+						<WebhookManager initialWebhooks={JSON.stringify(serializedWebhooks)} />
+					</section>
+				)
+			}
+
+			{
+				tab === 'tokens' && (
+					<section class="settings-section">
+						<TokenManager initialTokens={JSON.stringify(serializedTokens)} />
+					</section>
+				)
+			}
+
+			{
+				tab === 'note' && (
+					<section class="settings-section">
+						<h2 class="section-title">用户记录</h2>
+						<p class="section-desc">记录私人信息，仅自己可见</p>
+						<form id="note-form" class="settings-form">
+							<div class="form-group">
+								<textarea
+									id="note"
+									name="note"
+									class="form-input form-textarea note-textarea"
+									maxlength="2000"
+									placeholder="记录一些私人信息，仅自己可见"
+									set:text={initialNote}
+								/>
+								<span class="form-hint">最多 2000 个字符，仅自己可见</span>
+							</div>
+							<div class="form-actions">
+								<button type="submit" class="btn btn-primary">
+									保存记录
+								</button>
+								<span
+									id="note-msg"
+									class="form-msg"
+									role="status"
+									aria-live="polite"
+								/>
+							</div>
+						</form>
+					</section>
+				)
+			}
+		</div><!-- /.settings-content -->
+	</section>
+</AccountLayout>
 
 <script>
 	import { actions } from 'astro:actions';
