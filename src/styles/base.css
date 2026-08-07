@@ -1251,8 +1251,8 @@ mark.search-highlight {
 }
 
 /* ===== 响应式 ===== */
-@media (min-width: 768px) and (max-width: 1023px) {
-	/* 平板端：侧栏折叠为图标-only，内容自适应宽度 */
+@media (min-width: 768px) and (max-width: 1199px) {
+	/* 中等屏幕：侧栏折叠为图标-only，收起发现栏以保护主信息流宽度。 */
 	.layout-wide {
 		grid-template-columns: var(--layout-sidebar-collapsed) 1fr;
 		gap: var(--spacing-3);
