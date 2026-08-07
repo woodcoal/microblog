@@ -859,28 +859,91 @@
 	min-height: calc(100vh - var(--navbar-height) - 88px);
 }
 
-/* 登录、注册页使用双栏壳，需让父容器容纳其 1040px 的内容宽度。 */
+/* 登录、注册页与头部共用宽屏断点；两个区域在桌面端明确贴齐两端。 */
 .auth-container {
-	max-width: calc(1040px + var(--spacing-8));
+	max-width: var(--layout-wide);
+	padding: 0 var(--spacing-6);
 }
 
 .auth-page-shell {
 	display: grid;
-	grid-template-columns: minmax(0, 0.9fr) minmax(360px, 480px);
-	align-items: center;
-	gap: clamp(var(--spacing-6), 8vw, var(--spacing-12));
-	width: min(100%, 1040px);
+	grid-template-columns: minmax(280px, 390px) minmax(320px, 370px);
+	align-items: start;
+	justify-content: space-between;
+	gap: clamp(var(--spacing-10), 8vw, 10rem);
+	width: 100%;
+	min-height: calc(100vh - var(--navbar-height));
 	margin: 0 auto;
-	padding: clamp(var(--spacing-6), 8vw, var(--spacing-12)) 0;
+	padding: clamp(2.125rem, 8vh, 5.5rem) 0 3.25rem;
 }
 
 .auth-page {
-	border-radius: var(--radius-lg);
-	box-shadow: var(--shadow-md);
+	width: 100%;
+	padding: 1.875rem;
+	border: 1px solid var(--color-border);
+	border-radius: 10px;
+	background: var(--color-card-bg);
+	box-shadow: 0 18px 38px rgb(15 23 42 / 0.06);
 }
 
 .auth-page-intro {
-	max-width: 32rem;
+	max-width: 24.375rem;
+	padding-top: 2.25rem;
+}
+
+.auth-title {
+	margin: 0;
+	font-size: 1.5rem;
+	line-height: 1.25;
+	letter-spacing: -0.035em;
+}
+
+.auth-panel-lead {
+	margin: var(--spacing-1) 0 var(--spacing-5);
+	color: var(--color-muted);
+}
+
+.auth-form {
+	display: flex;
+	flex-direction: column;
+}
+
+.auth-form .form-group {
+	margin-bottom: 0;
+}
+
+.auth-form .form-label {
+	margin: var(--spacing-4) 0 var(--spacing-2);
+	font-size: 0.8125rem;
+	font-weight: 700;
+}
+
+.auth-form .form-input {
+	min-height: 44px;
+	border-radius: 6px;
+	padding-inline: var(--spacing-3);
+	background: var(--color-bg);
+}
+
+.auth-submit {
+	width: 100%;
+	min-height: 44px;
+	margin-top: var(--spacing-5);
+	border-radius: 6px;
+	font-weight: 800;
+}
+
+.auth-footer {
+	margin: var(--spacing-5) 0 0;
+	padding-top: var(--spacing-5);
+	border-top: 1px solid var(--color-border);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+	text-align: center;
+}
+
+.auth-footer a {
+	font-weight: 700;
 }
 
 .site-copy-content > :first-child {
@@ -1440,11 +1503,17 @@
 	.auth-page-shell {
 		grid-template-columns: 1fr;
 		gap: var(--spacing-4);
-		padding: var(--spacing-5) 0;
+		min-height: auto;
+		padding: 2.125rem 0 2.75rem;
+	}
+
+	.auth-container {
+		padding-inline: var(--spacing-3);
 	}
 
 	.auth-page-intro {
 		max-width: none;
+		padding-top: 0;
 	}
 
 	.post-detail {
