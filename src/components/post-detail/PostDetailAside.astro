@@ -1,0 +1,126 @@
+---
+import { getAsideExcerpt } from '@/lib/post-detail';
+import { formatRelativeTime } from '@/lib/utils';
+import type { PostDetailModel } from '@/lib/post-detail';
+
+interface Props {
+	model: PostDetailModel;
+}
+
+const { model } = Astro.props;
+const {
+	post,
+	isForum,
+	isBlog,
+	relatedPosts,
+	relatedForums,
+	hasBlogHeadings,
+	needPassword,
+	blogHeadings
+} = model;
+---
+
+{
+	isForum ? (
+		<>
+			<section class="post-detail-aside-section">
+				<h2>相关版块</h2>
+				{relatedForums.length ? (
+					<nav class="post-detail-aside-list" aria-label="相关版块列表">
+						{relatedForums.map((category) => (
+							<a href={`/forum/${category.slug}`}>
+								<span>
+									{category.icon || '◌'} {category.name}
+								</span>
+								{category.description && <small>{category.description}</small>}
+							</a>
+						))}
+					</nav>
+				) : (
+					<p class="post-detail-aside-empty">暂时没有其他版块。</p>
+				)}
+			</section>
+			<section class="post-detail-aside-section post-detail-author-card">
+				<h2>作者信息</h2>
+				<a href={`/${post.user.username}`} class="post-detail-aside-author">
+					{post.user.avatarUrl ? (
+						<img src={post.user.avatarUrl} alt="" />
+					) : (
+						<span>{post.user.displayName.charAt(0).toUpperCase()}</span>
+					)}
+					<strong>{post.user.displayName}</strong>
+				</a>
+				<p>{post.user.bio || '这个作者还没有填写个人简介。'}</p>
+				<small>
+					{post.user._count.posts} 篇内容 · {post.user._count.followers} 位关注者
+				</small>
+			</section>
+		</>
+	) : isBlog ? (
+		<>
+			{hasBlogHeadings && !needPassword && (
+				<nav class="post-detail-toc" aria-label="文章目录">
+					<p class="post-detail-toc-title">目录</p>
+					<ol>
+						{blogHeadings.map((heading) => (
+							<li class={heading.level === 3 ? 'post-detail-toc-subitem' : undefined}>
+								<a href={`#${heading.id}`}>{heading.text}</a>
+							</li>
+						))}
+					</ol>
+				</nav>
+			)}
+			<section class="post-detail-aside-section">
+				<h2>相关博客</h2>
+				{relatedPosts.length ? (
+					<nav class="post-detail-aside-list" aria-label="相关博客列表">
+						{relatedPosts.map((item) => (
+							<a href={`/${item.user.username}/${item.id}`}>
+								<span>{item.title || getAsideExcerpt(item.content, 42)}</span>
+								<small>
+									{item.user.displayName} ·{' '}
+									{item.createdAt.toLocaleDateString('zh-CN')}
+								</small>
+							</a>
+						))}
+					</nav>
+				) : (
+					<p class="post-detail-aside-empty">暂时没有相关博客。</p>
+				)}
+			</section>
+		</>
+	) : (
+		<>
+			<section class="post-detail-aside-section post-detail-author-card">
+				<h2>关于作者</h2>
+				<a href={`/${post.user.username}`} class="post-detail-aside-author">
+					{post.user.avatarUrl ? (
+						<img src={post.user.avatarUrl} alt="" />
+					) : (
+						<span>{post.user.displayName.charAt(0).toUpperCase()}</span>
+					)}
+					<strong>{post.user.displayName}</strong>
+				</a>
+				<p>{post.user.bio || '这个作者还没有填写个人简介。'}</p>
+				<small>
+					{post.user._count.followers} 位关注者 · 正在关注 {post.user._count.following} 人
+				</small>
+			</section>
+			<section class="post-detail-aside-section">
+				<h2>该作者的其他微博</h2>
+				{relatedPosts.length ? (
+					<nav class="post-detail-aside-list" aria-label="作者的其他微博">
+						{relatedPosts.map((item) => (
+							<a href={`/${item.user.username}/${item.id}`}>
+								<span>{getAsideExcerpt(item.content, 48)}</span>
+								<small>{formatRelativeTime(item.createdAt)}</small>
+							</a>
+						))}
+					</nav>
+				) : (
+					<p class="post-detail-aside-empty">暂时没有其他微博。</p>
+				)}
+			</section>
+		</>
+	)
+}

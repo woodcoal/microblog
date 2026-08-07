@@ -1,0 +1,1600 @@
+---
+import BookmarkButton from '@/components/BookmarkButton.astro';
+import CommentList from '@/components/CommentList.astro';
+import FollowButton from '@/components/FollowButton.astro';
+import ForumTopMenu from '@/components/ForumTopMenu.astro';
+import LikeButton from '@/components/LikeButton.astro';
+import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
+import WeiboPostActions from '@/components/WeiboPostActions.astro';
+import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
+import { getAsideExcerpt } from '@/lib/post-detail';
+import { formatRelativeTime } from '@/lib/utils';
+import type { PostDetailModel } from '@/lib/post-detail';
+
+interface Props {
+	model: PostDetailModel;
+}
+
+const { model } = Astro.props;
+const {
+	post,
+	isAuthor,
+	isFollower,
+	needPassword,
+	isDeleted,
+	isLocked,
+	canPin,
+	images,
+	attachments,
+	hasImages,
+	hasAttachments,
+	isWeiboPost,
+	postTags,
+	hasTags,
+	mentionedUsers,
+	hasMentions,
+	likeCount,
+	likeUsers,
+	liked,
+	bookmarkCount,
+	bookmarked,
+	commentSortOrder,
+	serializedComments,
+	commentCount,
+	currentUserForComponent,
+	isWeibo,
+	isForum,
+	isBlog,
+	postMode,
+	previousBlog,
+	nextBlog,
+	blogCategoryLabel,
+	detailHtmlContent,
+	visibilityLabel,
+	hasTitle
+} = model;
+---
+
+<div class={`post-detail-primary post-detail-layout post-detail-layout-${postMode}`}>
+	{isForum && <ForumTopMenu />}
+	<div class="post-detail-topbar">
+		<nav class="post-detail-breadcrumb" aria-label="详情导航">
+			{
+				isForum ? (
+					<a href={post.category ? `/forum/${post.category.slug}` : '/forum'}>
+						← 论坛{post.category ? ` / ${post.category.name}` : ''}
+					</a>
+				) : isBlog ? (
+					<a href={post.category ? `/blog/${post.category.slug}` : '/blog'}>
+						← 博客
+						{blogCategoryLabel !== '博客' ? ` / ${blogCategoryLabel}` : ''}
+					</a>
+				) : (
+					<a href="/weibo">← 微博</a>
+				)
+			}
+		</nav>
+		{
+			isAuthor && !isDeleted && (isWeibo ? !isLocked : true) && (
+				<div class="post-detail-owner-toolbar" aria-label="作者操作">
+					{!isLocked && (
+						<a href={`/${post.user.username}/${post.id}/edit`} class="btn btn-outline">
+							编辑
+						</a>
+					)}
+					<button
+						class="btn btn-danger"
+						id="delete-btn"
+						data-post-id={post.id}
+						data-username={post.user.username}
+						type="button"
+					>
+						删除
+					</button>
+					{!isWeibo && post.isEdited && (
+						<a
+							href={`/${post.user.username}/${post.id}/revisions`}
+							class="btn btn-outline"
+						>
+							版本历史
+						</a>
+					)}
+					{canPin && (
+						<button
+							class="btn btn-outline"
+							id="pin-btn"
+							data-post-id={post.id}
+							data-pinned={post.isPinned ? 'true' : 'false'}
+							type="button"
+						>
+							{post.isPinned ? '取消置顶' : '置顶'}
+						</button>
+					)}
+				</div>
+			)
+		}
+	</div>
+	<article class="post-detail" data-post-mode={post.mode}>
+		<p class="ux-detail-kicker">
+			{
+				post.mode === 'forum'
+					? `${post.category?.name ?? '论坛'} · 讨论主题`
+					: post.mode === 'blog'
+						? blogCategoryLabel
+						: '微博动态'
+			}
+		</p>
+		{
+			isWeibo && !isDeleted && (
+				<h1 class="post-detail-weibo-title">
+					{post.title || `${post.user.displayName} 的微博动态`}
+				</h1>
+			)
+		}
+		{
+			isForum && !isDeleted ? (
+				/* 论坛模式：版块主题、标题、作者与操作在同一主题卡片内。 */
+				<div class="post-detail-forum-header">
+					{hasTitle && <h1 class="post-detail-forum-title">{post.title}</h1>}
+					<div class="post-detail-header">
+						<a href={`/${post.user.username}`} class="post-detail-author">
+							{post.user.avatarUrl ? (
+								<img
+									src={post.user.avatarUrl}
+									alt={post.user.displayName}
+									class="post-detail-avatar"
+									loading="lazy"
+								/>
+							) : (
+								<div class="post-detail-avatar post-detail-avatar-placeholder">
+									{post.user.displayName.charAt(0).toUpperCase()}
+								</div>
+							)}
+							<div class="post-detail-author-info">
+								<span class="post-detail-name">{post.user.displayName}</span>
+								<span class="post-detail-username">
+									@{post.user.username} · {formatRelativeTime(post.createdAt)}
+								</span>
+							</div>
+						</a>
+						<div class="post-detail-forum-actions" aria-label="作者与帖子操作">
+							<FollowButton
+								username={post.user.username}
+								initialFollowing={isFollower}
+								isSelf={isAuthor}
+							/>
+							<BookmarkButton
+								postId={post.id}
+								initialBookmarked={bookmarked}
+								initialBookmarkCount={bookmarkCount}
+								textOnly={true}
+							/>
+						</div>
+					</div>
+				</div>
+			) : isBlog && !isDeleted ? (
+				/* 博客模式：文章标题 + 分类 + 发布日期 */
+				<div class="post-detail-blog-header">
+					{hasTitle && <h1 class="post-detail-blog-title">{post.title}</h1>}
+					<div class="post-detail-blog-meta">
+						<a href={`/${post.user.username}`} class="post-detail-author">
+							{post.user.avatarUrl ? (
+								<img
+									src={post.user.avatarUrl}
+									alt={post.user.displayName}
+									class="post-detail-avatar"
+									loading="lazy"
+								/>
+							) : (
+								<div class="post-detail-avatar post-detail-avatar-placeholder">
+									{post.user.displayName.charAt(0).toUpperCase()}
+								</div>
+							)}
+							<div class="post-detail-author-info">
+								<span class="post-detail-name">{post.user.displayName}</span>
+								<span class="post-detail-username">
+									{post.createdAt.toLocaleDateString('zh-CN', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric'
+									})}{' '}
+									· 喜欢 {likeCount} · 收藏 {bookmarkCount} · {commentCount}{' '}
+									条讨论
+								</span>
+							</div>
+						</a>
+						{post.isEdited && (
+							<span class="post-detail-edited">
+								已编辑 ·{' '}
+								<time datetime={post.updatedAt.toISOString()}>
+									{formatRelativeTime(post.updatedAt)}
+								</time>
+							</span>
+						)}
+					</div>
+				</div>
+			) : (
+				/* 微博模式：与列表复用同一作者信息行。 */
+				<WeiboPostHeader
+					user={post.user}
+					createdAt={post.createdAt}
+					updatedAt={post.updatedAt}
+					isEdited={post.isEdited && !isDeleted}
+				/>
+			)
+		}
+
+		{
+			needPassword && (
+				<div class="post-detail-password-gate" id="password-gate">
+					<p class="post-detail-password-hint">🔑 这条帖子需要密码才能查看</p>
+					<div class="post-detail-password-form">
+						<input
+							type="password"
+							id="post-password-input"
+							class="form-input"
+							placeholder="请输入访问密码"
+						/>
+						<button type="button" id="verify-password-btn" class="btn btn-primary">
+							验证
+						</button>
+					</div>
+					<p
+						class="post-detail-password-error"
+						id="password-error"
+						style="display:none;color:var(--color-danger);font-size:0.8125rem;margin-top:0.5rem;"
+					/>
+				</div>
+			)
+		}
+
+		<!-- 微博模式标题 -->
+		{
+			isWeibo && hasTitle && !isDeleted && !needPassword && (
+				<h2 class="post-detail-subtitle">{post.title}</h2>
+			)
+		}
+
+		<!-- 帖子内容（密码保护时默认隐藏，验证后显示） -->
+		<div
+			class="post-detail-content"
+			set:html={detailHtmlContent}
+			id="post-content"
+			style={needPassword ? 'display:none' : undefined}
+		/>
+		{!isDeleted && !needPassword && <p class="post-detail-visibility">{visibilityLabel}</p>}
+
+		<!-- 标签列表 -->
+		{
+			hasTags && !isDeleted && !needPassword && (
+				<div class="post-detail-tags">
+					{postTags.map((tag) => (
+						<a href={`/tags/${tag.name}`} class="post-detail-tag">
+							{tag.name}
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		<!-- 提及用户列表 -->
+		{
+			hasMentions && !isDeleted && !needPassword && (
+				<div class="post-detail-mentions">
+					<span class="post-detail-mentions-label">提及：</span>
+					{mentionedUsers.map((user) => (
+						<a href={`/${user.username}`} class="post-detail-mention">
+							@{user.username}
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		{
+			hasImages &&
+				!isDeleted &&
+				!needPassword &&
+				(isWeiboPost ? (
+					<WeiboMediaGallery images={images} lightbox />
+				) : (
+					<div
+						class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
+					>
+						{images.map((media) => (
+							<div class="post-detail-image-item">
+								<img
+									src={`/uploads/${media.fileStorage.filePath}`}
+									alt=""
+									loading="lazy"
+									data-lightbox="true"
+								/>
+							</div>
+						))}
+					</div>
+				))
+		}
+
+		{
+			hasAttachments && !isDeleted && !needPassword && (
+				<div class="post-detail-attachments">
+					{attachments.map((media) => (
+						<a
+							href={`/uploads/${media.fileStorage.filePath}`}
+							class="post-detail-attachment"
+							download
+						>
+							📎 {media.originalName || media.fileStorage.filePath.split('/').pop()}
+							<span class="post-detail-attachment-size">
+								({(media.fileStorage.fileSize / 1024).toFixed(1)} KB)
+							</span>
+						</a>
+					))}
+				</div>
+			)
+		}
+
+		<!-- 点赞区域：单行布局，头像 + 数量 + 用户头像列表 -->
+		{
+			!isDeleted && !needPassword && !isBlog && (
+				<div class="post-detail-like" id="post-like-section">
+					{isWeibo ? (
+						<WeiboPostActions
+							postId={post.id}
+							username={post.user.username}
+							likeCount={likeCount}
+							liked={liked}
+							bookmarkCount={bookmarkCount}
+							bookmarked={bookmarked}
+							commentCount={commentCount}
+						/>
+					) : (
+						<>
+							<LikeButton
+								postId={post.id}
+								initialLiked={liked}
+								initialLikeCount={likeCount}
+								textOnly={true}
+							/>
+							<BookmarkButton
+								postId={post.id}
+								initialBookmarked={bookmarked}
+								initialBookmarkCount={bookmarkCount}
+								textOnly={true}
+							/>
+							<a href="#post-comments" class="post-detail-comment-link">
+								回复 {commentCount}
+							</a>
+						</>
+					)}
+					{likeUsers.length > 0 && (
+						<div class="like-users" id="like-users-list">
+							{likeUsers.slice(0, 10).map((u) => (
+								<a
+									href={`/${u.username}`}
+									class="like-user-avatar"
+									title={u.displayName}
+								>
+									{u.avatarUrl ? (
+										<img src={u.avatarUrl} alt={u.displayName} loading="lazy" />
+									) : (
+										<span class="like-avatar-placeholder">
+											{u.displayName.charAt(0).toUpperCase()}
+										</span>
+									)}
+								</a>
+							))}
+							{likeUsers.length > 10 && (
+								<span
+									class="like-users-more"
+									title={`还有 ${likeUsers.length - 10} 人点赞`}
+								>
+									+{likeUsers.length - 10}
+								</span>
+							)}
+						</div>
+					)}
+				</div>
+			)
+		}
+		{
+			isBlog && !isDeleted && !needPassword && (previousBlog || nextBlog) && (
+				<nav class="post-detail-article-nav" aria-label="同作者文章导航">
+					{previousBlog ? (
+						<a href={`/${post.user.username}/${previousBlog.id}`}>
+							<span>上一篇</span>
+							<strong>
+								{previousBlog.title || getAsideExcerpt(previousBlog.content, 48)}
+							</strong>
+						</a>
+					) : (
+						<span class="post-detail-article-nav-empty">上一篇：没有更早的文章</span>
+					)}
+					{nextBlog ? (
+						<a href={`/${post.user.username}/${nextBlog.id}`}>
+							<span>下一篇</span>
+							<strong>
+								{nextBlog.title || getAsideExcerpt(nextBlog.content, 48)}
+							</strong>
+						</a>
+					) : (
+						<span class="post-detail-article-nav-empty">下一篇：没有更新的文章</span>
+					)}
+				</nav>
+			)
+		}
+	</article>
+
+	<!-- 评论区域 -->
+	{
+		isLocked && !isDeleted && !needPassword && (
+			<section class="post-detail-comments" id="post-comments">
+				<p class="post-detail-locked-hint">🔒 帖子已锁定，评论不可见</p>
+			</section>
+		)
+	}
+	{
+		!isDeleted && !needPassword && !isLocked && (
+			<section class="post-detail-comments" id="post-comments">
+				<CommentList
+					postId={post.id}
+					currentUser={currentUserForComponent}
+					initialComments={serializedComments}
+					initialSort={commentSortOrder}
+					commentCount={commentCount}
+					presentation={isForum ? 'forum' : isBlog ? 'blog' : 'weibo'}
+				/>
+			</section>
+		)
+	}
+</div>
+<style is:global>
+	.post-detail {
+		padding: 1rem 0;
+	}
+	.post-detail-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 1rem;
+	}
+	.post-detail-author {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		text-decoration: none;
+		color: var(--color-text);
+	}
+	.post-detail-author:hover .post-detail-name {
+		color: var(--color-primary);
+	}
+	.post-detail-avatar {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+	.post-detail-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-size: 1rem;
+		font-weight: 600;
+	}
+	.post-detail-author-info {
+		display: flex;
+		flex-direction: column;
+	}
+	.post-detail-name {
+		font-size: 0.9375rem;
+		font-weight: 600;
+		line-height: 1.2;
+	}
+	.post-detail-username {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+	.post-detail-time-group {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-end;
+	}
+	.post-detail-time {
+		font-size: 0.8125rem;
+		color: var(--color-muted);
+	}
+	.post-detail-edited {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+	.post-detail-owner-toolbar {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: 0.5rem;
+		margin-left: auto;
+	}
+	.post-detail-owner-toolbar .btn {
+		min-height: 2.25rem;
+		padding: 0.375rem 0.625rem;
+	}
+	.post-detail-content {
+		font-size: 1rem;
+		line-height: 1.7;
+		word-break: break-word;
+		padding: 0.5rem 0;
+	}
+	.post-detail-content p {
+		margin-bottom: 0.75rem;
+	}
+	.post-detail-content p:last-child {
+		margin-bottom: 0;
+	}
+	.post-detail-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.375rem;
+		margin-top: 0.5rem;
+	}
+	.post-detail-tag {
+		display: inline-block;
+		padding: 0.125rem 0.5rem;
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		background: var(--color-surface);
+		border-radius: 1rem;
+		text-decoration: none;
+		transition: background 0.2s;
+	}
+	.post-detail-tag:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+	}
+	.post-detail-mentions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.375rem;
+		margin-top: 0.5rem;
+	}
+	.post-detail-mentions-label {
+		font-size: 0.75rem;
+		color: var(--color-muted);
+	}
+	.post-detail-mention {
+		font-size: 0.75rem;
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	.post-detail-mention:hover {
+		text-decoration: underline;
+	}
+	.post-detail-images {
+		display: grid;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+
+	.post-detail-images-1 {
+		grid-template-columns: 1fr;
+	}
+	.post-detail-images-1 img {
+		width: 100%;
+		border-radius: 0.375rem;
+	}
+
+	.post-detail-images-2 {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.post-detail-images-3 {
+		grid-template-columns: 2fr 1fr;
+		grid-template-rows: 1fr 1fr;
+	}
+	.post-detail-images-3 .post-detail-image-item:first-child {
+		grid-row: 1 / 3;
+	}
+
+	.post-detail-images-4 {
+		grid-template-columns: 1fr 1fr;
+		grid-template-rows: 1fr 1fr;
+	}
+
+	.post-detail-images-grid {
+		grid-template-columns: 1fr 1fr 1fr;
+	}
+
+	.post-detail-image-item {
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		overflow: hidden;
+	}
+	.post-detail-image-item img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		cursor: pointer;
+		transition: transform 0.2s;
+		display: block;
+	}
+	.post-detail-image-item img:hover {
+		transform: scale(1.02);
+	}
+	.post-detail-attachments {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.post-detail-attachment {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		padding: 0.5rem 0.75rem;
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		text-decoration: none;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		transition: background 0.2s;
+	}
+	.post-detail-attachment:hover {
+		background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+	}
+	.post-detail-attachment-size {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.post-detail-like {
+		display: flex;
+		align-items: center;
+		gap: 1rem;
+		margin-top: 1rem;
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-article-nav {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		margin-top: 2.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-article-nav a,
+	.post-detail-article-nav-empty {
+		display: grid;
+		gap: 0.375rem;
+		min-width: 0;
+		color: var(--color-text);
+		font-size: 0.875rem;
+	}
+	.post-detail-article-nav a {
+		text-decoration: none;
+	}
+	.post-detail-article-nav a:hover strong {
+		color: var(--color-primary);
+	}
+	.post-detail-article-nav span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.post-detail-article-nav strong {
+		overflow: hidden;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.post-detail-article-nav a:last-child {
+		text-align: right;
+	}
+	.post-detail-article-nav-empty:last-child {
+		text-align: right;
+	}
+
+	.post-detail-comments {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	/* 相关推荐区域 */
+	.post-detail-similar {
+		margin-top: 1.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-similar-title {
+		font-size: 1rem;
+		font-weight: 600;
+		margin-bottom: 0.75rem;
+		color: var(--color-text);
+	}
+	.post-detail-similar-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+	.post-detail-similar-item {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		background: var(--color-surface);
+		border-radius: 0.375rem;
+		text-decoration: none;
+		color: var(--color-text);
+		transition: background 0.2s;
+	}
+	.post-detail-similar-item:hover {
+		background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+	}
+	.post-detail-similar-item-avatar {
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		object-fit: cover;
+		flex-shrink: 0;
+	}
+	.post-detail-similar-item-avatar-placeholder {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-size: 0.6875rem;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+	.post-detail-similar-item-content {
+		flex: 1;
+		min-width: 0;
+	}
+	.post-detail-similar-item-title {
+		font-size: 0.8125rem;
+		font-weight: 500;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.post-detail-similar-item-meta {
+		font-size: 0.6875rem;
+		color: var(--color-muted);
+		margin-top: 0.125rem;
+	}
+	.post-detail-locked-hint {
+		text-align: center;
+		color: var(--color-muted);
+		font-size: 0.9375rem;
+		padding: 1.5rem 0;
+	}
+	.post-detail-password-gate {
+		padding: 1.5rem;
+		text-align: center;
+		background: var(--color-surface);
+		border-radius: 0.5rem;
+		margin: 0.5rem 0;
+	}
+	.post-detail-password-hint {
+		font-size: 1rem;
+		margin-bottom: 1rem;
+	}
+	.post-detail-password-form {
+		display: flex;
+		gap: 0.5rem;
+		justify-content: center;
+	}
+	.post-detail-password-form .form-input {
+		max-width: 200px;
+	}
+	/* 论坛模式详情头部 */
+	.post-detail-forum-header {
+		margin-bottom: 1rem;
+	}
+	.post-detail-forum-title {
+		font-size: 1.5rem;
+		font-weight: 700;
+		margin: 0.5rem 0 1rem;
+		line-height: 1.4;
+	}
+	.post-detail-breadcrumb-link {
+		color: var(--color-primary);
+		text-decoration: none;
+	}
+	.post-detail-breadcrumb-link:hover {
+		text-decoration: underline;
+	}
+	.post-detail-breadcrumb-sep {
+		color: var(--color-muted);
+	}
+	.post-detail-breadcrumb-current {
+		color: var(--color-muted);
+	}
+	/* 博客模式详情头部 */
+	.post-detail-blog-header {
+		margin-bottom: 1rem;
+	}
+	.post-detail-blog-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		margin: 0 0 1rem;
+		line-height: 1.35;
+	}
+	.post-detail-blog-meta {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+	/* 微博模式副标题 */
+	.post-detail-subtitle {
+		font-size: 1.125rem;
+		font-weight: 600;
+		margin: 0 0 0.5rem;
+		color: var(--color-text);
+		opacity: 0.85;
+	}
+
+	/* 详情页严格沿用 A 模板的内容轴：博客/论坛两列，微博三列。 */
+	.post-detail-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 260px;
+		gap: 32px;
+		width: 100%;
+		padding: var(--spacing-8) 0 calc(var(--spacing-12) + 24px);
+	}
+
+	.post-detail-layout-blog {
+		grid-template-columns: minmax(0, 1fr) 220px;
+		gap: 56px;
+	}
+
+	.post-detail-layout-forum {
+		grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+	}
+
+	.post-detail-layout-weibo {
+		grid-template-columns: var(--layout-sidebar-width) minmax(0, 720px) 260px;
+	}
+
+	.post-detail-local-nav {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-1);
+		height: fit-content;
+		position: sticky;
+		top: calc(var(--navbar-height) + var(--spacing-6));
+	}
+
+	.post-detail-primary,
+	.post-detail-aside {
+		min-width: 0;
+	}
+
+	.post-detail-layout .post-detail {
+		display: block;
+		max-width: none;
+		margin: 0;
+		padding: 18px;
+		border: 1px solid var(--color-border);
+		border-radius: 10px;
+		background: var(--color-card-bg);
+	}
+
+	.post-detail-layout-blog .post-detail {
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+	}
+
+	.post-detail-layout-blog .post-detail-content {
+		max-width: none;
+		font-family: Georgia, 'Noto Serif SC', 'Songti SC', serif;
+		font-size: 1.0625rem;
+		line-height: 1.9;
+	}
+
+	.post-detail-layout-blog .post-detail-content h2 {
+		margin: 2.5rem 0 0.75rem;
+		font-size: 1.5rem;
+		line-height: 1.35;
+	}
+
+	.post-detail-layout-blog .post-detail-blog-meta {
+		padding: 15px 0;
+		border-top: 1px solid var(--color-border);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.post-detail-layout-blog .post-detail-blog-title {
+		margin: 0.5rem 0 0.8125rem;
+		font-size: clamp(1.8125rem, 4vw, 2.375rem);
+	}
+
+	.post-detail-topbar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin: 0 0 16px;
+	}
+
+	.post-detail-breadcrumb {
+		min-width: 0;
+		font-size: 0.8125rem;
+	}
+
+	.post-detail-breadcrumb a {
+		color: var(--color-muted);
+		text-decoration: none;
+	}
+
+	.post-detail-breadcrumb a:hover {
+		color: var(--color-primary);
+	}
+
+	.post-detail-layout-forum .post-detail-forum-header {
+		margin-bottom: 1.25rem;
+	}
+
+	.post-detail-layout-forum .post-detail-forum-title {
+		font-size: clamp(1.5rem, 3vw, 1.75rem);
+		margin-bottom: 1.25rem;
+	}
+
+	.post-detail-layout-forum .post-detail-header {
+		margin-bottom: 0;
+		padding: 0.75rem 0.875rem;
+		border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border));
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--color-primary) 4%, var(--color-card-bg));
+	}
+
+	.post-detail-forum-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-left: auto;
+	}
+
+	.post-detail-forum-actions .follow-form,
+	.post-detail-forum-actions .bookmark-btn-form {
+		margin: 0;
+	}
+
+	.post-detail-forum-actions .follow-btn,
+	.post-detail-forum-actions .bookmark-btn {
+		min-height: 2rem;
+		padding: 0.25rem 0.5rem;
+		font-size: 0.8125rem;
+	}
+
+	.post-detail-forum-actions .bookmark-count {
+		display: none;
+	}
+
+	.post-detail-layout-forum .post-detail-aside {
+		display: none;
+	}
+
+	.post-detail-layout-weibo .post-detail {
+		padding: 18px;
+	}
+
+	.post-detail-layout-weibo .ux-detail-kicker,
+	.post-detail-layout-weibo .post-detail-weibo-title {
+		display: none;
+	}
+
+	.post-detail-layout-weibo .post-detail-header {
+		margin-bottom: 1.125rem;
+	}
+
+	.post-detail-layout-weibo .post-detail-content {
+		padding: 0;
+		font-size: 1.125rem;
+		line-height: 1.75;
+	}
+
+	.post-detail-aside {
+		display: grid;
+		align-content: start;
+		gap: var(--spacing-5);
+	}
+
+	.post-detail-layout-blog .post-detail-aside {
+		padding-left: 16px;
+		border-left: 1px solid var(--color-border);
+	}
+
+	.post-detail-aside-section,
+	.post-detail-toc {
+		display: block;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: transparent;
+	}
+
+	.post-detail-toc {
+		position: sticky;
+		top: calc(var(--navbar-height) + var(--spacing-6));
+	}
+
+	.post-detail-aside-section h2,
+	.post-detail-toc-title {
+		margin: 0 0 10px;
+		font-size: 0.8125rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+	}
+
+	.post-detail-aside-list {
+		border-top: 1px solid var(--color-border);
+	}
+
+	.post-detail-aside-list a {
+		display: grid;
+		gap: 0.25rem;
+		padding: 10px 0;
+		border-bottom: 1px solid var(--color-border);
+		color: var(--color-text);
+		font-size: 0.875rem;
+		line-height: 1.45;
+	}
+
+	.post-detail-aside-list a:hover {
+		color: var(--color-primary);
+	}
+
+	.post-detail-aside-list small,
+	.post-detail-aside-empty,
+	.post-detail-author-card > p,
+	.post-detail-author-card > small {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		line-height: 1.55;
+	}
+
+	.post-detail-author-card > p {
+		margin: 10px 0 4px;
+	}
+
+	.post-detail-aside-author {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		color: var(--color-text);
+	}
+
+	.post-detail-aside-author img,
+	.post-detail-aside-author > span {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.post-detail-aside-author > span {
+		display: grid;
+		place-items: center;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-weight: 700;
+	}
+
+	.post-detail-layout .post-detail-comments {
+		margin-top: 26px;
+		padding-top: 0;
+		border-top: 0;
+	}
+
+	.post-detail-comment-link {
+		color: var(--color-muted);
+		font-size: 0.875rem;
+	}
+
+	.post-detail-comment-link:hover {
+		color: var(--color-primary);
+	}
+
+	.post-detail-layout .comment-list-header {
+		margin-bottom: 12px;
+		padding-bottom: 12px;
+	}
+
+	.post-detail-layout-blog .comment-list-title {
+		font-size: 1.1875rem;
+	}
+
+	.post-detail-layout-blog .comment-item {
+		padding: 16px 0;
+		border-top: 1px solid var(--color-border);
+		border-bottom: 0;
+	}
+
+	.post-detail-layout-blog .comment-form {
+		padding: 0 0 12px;
+		border: 0;
+		border-radius: 0;
+		background: transparent;
+	}
+
+	.post-detail-layout-blog .comment-form-textarea {
+		border-color: var(--color-border);
+	}
+
+	.post-detail-layout .comment-form {
+		margin: 0 0 12px;
+		padding: 12px;
+		border: 1px solid var(--color-border);
+		border-radius: 8px;
+		background: var(--color-surface);
+	}
+
+	.post-detail-layout .comment-form-textarea {
+		min-height: 76px;
+		border-color: transparent;
+		background: var(--color-card-bg);
+	}
+
+	.post-detail-layout .comment-item {
+		padding: 16px 0;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.post-detail-layout .comment-list-forum .comment-item {
+		padding: 16px 0;
+		border: 0;
+		border-bottom: 1px solid var(--color-border);
+		border-radius: 0;
+		background: transparent;
+	}
+
+	.post-detail-layout .comment-list-forum .comment-item + .comment-item {
+		margin-top: 0;
+	}
+
+	@media (min-width: 768px) and (max-width: 1023px) {
+		.post-detail-layout {
+			grid-template-columns: minmax(0, 1fr) 190px;
+			gap: 24px;
+		}
+
+		.post-detail-layout-weibo {
+			grid-template-columns: 48px minmax(0, 1fr) 190px;
+		}
+
+		.post-detail-layout-forum {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.post-detail-local-nav:not(.forum-category-sidebar) .sidebar-link {
+			justify-content: center;
+			width: 48px;
+			height: 48px;
+			padding: var(--spacing-2);
+			border-radius: var(--radius-full);
+		}
+
+		.post-detail-local-nav:not(.forum-category-sidebar)
+			.sidebar-link
+			span:not(.sidebar-link-icon) {
+			display: none;
+		}
+
+		.post-detail-layout-forum .forum-sidebar-group .sidebar-link-icon {
+			display: block;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.post-detail-layout,
+		.post-detail-layout-blog,
+		.post-detail-layout-weibo,
+		.post-detail-layout-forum {
+			display: block;
+			padding: var(--spacing-5) 0 calc(56px + var(--spacing-6));
+		}
+
+		.post-detail-layout-weibo .post-detail-local-nav {
+			display: none;
+		}
+
+		/* 论坛窄屏只保留正文中的顶部菜单，不让隐藏侧栏占据布局空间。 */
+		.post-detail-layout-forum .post-detail-local-nav {
+			display: none;
+		}
+
+		.post-detail-aside {
+			margin-top: var(--spacing-8);
+		}
+
+		.post-detail-layout-blog .post-detail-aside {
+			padding-left: 0;
+			border-left: 0;
+		}
+
+		.post-detail-toc {
+			position: static;
+		}
+
+		.post-detail-layout .post-detail {
+			padding: 16px;
+		}
+
+		.post-detail-owner-toolbar {
+			gap: 0.375rem;
+		}
+
+		.post-detail-owner-toolbar .btn {
+			min-height: 2rem;
+			padding: 0.25rem 0.5rem;
+			font-size: 0.8125rem;
+		}
+
+		.post-detail-topbar {
+			align-items: flex-start;
+			flex-wrap: wrap;
+		}
+
+		.post-detail-owner-toolbar {
+			margin-left: auto;
+		}
+
+		.post-detail-layout-blog .post-detail {
+			padding: 0;
+		}
+
+		.post-detail-layout-blog .post-detail-blog-meta {
+			align-items: flex-start;
+			gap: var(--spacing-3);
+			flex-direction: column;
+		}
+
+		.post-detail-layout-forum .post-detail-header {
+			align-items: flex-start;
+			gap: var(--spacing-3);
+		}
+
+		.post-detail-forum-actions {
+			flex-wrap: wrap;
+			justify-content: flex-end;
+		}
+
+		.post-detail-article-nav {
+			grid-template-columns: 1fr;
+			gap: 0.875rem;
+		}
+
+		.post-detail-article-nav a:last-child,
+		.post-detail-article-nav-empty:last-child {
+			text-align: left;
+		}
+	}
+</style>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	/**
+	 * 删除按钮交互逻辑
+	 *
+	 * 点击删除按钮后弹出确认对话框，
+	 * 确认后发送 DELETE 请求，成功后跳转到用户主页。
+	 */
+	const deleteBtn = document.getElementById('delete-btn');
+	if (deleteBtn) {
+		deleteBtn.addEventListener('click', async () => {
+			const postId = (deleteBtn as HTMLElement).dataset.postId;
+			const username = (deleteBtn as HTMLElement).dataset.username;
+
+			// 确认删除
+			if (
+				!(await MutanDialog.confirm('确定要删除这条帖子吗？删除后不可恢复。', {
+					title: '删除帖子',
+					danger: true
+				}))
+			) {
+				return;
+			}
+
+			try {
+				if (!postId) return;
+				const result = await actions.deletePost({ postId });
+				if (result.error) {
+					const errMsg = result.error.message || '删除失败';
+					await MutanDialog.alert(errMsg);
+					return;
+				}
+				// 删除成功，跳转到用户主页
+				window.location.href = `/${username}`;
+			} catch (e) {
+				await MutanDialog.alert(e instanceof Error ? e.message : '删除失败');
+			}
+		});
+	}
+
+	/**
+	 * 密码保护帖子验证逻辑
+	 *
+	 * 检查 sessionStorage 中是否有有效的密码验证记录，
+	 * 如果有则直接显示帖子内容。
+	 * 点击验证按钮后，发送密码验证请求，
+	 * 成功后将验证记录存入 sessionStorage 并显示帖子内容。
+	 */
+	const passwordGate = document.getElementById('password-gate');
+	const postContent = document.getElementById('post-content');
+	const verifyBtn = document.getElementById('verify-password-btn');
+	const passwordInput = document.getElementById('post-password-input') as HTMLInputElement | null;
+	const passwordError = document.getElementById('password-error');
+
+	if (passwordGate && postContent) {
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+
+		// 检查 sessionStorage 中是否有有效的密码验证记录
+		const storageKey = `post_pwd_${postId}`;
+		const storedExpiry = sessionStorage.getItem(storageKey);
+		if (storedExpiry) {
+			const expiryTime = parseInt(storedExpiry, 10);
+			if (Date.now() < expiryTime) {
+				// 密码验证未过期，直接显示帖子内容
+				passwordGate.style.display = 'none';
+				postContent.style.display = '';
+			} else {
+				// 已过期，清除记录
+				sessionStorage.removeItem(storageKey);
+			}
+		}
+
+		// 验证按钮点击事件
+		if (verifyBtn && passwordInput && passwordError) {
+			verifyBtn.addEventListener('click', async () => {
+				const password = passwordInput.value.trim();
+				if (!password) {
+					passwordError.textContent = '请输入密码';
+					passwordError.style.display = '';
+					return;
+				}
+
+				try {
+					const result = await actions.verifyPostPassword({ postId, password });
+
+					if (result.error) {
+						passwordError.textContent = result.error.message || '验证失败';
+						passwordError.style.display = '';
+						return;
+					}
+
+					if (result.data.valid) {
+						// 密码正确，记录过期时间到 sessionStorage
+						// 过期时间 = 当前时间 + PASSWORD_PROTECT_EXPIRE_MINUTES 分钟
+						const expireMinutes = 10; // 默认 10 分钟
+						const expiryTime = Date.now() + expireMinutes * 60 * 1000;
+						sessionStorage.setItem(storageKey, expiryTime.toString());
+
+						// 隐藏密码输入区域，显示帖子内容
+						passwordGate.style.display = 'none';
+						postContent.style.display = '';
+					} else {
+						passwordError.textContent = '密码错误，请重试';
+						passwordError.style.display = '';
+					}
+				} catch {
+					passwordError.textContent = '网络错误，请稍后重试';
+					passwordError.style.display = '';
+				}
+			});
+
+			// 回车键触发验证
+			passwordInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter') {
+					verifyBtn.click();
+				}
+			});
+		}
+	}
+
+	/**
+	 * 监听点赞状态变更，刷新点赞用户列表
+	 *
+	 * 用 createElement 逐个构建 DOM 节点替代 innerHTML 重建，
+	 * 避免闪动和样式丢失。
+	 */
+	window.addEventListener('post-like-changed', async (e) => {
+		const { postId } = (e as CustomEvent).detail;
+		if (!postId) return;
+
+		try {
+			const result = await actions.getPostLikers({ postId });
+			if (result.error) return;
+			const users = result.data.users as Array<{
+				username: string;
+				displayName: string;
+				avatarUrl: string;
+			}>;
+
+			const list = document.getElementById('like-users-list');
+			const section = document.getElementById('post-like-section');
+
+			if (users.length === 0) {
+				if (list) list.remove();
+				return;
+			}
+
+			// 用 createElement 构建新节点，避免 innerHTML 解析闪动
+			const maxShow = 10;
+			const shown = users.slice(0, maxShow);
+			const fragment = document.createDocumentFragment();
+
+			for (const u of shown) {
+				const a = document.createElement('a');
+				a.href = `/${u.username}`;
+				a.className = 'like-user-avatar';
+				a.title = u.displayName;
+
+				if (u.avatarUrl) {
+					const img = document.createElement('img');
+					img.src = u.avatarUrl;
+					img.alt = u.displayName;
+					a.appendChild(img);
+				} else {
+					const span = document.createElement('span');
+					span.className = 'like-avatar-placeholder';
+					span.textContent = u.displayName.charAt(0).toUpperCase();
+					a.appendChild(span);
+				}
+
+				fragment.appendChild(a);
+			}
+
+			if (users.length > maxShow) {
+				const more = document.createElement('span');
+				more.className = 'like-users-more';
+				more.title = `还有 ${users.length - maxShow} 人点赞`;
+				more.textContent = `+${users.length - maxShow}`;
+				fragment.appendChild(more);
+			}
+
+			if (list) {
+				list.replaceChildren(fragment);
+			} else if (section) {
+				const div = document.createElement('div');
+				div.className = 'like-users';
+				div.id = 'like-users-list';
+				div.appendChild(fragment);
+				section.appendChild(div);
+			}
+		} catch {
+			// 静默失败，不影响点赞按钮本身
+		}
+	});
+
+	/**
+	 * 置顶按钮交互逻辑
+	 *
+	 * 点击置顶/取消置顶按钮后，发送 PUT 请求切换状态，
+	 * 成功后更新按钮文字和 data-pinned 属性。
+	 */
+	const pinBtn = document.getElementById('pin-btn');
+	if (pinBtn) {
+		pinBtn.addEventListener('click', async () => {
+			const postId = (pinBtn as HTMLElement).dataset.postId;
+
+			try {
+				if (!postId) return;
+				const result = await actions.togglePin({ postId });
+				if (result.error) {
+					await MutanDialog.alert(result.error.message || '操作失败');
+					return;
+				}
+				// 更新按钮文字和状态
+				const isNowPinned = result.data.pinned;
+				(pinBtn as HTMLElement).dataset.pinned = isNowPinned ? 'true' : 'false';
+				pinBtn.textContent = isNowPinned ? '取消置顶' : '置顶';
+			} catch (e) {
+				const status =
+					typeof e === 'object' && e !== null && 'status' in e ? e.status : undefined;
+				if (status === 401) {
+					await MutanDialog.alert('请先登录', { title: '提示' });
+				} else {
+					await MutanDialog.alert(e instanceof Error ? e.message : '操作失败');
+				}
+			}
+		});
+	}
+
+	/**
+	 * 浏览行为追踪（本地阅读历史）
+	 *
+	 * 用户查看帖子详情页时，异步记录阅读历史，供推荐排除已读内容。
+	 * 仅登录用户触发，失败静默不影响页面。
+	 */
+	(async () => {
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+		if (!postId) return;
+
+		try {
+			await actions.recordRead({ postId });
+		} catch {
+			// 静默失败
+		}
+	})();
+
+	/**
+	 * 相关推荐加载逻辑
+	 *
+	 * 页面加载后通过 Astro Actions 获取与当前帖子相似的其他帖子，
+	 * 渲染为简洁的卡片列表。失败时静默隐藏推荐区域。
+	 * 仅在相关推荐区域存在时执行（登录用户且帖子可见）。
+	 */
+	(async () => {
+		const section = document.getElementById('similar-section');
+		const list = document.getElementById('similar-list');
+		if (!section || !list) return;
+
+		// 从路径中提取帖子 ID
+		const pathParts = window.location.pathname.split('/');
+		const postId = pathParts[pathParts.length - 1];
+		if (!postId) return;
+
+		const result = await actions.getSimilarPosts({ postId, n: 5 });
+		if (result.error || !result.data?.items?.length) {
+			// 无推荐结果或出错，不显示区域
+			return;
+		}
+
+		const items = result.data.items;
+		const fragment = document.createDocumentFragment();
+
+		for (const item of items) {
+			const a = document.createElement('a');
+			a.href = `/${item.user.username}/${item.id}`;
+			a.className = 'post-detail-similar-item';
+
+			// 头像
+			if (item.user.avatarUrl) {
+				const img = document.createElement('img');
+				img.src = item.user.avatarUrl;
+				img.alt = item.user.displayName;
+				img.className = 'post-detail-similar-item-avatar';
+				img.loading = 'lazy';
+				a.appendChild(img);
+			} else {
+				const span = document.createElement('span');
+				span.className = 'post-detail-similar-item-avatar-placeholder';
+				span.textContent = item.user.displayName.charAt(0).toUpperCase();
+				a.appendChild(span);
+			}
+
+			// 内容区
+			const contentDiv = document.createElement('div');
+			contentDiv.className = 'post-detail-similar-item-content';
+
+			const titleDiv = document.createElement('div');
+			titleDiv.className = 'post-detail-similar-item-title';
+			// 有标题用标题，否则用内容前 60 字符
+			titleDiv.textContent =
+				item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 60);
+
+			const metaDiv = document.createElement('div');
+			metaDiv.className = 'post-detail-similar-item-meta';
+			const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
+			const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
+			metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+
+			contentDiv.appendChild(titleDiv);
+			contentDiv.appendChild(metaDiv);
+			a.appendChild(contentDiv);
+			fragment.appendChild(a);
+		}
+
+		list.appendChild(fragment);
+		section.style.display = '';
+	})();
+</script>

@@ -1,0 +1,31 @@
+---
+import ImageLightbox from '@/components/ImageLightbox.astro';
+import PostDetailAside from '@/components/post-detail/PostDetailAside.astro';
+import PostDetailBody from '@/components/post-detail/PostDetailBody.astro';
+import ForumLayout from '@/layouts/ForumLayout.astro';
+import { SITE_TITLE } from '@/lib/config';
+import { getPostDetailJsonLd } from '@/lib/post-detail';
+import type { PostDetailModel } from '@/lib/post-detail';
+
+interface Props {
+	model: PostDetailModel;
+}
+const { model } = Astro.props;
+---
+
+<ForumLayout
+	title={model.seoTitle}
+	description={model.seoDescription}
+	ogTitle={`${model.seoTitle} - ${SITE_TITLE}`}
+	ogDescription={model.seoDescription}
+	ogType="article"
+	ogImage={model.ogImageUrl}
+	canonicalUrl={model.canonicalUrl}
+	noindex={model.isNotPublic}
+	jsonLd={getPostDetailJsonLd(model)}
+	hasAside={true}
+>
+	<PostDetailBody model={model} />
+	<div slot="aside" class="post-detail-aside"><PostDetailAside model={model} /></div>
+	<ImageLightbox />
+</ForumLayout>
