@@ -14,7 +14,7 @@ import ChannelShell from '@/components/ChannelShell.astro';
 import SearchBox from '@/components/SearchBox.astro';
 import SearchResults from '@/components/SearchResults.astro';
 import { prisma } from '@/lib/db';
-import { getModeLabel } from '@/lib/config';
+import { SITE_MODES, getModeLabel, isModeEnabled } from '@/lib/config';
 
 interface PostResult {
 	id: string;
@@ -58,7 +58,10 @@ const sort = Astro.url.searchParams.get('sort') === 'popular' ? 'popular' : 'lat
 // mode 过滤：all（全部，默认）、weibo、forum、blog
 const modeParam = Astro.url.searchParams.get('mode') || 'all';
 const validModes = ['all', 'weibo', 'forum', 'blog'];
-const modeFilter = validModes.includes(modeParam) ? modeParam : 'all';
+const modeFilter =
+	validModes.includes(modeParam) && (modeParam === 'all' || isModeEnabled(modeParam))
+		? modeParam
+		: 'all';
 // 分类过滤：categoryId 参数
 const categoryIdParam = Astro.url.searchParams.get('categoryId')?.trim() || '';
 
@@ -66,7 +69,7 @@ const categoryIdParam = Astro.url.searchParams.get('categoryId')?.trim() || '';
 let categoryIdFilter = '';
 if (categoryIdParam) {
 	const cat = await prisma.category.findUnique({ where: { id: categoryIdParam } });
-	if (cat && (modeFilter === 'all' || cat.mode === modeFilter)) {
+	if (cat && isModeEnabled(cat.mode) && (modeFilter === 'all' || cat.mode === modeFilter)) {
 		categoryIdFilter = categoryIdParam;
 	}
 }
@@ -87,11 +90,10 @@ if (q) {
 		const where = {
 			visibility: 'public',
 			isDeleted: false,
+			mode: modeFilter === 'all' ? { in: SITE_MODES } : modeFilter,
 			content: { contains: q },
 			// 游标分页：只取创建时间早于游标的帖子
 			...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-			// mode 过滤
-			...(modeFilter !== 'all' ? { mode: modeFilter } : {}),
 			// 分类过滤
 			...(categoryIdFilter ? { categoryId: categoryIdFilter } : {})
 		};
@@ -299,21 +301,45 @@ function buildSearchUrl(params: {
 				>
 					综合
 				</a>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeWeibo }]}
-					>{getModeLabel('weibo')}</a
-				>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeForum }]}
-					>{getModeLabel('forum')}</a
-				>
-				<a
-					href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
-					class:list={['search-tab', { 'search-tab-active': isPostsTab && isModeBlog }]}
-					>{getModeLabel('blog')}</a
-				>
+			{
+				isModeEnabled('weibo') && (
+					<a
+						href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
+						class:list={[
+							'search-tab',
+							{ 'search-tab-active': isPostsTab && isModeWeibo }
+						]}
+					>
+						{getModeLabel('weibo')}
+					</a>
+				)
+			}
+			{
+				isModeEnabled('forum') && (
+					<a
+						href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
+						class:list={[
+							'search-tab',
+							{ 'search-tab-active': isPostsTab && isModeForum }
+						]}
+					>
+						{getModeLabel('forum')}
+					</a>
+				)
+			}
+			{
+				isModeEnabled('blog') && (
+					<a
+						href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
+						class:list={[
+							'search-tab',
+							{ 'search-tab-active': isPostsTab && isModeBlog }
+						]}
+					>
+						{getModeLabel('blog')}
+					</a>
+				)
+			}
 				<a
 					href={buildSearchUrl({ tab: 'users', categoryId: '' })}
 					class:list={['search-tab', { 'search-tab-active': isUsersTab }]}
