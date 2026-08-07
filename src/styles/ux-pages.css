@@ -643,6 +643,11 @@
 	min-height: calc(100vh - var(--navbar-height) - 88px);
 }
 
+/* 登录、注册页使用双栏壳，需让父容器容纳其 1040px 的内容宽度。 */
+.auth-container {
+	max-width: calc(1040px + var(--spacing-8));
+}
+
 .auth-page-shell {
 	display: grid;
 	grid-template-columns: minmax(0, 0.9fr) minmax(360px, 480px);
