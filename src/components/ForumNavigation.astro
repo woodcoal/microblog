@@ -38,70 +38,90 @@ const primaryItems = [
 		current: isForumHome && sort === 'featured'
 	}
 ];
+const activePrimaryItem = primaryItems.find((item) => item.current);
 ---
 
 <nav
 	class:list={['forum-category-sidebar', { 'post-detail-local-nav': presentation === 'detail' }]}
 	aria-label="论坛导航"
 >
-	<section class="forum-sidebar-group forum-sidebar-primary" aria-labelledby="forum-primary-nav">
-		<h2 id="forum-primary-nav">导航</h2>
-		{
-			primaryItems.map((item) => (
-				<a
-					href={item.href}
-					class="sidebar-link"
-					aria-current={item.current ? 'page' : undefined}
-					aria-label={item.label}
-					title={item.label}
-				>
-					<span class="sidebar-link-icon" aria-hidden="true">
-						{item.icon}
-					</span>
-					<span>{item.label}</span>
-				</a>
-			))
-		}
-	</section>
-	{
-		groups.length > 0 ? (
-			groups.map((group) => (
-				<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
-					<h2 id={`forum-group-${group.id}`}>
-						{group.icon && (
-							<span class="forum-sidebar-group-icon" aria-hidden="true">
-								{group.icon}
-							</span>
-						)}
-						{group.name}
-					</h2>
-					{group.children.map((category) => (
+	<details class="forum-menu-disclosure">
+		<summary title="展开论坛菜单">
+			<span class="forum-menu-summary-icon" aria-hidden="true">☰</span>
+			<span class="forum-menu-summary-label">论坛菜单</span>
+			<span class="forum-menu-summary-current">
+				{activePrimaryItem?.label || '板块'}
+			</span>
+			<span class="forum-menu-summary-chevron" aria-hidden="true">⌄</span>
+		</summary>
+		<div class="forum-menu-content">
+			<section
+				class="forum-sidebar-group forum-sidebar-primary"
+				aria-labelledby="forum-primary-nav"
+			>
+				<h2 id="forum-primary-nav">导航</h2>
+				{
+					primaryItems.map((item) => (
 						<a
-							href={`/forum/${category.slug}`}
+							href={item.href}
 							class="sidebar-link"
-							aria-current={
-								pathname === `/forum/${category.slug}` ? 'page' : undefined
-							}
-							aria-label={category.name}
-							title={category.name}
+							aria-current={item.current ? 'page' : undefined}
+							aria-label={item.label}
+							title={item.label}
 						>
-							<span
-								class:list={[
-									'sidebar-link-icon',
-									{ 'sidebar-link-icon-fallback': !category.icon }
-								]}
-								aria-hidden="true"
-							>
-								{category.icon || category.name.trim().charAt(0).toUpperCase()}
+							<span class="sidebar-link-icon" aria-hidden="true">
+								{item.icon}
 							</span>
-							<span>{category.name}</span>
-							<small>{category._count.posts}</small>
+							<span>{item.label}</span>
 						</a>
-					))}
-				</section>
-			))
-		) : (
-			<p class="forum-sidebar-empty">暂无版块</p>
-		)
-	}
+					))
+				}
+			</section>
+			{
+				groups.length > 0 ? (
+					groups.map((group) => (
+						<section
+							class="forum-sidebar-group"
+							aria-labelledby={`forum-group-${group.id}`}
+						>
+							<h2 id={`forum-group-${group.id}`}>
+								{group.icon && (
+									<span class="forum-sidebar-group-icon" aria-hidden="true">
+										{group.icon}
+									</span>
+								)}
+								{group.name}
+							</h2>
+							{group.children.map((category) => (
+								<a
+									href={`/forum/${category.slug}`}
+									class="sidebar-link"
+									aria-current={
+										pathname === `/forum/${category.slug}` ? 'page' : undefined
+									}
+									aria-label={category.name}
+									title={category.name}
+								>
+									<span
+										class:list={[
+											'sidebar-link-icon',
+											{ 'sidebar-link-icon-fallback': !category.icon }
+										]}
+										aria-hidden="true"
+									>
+										{category.icon ||
+											category.name.trim().charAt(0).toUpperCase()}
+									</span>
+									<span>{category.name}</span>
+									<small>{category._count.posts}</small>
+								</a>
+							))}
+						</section>
+					))
+				) : (
+					<p class="forum-sidebar-empty">暂无版块</p>
+				)
+			}
+		</div>
+	</details>
 </nav>
