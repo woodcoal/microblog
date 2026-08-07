@@ -52,6 +52,7 @@ import { hashPassword } from '@/lib/auth';
 const COMMENT_MAX_LENGTH = 1000;
 
 const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
+const CUSTOM_CATEGORY_MAX_LENGTH = 50;
 
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
 
@@ -221,6 +222,7 @@ export interface CreatePostInput {
 	mode?: string;
 	title?: string;
 	categoryId?: string;
+	customCategory?: string;
 }
 
 /** 更新帖子输入参数 */
@@ -235,6 +237,7 @@ export interface UpdatePostInput {
 	mode?: string;
 	title?: string;
 	categoryId?: string;
+	customCategory?: string;
 }
 
 /** 删除帖子输入参数 */
@@ -301,7 +304,8 @@ export async function createPost(input: CreatePostInput) {
 		allowedUserIds,
 		mode,
 		title,
-		categoryId
+		categoryId,
+		customCategory
 	} = input;
 
 	const postMode = (mode || 'weibo') as (typeof VALID_MODES)[number];
@@ -318,6 +322,20 @@ export async function createPost(input: CreatePostInput) {
 
 	if (postMode === 'forum' && (!categoryId || !categoryId.trim())) {
 		throw new ServiceError('BAD_REQUEST', '论坛模式下必须选择版块');
+	}
+
+	const normalizedCustomCategory = customCategory?.trim() || null;
+	if (normalizedCustomCategory && postMode !== 'blog') {
+		throw new ServiceError('BAD_REQUEST', '仅博客文章支持自定义分类');
+	}
+	if (normalizedCustomCategory && normalizedCustomCategory.length > CUSTOM_CATEGORY_MAX_LENGTH) {
+		throw new ServiceError(
+			'BAD_REQUEST',
+			`自定义分类不能超过 ${CUSTOM_CATEGORY_MAX_LENGTH} 个字符`
+		);
+	}
+	if (normalizedCustomCategory && categoryId?.trim()) {
+		throw new ServiceError('BAD_REQUEST', '请选择系统分类或填写自定义分类，不能同时设置');
 	}
 
 	if (categoryId && categoryId.trim()) {
@@ -410,7 +428,8 @@ export async function createPost(input: CreatePostInput) {
 			visibility: vis,
 			mode: postMode,
 			title: title?.trim() || null,
-			categoryId: categoryId?.trim() || null
+			categoryId: categoryId?.trim() || null,
+			customCategory: normalizedCustomCategory
 		},
 		mediaItems,
 		mentionUsernames,
@@ -455,7 +474,8 @@ export async function updatePost(input: UpdatePostInput) {
 		allowedUserIds,
 		mode,
 		title,
-		categoryId
+		categoryId,
+		customCategory
 	} = input;
 
 	// 1. 查询帖子
@@ -525,6 +545,20 @@ export async function updatePost(input: UpdatePostInput) {
 		if (!effectiveCategoryId || !effectiveCategoryId.trim()) {
 			throw new ServiceError('BAD_REQUEST', '论坛模式下必须选择版块');
 		}
+	}
+
+	const normalizedCustomCategory = customCategory?.trim() || null;
+	if (normalizedCustomCategory && postMode !== 'blog') {
+		throw new ServiceError('BAD_REQUEST', '仅博客文章支持自定义分类');
+	}
+	if (normalizedCustomCategory && normalizedCustomCategory.length > CUSTOM_CATEGORY_MAX_LENGTH) {
+		throw new ServiceError(
+			'BAD_REQUEST',
+			`自定义分类不能超过 ${CUSTOM_CATEGORY_MAX_LENGTH} 个字符`
+		);
+	}
+	if (normalizedCustomCategory && categoryId?.trim()) {
+		throw new ServiceError('BAD_REQUEST', '请选择系统分类或填写自定义分类，不能同时设置');
 	}
 
 	// 如果指定了 categoryId，验证分类存在且 mode 匹配
@@ -600,6 +634,15 @@ export async function updatePost(input: UpdatePostInput) {
 	}
 	if (categoryId !== undefined) {
 		updateData.categoryId = categoryId.trim() || null;
+		if (categoryId.trim()) {
+			updateData.customCategory = null;
+		}
+	}
+	if (customCategory !== undefined) {
+		updateData.customCategory = normalizedCustomCategory;
+		if (normalizedCustomCategory) {
+			updateData.categoryId = null;
+		}
 	}
 
 	// 10. 解析 @提及和 #标签

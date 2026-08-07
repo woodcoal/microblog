@@ -205,6 +205,15 @@ const hasBlogCategories = blogCategories.length > 0;
 									))}
 								</select>
 							)}
+							<input
+								type="text"
+								class="form-input blog-write-select"
+								id="blog-edit-custom-category"
+								value={post.customCategory || ''}
+								placeholder="自定义分类（可选）"
+								maxlength="50"
+								aria-label="自定义分类"
+							/>
 							<select
 								class="form-input blog-write-select"
 								id="blog-edit-visibility"
@@ -385,6 +394,9 @@ const hasBlogCategories = blogCategories.length > 0;
 		const categorySelect = document.getElementById(
 			'blog-edit-category'
 		) as HTMLSelectElement | null;
+		const customCategoryInput = document.getElementById(
+			'blog-edit-custom-category'
+		) as HTMLInputElement | null;
 		const formError = document.getElementById('blog-edit-error') as HTMLParagraphElement;
 		const saveBtn = document.getElementById('blog-edit-save') as HTMLButtonElement;
 		let loading = false;
@@ -399,6 +411,17 @@ const hasBlogCategories = blogCategories.length > 0;
 			formError.style.display = '';
 		}
 
+		if (categorySelect) {
+			categorySelect.addEventListener('change', () => {
+				if (categorySelect.value && customCategoryInput) customCategoryInput.value = '';
+			});
+		}
+		if (customCategoryInput) {
+			customCategoryInput.addEventListener('input', () => {
+				if (customCategoryInput.value.trim() && categorySelect) categorySelect.value = '';
+			});
+		}
+
 		// 监听 BlogEditor 的提交事件
 		blogContainer.addEventListener('blog-editor-submit', async (e: Event) => {
 			if (loading) return;
@@ -406,6 +429,7 @@ const hasBlogCategories = blogCategories.length > 0;
 			const customEvent = e as CustomEvent;
 			const content = customEvent.detail as string;
 			const title = titleInput.value.trim();
+			const customCategory = customCategoryInput?.value.trim() || '';
 
 			if (!content) {
 				showError('请输入文章内容');
@@ -429,7 +453,8 @@ const hasBlogCategories = blogCategories.length > 0;
 				content,
 				visibility: visibilitySelect.value,
 				title,
-				categoryId: categorySelect?.value || ''
+				categoryId: categorySelect?.value || '',
+				customCategory
 			});
 
 			if (result.error) {

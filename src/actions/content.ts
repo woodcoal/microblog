@@ -36,7 +36,8 @@ export const createPost = defineAction({
 		allowedUserIds: z.array(z.string()).optional(),
 		mode: z.string().optional(),
 		title: z.string().optional(),
-		categoryId: z.string().optional()
+		categoryId: z.string().optional(),
+		customCategory: z.string().optional()
 	}),
 	handler: async (input, context) => {
 		const currentUser = await getUserFromRequest(context);
@@ -68,7 +69,8 @@ export const updatePost = defineAction({
 		allowedUserIds: z.array(z.string()).optional(),
 		mode: z.string().optional(),
 		title: z.string().optional(),
-		categoryId: z.string().optional()
+		categoryId: z.string().optional(),
+		customCategory: z.string().optional()
 	}),
 	handler: async (input, context) => {
 		const currentUser = await getUserFromRequest(context);

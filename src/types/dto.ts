@@ -25,6 +25,7 @@ export interface TagDto {
 export interface PostDto {
 	id: string;
 	title: string | null;
+	customCategory: string | null;
 	content: string;
 	contentHtml: string;
 	mode: 'weibo' | 'forum' | 'blog';

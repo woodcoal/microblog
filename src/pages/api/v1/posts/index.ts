@@ -56,7 +56,8 @@ export const POST: APIRoute = async (context) => {
 			mediaIds,
 			password: stringValue(body.password, 'password', false),
 			allowedUserIds,
-			categoryId: stringValue(body.categoryId, 'categoryId', false)
+			categoryId: stringValue(body.categoryId, 'categoryId', false),
+			customCategory: stringValue(body.customCategory, 'customCategory', false)
 		});
 		return jsonResponse(await getPostForApi(result.id, auth.userId), 201);
 	} catch (error) {
