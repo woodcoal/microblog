@@ -359,6 +359,41 @@ const relatedForums = isForum
 		})
 	: [];
 
+// 博客文章导航只链接作者公开、未删除的其他博客，避免在公开详情中暴露不可访问文章。
+const [previousBlog, nextBlog] = isBlog
+	? await Promise.all([
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { lt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { lt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+				select: { id: true, title: true, content: true }
+			}),
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { gt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { gt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+				select: { id: true, title: true, content: true }
+			})
+		])
+	: [null, null];
+const blogCategoryLabel = post.customCategory ?? post.category?.name ?? '博客';
+
 // 渲染内容：forum/blog 模式使用 renderFullMarkdown（支持图片），weibo 使用受限版
 const htmlContent = isDeleted
 	? '<p>该内容已删除</p>'
@@ -491,11 +526,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						) : isBlog ? (
 							<a href={post.category ? `/blog/${post.category.slug}` : '/blog'}>
 								← 博客
-								{post.category
-									? ` / ${post.category.name}`
-									: post.customCategory
-										? ` / ${post.customCategory}`
-										: ''}
+								{blogCategoryLabel !== '博客' ? ` / ${blogCategoryLabel}` : ''}
 							</a>
 						) : (
 							<a href="/weibo">← 微博</a>
@@ -551,7 +582,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						post.mode === 'forum'
 							? '论坛讨论'
 							: post.mode === 'blog'
-								? '博客文章'
+								? blogCategoryLabel
 								: '微博动态'
 					}
 				</p>
@@ -617,7 +648,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 							{(post.category || post.customCategory) && (
 								<div class="post-detail-blog-category">
 									<span class="post-detail-blog-category-name">
-										{post.category?.name ?? post.customCategory}
+										{blogCategoryLabel}
 									</span>
 								</div>
 							)}
@@ -641,12 +672,13 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 											{post.user.displayName}
 										</span>
 										<span class="post-detail-username">
-											@{post.user.username} ·{' '}
 											{post.createdAt.toLocaleDateString('zh-CN', {
 												year: 'numeric',
 												month: 'long',
 												day: 'numeric'
-											})}
+											})}{' '}
+											· 喜欢 {likeCount} · 收藏 {bookmarkCount} ·{' '}
+											{commentCount} 条讨论
 										</span>
 									</div>
 								</a>
@@ -874,6 +906,37 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 						</div>
 					)
 				}
+				{
+					isBlog && !isDeleted && !needPassword && (previousBlog || nextBlog) && (
+						<nav class="post-detail-article-nav" aria-label="同作者文章导航">
+							{previousBlog ? (
+								<a href={`/${post.user.username}/${previousBlog.id}`}>
+									<span>上一篇</span>
+									<strong>
+										{previousBlog.title ||
+											getAsideExcerpt(previousBlog.content, 48)}
+									</strong>
+								</a>
+							) : (
+								<span class="post-detail-article-nav-empty">
+									上一篇：没有更早的文章
+								</span>
+							)}
+							{nextBlog ? (
+								<a href={`/${post.user.username}/${nextBlog.id}`}>
+									<span>下一篇</span>
+									<strong>
+										{nextBlog.title || getAsideExcerpt(nextBlog.content, 48)}
+									</strong>
+								</a>
+							) : (
+								<span class="post-detail-article-nav-empty">
+									下一篇：没有更新的文章
+								</span>
+							)}
+						</nav>
+					)
+				}
 			</article>
 
 			<!-- 评论区域 -->
@@ -941,6 +1004,24 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					</>
 				) : isBlog ? (
 					<>
+						{hasBlogHeadings && !needPassword && (
+							<nav class="post-detail-toc" aria-label="文章目录">
+								<p class="post-detail-toc-title">目录</p>
+								<ol>
+									{blogHeadings.map((heading) => (
+										<li
+											class={
+												heading.level === 3
+													? 'post-detail-toc-subitem'
+													: undefined
+											}
+										>
+											<a href={`#${heading.id}`}>{heading.text}</a>
+										</li>
+									))}
+								</ol>
+							</nav>
+						)}
 						<section class="post-detail-aside-section">
 							<h2>相关博客</h2>
 							{relatedPosts.length ? (
@@ -961,24 +1042,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 								<p class="post-detail-aside-empty">暂时没有相关博客。</p>
 							)}
 						</section>
-						{hasBlogHeadings && !needPassword && (
-							<nav class="post-detail-toc" aria-label="文章目录">
-								<p class="post-detail-toc-title">目录</p>
-								<ol>
-									{blogHeadings.map((heading) => (
-										<li
-											class={
-												heading.level === 3
-													? 'post-detail-toc-subitem'
-													: undefined
-											}
-										>
-											<a href={`#${heading.id}`}>{heading.text}</a>
-										</li>
-									))}
-								</ol>
-							</nav>
-						)}
 					</>
 				) : (
 					<>
@@ -1226,6 +1289,44 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		margin-top: 1rem;
 		padding-top: 0.75rem;
 		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-article-nav {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 1rem;
+		margin-top: 2.5rem;
+		padding-top: 1rem;
+		border-top: 1px solid var(--color-border);
+	}
+	.post-detail-article-nav a,
+	.post-detail-article-nav-empty {
+		display: grid;
+		gap: 0.375rem;
+		min-width: 0;
+		color: var(--color-text);
+		font-size: 0.875rem;
+	}
+	.post-detail-article-nav a {
+		text-decoration: none;
+	}
+	.post-detail-article-nav a:hover strong {
+		color: var(--color-primary);
+	}
+	.post-detail-article-nav span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.post-detail-article-nav strong {
+		overflow: hidden;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.post-detail-article-nav a:last-child {
+		text-align: right;
+	}
+	.post-detail-article-nav-empty:last-child {
+		text-align: right;
 	}
 
 	.post-detail-comments {
@@ -1749,6 +1850,16 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			align-items: flex-start;
 			gap: var(--spacing-3);
 			flex-direction: column;
+		}
+
+		.post-detail-article-nav {
+			grid-template-columns: 1fr;
+			gap: 0.875rem;
+		}
+
+		.post-detail-article-nav a:last-child,
+		.post-detail-article-nav-empty:last-child {
+			text-align: left;
 		}
 	}
 </style>
