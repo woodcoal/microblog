@@ -14,6 +14,8 @@
 import LikeButton from '@/components/LikeButton.astro';
 import BookmarkButton from '@/components/BookmarkButton.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
+import WeiboPostActions from '@/components/WeiboPostActions.astro';
+import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
 
@@ -177,41 +179,47 @@ const blogDate = isBlog
 ---
 
 <article class:list={['card post-card', `post-card-${postMode}`, { 'post-card-pinned': isPinned }]}>
-	<div class="post-card-header">
-		<a href={`/${post.user.username}`} class="post-card-author">
-			{
-				hasAvatar ? (
-					<img
-						src={post.user.avatarUrl}
-						alt={`${post.user.displayName} 的头像`}
-						class="post-card-avatar"
-						loading="lazy"
-					/>
-				) : (
-					<div class="post-card-avatar post-card-avatar-placeholder" aria-hidden="true">
-						{post.user.displayName.charAt(0).toUpperCase()}
+	{
+		postMode === 'weibo' ? (
+			<WeiboPostHeader user={post.user} createdAt={post.createdAt} />
+		) : (
+			<div class="post-card-header">
+				<a href={`/${post.user.username}`} class="post-card-author">
+					{
+						hasAvatar ? (
+							<img
+								src={post.user.avatarUrl}
+								alt={`${post.user.displayName} 的头像`}
+								class="post-card-avatar"
+								loading="lazy"
+							/>
+						) : (
+							<div class="post-card-avatar post-card-avatar-placeholder" aria-hidden="true">
+								{post.user.displayName.charAt(0).toUpperCase()}
+							</div>
+						)
+					}
+					<div class="post-card-author-info">
+						<span class="post-card-name">{post.user.displayName}</span>
+						<span class="post-card-username">@{post.user.username}</span>
 					</div>
-				)
-			}
-			<div class="post-card-author-info">
-				<span class="post-card-name">{post.user.displayName}</span>
-				<span class="post-card-username">@{post.user.username}</span>
+				</a>
+				<div class="post-card-header-right">
+					{/* 模式标签角标 */}
+					{
+						modeBadge && (
+							<span class={`badge ${modeBadge.cls} post-card-mode-badge`}>
+								{modeBadge.text}
+							</span>
+						)
+					}
+					<time class="post-card-time" datetime={post.createdAt}>
+						{isBlog ? blogDate : relativeTime}
+					</time>
+				</div>
 			</div>
-		</a>
-		<div class="post-card-header-right">
-			{/* 模式标签角标 */}
-			{
-				modeBadge && (
-					<span class={`badge ${modeBadge.cls} post-card-mode-badge`}>
-						{modeBadge.text}
-					</span>
-				)
-			}
-			<time class="post-card-time" datetime={post.createdAt}>
-				{isBlog ? blogDate : relativeTime}
-			</time>
-		</div>
-	</div>
+		)
+	}
 
 	{
 		isRestricted ? (
@@ -286,33 +294,47 @@ const blogDate = isBlog
 	}
 
 	<div class="post-card-footer">
-		<div class="post-card-actions" aria-label="帖子互动">
-			<LikeButton postId={post.id} initialLiked={liked} initialLikeCount={likeCount} />
-			<BookmarkButton
-				postId={post.id}
-				initialBookmarked={bookmarked}
-				initialBookmarkCount={bookmarkCount}
-			/>
-			<a
-				href={`/${post.user.username}/${post.id}`}
-				class="post-card-action"
-				aria-label={`${commentCount} 条评论`}
-			>
-				<svg
-					viewBox="0 0 24 24"
-					width="16"
-					height="16"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-				</svg>
-				<span>{commentCount}</span>
-			</a>
-		</div>
+		{
+			postMode === 'weibo' ? (
+				<WeiboPostActions
+					postId={post.id}
+					username={post.user.username}
+					likeCount={likeCount}
+					liked={liked}
+					bookmarkCount={bookmarkCount}
+					bookmarked={bookmarked}
+					commentCount={commentCount}
+				/>
+			) : (
+				<div class="post-card-actions" aria-label="帖子互动">
+					<LikeButton postId={post.id} initialLiked={liked} initialLikeCount={likeCount} />
+					<BookmarkButton
+						postId={post.id}
+						initialBookmarked={bookmarked}
+						initialBookmarkCount={bookmarkCount}
+					/>
+					<a
+						href={`/${post.user.username}/${post.id}`}
+						class="post-card-action"
+						aria-label={`${commentCount} 条评论`}
+					>
+						<svg
+							viewBox="0 0 24 24"
+							width="16"
+							height="16"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						>
+							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+						</svg>
+						<span>{commentCount}</span>
+					</a>
+				</div>
+			)
+		}
 		{
 			showVisibilityBadge && (
 				<span class="post-card-visibility-note">
