@@ -240,9 +240,17 @@
 	font-size: 0.8125rem;
 }
 
-.breadcrumb-link { color: var(--color-primary); }
-.breadcrumb-link:hover, .breadcrumb-link:focus-visible { text-decoration: underline; }
-.breadcrumb-current { color: var(--color-text); font-weight: 500; }
+.breadcrumb-link {
+	color: var(--color-primary);
+}
+.breadcrumb-link:hover,
+.breadcrumb-link:focus-visible {
+	text-decoration: underline;
+}
+.breadcrumb-current {
+	color: var(--color-text);
+	font-weight: 500;
+}
 
 /* forum-a：讨论项以作者、主题与回复信息构成可扫读的三段式行。 */
 [data-ux-shell='forum'] .post-list {
