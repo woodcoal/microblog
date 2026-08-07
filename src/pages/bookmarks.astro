@@ -2,7 +2,7 @@
 /**
  * 收藏列表页
  *
- * 展示当前用户收藏的所有帖子列表，按收藏时间倒序排列。
+ * 按已启用频道展示当前用户收藏的帖子，按收藏时间倒序排列。
  * 每个帖子卡片显示取消收藏按钮。
  * 需要认证，未登录重定向到登录页。
  */
@@ -14,12 +14,19 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getLikedPostIds } from '@/lib/queries';
 import { checkPostVisibility } from '@/lib/visibility';
+import { getModeLabel, isModeEnabled } from '@/lib/config';
 
 // 需要认证，未登录重定向
 const currentUser = await getUserFromRequest(Astro);
 if (!currentUser) {
 	return Astro.redirect('/login');
 }
+
+const bookmarkModes = ['blog', 'forum', 'weibo'].filter(isModeEnabled);
+const requestedMode = Astro.url.searchParams.get('tab');
+const activeMode = bookmarkModes.includes(requestedMode ?? '')
+	? requestedMode!
+	: (bookmarkModes[0] ?? 'weibo');
 
 // 每页显示数量
 const PAGE_SIZE = 20;
@@ -40,9 +47,9 @@ const followerRecords = await prisma.follow.findMany({
 });
 const followerIds = followerRecords.map((f) => f.followerId);
 
-// 查询当前用户收藏的帖子（通过 Bookmark 关联）
+// 查询当前频道内当前用户收藏的帖子（通过 Bookmark 关联）
 const bookmarks = await prisma.bookmark.findMany({
-	where: { userId: currentUser.userId, post: { isDeleted: false, mode: 'weibo' } },
+	where: { userId: currentUser.userId, post: { isDeleted: false, mode: activeMode } },
 	orderBy: { createdAt: 'desc' },
 	take: PAGE_SIZE + 1,
 	...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -71,6 +78,11 @@ const likedPostIds = await getLikedPostIds(currentUser.userId, postIds);
 
 // 是否有收藏
 const hasBookmarks = validItems.length > 0;
+const bookmarkTabHref = (mode: string, pageCursor?: string | null) => {
+	const params = new URLSearchParams({ tab: mode });
+	if (pageCursor) params.set('cursor', pageCursor);
+	return `/bookmarks?${params.toString()}`;
+};
 ---
 
 <AccountLayout
@@ -84,11 +96,27 @@ const hasBookmarks = validItems.length > 0;
 			<h1 class="page-title" id="bookmarks-page-title">我的收藏</h1>
 			<p>保存值得反复阅读和继续参与的内容。</p>
 		</header>
+		<nav class="bookmark-tabs" aria-label="收藏频道">
+			{
+				bookmarkModes.map((mode) => (
+					<a
+						href={bookmarkTabHref(mode)}
+						class:list={[
+							'bookmark-tab',
+							{ 'bookmark-tab-active': activeMode === mode }
+						]}
+						aria-current={activeMode === mode ? 'page' : undefined}
+					>
+						{getModeLabel(mode)}
+					</a>
+				))
+			}
+		</nav>
 
 		{
 			!hasBookmarks ? (
 				<div class="empty-state">
-					<p>还没有收藏任何帖子</p>
+					<p>还没有收藏{getModeLabel(activeMode)}内容</p>
 				</div>
 			) : (
 				<div class="post-list" id="bookmark-post-list">
@@ -158,14 +186,14 @@ const hasBookmarks = validItems.length > 0;
 		}
 		<InfinitePostList
 			listId="bookmark-post-list"
-			nextUrl={nextCursor ? `/bookmarks?cursor=${encodeURIComponent(nextCursor)}` : null}
+			nextUrl={nextCursor ? bookmarkTabHref(activeMode, nextCursor) : null}
 		/>
 
 		<!-- 分页 -->
 		{
 			hasMore && nextCursor && (
 				<div class="pagination" data-infinite-pagination="bookmark-post-list">
-					<a href={`/bookmarks?cursor=${nextCursor}`} class="btn btn-outline">
+					<a href={bookmarkTabHref(activeMode, nextCursor)} class="btn btn-outline">
 						加载更多
 					</a>
 				</div>
@@ -183,6 +211,31 @@ const hasBookmarks = validItems.length > 0;
 
 	.bookmark-post-item {
 		position: relative;
+	}
+
+	.bookmark-tabs {
+		display: flex;
+		gap: 0.5rem;
+		margin: 0 0 1.25rem;
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.bookmark-tab {
+		padding: 0.625rem 0.875rem;
+		border-bottom: 2px solid transparent;
+		color: var(--color-muted);
+		font-size: 0.875rem;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.bookmark-tab:hover {
+		color: var(--color-text);
+	}
+
+	.bookmark-tab-active {
+		border-bottom-color: var(--color-primary);
+		color: var(--color-primary);
 	}
 
 	.pagination {

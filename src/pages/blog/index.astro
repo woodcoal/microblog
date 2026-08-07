@@ -172,31 +172,6 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 ---
 
 <BlogLayout title={getModeLabel('blog')} hasAside={true}>
-	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
-		<a
-			href="/blog"
-			class="sidebar-link"
-			aria-current={!isBookmarkScope && blogSort === 'latest' && !hasFilter
-				? 'page'
-				: undefined}
-		>
-			<span class="sidebar-link-icon">⏰</span><span>最新</span>
-		</a>
-		<a
-			href={`/blog?sort=recommended${filterQuery}`}
-			class="sidebar-link"
-			aria-current={blogSort === 'recommended' ? 'page' : undefined}
-		>
-			<span class="sidebar-link-icon">✨</span><span>推荐</span>
-		</a>
-		<a
-			href={`/blog?sort=hot${filterQuery}`}
-			class="sidebar-link"
-			aria-current={blogSort === 'hot' ? 'page' : undefined}
-		>
-			<span class="sidebar-link-icon">🔥</span><span>热门</span>
-		</a>
-	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
 		<div class="page-header">
 			<div class="page-header-row">

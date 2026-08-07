@@ -1,0 +1,38 @@
+---
+/** 微博频道共享导航，由 WeiboLayout 统一注入。 */
+const currentPath = Astro.url.pathname;
+const sort = Astro.url.searchParams.get('sort');
+
+const items = [
+	{
+		href: '/weibo',
+		icon: '✨',
+		label: '推荐',
+		current: currentPath === '/weibo' && sort !== 'popular'
+	},
+	{
+		href: '/weibo?sort=popular',
+		icon: '🔥',
+		label: '热门',
+		current: currentPath === '/weibo' && sort === 'popular'
+	},
+	{ href: '/latest', icon: '⏰', label: '最新', current: currentPath.startsWith('/latest') }
+];
+---
+
+<nav class="channel-sidebar-group" aria-label="微博导航">
+	{
+		items.map((item) => (
+			<a
+				href={item.href}
+				class="sidebar-link"
+				aria-current={item.current ? 'page' : undefined}
+			>
+				<span class="sidebar-link-icon" aria-hidden="true">
+					{item.icon}
+				</span>
+				<span>{item.label}</span>
+			</a>
+		))
+	}
+</nav>
