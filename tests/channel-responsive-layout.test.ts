@@ -2,16 +2,40 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const pageStyles = await readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8');
+const [shell, baseStyles, weiboLayout, forumLayout, blogLayout, searchPage, notificationsPage] =
+	await Promise.all([
+		readFile(new URL('../src/components/ChannelShell.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/styles/base.css', import.meta.url), 'utf8'),
+		readFile(new URL('../src/layouts/WeiboLayout.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/layouts/BlogLayout.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/pages/search.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/pages/notifications.astro', import.meta.url), 'utf8')
+	]);
 
-test('1024 至 1199px 的频道列表与论坛详情保持受控阅读宽度', () => {
+test('共享壳以语义变体表达频道网格，并保留可访问的导航和辅助栏结构', () => {
+	assert.match(shell, /'three-column' \| 'nav-main' \| 'main-aside' \| 'single'/);
+	assert.match(shell, /channel-shell--\$\{variant\}/);
+	assert.match(shell, /<main class="channel-shell__main layout-main">/);
+	assert.match(shell, /aria-label="辅助内容"/);
+	assert.doesNotMatch(shell, /ContentListShell/);
+});
+
+test('三档响应式规则保护 1024px 阅读列，搜索和通知使用单列壳', () => {
+	assert.match(baseStyles, /max-width: 1500px/);
+	assert.match(baseStyles, /@media \(min-width: 768px\) and \(max-width: 1023px\)/);
+	assert.match(baseStyles, /@media \(max-width: 767px\)/);
+	assert.match(baseStyles, /@container \(max-width: 1324px\)/);
 	assert.match(
-		pageStyles,
-		/@media \(min-width: 1024px\) and \(max-width: 1199px\)[\s\S]*\[data-ux-shell='weibo'\] \.layout-wide/
+		baseStyles,
+		/\.channel-shell--three-column \.channel-shell__aside,[\s\S]*?display: none/
 	);
-	assert.match(pageStyles, /\.layout-wide \.layout-discovery-sidebar \{\s*display: none/);
-	assert.match(
-		pageStyles,
-		/\.post-detail-layout-forum > \.post-detail-primary \{\s*max-width: var\(--layout-content\);\s*margin-inline: auto/
-	);
+	assert.match(baseStyles, /\.channel-shell--single \{\s*max-width: 1024px/);
+	assert.match(baseStyles, /\.sidebar-link\[aria-label\]:focus-visible::after/);
+	for (const layout of [weiboLayout, forumLayout, blogLayout]) {
+		assert.match(layout, /import ChannelShell/);
+		assert.match(layout, /variant=\{hasDiscoveryAside \? 'three-column' : 'nav-main'\}/);
+	}
+	assert.match(searchPage, /<ChannelShell variant="single">/);
+	assert.match(notificationsPage, /<ChannelShell variant="single">/);
 });

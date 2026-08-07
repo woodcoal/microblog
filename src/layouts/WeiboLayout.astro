@@ -6,7 +6,7 @@
  * 用于首页、微博频道、用户主页等需要侧边栏的页面。
  */
 import BaseLayout from './Base.astro';
-import ContentListShell from '@/components/ContentListShell.astro';
+import ChannelShell from '@/components/ChannelShell.astro';
 import WeiboNavigation from '@/components/WeiboNavigation.astro';
 
 interface Props {
@@ -49,7 +49,11 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<ContentListShell navLabel="内容导航" hasAside={hasDiscoveryAside}>
+	<ChannelShell
+		navLabel="内容导航"
+		hasAside={hasDiscoveryAside}
+		variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
+	>
 		<Fragment slot="nav">
 			<WeiboNavigation />
 		</Fragment>
@@ -61,5 +65,5 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 				</Fragment>
 			)
 		}
-	</ContentListShell>
+	</ChannelShell>
 </BaseLayout>

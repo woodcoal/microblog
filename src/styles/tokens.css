@@ -53,9 +53,9 @@
 	/* ===== 布局 ===== */
 	--max-width: 760px;
 	--layout-content: 760px;
-	--layout-sidebar-width: 192px;
-	--layout-sidebar-collapsed: 64px;
-	--layout-wide: 1320px;
+	--layout-sidebar-width: 200px;
+	--layout-sidebar-collapsed: 100px;
+	--layout-wide: 1500px;
 	--layout-home: 1480px;
 	--layout-gap: 1.5rem;
 	--navbar-height: 64px;

@@ -1,0 +1,60 @@
+---
+/**
+ * 内容浏览页的统一响应式壳。
+ *
+ * 左侧由频道或搜索导航填充，中间保持受控阅读列，右侧只在页面提供真实发现
+ * 数据时渲染。任务型页面不使用此组件，避免为布局挤压其主流程。
+ */
+interface Props {
+	/** 左侧导航的无障碍名称；single 变体不渲染导航。 */
+	navLabel?: string;
+	/** 允许页面在发现数据为空时显式收起右栏。 */
+	hasAside?: boolean;
+	/** 由页面语义而非频道名称决定的布局形态。 */
+	variant?: 'three-column' | 'nav-main' | 'main-aside' | 'single';
+	/** 保留论坛导航的专用呈现钩子，不参与网格计算。 */
+	channel?: 'forum';
+}
+
+const {
+	navLabel,
+	hasAside = Astro.slots.has('aside'),
+	variant = hasAside ? 'three-column' : 'nav-main',
+	channel
+} = Astro.props;
+const rendersNav = variant === 'three-column' || variant === 'nav-main';
+const rendersAside = hasAside && (variant === 'three-column' || variant === 'main-aside');
+---
+
+<div class="channel-shell-frame">
+	<div
+		class:list={[
+			'channel-shell',
+			`channel-shell--${variant}`,
+			/* 旧类仅服务论坛菜单等内容样式；布局规则统一由 channel-shell 承担。 */
+			{
+				'layout-wide': rendersNav,
+				'layout-wide-with-aside': rendersAside,
+				'layout-wide-forum': channel === 'forum'
+			}
+		]}
+	>
+		{
+			rendersNav && (
+				<aside class="channel-shell__nav layout-sidebar" aria-label={navLabel}>
+					<slot name="nav" />
+				</aside>
+			)
+		}
+		<main class="channel-shell__main layout-main">
+			<slot />
+		</main>
+		{
+			rendersAside && (
+				<aside class="channel-shell__aside layout-discovery-sidebar" aria-label="辅助内容">
+					<slot name="aside" />
+				</aside>
+			)
+		}
+	</div>
+</div>

@@ -40,14 +40,14 @@
 ## 组件契约
 
 - `TopNav`：桌面按「品牌 / 频道 / 搜索 / 主题 / 通知 / 头像」排列；头像必须为最后元素。移动端隐藏频道文字，保留右侧账户入口。
-- `ContentShell`：主列最宽 760px；侧栏在小于 768px 时折叠为横向导航或移入页面底部。
+- `ChannelShell`：列表、搜索和通知共用的响应式壳。仅有 mobile `<768px`、tablet `768–1023px`、desktop `≥1024px` 三档；页面用 `three-column`、`nav-main`、`main-aside` 或 `single` 声明语义，不能复制频道网格。主列最宽 760px，搜索/通知的 `single` 最宽 1024px；tablet 为 100px 图标导航轨，desktop 为 200px，300px 右栏仅在实际有内容且不压缩阅读列时显示。
 - `FormField`：`label` 与输入控件关联；提交后呈现字段级错误；不只依赖 placeholder。
 - `AdminTable`：宽数据表允许自身横向滚动；页面根节点不能产生横向溢出；批量操作需要选中数量与二次确认。
 - `ThemeSelect`：写入现有主题属性值（`light`、`dark`、`eye-care`、`high-contrast`），而非原型的简化别名。
 
 ## 响应式与可访问性验收
 
-- 在 390 / 768 / 1024 / 1440px 检查根节点 `scrollWidth <= clientWidth`。
+- 在 375 / 767 / 768 / 1023 / 1024 / 1499 / 1500 / 1600px 检查根节点 `scrollWidth <= clientWidth`，并确认没有重复导航或断点跳变。
 - 顶部头像的右边界距视口不大于 24px；键盘 Tab 可进入主题、通知、头像和所有表单控件。
 - 关键文本与按钮满足 WCAG 2.2 AA；危险/成功状态同时使用文字，不能只依赖颜色。
 - 所有图片提供替代文本；图标按钮必须有 `aria-label`；动效遵从 `prefers-reduced-motion`。

@@ -432,19 +432,26 @@ body[data-ux-shell='home'] .navbar-inner {
 	width: 100%;
 }
 
-/* ===== 两栏布局（桌面 sidebar + 内容） ===== */
-.layout-wide {
-	max-width: var(--layout-wide);
+/* ===== 频道共享壳 =====
+ * 仅在这里定义列表页的页面级断点：mobile / tablet / desktop。
+ * 频道页面以 variant 表达语义，不能各自复制网格规则。
+ */
+.channel-shell {
+	width: 100%;
+	max-width: 1500px;
 	margin: 0 auto;
 	padding: var(--spacing-6) var(--spacing-4);
 	flex: 1;
-	width: 100%;
 	display: grid;
-	grid-template-columns: var(--layout-sidebar-width) 1fr;
 	gap: var(--layout-gap);
 }
 
-.layout-sidebar {
+.channel-shell-frame {
+	width: 100%;
+	container-type: inline-size;
+}
+
+.channel-shell__nav {
 	display: flex;
 	flex-direction: column;
 	gap: var(--spacing-1);
@@ -455,44 +462,58 @@ body[data-ux-shell='home'] .navbar-inner {
 	overflow-y: auto;
 }
 
-.layout-main {
+.channel-shell__main {
 	max-width: var(--layout-content);
 	width: 100%;
 	min-width: 0;
 }
 
-/* 未提供发现侧栏的微博列表使用剩余内容宽度，避免留下空白右栏。 */
-.layout-wide:not(.layout-wide-with-aside) .layout-main {
-	max-width: none;
+.channel-shell--three-column {
+	grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr) 300px;
 }
 
-/* 列表页可选择接入真实数据的发现侧栏；详情和账户页不传入 aside 时维持原布局。 */
-.layout-wide-with-aside {
-	max-width: var(--layout-home);
-	grid-template-columns: var(--layout-sidebar-width) minmax(0, var(--layout-content)) minmax(
-			220px,
-			272px
-		);
-	justify-content: center;
+.channel-shell--nav-main {
+	grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
 }
 
-.layout-content-with-aside {
-	max-width: 1120px;
-	display: grid;
-	grid-template-columns: minmax(0, var(--layout-content)) minmax(220px, 272px);
-	justify-content: center;
-	gap: clamp(var(--spacing-5), 3vw, var(--spacing-8));
+.channel-shell--main-aside {
+	grid-template-columns: minmax(0, 1fr) 300px;
 }
 
-.layout-content-main,
-.layout-discovery-sidebar {
+.channel-shell--single {
+	max-width: 1024px;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.channel-shell--three-column .channel-shell__main,
+.channel-shell--nav-main .channel-shell__main,
+.channel-shell--main-aside .channel-shell__main {
+	justify-self: center;
+}
+
+.channel-shell__aside {
 	min-width: 0;
-}
-
-.layout-discovery-sidebar {
 	position: sticky;
 	top: calc(var(--navbar-height) + var(--spacing-6));
 	height: fit-content;
+}
+
+/* 三栏内容不足以容纳 760px 阅读列时，辅助栏暂不占列。
+ * 这是容器条件而非第四个页面断点，1024px 的阅读列因此不被压缩。 */
+@container (max-width: 1324px) {
+	.channel-shell--three-column,
+	.channel-shell--main-aside {
+		grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
+	}
+
+	.channel-shell--main-aside {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.channel-shell--three-column .channel-shell__aside,
+	.channel-shell--main-aside .channel-shell__aside {
+		display: none;
+	}
 }
 
 /* ===== 桌面侧栏导航项 ===== */
@@ -1249,32 +1270,23 @@ mark.search-highlight {
 }
 
 /* ===== 响应式 ===== */
-@media (min-width: 768px) and (max-width: 1199px) {
-	/* 中等屏幕：侧栏折叠为图标-only，收起发现栏以保护主信息流宽度。 */
-	.layout-wide {
+@media (min-width: 768px) and (max-width: 1023px) {
+	/* tablet：100px 图标轨，收起辅助栏以保护主信息流。 */
+	.channel-shell--three-column,
+	.channel-shell--nav-main {
 		grid-template-columns: var(--layout-sidebar-collapsed) 1fr;
 		gap: var(--spacing-3);
 	}
 
-	.layout-sidebar {
+	.channel-shell__nav {
 		align-items: center;
 	}
 
-	.layout-main {
+	.channel-shell__main {
 		max-width: none;
 	}
 
-	.layout-wide-with-aside {
-		grid-template-columns: var(--layout-sidebar-collapsed) minmax(0, 1fr);
-	}
-
-	.layout-content-with-aside {
-		display: block;
-		max-width: var(--layout-content);
-	}
-
-	.layout-wide-with-aside .layout-discovery-sidebar,
-	.layout-content-with-aside .layout-discovery-sidebar {
+	.channel-shell__aside {
 		display: none;
 	}
 
@@ -1294,6 +1306,36 @@ mark.search-highlight {
 		font-size: 1.375rem;
 		width: auto;
 	}
+
+	.sidebar-link[aria-label] {
+		position: relative;
+	}
+
+	.sidebar-link[aria-label]::after {
+		position: absolute;
+		left: calc(100% + var(--spacing-2));
+		z-index: var(--z-tooltip, 400);
+		width: max-content;
+		max-width: 15rem;
+		padding: var(--spacing-1) var(--spacing-2);
+		border-radius: var(--radius-sm);
+		background: var(--color-text);
+		color: var(--color-card-bg);
+		content: attr(aria-label);
+		font-size: 0.8125rem;
+		opacity: 0;
+		pointer-events: none;
+		transform: translateX(-0.25rem);
+		transition:
+			opacity var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.sidebar-link[aria-label]:hover::after,
+	.sidebar-link[aria-label]:focus-visible::after {
+		opacity: 1;
+		transform: translateX(0);
+	}
 }
 
 @media (max-width: 767px) {
@@ -1305,19 +1347,18 @@ mark.search-highlight {
 		display: flex;
 	}
 
-	.layout-wide {
+	.channel-shell,
+	.channel-shell--three-column,
+	.channel-shell--nav-main,
+	.channel-shell--main-aside {
 		grid-template-columns: 1fr;
 	}
 
-	.layout-content-with-aside {
-		display: block;
-	}
-
-	.layout-discovery-sidebar {
+	.channel-shell__aside {
 		display: none;
 	}
 
-	.layout-sidebar {
+	.channel-shell__nav {
 		display: none;
 	}
 
@@ -1432,7 +1473,7 @@ mark.search-highlight {
 		padding: var(--spacing-4) var(--spacing-3);
 	}
 
-	.layout-wide {
+	.channel-shell {
 		padding: var(--spacing-4) var(--spacing-3);
 		padding-bottom: calc(56px + var(--spacing-4) + env(safe-area-inset-bottom, 0));
 	}

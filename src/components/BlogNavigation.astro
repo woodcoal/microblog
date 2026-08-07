@@ -41,6 +41,8 @@ const primaryItems = [
 					href={item.href}
 					class="sidebar-link"
 					aria-current={item.current ? 'page' : undefined}
+					aria-label={item.label}
+					title={item.label}
 				>
 					<span class="sidebar-link-icon" aria-hidden="true">
 						{item.icon}
@@ -61,6 +63,8 @@ const primaryItems = [
 						href={`/blog/${category.slug}`}
 						class="sidebar-link"
 						aria-current={pathname === `/blog/${category.slug}` ? 'page' : undefined}
+						aria-label={category.name}
+						title={category.name}
 					>
 						<span class="sidebar-link-icon" aria-hidden="true">
 							{category.icon || '◦'}

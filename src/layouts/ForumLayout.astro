@@ -6,7 +6,7 @@
  * 左侧导航由本布局统一提供，用于论坛首页与版块详情页，避免各页面重复维护。
  */
 import BaseLayout from './Base.astro';
-import ContentListShell from '@/components/ContentListShell.astro';
+import ChannelShell from '@/components/ChannelShell.astro';
 import ForumNavigation from '@/components/ForumNavigation.astro';
 
 interface Props {
@@ -48,7 +48,12 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<ContentListShell navLabel="论坛导航" hasAside={hasDiscoveryAside} variant="forum">
+	<ChannelShell
+		navLabel="论坛导航"
+		hasAside={hasDiscoveryAside}
+		variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
+		channel="forum"
+	>
 		<Fragment slot="nav">
 			<ForumNavigation />
 		</Fragment>
@@ -56,5 +61,5 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 		<Fragment slot="aside">
 			<slot name="aside" />
 		</Fragment>
-	</ContentListShell>
+	</ChannelShell>
 </BaseLayout>

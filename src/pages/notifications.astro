@@ -6,7 +6,8 @@
  * 支持按通知类型筛选（type 查询参数）和分页加载更多。
  * 需要登录，未登录重定向到 /login。
  */
-import UserLayout from '@/layouts/UserLayout.astro';
+import BaseLayout from '@/layouts/Base.astro';
+import ChannelShell from '@/components/ChannelShell.astro';
 import NotificationList from '@/components/NotificationList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -95,70 +96,76 @@ const filterOptions = [
 ];
 ---
 
-<UserLayout title="通知">
-	<section class="ux-notifications-page">
-		<!-- 标题栏 -->
-		<div class="notification-header">
-			<div>
-				<p class="ux-eyebrow">保持同步</p>
-				<h1 class="page-title">通知</h1>
+<BaseLayout title="通知">
+	<ChannelShell variant="single">
+		<section class="ux-notifications-page">
+			<!-- 标题栏 -->
+			<div class="notification-header">
+				<div>
+					<p class="ux-eyebrow">保持同步</p>
+					<h1 class="page-title">通知</h1>
+				</div>
+				<div class="notification-header-actions">
+					{
+						unreadCount > 0 && (
+							<button
+								type="button"
+								class="btn btn-outline"
+								data-action="mark-all-read"
+							>
+								全部已读
+							</button>
+						)
+					}
+					{
+						hasMoreInitial || displayNotifications.length > 0 ? (
+							<button
+								type="button"
+								class="btn btn-outline btn-danger-outline"
+								data-action="delete-all"
+							>
+								全部删除
+							</button>
+						) : null
+					}
+				</div>
 			</div>
-			<div class="notification-header-actions">
+
+			<!-- 类型筛选标签 -->
+			<nav class="notification-filters" aria-label="通知筛选">
 				{
-					unreadCount > 0 && (
-						<button type="button" class="btn btn-outline" data-action="mark-all-read">
-							全部已读
-						</button>
-					)
+					filterOptions.map((opt) => (
+						<a
+							href={`/notifications${opt.value ? `?type=${opt.value}` : ''}`}
+							class:list={['filter-tab', { active: typeFilter === opt.value }]}
+						>
+							{opt.label}
+						</a>
+					))
 				}
-				{
-					hasMoreInitial || displayNotifications.length > 0 ? (
+			</nav>
+
+			<!-- 通知列表 -->
+			<NotificationList notifications={serializedNotifications} unreadCount={unreadCount} />
+
+			<!-- 加载更多按钮 -->
+			{
+				hasMoreInitial && (
+					<div class="load-more-wrap">
 						<button
 							type="button"
-							class="btn btn-outline btn-danger-outline"
-							data-action="delete-all"
+							class="btn btn-outline load-more-btn"
+							data-action="load-more"
+							data-type-filter={typeFilter}
 						>
-							全部删除
+							加载更多
 						</button>
-					) : null
-				}
-			</div>
-		</div>
-
-		<!-- 类型筛选标签 -->
-		<nav class="notification-filters" aria-label="通知筛选">
-			{
-				filterOptions.map((opt) => (
-					<a
-						href={`/notifications${opt.value ? `?type=${opt.value}` : ''}`}
-						class:list={['filter-tab', { active: typeFilter === opt.value }]}
-					>
-						{opt.label}
-					</a>
-				))
+					</div>
+				)
 			}
-		</nav>
-
-		<!-- 通知列表 -->
-		<NotificationList notifications={serializedNotifications} unreadCount={unreadCount} />
-
-		<!-- 加载更多按钮 -->
-		{
-			hasMoreInitial && (
-				<div class="load-more-wrap">
-					<button
-						type="button"
-						class="btn btn-outline load-more-btn"
-						data-action="load-more"
-						data-type-filter={typeFilter}
-					>
-						加载更多
-					</button>
-				</div>
-			)
-		}
-	</section>
-</UserLayout>
+		</section>
+	</ChannelShell>
+</BaseLayout>
 
 <style>
 	/* 通知标题栏 */
