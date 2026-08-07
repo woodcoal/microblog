@@ -182,6 +182,11 @@
 	display: contents;
 }
 
+/* 小屏菜单在正文的标题／面包屑之前渲染，避免受侧栏定位和裁切影响。 */
+.forum-navigation--mobile {
+	display: none;
+}
+
 @media (min-width: 1200px) {
 	/* details 在大屏显式展开，避免浏览器的闭合默认样式隐藏常驻侧栏。 */
 	.forum-menu-disclosure[open] > .forum-menu-content {
@@ -1734,6 +1739,19 @@
 		overflow: visible;
 	}
 
+	.layout-wide-forum .forum-navigation--sidebar,
+	.post-detail-layout-forum .post-detail-local-nav.forum-navigation--sidebar {
+		display: none;
+	}
+
+	.layout-wide-forum .forum-navigation--mobile,
+	.post-detail-layout-forum .forum-navigation--mobile {
+		display: block;
+		flex: 0 0 48px;
+		position: relative;
+		width: 48px;
+	}
+
 	.layout-wide-forum .forum-category-sidebar,
 	.post-detail-layout-forum .forum-category-sidebar {
 		position: relative;
@@ -1868,7 +1886,7 @@
 	}
 
 	.layout-wide-forum .layout-sidebar {
-		display: block;
+		display: none;
 		position: static;
 		order: 0;
 		height: auto;
@@ -1878,6 +1896,34 @@
 
 	.layout-wide-forum .layout-main {
 		order: 1;
+	}
+
+	.layout-wide-forum .forum-navigation--sidebar,
+	.post-detail-layout-forum .post-detail-local-nav.forum-navigation--sidebar {
+		display: none;
+	}
+
+	.layout-wide-forum .forum-navigation--mobile,
+	.post-detail-layout-forum .forum-navigation--mobile {
+		display: block;
+		flex: 0 0 48px;
+		position: relative;
+		width: 48px;
+	}
+
+	/* 首页和板块页把触发器与其文案导航保持同一阅读行。 */
+	.page-header-row.forum-page-header-row,
+	.forum-page-heading.forum-page-heading--with-menu {
+		align-items: flex-start;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+	}
+
+	.forum-page-header-row > .site-copy-content-channel,
+	.forum-page-heading--with-menu .forum-heading-copy {
+		flex: 1 1 12rem;
+		min-width: 0;
 	}
 
 	.layout-wide-forum .forum-category-sidebar,

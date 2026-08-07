@@ -28,6 +28,7 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.match(navigation, /label: '推荐'/);
 	assert.match(navigation, /groups\.map/);
 	assert.match(navigation, /<details class="forum-menu-disclosure" open>/);
+	assert.match(navigation, /placement\?: 'sidebar' \| 'mobile'/);
 	assert.match(navigation, /论坛菜单/);
 	assert.match(navigation, /window\.matchMedia\('\(max-width: 1199px\)'\)/);
 	assert.doesNotMatch(navigation, /showCategoryGroups/);
@@ -39,5 +40,9 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.doesNotMatch(page, /slot="nav"/);
 	assert.doesNotMatch(categoryPage, /slot="nav"/);
 	assert.match(detailPage, /<ForumNavigation presentation="detail" \/>/);
+	assert.match(page, /<ForumNavigation placement="mobile" \/>/);
+	assert.match(categoryPage, /<ForumNavigation placement="mobile" \/>/);
+	assert.match(detailPage, /<ForumNavigation placement="mobile" \/>/);
+	assert.match(pageStyles, /forum-navigation--mobile/);
 	assert.doesNotMatch(detailPage, /forumGroups/);
 });

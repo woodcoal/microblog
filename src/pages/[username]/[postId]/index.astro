@@ -522,6 +522,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		{isForum && <ForumNavigation presentation="detail" />}
 		<div class="post-detail-primary">
 			<div class="post-detail-topbar">
+				{isForum && <ForumNavigation placement="mobile" />}
 				<nav class="post-detail-breadcrumb" aria-label="详情导航">
 					{
 						isForum ? (

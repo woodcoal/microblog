@@ -10,9 +10,11 @@ import { prisma } from '@/lib/db';
 interface Props {
 	/** 主题详情沿用相同菜单数据，仅追加详情页的定位与响应式布局类。 */
 	presentation?: 'channel' | 'detail';
+	/** 小屏触发器放在正文标题前；宽屏则保留由布局提供的常驻侧栏。 */
+	placement?: 'sidebar' | 'mobile';
 }
 
-const { presentation = 'channel' } = Astro.props;
+const { presentation = 'channel', placement = 'sidebar' } = Astro.props;
 const pathname = Astro.url.pathname;
 const sort = Astro.url.searchParams.get('sort') || 'latest';
 const isForumHome = pathname === '/forum';
@@ -42,7 +44,11 @@ const activePrimaryItem = primaryItems.find((item) => item.current);
 ---
 
 <nav
-	class:list={['forum-category-sidebar', { 'post-detail-local-nav': presentation === 'detail' }]}
+	class:list={[
+		'forum-category-sidebar',
+		`forum-navigation--${placement}`,
+		{ 'post-detail-local-nav': presentation === 'detail' && placement === 'sidebar' }
+	]}
 	aria-label="论坛导航"
 >
 	<details class="forum-menu-disclosure" open>
