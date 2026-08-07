@@ -25,7 +25,9 @@ if (!isModeEnabled('blog')) {
 // 需要认证，未登录重定向
 const currentUser = await getUserFromRequest(Astro);
 if (!currentUser) {
-	return Astro.redirect('/login');
+	const loginUrl = new URL('/login', Astro.url);
+	loginUrl.searchParams.set('redirect', Astro.url.pathname);
+	return Astro.redirect(loginUrl.toString());
 }
 
 // 查询博客分类列表

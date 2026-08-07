@@ -284,7 +284,9 @@ if (weiboMediaMaxWidthRaw !== undefined && !isValidWeiboMediaMaxWidth(weiboMedia
 export const WEIBO_MEDIA_MAX_WIDTH_PX = parseWeiboMediaMaxWidth(weiboMediaMaxWidthRaw);
 
 /** 解析启用的站点模式 */
-export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo')
+// 与 .env.example 保持一致：未显式配置时开放全部内容频道。
+// 站点仍可通过 SITE_MODES 收窄为单个或多个模式。
+export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo,forum,blog')
 	.split(',')
 	.map((m) => m.trim())
 	.filter((m): m is string => ['weibo', 'forum', 'blog'].includes(m));
