@@ -89,6 +89,7 @@ export interface TrendingFeedItem {
 	mode: string;
 	title: string | null;
 	categoryId: string | null;
+	customCategory: string | null;
 	user: { id: string; username: string; displayName: string; avatarUrl: string };
 	media: Array<{ id: string; fileType: string; fileStorage: { id: string; filePath: string; fileSize: number; mimeType: string; fileType: string } }>;
 	tags: Array<{ tag: { id: string; name: string } }>;

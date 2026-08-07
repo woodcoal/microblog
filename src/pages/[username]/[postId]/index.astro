@@ -645,13 +645,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 					) : isBlog && !isDeleted ? (
 						/* 博客模式：文章标题 + 分类 + 发布日期 */
 						<div class="post-detail-blog-header">
-							{(post.category || post.customCategory) && (
-								<div class="post-detail-blog-category">
-									<span class="post-detail-blog-category-name">
-										{blogCategoryLabel}
-									</span>
-								</div>
-							)}
 							{hasTitle && <h1 class="post-detail-blog-title">{post.title}</h1>}
 							<div class="post-detail-blog-meta">
 								<a href={`/${post.user.username}`} class="post-detail-author">
@@ -855,7 +848,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 
 				<!-- 点赞区域：单行布局，头像 + 数量 + 用户头像列表 -->
 				{
-					!isDeleted && !needPassword && (
+					!isDeleted && !needPassword && !isBlog && (
 						<div class="post-detail-like" id="post-like-section">
 							<LikeButton
 								postId={post.id}
@@ -1452,17 +1445,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	/* 博客模式详情头部 */
 	.post-detail-blog-header {
 		margin-bottom: 1rem;
-	}
-	.post-detail-blog-category {
-		margin-bottom: 0.5rem;
-	}
-	.post-detail-blog-category-name {
-		display: inline-block;
-		padding: 0.125rem 0.625rem;
-		font-size: 0.75rem;
-		color: var(--color-primary);
-		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-		border-radius: 1rem;
 	}
 	.post-detail-blog-title {
 		font-size: 1.75rem;
