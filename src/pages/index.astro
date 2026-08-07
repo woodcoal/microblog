@@ -70,6 +70,8 @@ const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
 
 const posts = unifiedTrending.items;
+const heroTrending = posts.slice(0, 3);
+const modeLabels: Record<string, string> = { weibo: '微博', forum: '论坛', blog: '博客' };
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(
@@ -130,23 +132,36 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				<a class="btn btn-outline" href="#home-channels">探索频道</a>
 			</div>
 		</div>
-		<div class="home-preview" aria-label="睦谈内容类型">
-			<div class="home-preview-chrome" aria-hidden="true">
-				<span></span><span></span><span></span>
+		<aside class="home-preview" aria-labelledby="hero-trending-title">
+			<div class="home-preview-head">
+				<h2 id="hero-trending-title">正在被讨论</h2>
+				<span>全站热门</span>
 			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">微</span>
-				<div><strong>记录此刻的想法</strong><small>短内容与即时互动</small></div>
-			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">论</span>
-				<div><strong>把问题聊透</strong><small>主题讨论与楼层回复</small></div>
-			</div>
-			<div class="home-preview-item">
-				<span class="home-preview-mark">博</span>
-				<div><strong>留下一篇长文</strong><small>可持续阅读与沉淀</small></div>
-			</div>
-		</div>
+			{
+				heroTrending.length > 0 ? (
+					<div class="home-preview-grid">
+						{heroTrending.map((post) => (
+							<a class="home-preview-item" href={`/${post.user.username}/${post.id}`}>
+								<span class="home-preview-mark" aria-hidden="true">
+									{modeLabels[post.mode]!.slice(0, 1)}
+								</span>
+								<span class="home-preview-copy">
+									<strong>{post.title || post.content.slice(0, 30)}</strong>
+									<small>
+										{modeLabels[post.mode]} ·{' '}
+										{post._count.comments > 0
+											? `${post._count.comments} 条讨论`
+											: '近期更新'}
+									</small>
+								</span>
+							</a>
+						))}
+					</div>
+				) : (
+					<p class="home-preview-empty">新的讨论正在出现。</p>
+				)
+			}
+		</aside>
 	</section>
 
 	<section class="home-channels" id="home-channels" aria-labelledby="home-channels-title">
@@ -258,11 +273,14 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				<div class="recommend-section-header">
 					<div>
 						<p class="home-eyebrow">为你准备</p>
-						<h2 id="recommend-title">从正在发生的讨论开始</h2>
+						<h2 id="recommend-title">从感兴趣的话题，认识这里的人</h2>
 						<p class="recommend-section-lede">
-							根据你的兴趣与社区中的真实互动，挑选值得停留的内容。
+							内容与创作者各自加载，不影响你继续浏览全站动态。
 						</p>
 					</div>
+					<a class="recommend-all-link" href="#home-feed">
+						全站动态 <span aria-hidden="true">→</span>
+					</a>
 				</div>
 				{shouldShowInterestOnboarding && (
 					<section
@@ -271,45 +289,38 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						aria-labelledby="interest-onboarding-title"
 					>
 						<div class="interest-onboarding-copy">
-							<p class="home-eyebrow">刚来睦谈？</p>
-							<h3 id="interest-onboarding-title">选几个感兴趣的话题</h3>
-							<p>可跳过；不选也会为你准备多样化的热门内容。</p>
+							<h3 id="interest-onboarding-title">先选几个感兴趣的话题？</h3>
+							<p>可多选，也可以跳过；这不会阻止你浏览或发布。</p>
 						</div>
 						<div class="interest-option-groups">
 							{interestTags.length > 0 && (
-								<div class="interest-option-group">
-									<span class="interest-option-label">话题</span>
-									<div class="interest-option-list">
-										{interestTags.map((tag) => (
-											<button
-												type="button"
-												class="interest-option"
-												aria-pressed="false"
-												data-interest-kind="tag"
-												data-interest-id={tag.id}
-											>
-												#{tag.name}
-											</button>
-										))}
-									</div>
+								<div class="interest-option-list">
+									{interestTags.map((tag) => (
+										<button
+											type="button"
+											class="interest-option"
+											aria-pressed="false"
+											data-interest-kind="tag"
+											data-interest-id={tag.id}
+										>
+											#{tag.name}
+										</button>
+									))}
 								</div>
 							)}
 							{interestCategories.length > 0 && (
-								<div class="interest-option-group">
-									<span class="interest-option-label">分类</span>
-									<div class="interest-option-list">
-										{interestCategories.map((category) => (
-											<button
-												type="button"
-												class="interest-option"
-												aria-pressed="false"
-												data-interest-kind="category"
-												data-interest-id={category.id}
-											>
-												{category.name}
-											</button>
-										))}
-									</div>
+								<div class="interest-option-list">
+									{interestCategories.map((category) => (
+										<button
+											type="button"
+											class="interest-option"
+											aria-pressed="false"
+											data-interest-kind="category"
+											data-interest-id={category.id}
+										>
+											{category.name}
+										</button>
+									))}
 								</div>
 							)}
 							{interestTags.length === 0 && interestCategories.length === 0 && (
@@ -322,10 +333,9 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 							<button type="button" class="btn btn-primary" data-interest-save>
 								开始看看
 							</button>
-							<button type="button" class="btn btn-outline" data-interest-skip>
+							<button type="button" class="btn btn-quiet" data-interest-skip>
 								跳过
 							</button>
-							<a href="/settings">稍后设置</a>
 						</div>
 						<p
 							class="interest-feedback"
@@ -341,7 +351,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						id="recommend-posts-panel"
 						aria-labelledby="recommend-posts-title"
 					>
-						<h3 id="recommend-posts-title">推荐帖子</h3>
+						<div class="recommend-panel-head">
+							<>
+								<h3 id="recommend-posts-title">内容推荐</h3>
+								<span>依据你的兴趣与全站热度</span>
+							</>
+						</div>
 						<div
 							class="recommend-status"
 							id="recommend-posts-status"
@@ -364,7 +379,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						id="recommend-users-panel"
 						aria-labelledby="recommend-users-title"
 					>
-						<h3 id="recommend-users-title">推荐用户</h3>
+						<div class="recommend-panel-head">
+							<>
+								<h3 id="recommend-users-title">推荐创作者</h3>
+								<span>可随时关注</span>
+							</>
+						</div>
 						<div
 							class="recommend-status"
 							id="recommend-users-status"
@@ -920,12 +940,257 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		font-size: 0.8125rem;
 	}
 
+	/* 与 home-recommendations.html 原稿保持同一阅读顺序与视觉节奏。 */
+	:global(.layout-home) {
+		display: flex;
+		flex-direction: column;
+	}
+	.home-hero {
+		order: 0;
+	}
+	.recommend-section {
+		order: 1;
+	}
+	.home-feed {
+		order: 2;
+	}
+	.home-channels {
+		order: 3;
+	}
+	.pagination {
+		order: 4;
+	}
+	.home-hero {
+		grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+		gap: clamp(2.5rem, 6vw, 4.25rem);
+		padding: clamp(3.125rem, 8vw, 6rem) 0 clamp(2.5rem, 6vw, 4rem);
+	}
+	.home-preview {
+		padding: var(--spacing-5);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow);
+	}
+	.home-preview-head {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		align-items: center;
+		padding-bottom: var(--spacing-3);
+	}
+	.home-preview-head h2 {
+		margin: 0;
+		font-size: 1rem;
+		letter-spacing: -0.02em;
+	}
+	.home-preview-head span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.home-preview-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-2);
+	}
+	.home-preview-item {
+		display: flex;
+		min-width: 0;
+		min-height: 112px;
+		flex-direction: column;
+		gap: var(--spacing-3);
+		padding: var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+		color: var(--color-text);
+		text-decoration: none;
+		transition: border-color 0.2s, background 0.2s;
+	}
+	.home-preview-item:hover,
+	.home-preview-item:focus-visible {
+		border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 5%, var(--color-surface));
+	}
+	.home-preview-mark {
+		width: 30px;
+		height: 30px;
+		border-radius: var(--radius-sm);
+	}
+	.home-preview-copy {
+		min-width: 0;
+	}
+	.home-preview-copy strong {
+		display: -webkit-box;
+		overflow: hidden;
+		font-size: 0.8125rem;
+		line-height: 1.4;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	.home-preview-copy small {
+		margin-top: var(--spacing-1);
+		font-size: 0.75rem;
+	}
+	.home-preview-empty {
+		margin: 0;
+		padding-top: var(--spacing-4);
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	.recommend-section {
+		margin-top: 0;
+		padding-top: var(--spacing-10);
+	}
+	.recommend-section-header {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+		align-items: end;
+		margin-bottom: var(--spacing-5);
+	}
+	.recommend-section-header h2 {
+		font-size: 1.5625rem;
+	}
+	.recommend-all-link {
+		color: var(--color-primary);
+		font-size: 0.875rem;
+		font-weight: 750;
+		white-space: nowrap;
+	}
+	.interest-onboarding {
+		grid-template-columns: minmax(200px, 1fr) minmax(340px, 1.4fr) auto;
+		gap: var(--spacing-5);
+		padding: var(--spacing-5);
+		border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+		background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card-bg));
+	}
+	.interest-onboarding-copy .home-eyebrow {
+		display: none;
+	}
+	.interest-option-groups {
+		display: block;
+	}
+	.interest-option-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+	.interest-option {
+		min-height: 44px;
+		font-size: 0.8125rem;
+	}
+	.interest-onboarding-actions {
+		justify-content: end;
+		gap: var(--spacing-1);
+	}
+	.interest-onboarding-actions .btn {
+		min-height: 44px;
+		padding-inline: var(--spacing-3);
+		font-size: 0.8125rem;
+	}
+	.recommend-grid {
+		gap: var(--spacing-5);
+	}
+	.recommend-panel {
+		padding: var(--spacing-5);
+		border-radius: var(--radius-lg);
+	}
+	.recommend-panel h3 {
+		margin: 0;
+	}
+	.recommend-panel-head {
+		display: flex;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		align-items: baseline;
+		margin-bottom: var(--spacing-4);
+	}
+	.recommend-panel-head span {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.recommend-list,
+	.recommend-user-list {
+		gap: 0;
+	}
+	.recommend-item {
+		grid-template-columns: 42px minmax(0, 1fr);
+		gap: var(--spacing-3);
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+		border-radius: 0;
+		background: transparent;
+	}
+	.recommend-item:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	.recommend-item:hover {
+		background: transparent;
+	}
+	.recommend-item-avatar,
+	.recommend-item-avatar-placeholder {
+		width: 42px;
+		height: 42px;
+		background: var(--color-surface);
+		color: var(--color-primary);
+	}
+	.recommend-item-title-link {
+		font-size: 0.875rem;
+		font-weight: 750;
+	}
+	.recommend-item-summary {
+		display: -webkit-box;
+		overflow: hidden;
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.45;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	.recommend-item-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		align-items: center;
+		margin-top: var(--spacing-2);
+	}
+	.recommend-item-reason {
+		display: inline-flex;
+		align-items: center;
+		min-height: 23px;
+		margin: 0;
+		padding: 1px 7px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+		font-size: 0.75rem;
+	}
+	.recommend-user-card {
+		gap: var(--spacing-3);
+		padding: var(--spacing-4) 0;
+	}
+	.recommend-follow-button {
+		min-height: 44px;
+		padding-inline: 11px;
+		font-size: 0.8125rem;
+	}
+	.home-feed {
+		max-width: none;
+		padding-top: var(--spacing-10);
+	}
+	.home-channels {
+		margin-top: var(--spacing-10);
+	}
+
 	@media (max-width: 1023px) {
 		.recommend-grid {
 			grid-template-columns: minmax(0, 1fr);
 		}
 		.interest-onboarding {
 			grid-template-columns: minmax(0, 1fr);
+		}
+		.interest-onboarding-actions {
+			justify-content: start;
 		}
 	}
 
@@ -948,6 +1213,14 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		.home-hero-actions .btn {
 			width: 100%;
 		}
+		.home-preview-grid {
+			grid-template-columns: 1fr;
+		}
+		.home-preview-item {
+			min-height: 0;
+			flex-direction: row;
+			align-items: flex-start;
+		}
 		.home-channels {
 			margin-inline: calc(50% - 50vw);
 			padding: var(--spacing-8) var(--spacing-4);
@@ -967,8 +1240,8 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			padding-top: var(--spacing-8);
 		}
 		.recommend-section {
-			margin-top: var(--spacing-8);
-			padding-top: var(--spacing-6);
+			margin-top: 0;
+			padding-top: var(--spacing-8);
 		}
 		.recommend-panel {
 			padding: var(--spacing-4);
@@ -987,20 +1260,307 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			min-height: 44px;
 		}
 		.interest-onboarding-actions {
-			display: grid;
-			grid-template-columns: 1fr 1fr;
+			display: flex;
 		}
 		.interest-onboarding-actions .btn {
 			min-height: 44px;
 		}
-		.interest-onboarding-actions a {
-			grid-column: 1 / -1;
+		.recommend-section-header {
+			align-items: start;
+			flex-direction: column;
+		}
+		.recommend-all-link {
+			min-height: 44px;
 			display: flex;
 			align-items: center;
-			min-height: 44px;
+		}
+		.recommend-user-card {
+			grid-template-columns: 44px minmax(0, 1fr);
+		}
+		.recommend-follow-button {
+			grid-column: 2;
+			justify-self: stretch;
+			width: 100%;
 		}
 		.recommend-follow-button {
 			min-height: 44px;
+		}
+	}
+</style>
+
+<!-- 推荐数据在浏览器内异步插入；这些类需要全局样式，不能依赖 Astro 的服务端作用域标记。 -->
+<style is:global>
+	#recommend-posts-list .recommend-skeleton {
+		position: relative;
+		height: 92px;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	#recommend-posts-list .recommend-skeleton::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+		content: '';
+		animation: recommend-skeleton-pulse 1.2s ease-in-out infinite alternate;
+	}
+	#recommend-posts-list .recommend-post {
+		color: var(--color-text);
+	}
+	#recommend-posts-list .recommend-post a {
+		color: inherit;
+		text-decoration: none;
+	}
+	#recommend-posts-list .recommend-post a:hover,
+	#recommend-posts-list .recommend-post a:focus-visible {
+		color: var(--color-primary);
+	}
+
+	/* 微博：作者行、正文和互动行，沿用微博动态的阅读顺序。 */
+	#recommend-posts-list .recommend-post-weibo {
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-posts-list .recommend-post-weibo:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-posts-list .recommend-weibo-header {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr) auto;
+		gap: var(--spacing-2);
+		align-items: center;
+	}
+	#recommend-posts-list .recommend-weibo-avatar {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-surface);
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	#recommend-posts-list .recommend-weibo-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-posts-list .recommend-weibo-author {
+		overflow: hidden;
+		font-size: 0.8125rem;
+		font-weight: 750;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#recommend-posts-list .recommend-weibo-header time,
+	#recommend-posts-list .recommend-weibo-actions {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	#recommend-posts-list .recommend-weibo-body {
+		display: -webkit-box;
+		overflow: hidden;
+		margin-top: var(--spacing-3);
+		line-height: 1.6;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+	}
+	#recommend-posts-list .recommend-weibo-actions {
+		margin-top: var(--spacing-3);
+	}
+
+	/* 论坛：保留头像、讨论标签、摘要和回复数的三段式信息。 */
+	#recommend-posts-list .recommend-post-forum {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr) 54px;
+		gap: var(--spacing-3);
+		align-items: start;
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
+	}
+	#recommend-posts-list .recommend-post-forum:hover {
+		border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+	}
+	#recommend-posts-list .recommend-forum-avatar {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-muted);
+		color: var(--color-primary-foreground);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	#recommend-posts-list .recommend-forum-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-posts-list .recommend-forum-tag,
+	#recommend-posts-list .recommend-blog-eyebrow {
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	#recommend-posts-list .recommend-forum-copy h4,
+	#recommend-posts-list .recommend-post-blog h4 {
+		margin: 3px 0 7px;
+		font-size: 1rem;
+		line-height: 1.35;
+	}
+	#recommend-posts-list .recommend-forum-copy p,
+	#recommend-posts-list .recommend-forum-meta {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.55;
+	}
+	#recommend-posts-list .recommend-forum-meta {
+		margin-top: 6px;
+	}
+	#recommend-posts-list .recommend-forum-replies {
+		color: var(--color-muted) !important;
+		font-size: 0.75rem;
+		text-align: center;
+	}
+	#recommend-posts-list .recommend-forum-replies b {
+		display: block;
+		color: var(--color-text);
+		font-size: 1.125rem;
+	}
+
+	/* 博客：恢复无卡片分隔文章行，而不是统一摘要条。 */
+	#recommend-posts-list .recommend-post-blog {
+		padding: var(--spacing-5) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-posts-list .recommend-post-blog:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-posts-list .recommend-post-blog h4 {
+		margin: 6px 0 8px;
+		font-size: 1.125rem;
+	}
+	#recommend-posts-list .recommend-blog-summary {
+		display: -webkit-box;
+		overflow: hidden;
+		max-width: 650px;
+		margin: 0 0 var(--spacing-3);
+		color: var(--color-muted);
+		line-height: 1.65;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	#recommend-posts-list .recommend-blog-meta {
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+
+	/* 推荐创作者与重新插入的骨架也不再丢失样式。 */
+	#recommend-users-list .recommend-skeleton {
+		position: relative;
+		height: 76px;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	#recommend-users-list .recommend-skeleton::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+		content: '';
+		animation: recommend-skeleton-pulse 1.2s ease-in-out infinite alternate;
+	}
+	#recommend-users-list .recommend-user-card {
+		display: grid;
+		grid-template-columns: 44px minmax(0, 1fr) auto;
+		gap: var(--spacing-3);
+		align-items: start;
+		padding: var(--spacing-4) 0;
+		border-top: 1px solid var(--color-border);
+	}
+	#recommend-users-list .recommend-user-card:first-child {
+		padding-top: 0;
+		border-top: 0;
+	}
+	#recommend-users-list .recommend-user-avatar,
+	#recommend-users-list .recommend-user-avatar-placeholder {
+		display: grid;
+		width: 44px;
+		height: 44px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-size: 0.875rem;
+		font-weight: 700;
+	}
+	#recommend-users-list .recommend-user-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	#recommend-users-list .recommend-user-copy {
+		min-width: 0;
+	}
+	#recommend-users-list .recommend-user-name {
+		display: block;
+		overflow: hidden;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 750;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	#recommend-users-list .recommend-user-handle,
+	#recommend-users-list .recommend-user-bio,
+	#recommend-users-list .recommend-user-social {
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		line-height: 1.45;
+	}
+	#recommend-users-list .recommend-user-bio {
+		display: -webkit-box;
+		overflow: hidden;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+	}
+	#recommend-users-list .recommend-user-social {
+		color: var(--color-primary);
+		font-weight: 650;
+	}
+	#recommend-users-list .recommend-follow-button {
+		align-self: center;
+		min-height: 44px;
+		padding-inline: 11px;
+		font-size: 0.8125rem;
+	}
+	@media (max-width: 767px) {
+		#recommend-posts-list .recommend-post-forum {
+			grid-template-columns: 36px minmax(0, 1fr) 42px;
+			padding: 14px;
+		}
+		#recommend-posts-list .recommend-forum-avatar {
+			width: 36px;
+			height: 36px;
+		}
+		#recommend-users-list .recommend-user-card {
+			grid-template-columns: 44px minmax(0, 1fr);
+		}
+		#recommend-users-list .recommend-follow-button {
+			grid-column: 2;
+			justify-self: stretch;
+			width: 100%;
 		}
 	}
 </style>
@@ -1105,61 +1665,114 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			?.querySelector<HTMLButtonElement>('[data-interest-skip]')
 			?.addEventListener('click', () => void saveInterestSelection(true));
 
+		function plainText(value: string, length: number) {
+			const text = value
+				.replace(/[#*`>\-[\]()!]/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim();
+			return text.length > length ? `${text.slice(0, length)}…` : text;
+		}
+
+		function recommendationReason(item: RecommendItem) {
+			return item.source === 'interest'
+				? '来自你已选的兴趣'
+				: item.source === 'exploration'
+					? '带你发现新的话题'
+					: '正在被讨论';
+		}
+
+		function appendAvatar(parent: HTMLElement, item: RecommendItem, className: string) {
+			const profile = document.createElement('a');
+			profile.href = `/${item.user.username}`;
+			profile.className = className;
+			profile.setAttribute('aria-label', `查看 ${item.user.displayName} 的主页`);
+			if (item.user.avatarUrl) {
+				const image = document.createElement('img');
+				image.src = item.user.avatarUrl;
+				image.alt = '';
+				image.loading = 'lazy';
+				profile.append(image);
+			} else {
+				profile.textContent = item.user.displayName.charAt(0).toUpperCase();
+			}
+			parent.append(profile);
+		}
+
+		function postLink(item: RecommendItem, className: string, text: string) {
+			const link = document.createElement('a');
+			link.href = `/${item.user.username}/${item.id}`;
+			link.className = className;
+			link.textContent = text;
+			return link;
+		}
+
 		function renderPosts(items: RecommendItem[]) {
 			const fragment = document.createDocumentFragment();
 			for (const item of items) {
+				const detail = `/${item.user.username}/${item.id}`;
+				const excerpt = plainText(item.content, item.mode === 'weibo' ? 140 : 120);
+				const title = item.title || excerpt || '查看内容';
+				const reason = recommendationReason(item);
 				const card = document.createElement('article');
-				card.className = 'recommend-item';
-				const profileUrl = `/${item.user.username}`;
 
-				const authorLink = document.createElement('a');
-				authorLink.href = profileUrl;
-				authorLink.setAttribute('aria-label', `查看 ${item.user.displayName} 的主页`);
-				if (item.user.avatarUrl) {
-					const img = document.createElement('img');
-					img.src = item.user.avatarUrl;
-					img.alt = '';
-					img.className = 'recommend-item-avatar';
-					img.loading = 'lazy';
-					authorLink.appendChild(img);
+				if (item.mode === 'forum') {
+					card.className = 'recommend-post recommend-post-forum';
+					appendAvatar(card, item, 'recommend-forum-avatar');
+					const copy = document.createElement('div');
+					copy.className = 'recommend-forum-copy';
+					const tag = document.createElement('span');
+					tag.className = 'recommend-forum-tag';
+					tag.textContent = item.category?.name || '讨论';
+					const heading = document.createElement('h4');
+					heading.append(postLink(item, 'recommend-forum-title', title));
+					const summary = document.createElement('p');
+					summary.textContent = excerpt;
+					const meta = document.createElement('p');
+					meta.className = 'recommend-forum-meta';
+					meta.textContent = `${item.user.displayName} · ${reason}`;
+					copy.append(tag, heading, summary, meta);
+					const replies = document.createElement('a');
+					replies.href = detail;
+					replies.className = 'recommend-forum-replies';
+					replies.setAttribute('aria-label', `${item.commentCount} 条回复`);
+					const count = document.createElement('b');
+					count.textContent = String(item.commentCount);
+					replies.append(count, document.createTextNode('回复'));
+					card.append(copy, replies);
+				} else if (item.mode === 'blog') {
+					card.className = 'recommend-post recommend-post-blog';
+					const eyebrow = document.createElement('span');
+					eyebrow.className = 'recommend-blog-eyebrow';
+					eyebrow.textContent = item.category?.name || '文章';
+					const heading = document.createElement('h4');
+					heading.append(postLink(item, 'recommend-blog-title', title));
+					const summary = document.createElement('p');
+					summary.className = 'recommend-blog-summary';
+					summary.textContent = excerpt;
+					const meta = document.createElement('footer');
+					meta.className = 'recommend-blog-meta';
+					meta.textContent = `${item.user.displayName} · ${new Date(item.createdAt).toLocaleDateString('zh-CN')} · ${item.likeCount} 喜欢 · ${item.commentCount} 评论 · ${reason}`;
+					card.append(eyebrow, heading, summary, meta);
 				} else {
-					const span = document.createElement('span');
-					span.className = 'recommend-item-avatar-placeholder';
-					span.textContent = item.user.displayName.charAt(0).toUpperCase();
-					authorLink.appendChild(span);
+					card.className = 'recommend-post recommend-post-weibo';
+					const header = document.createElement('header');
+					header.className = 'recommend-weibo-header';
+					appendAvatar(header, item, 'recommend-weibo-avatar');
+					const author = document.createElement('a');
+					author.href = `/${item.user.username}`;
+					author.className = 'recommend-weibo-author';
+					author.textContent = `${item.user.displayName} · @${item.user.username}`;
+					const time = document.createElement('time');
+					time.dateTime = item.createdAt;
+					time.textContent = new Date(item.createdAt).toLocaleDateString('zh-CN');
+					header.append(author, time);
+					const body = postLink(item, 'recommend-weibo-body', excerpt);
+					const footer = document.createElement('footer');
+					footer.className = 'recommend-weibo-actions';
+					footer.textContent = `${reason} · ${item.likeCount} 喜欢 · ${item.commentCount} 评论`;
+					card.append(header, body, footer);
 				}
-
-				// 内容区
-				const contentDiv = document.createElement('div');
-				contentDiv.className = 'recommend-item-content';
-
-				const titleLink = document.createElement('a');
-				titleLink.href = `/${item.user.username}/${item.id}`;
-				titleLink.className = 'recommend-item-title-link';
-				titleLink.textContent =
-					item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
-				const author = document.createElement('a');
-				author.href = profileUrl;
-				author.className = 'recommend-item-author';
-				author.textContent = `@${item.user.username}`;
-
-				const metaDiv = document.createElement('div');
-				metaDiv.className = 'recommend-item-meta';
-				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
-				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-				metaDiv.textContent = `${likeText.slice(3)}${commentText}`.replace(/^ · /, '');
-				const reason = document.createElement('p');
-				reason.className = 'recommend-item-reason';
-				reason.textContent =
-					item.source === 'interest'
-						? '来自你已选的兴趣'
-						: item.source === 'exploration'
-							? '带你发现新的话题'
-							: '正在被讨论';
-
-				contentDiv.append(titleLink, author, metaDiv, reason);
-				card.append(authorLink, contentDiv);
-				fragment.appendChild(card);
+				fragment.append(card);
 			}
 			postsListElement.replaceChildren(fragment);
 		}
