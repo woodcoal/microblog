@@ -41,6 +41,12 @@ function highlightKeyword(html: string, keyword: string): string {
 	return html.replace(regex, '$1<mark class="search-highlight">$2</mark>$3');
 }
 
+/** 综合搜索表格的正文列最多保留 100 个字符，避免长文本挤占其他字段。 */
+function getSearchResultPreview(value: string): string {
+	const normalized = value.replace(/\s+/g, ' ').trim();
+	return normalized.length > 100 ? `${normalized.slice(0, 100)}…` : normalized;
+}
+
 /** 帖子搜索结果数据 */
 interface PostResult {
 	id: string;
@@ -145,54 +151,75 @@ const usersPaginationBase = `/search?q=${encodeURIComponent(query)}&tab=users`;
 				<p>没有找到相关内容或用户</p>
 			</div>
 		) : (
-			<div class="search-result-list">
-				{allResults.map((result) => {
-					if (result.type === 'post') {
-						const post = result.value;
-						const htmlContent = highlightKeyword(renderMarkdown(post.content), query);
-						const relativeTime = formatRelativeTime(new Date(post.createdAt));
-						const postMode = post.mode || 'weibo';
-						const kind = getModeLabel(postMode);
-						return (
-							<article class="search-result-item">
-								<span class="search-result-kind">{kind}</span>
-								<div class="search-result-content">
-									<h2>
-										<a href={`/${post.user.username}/${post.id}`}>
-											{post.title || post.content.slice(0, 50)}
-										</a>
-									</h2>
-									<div class="search-result-excerpt" set:html={htmlContent} />
-									<p class="search-result-meta">
-										{post.user.displayName} · {relativeTime}
-									</p>
-								</div>
-							</article>
-						);
-					}
+			<div class="search-all-results-table-wrap">
+				<table class="search-all-results-table">
+					<colgroup>
+						<col class="search-all-results-type-column" />
+						<col />
+						<col class="search-all-results-author-column" />
+						<col class="search-all-results-time-column" />
+					</colgroup>
+					<thead>
+						<tr>
+							<th scope="col">类型</th>
+							<th scope="col">内容</th>
+							<th scope="col">作者</th>
+							<th scope="col">时间</th>
+						</tr>
+					</thead>
+					<tbody>
+						{allResults.map((result) => {
+							if (result.type === 'post') {
+								const post = result.value;
+								const preview = getSearchResultPreview(post.title || post.content);
+								const relativeTime = formatRelativeTime(new Date(post.createdAt));
+								const postMode = post.mode || 'weibo';
+								const kind = getModeLabel(postMode);
+								return (
+									<tr>
+										<td class="search-all-results-type">{kind}</td>
+										<td class="search-all-results-content" title={preview}>
+											<a href={`/${post.user.username}/${post.id}`}>
+												{preview}
+											</a>
+										</td>
+										<td class="search-all-results-author">
+											<a href={`/${post.user.username}`}>
+												{post.user.displayName}
+											</a>
+										</td>
+										<td class="search-all-results-time">
+											<time datetime={post.createdAt}>{relativeTime}</time>
+										</td>
+									</tr>
+								);
+							}
 
-					const user = result.value;
-					return (
-						<article class="search-result-item">
-							<span class="search-result-kind">用户</span>
-							<div class="search-result-content">
-								<h2>
-									<a href={`/${user.username}`}>{user.displayName}</a>
-								</h2>
-								{user.bio && (
-									<p
-										class="search-result-excerpt"
-										set:html={highlightKeyword(escapeHtml(user.bio), query)}
-									/>
-								)}
-								<p class="search-result-meta">
-									@{user.username} · {user.followerCount} 粉丝 · 已发布{' '}
-									{user.postCount} 条内容
-								</p>
-							</div>
-						</article>
-					);
-				})}
+							const user = result.value;
+							return (
+								<tr>
+									<td class="search-all-results-type">用户</td>
+									<td class="search-all-results-content" title={user.displayName}>
+										<a href={`/${user.username}`}>
+											{getSearchResultPreview(user.displayName)}
+										</a>
+									</td>
+									<td
+										class="search-all-results-author"
+										title={`@${user.username}`}
+									>
+										<a href={`/${user.username}`}>@{user.username}</a>
+									</td>
+									<td class="search-all-results-time">
+										<time datetime={user.createdAt}>
+											{formatRelativeTime(new Date(user.createdAt))}
+										</time>
+									</td>
+								</tr>
+							);
+						})}
+					</tbody>
+				</table>
 				{hasMoreAllResults && (
 					<a
 						href={`${allPaginationBase}&cursor=${nextAllCursor}`}
