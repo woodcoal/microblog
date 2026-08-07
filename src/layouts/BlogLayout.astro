@@ -7,6 +7,7 @@
  */
 import BaseLayout from './Base.astro';
 import ContentListShell from '@/components/ContentListShell.astro';
+import BlogNavigation from '@/components/BlogNavigation.astro';
 
 interface Props {
 	title?: string;
@@ -19,6 +20,8 @@ interface Props {
 	noindex?: boolean;
 	jsonLd?: Record<string, unknown>;
 	hasAside?: boolean;
+	/** 写作等任务页保留全宽工作区，浏览页默认注入共享导航。 */
+	showNavigation?: boolean;
 }
 
 const {
@@ -31,9 +34,10 @@ const {
 	canonicalUrl,
 	noindex,
 	jsonLd,
-	hasAside
+	hasAside,
+	showNavigation = true
 } = Astro.props;
-const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('aside'));
+const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 ---
 
 <BaseLayout
@@ -48,15 +52,17 @@ const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('as
 	jsonLd={jsonLd}
 >
 	{
-		isThreeColumn ? (
-			<ContentListShell navLabel="博客导航" hasAside={true}>
+		showNavigation ? (
+			<ContentListShell navLabel="博客导航" hasAside={hasDiscoveryAside}>
 				<Fragment slot="nav">
-					<slot name="nav" />
+					<BlogNavigation />
 				</Fragment>
 				<slot />
-				<Fragment slot="aside">
-					<slot name="aside" />
-				</Fragment>
+				{hasDiscoveryAside && (
+					<Fragment slot="aside">
+						<slot name="aside" />
+					</Fragment>
+				)}
 			</ContentListShell>
 		) : (
 			<div class="layout-full">

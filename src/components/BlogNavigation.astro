@@ -1,0 +1,85 @@
+---
+/**
+ * 博客频道共享导航。
+ *
+ * 浏览入口与分类都在此维护，博客首页和分类页只负责内容区，避免菜单在各页漂移。
+ */
+import { getUserFromRequest } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+
+const [currentUser, categories] = await Promise.all([
+	getUserFromRequest(Astro),
+	prisma.category.findMany({
+		where: { mode: 'blog' },
+		orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+		select: { id: true, name: true, slug: true, icon: true }
+	})
+]);
+
+const pathname = Astro.url.pathname;
+const sort = Astro.url.searchParams.get('sort') || 'latest';
+const scope = Astro.url.searchParams.get('scope');
+const isBlogHome = pathname === '/blog';
+const primaryItems = [
+	{
+		href: '/blog',
+		icon: '⏰',
+		label: '最新',
+		current: isBlogHome && sort === 'latest' && !scope
+	},
+	{
+		href: '/blog?sort=recommended',
+		icon: '✨',
+		label: '推荐',
+		current: isBlogHome && sort === 'recommended'
+	},
+	{ href: '/blog?sort=hot', icon: '🔥', label: '热门', current: isBlogHome && sort === 'hot' },
+	{
+		href: currentUser ? '/blog?scope=bookmarks' : '/login',
+		icon: '🔖',
+		label: '收藏',
+		current: isBlogHome && scope === 'bookmarks'
+	}
+];
+---
+
+<nav class="blog-category-sidebar" aria-label="博客导航">
+	<section class="channel-sidebar-group" aria-labelledby="blog-primary-nav">
+		<p class="sidebar-section-label" id="blog-primary-nav">浏览文章</p>
+		{
+			primaryItems.map((item) => (
+				<a
+					href={item.href}
+					class="sidebar-link"
+					aria-current={item.current ? 'page' : undefined}
+				>
+					<span class="sidebar-link-icon" aria-hidden="true">
+						{item.icon}
+					</span>
+					<span>{item.label}</span>
+				</a>
+			))
+		}
+	</section>
+	{
+		categories.length > 0 && (
+			<section class="channel-sidebar-group" aria-labelledby="blog-category-nav">
+				<p class="sidebar-section-label" id="blog-category-nav">
+					文章分类
+				</p>
+				{categories.map((category) => (
+					<a
+						href={`/blog/${category.slug}`}
+						class="sidebar-link"
+						aria-current={pathname === `/blog/${category.slug}` ? 'page' : undefined}
+					>
+						<span class="sidebar-link-icon" aria-hidden="true">
+							{category.icon || '◦'}
+						</span>
+						<span>{category.name}</span>
+					</a>
+				))}
+			</section>
+		)
+	}
+</nav>

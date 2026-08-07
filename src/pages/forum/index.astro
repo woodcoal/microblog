@@ -150,61 +150,6 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 ---
 
 <ForumLayout title={getModeLabel('forum')} hasAside={true}>
-	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
-		<section class="forum-sidebar-group forum-sidebar-home" aria-labelledby="forum-home-nav">
-			<h2 id="forum-home-nav">导航</h2>
-			<a
-				href="/forum"
-				class="sidebar-link"
-				aria-current={Astro.url.pathname === '/forum' ? 'page' : undefined}
-				aria-label="首页"
-				title="首页"
-			>
-				<span class="sidebar-link-icon">🏠</span><span>首页</span>
-			</a>
-		</section>
-		{
-			hasGroups ? (
-				groups.map((group) => (
-					<section
-						class="forum-sidebar-group"
-						aria-labelledby={`forum-group-${group.id}`}
-					>
-						<h2 id={`forum-group-${group.id}`}>
-							{group.icon && (
-								<span class="forum-sidebar-group-icon" aria-hidden="true">
-									{group.icon}
-								</span>
-							)}
-							{group.name}
-						</h2>
-						{group.children.map((category) => (
-							<a
-								href={`/forum/${category.slug}`}
-								class="sidebar-link"
-								aria-label={category.name}
-								title={category.name}
-							>
-								<span
-									class:list={[
-										'sidebar-link-icon',
-										{ 'sidebar-link-icon-fallback': !category.icon }
-									]}
-									aria-hidden="true"
-								>
-									{category.icon || category.name.trim().charAt(0).toUpperCase()}
-								</span>
-								<span>{category.name}</span>
-								<small>{category._count.posts}</small>
-							</a>
-						))}
-					</section>
-				))
-			) : (
-				<p class="forum-sidebar-empty">暂无版块</p>
-			)
-		}
-	</nav>
 	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
@@ -319,7 +264,7 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 			>
 			<a
 				href="/forum?sort=featured"
-				aria-current={forumSort === 'featured' ? 'page' : undefined}>精华</a
+				aria-current={forumSort === 'featured' ? 'page' : undefined}>推荐</a
 			>
 			<a href="/forum?sort=hot" aria-current={forumSort === 'hot' ? 'page' : undefined}
 				>热门</a

@@ -181,16 +181,19 @@
 	letter-spacing: 0.04em;
 }
 
-.weibo-sidebar-group {
+.weibo-sidebar-group,
+.channel-sidebar-group {
 	display: grid;
 	gap: var(--spacing-1);
 }
 
-.weibo-sidebar-group + .weibo-sidebar-group {
+.weibo-sidebar-group + .weibo-sidebar-group,
+.channel-sidebar-group + .channel-sidebar-group {
 	margin-top: var(--spacing-4);
 }
 
-.weibo-sidebar-group .sidebar-section-label {
+.weibo-sidebar-group .sidebar-section-label,
+.channel-sidebar-group .sidebar-section-label {
 	padding: 0 var(--spacing-3);
 	color: var(--color-muted);
 }
@@ -199,8 +202,15 @@
 	margin-top: var(--spacing-4);
 }
 
-.forum-sidebar-home {
+.forum-sidebar-primary {
 	margin-top: 0;
+}
+
+/* 内容入口是次级标签，弱化于真正的板块分组。 */
+.forum-sidebar-primary h2 {
+	font-size: 0.75rem;
+	font-weight: 600;
+	color: var(--color-muted);
 }
 
 .forum-sidebar-group small,
@@ -1704,6 +1714,10 @@
 	.layout-sidebar .weibo-sidebar-group + .weibo-sidebar-group {
 		margin-top: var(--spacing-3);
 	}
+
+	.layout-sidebar .channel-sidebar-group + .channel-sidebar-group {
+		margin-top: var(--spacing-3);
+	}
 }
 
 @media (max-width: 767px) {
@@ -1762,6 +1776,13 @@
 		font-size: 0.9375rem;
 		line-height: 1.35;
 		white-space: nowrap;
+	}
+
+	.layout-wide-forum .forum-sidebar-primary h2,
+	.post-detail-layout-forum .forum-sidebar-primary h2 {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		font-weight: 600;
 	}
 
 	.layout-wide-forum .forum-sidebar-group-icon,
