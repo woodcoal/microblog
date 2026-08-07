@@ -1,36 +1,35 @@
-/**
- * 管理后台 Service
- *
- * 编排管理员对用户、帖子、评论的批量操作和标签管理业务流程。
- * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
- */
-import {
-	batchDisableUsers,
-	batchEnableUsers,
-	createUser as createUserRecord,
-	findUserByEmail,
-	findUserByUsername
-} from '@/lib/user';
+/** 管理后台 Service：管理员处置、不可变审计、审计查询和既有管理能力。 */
+import { createUser as createUserRecord, findUserByEmail, findUserByUsername } from '@/lib/user';
 import { hashPassword } from '@/lib/auth';
-import {
-	batchSoftDeletePosts,
-	batchLockPosts,
-	batchUnlockPosts,
-	batchRestorePosts,
-	batchSetGlobalPinPosts
-} from '@/lib/post';
-import { batchSoftDeleteComments } from '@/lib/comment';
 import { findTagById, updateTagVisibility } from '@/lib/tag';
 import { ServiceError } from '@/lib/errors';
 import { PASSWORD_MIN_LENGTH, RESERVED_USERNAMES, USERNAME_PATTERN } from '@/lib/config';
+import { prisma } from '@/lib/db';
+import type { Prisma } from '../../generated/prisma/client';
+import type { AdminAuditLogDto } from '@/types/dto';
 
-/** 单次批量操作最大数量 */
 const MAX_BATCH_SIZE = 100;
-
-/** 邮箱格式正则，与前台注册保持一致。 */
+const MIN_REASON_LENGTH = 2;
+const MAX_REASON_LENGTH = 500;
+const DEFAULT_AUDIT_RANGE_DAYS = 90;
+const MAX_AUDIT_QUERY_LIMIT = 100;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Prisma 唯一约束错误（P2002）的最小结构，避免泄露底层错误信息。 */
+export const ADMIN_AUDIT_ACTIONS = [
+	'user.disable',
+	'user.enable',
+	'post.delete',
+	'post.restore',
+	'post.lock',
+	'post.unlock',
+	'post.pin',
+	'post.unpin',
+	'comment.delete'
+] as const;
+export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
+export type AdminAuditTargetType = 'user' | 'post' | 'comment';
+
 function isUniqueConstraintError(error: unknown): error is { code: string } {
 	return (
 		typeof error === 'object' &&
@@ -40,29 +39,42 @@ function isUniqueConstraintError(error: unknown): error is { code: string } {
 	);
 }
 
-// ── 类型定义 ──
-
 export interface BatchUsersInput {
 	action: 'disable' | 'enable';
 	ids: string[];
+	reason: string;
+	requestId: string;
+	operatorId: string;
 }
-
 export interface BatchPostsInput {
 	action: 'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin';
 	ids: string[];
-	reason?: string;
+	reason: string;
+	requestId: string;
 	operatorId: string;
 }
-
 export interface BatchCommentsInput {
 	ids: string[];
+	reason: string;
+	requestId: string;
+	operatorId: string;
 }
-
+export interface QueryAdminAuditLogsInput {
+	operatorId: string;
+	targetType?: AdminAuditTargetType;
+	action?: AdminAuditAction;
+	auditOperatorId?: string;
+	result?: 'success';
+	from?: string;
+	to?: string;
+	targetId?: string;
+	cursor?: { createdAt: string; id: string };
+	limit?: number;
+}
 export interface ToggleTagVisibilityInput {
 	tagId: string;
 	action: 'hide' | 'show';
 }
-
 export interface CreateUserInput {
 	username: string;
 	displayName?: string;
@@ -70,7 +82,6 @@ export interface CreateUserInput {
 	password: string;
 	role?: 'user' | 'admin';
 }
-
 export interface CreateUserResult {
 	id: string;
 	username: string;
@@ -80,197 +91,345 @@ export interface CreateUserResult {
 	email: string;
 }
 
-// ── 业务函数 ──
+type AuditedMutationInput = {
+	action: AdminAuditAction;
+	ids: string[];
+	reason: string;
+	requestId: string;
+	operatorId: string;
+};
 
-/**
- * 用户批量操作
- *
- * 管理员批量禁用或启用用户。
- * 禁用操作会跳过 admin 角色用户，防止误操作。
- *
- * @param input - { action, ids }
- * @returns 受影响的用户数量
- */
-export async function batchUsers(input: BatchUsersInput): Promise<{ affected: number }> {
-	const { action, ids } = input;
-
-	// 验证 ids 数量上限
-	if (ids.length > MAX_BATCH_SIZE) {
+function normalizeMutationInput(input: AuditedMutationInput) {
+	if (!Array.isArray(input.ids) || input.ids.some((id) => typeof id !== 'string')) {
+		throw new ServiceError('BAD_REQUEST', 'ids 必须包含 1 到 100 个有效 ID');
+	}
+	const ids = [...new Set(input.ids.map((id) => id.trim()))];
+	if (ids.length < 1 || ids.some((id) => !id))
+		throw new ServiceError('BAD_REQUEST', 'ids 必须包含 1 到 100 个有效 ID');
+	if (ids.length > MAX_BATCH_SIZE)
 		throw new ServiceError('BAD_REQUEST', `单次最多操作 ${MAX_BATCH_SIZE} 条`);
+	const reason = typeof input.reason === 'string' ? input.reason.trim() : '';
+	if (reason.length < MIN_REASON_LENGTH || reason.length > MAX_REASON_LENGTH) {
+		throw new ServiceError(
+			'BAD_REQUEST',
+			`理由长度必须为 ${MIN_REASON_LENGTH} 到 ${MAX_REASON_LENGTH} 个字符`
+		);
 	}
-
-	let result: { count: number };
-
-	if (action === 'disable') {
-		// 禁用用户，排除 admin 角色防止误操作
-		result = await batchDisableUsers(ids);
-	} else {
-		// 启用用户，无角色限制
-		result = await batchEnableUsers(ids);
-	}
-
-	return { affected: result.count };
+	const requestId = typeof input.requestId === 'string' ? input.requestId.trim() : '';
+	if (!UUID_PATTERN.test(requestId))
+		throw new ServiceError('BAD_REQUEST', 'requestId 必须是有效 UUID');
+	if (!ADMIN_AUDIT_ACTIONS.includes(input.action))
+		throw new ServiceError('BAD_REQUEST', '不支持的管理员处置动作');
+	return { ...input, ids, reason, requestId };
 }
 
-/**
- * 由管理员创建用户。
- *
- * 校验规则与前台注册一致，但不受 ALLOW_REGISTRATION 开关限制。
- */
+async function assertAdmin(tx: Prisma.TransactionClient, operatorId: string) {
+	const operator = await tx.user.findUnique({
+		where: { id: operatorId },
+		select: { role: true }
+	});
+	if (!operator || operator.role !== 'admin')
+		throw new ServiceError('FORBIDDEN', '仅管理员可操作');
+}
+
+function actionTargetType(action: AdminAuditAction): AdminAuditTargetType {
+	return action.slice(0, action.indexOf('.')) as AdminAuditTargetType;
+}
+
+async function mutateTargets(
+	tx: Prisma.TransactionClient,
+	input: ReturnType<typeof normalizeMutationInput>
+) {
+	const { action, ids, reason, operatorId } = input;
+	let existing: Array<Record<string, unknown>>;
+	let candidateIds: string[];
+	let result: { count: number };
+
+	if (action.startsWith('user.')) {
+		existing = await tx.user.findMany({
+			where: { id: { in: ids } },
+			select: { id: true, role: true, isDisabled: true }
+		});
+		if (
+			existing.length !== ids.length ||
+			(action === 'user.disable' && existing.some((item) => item.role === 'admin'))
+		) {
+			throw new ServiceError('BAD_REQUEST', '用户目标不存在或不允许处置');
+		}
+		const desired = action === 'user.disable';
+		candidateIds = existing
+			.filter((item) => item.isDisabled !== desired)
+			.map((item) => item.id as string);
+		result = await tx.user.updateMany({
+			where: { id: { in: candidateIds }, isDisabled: !desired },
+			data: { isDisabled: desired }
+		});
+	} else if (action.startsWith('post.')) {
+		existing = await tx.post.findMany({
+			where: { id: { in: ids } },
+			select: { id: true, isDeleted: true, isLocked: true, isGlobalPinned: true }
+		});
+		if (
+			existing.length !== ids.length ||
+			(action === 'post.pin' && existing.some((item) => item.isDeleted))
+		) {
+			throw new ServiceError('BAD_REQUEST', '帖子目标不存在或不允许处置');
+		}
+		const desired =
+			action.endsWith('delete') || action.endsWith('lock') || action.endsWith('pin');
+		const field =
+			action.endsWith('delete') || action.endsWith('restore')
+				? 'isDeleted'
+				: action.endsWith('lock') || action.endsWith('unlock')
+					? 'isLocked'
+					: 'isGlobalPinned';
+		candidateIds = existing
+			.filter((item) => item[field] !== desired)
+			.map((item) => item.id as string);
+		const data: Prisma.PostUpdateManyMutationInput =
+			action === 'post.delete'
+				? { isDeleted: true, deleteReason: reason, deletedBy: operatorId }
+				: action === 'post.restore'
+					? {
+							isDeleted: false,
+							deleteReason: null,
+							deletedBy: null,
+							restoreReason: reason,
+							restoredBy: operatorId
+						}
+					: action === 'post.lock'
+						? { isLocked: true, lockReason: reason, lockedBy: operatorId }
+						: action === 'post.unlock'
+							? { isLocked: false, lockReason: null, lockedBy: null }
+							: { isGlobalPinned: action === 'post.pin' };
+		result = await tx.post.updateMany({
+			where: { id: { in: candidateIds }, [field]: !desired },
+			data
+		});
+	} else {
+		existing = await tx.comment.findMany({
+			where: { id: { in: ids } },
+			select: { id: true, isDeleted: true }
+		});
+		if (existing.length !== ids.length) throw new ServiceError('BAD_REQUEST', '评论目标不存在');
+		candidateIds = existing.filter((item) => !item.isDeleted).map((item) => item.id as string);
+		result = await tx.comment.updateMany({
+			where: { id: { in: candidateIds }, isDeleted: false },
+			data: { isDeleted: true }
+		});
+	}
+
+	if (result.count !== candidateIds.length)
+		throw new ServiceError('BAD_REQUEST', '目标状态已并发变化，请刷新后重试');
+	return new Set(candidateIds);
+}
+
+/** 状态写入、审计主记录和全部目标明细在同一 Prisma 事务中提交。 */
+export async function executeAuditedAdminMutation(
+	input: AuditedMutationInput
+): Promise<{ affected: number }> {
+	const normalized = normalizeMutationInput(input);
+	try {
+		return await prisma.$transaction(async (tx) => {
+			await assertAdmin(tx, normalized.operatorId);
+			const replay = await tx.adminAuditLog.findUnique({
+				where: {
+					operatorId_requestId: {
+						operatorId: normalized.operatorId,
+						requestId: normalized.requestId
+					}
+				},
+				select: { affectedCount: true }
+			});
+			if (replay) return { affected: replay.affectedCount };
+			const updatedIds = await mutateTargets(tx, normalized);
+			await tx.adminAuditLog.create({
+				data: {
+					operatorId: normalized.operatorId,
+					requestId: normalized.requestId,
+					targetType: actionTargetType(normalized.action),
+					action: normalized.action,
+					reason: normalized.reason,
+					requestedCount: normalized.ids.length,
+					affectedCount: updatedIds.size,
+					targets: {
+						create: normalized.ids.map((targetId) => ({
+							targetId,
+							outcome: updatedIds.has(targetId) ? 'updated' : 'unchanged'
+						}))
+					}
+				}
+			});
+			return { affected: updatedIds.size };
+		});
+	} catch (error) {
+		if (isUniqueConstraintError(error)) {
+			const replay = await prisma.adminAuditLog.findUnique({
+				where: {
+					operatorId_requestId: {
+						operatorId: normalized.operatorId,
+						requestId: normalized.requestId
+					}
+				},
+				select: { affectedCount: true }
+			});
+			if (replay) return { affected: replay.affectedCount };
+		}
+		throw error;
+	}
+}
+
+export async function batchUsers(input: BatchUsersInput) {
+	return executeAuditedAdminMutation({ ...input, action: `user.${input.action}` });
+}
+export async function batchPosts(input: BatchPostsInput) {
+	return executeAuditedAdminMutation({ ...input, action: `post.${input.action}` });
+}
+export async function batchComments(input: BatchCommentsInput) {
+	return executeAuditedAdminMutation({ ...input, action: 'comment.delete' });
+}
+
+/** 仅管理员可用的最小字段审计查询，使用 (createdAt, id) 复合游标。 */
+export async function queryAdminAuditLogs(input: QueryAdminAuditLogsInput): Promise<{
+	items: AdminAuditLogDto[];
+	nextCursor: { createdAt: string; id: string } | null;
+}> {
+	if (
+		!input.operatorId ||
+		(input.targetType && !['user', 'post', 'comment'].includes(input.targetType))
+	) {
+		throw new ServiceError('BAD_REQUEST', '审计查询参数无效');
+	}
+	if (input.action && !ADMIN_AUDIT_ACTIONS.includes(input.action)) {
+		throw new ServiceError('BAD_REQUEST', '审计动作无效');
+	}
+	if (input.result && input.result !== 'success') {
+		throw new ServiceError('BAD_REQUEST', '审计结果筛选无效');
+	}
+	const limit = input.limit ?? 20;
+	if (!Number.isInteger(limit) || limit < 1 || limit > MAX_AUDIT_QUERY_LIMIT)
+		throw new ServiceError('BAD_REQUEST', `limit 必须为 1 到 ${MAX_AUDIT_QUERY_LIMIT} 的整数`);
+	const to = input.to ? new Date(input.to) : new Date();
+	const from = input.from
+		? new Date(input.from)
+		: new Date(to.getTime() - DEFAULT_AUDIT_RANGE_DAYS * 86_400_000);
+	if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to)
+		throw new ServiceError('BAD_REQUEST', '审计时间范围无效');
+	if (!input.targetId && to.getTime() - from.getTime() > DEFAULT_AUDIT_RANGE_DAYS * 86_400_000) {
+		throw new ServiceError(
+			'BAD_REQUEST',
+			`审计查询跨度不能超过 ${DEFAULT_AUDIT_RANGE_DAYS} 天`
+		);
+	}
+	let cursor: { createdAt: Date; id: string } | undefined;
+	if (input.cursor) {
+		const createdAt = new Date(input.cursor.createdAt);
+		if (Number.isNaN(createdAt.getTime()) || !input.cursor.id.trim())
+			throw new ServiceError('BAD_REQUEST', '游标无效');
+		cursor = { createdAt, id: input.cursor.id };
+	}
+	const records = await prisma.$transaction(async (tx) => {
+		await assertAdmin(tx, input.operatorId);
+		return tx.adminAuditLog.findMany({
+			where: {
+				targetType: input.targetType,
+				action: input.action,
+				operatorId: input.auditOperatorId,
+				result: input.result,
+				createdAt: { gte: from, lte: to },
+				targets: input.targetId ? { some: { targetId: input.targetId } } : undefined,
+				OR: cursor
+					? [
+							{ createdAt: { lt: cursor.createdAt } },
+							{ createdAt: cursor.createdAt, id: { lt: cursor.id } }
+						]
+					: undefined
+			},
+			orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+			take: limit + 1,
+			select: {
+				id: true,
+				action: true,
+				targetType: true,
+				reason: true,
+				result: true,
+				requestedCount: true,
+				affectedCount: true,
+				createdAt: true,
+				operator: {
+					select: { id: true, username: true, displayName: true, avatarUrl: true }
+				},
+				targets: { select: { targetId: true, outcome: true }, orderBy: { targetId: 'asc' } }
+			}
+		});
+	});
+	const hasMore = records.length > limit;
+	const items: AdminAuditLogDto[] = records.slice(0, limit).map((record) => ({
+		...record,
+		action: record.action as AdminAuditAction,
+		targetType: record.targetType as AdminAuditTargetType,
+		result: 'success',
+		createdAt: record.createdAt.toISOString(),
+		targets: record.targets.map((target) => ({
+			...target,
+			outcome: target.outcome === 'unchanged' ? 'unchanged' : 'updated'
+		}))
+	}));
+	const last = items.at(-1);
+	return {
+		items,
+		nextCursor: hasMore && last ? { createdAt: last.createdAt, id: last.id } : null
+	};
+}
+
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
 	const { username, displayName, email, password, role = 'user' } = input;
-
-	if (!EMAIL_PATTERN.test(email)) {
-		throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
-	}
-
-	if (!USERNAME_PATTERN.test(username)) {
+	if (!EMAIL_PATTERN.test(email)) throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
+	if (!USERNAME_PATTERN.test(username))
 		throw new ServiceError('BAD_REQUEST', '用户名只能包含字母、数字和下划线，长度 3-20 个字符');
-	}
-
-	if (RESERVED_USERNAMES.includes(username.toLowerCase())) {
+	if (RESERVED_USERNAMES.includes(username.toLowerCase()))
 		throw new ServiceError('BAD_REQUEST', '该用户名为系统保留，无法使用');
-	}
-
-	if (password.length < PASSWORD_MIN_LENGTH) {
+	if (password.length < PASSWORD_MIN_LENGTH)
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
-	}
-
 	const [existingEmail, existingUsername] = await Promise.all([
 		findUserByEmail(email),
 		findUserByUsername(username)
 	]);
-	if (existingEmail || existingUsername) {
+	if (existingEmail || existingUsername)
 		throw new ServiceError('BAD_REQUEST', '用户名或邮箱已被使用，请更换后重试');
-	}
-
 	const passwordHash = await hashPassword(password);
-	let user;
 	try {
-		user = await createUserRecord({
+		const user = await createUserRecord({
 			username,
 			displayName: displayName || username,
 			email,
 			passwordHash,
 			role
 		});
+		return {
+			id: user.id,
+			username: user.username,
+			displayName: user.displayName,
+			avatarUrl: user.avatarUrl,
+			role: user.role,
+			email: user.email
+		};
 	} catch (error) {
-		if (isUniqueConstraintError(error)) {
+		if (isUniqueConstraintError(error))
 			throw new ServiceError('BAD_REQUEST', '用户名或邮箱已被使用，请更换后重试');
-		}
 		throw error;
 	}
-
-	return {
-		id: user.id,
-		username: user.username,
-		displayName: user.displayName,
-		avatarUrl: user.avatarUrl,
-		role: user.role,
-		email: user.email
-	};
 }
 
-/**
- * 帖子批量操作
- *
- * 管理员批量删除、还原、锁定、解锁或设置全局置顶状态。
- * 删除、还原和锁定操作需填写理由；还原会保存审计信息。
- *
- * @param input - { action, ids, reason?, operatorId }
- * @returns 受影响的帖子数量
- */
-export async function batchPosts(input: BatchPostsInput): Promise<{ affected: number }> {
-	const { action, ids, reason, operatorId } = input;
-
-	// 验证 ids 数量上限
-	if (ids.length > MAX_BATCH_SIZE) {
-		throw new ServiceError('BAD_REQUEST', `单次最多操作 ${MAX_BATCH_SIZE} 条`);
-	}
-
-	let result: { count: number };
-
-	if (action === 'delete') {
-		// 删除操作需填写理由
-		if (!reason || !reason.trim()) {
-			throw new ServiceError('BAD_REQUEST', '删除理由不能为空');
-		}
-		// 软删除：设置 isDeleted、deleteReason、deletedBy
-		result = await batchSoftDeletePosts(ids, reason.trim(), operatorId);
-	} else if (action === 'restore') {
-		if (!reason || !reason.trim()) {
-			throw new ServiceError('BAD_REQUEST', '还原理由不能为空');
-		}
-		result = await batchRestorePosts(ids, reason.trim(), operatorId);
-	} else if (action === 'lock') {
-		// 锁定操作需填写理由
-		if (!reason || !reason.trim()) {
-			throw new ServiceError('BAD_REQUEST', '锁定理由不能为空');
-		}
-		// 锁定：设置 isLocked、lockedBy、lockReason
-		result = await batchLockPosts(ids, reason.trim(), operatorId);
-	} else if (action === 'unlock') {
-		// 解锁：清除锁定状态
-		result = await batchUnlockPosts(ids);
-	} else {
-		result = await batchSetGlobalPinPosts(ids, action === 'pin');
-	}
-
-	return { affected: result.count };
-}
-
-/**
- * 评论批量操作
- *
- * 管理员批量删除评论（软删除）。
- *
- * @param input - { ids }
- * @returns 受影响的评论数量
- */
-export async function batchComments(input: BatchCommentsInput): Promise<{ affected: number }> {
-	const { ids } = input;
-
-	// 验证 ids 数量上限
-	if (ids.length > MAX_BATCH_SIZE) {
-		throw new ServiceError('BAD_REQUEST', `单次最多操作 ${MAX_BATCH_SIZE} 条`);
-	}
-
-	// 软删除评论：设置 isDeleted = true
-	const result = await batchSoftDeleteComments(ids);
-
-	return { affected: result.count };
-}
-
-/**
- * 标签显示/隐藏切换
- *
- * 管理员切换标签的隐藏状态。
- * 已隐藏则显示，未隐藏则隐藏。
- *
- * @param input - { tagId, action }
- * @returns 更新后的标签状态
- */
 export async function toggleTagVisibility(
 	input: ToggleTagVisibilityInput
 ): Promise<{ id: string; isHidden: boolean }> {
-	const { tagId, action } = input;
-
-	// 验证标签存在
-	const tag = await findTagById(tagId);
-	if (!tag) {
-		throw new ServiceError('NOT_FOUND', '标签不存在');
-	}
-
-	// 防止重复操作
-	if (action === 'hide' && tag.isHidden) {
+	const tag = await findTagById(input.tagId);
+	if (!tag) throw new ServiceError('NOT_FOUND', '标签不存在');
+	if (input.action === 'hide' && tag.isHidden)
 		throw new ServiceError('BAD_REQUEST', '标签已被隐藏');
-	}
-	if (action === 'show' && !tag.isHidden) {
+	if (input.action === 'show' && !tag.isHidden)
 		throw new ServiceError('BAD_REQUEST', '标签未被隐藏');
-	}
-
-	// 更新标签状态
-	await updateTagVisibility(tagId, action === 'hide');
-
-	return { id: tagId, isHidden: action === 'hide' };
+	await updateTagVisibility(input.tagId, input.action === 'hide');
+	return { id: input.tagId, isHidden: input.action === 'hide' };
 }

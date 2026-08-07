@@ -58,7 +58,8 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 			id: media.id,
 			url: media.fileStorage.filePath,
 			mimeType: media.fileStorage.mimeType,
-			type: media.fileStorage.fileType === 'attachment' ? 'attachment' : 'image'
+			type: media.fileStorage.fileType === 'attachment' ? 'attachment' : 'image',
+			slot: media.slot === 'thumbnail' ? 'thumbnail' : null
 		})),
 		tags: post.tags.map(({ tag }) => ({ id: tag.id, name: tag.name })),
 		createdAt: post.createdAt.toISOString(),

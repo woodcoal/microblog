@@ -58,7 +58,7 @@ import { getPostLikers, togglePin, verifyPostPassword } from './posts';
 import { getRecommend, getRecommendUsers, getSimilarPosts, recordRead, saveInterests, getRecommendationProfile } from './recommend';
 
 // 管理后台模块
-import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility } from './admin';
+import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility, queryAdminAuditLogs } from './admin';
 
 // 工具模块
 import { markdownPreview } from './misc';
@@ -124,6 +124,7 @@ export const server = {
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,
+	queryAdminAuditLogs,
 	// 站点固定文案（管理员）
 	getSiteCopy,
 	getSiteCopyHistory,

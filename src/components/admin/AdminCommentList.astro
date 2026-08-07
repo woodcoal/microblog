@@ -234,7 +234,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				}))
 			)
 				return;
-			const result = await actions.batchComments({ action: 'delete', ids: [commentId] });
+			const reason = prompt('请输入删除理由（2-500 字）：')?.trim() ?? '';
+			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
+			const result = await actions.batchComments({
+				action: 'delete',
+				ids: [commentId],
+				reason,
+				requestId: crypto.randomUUID()
+			});
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
 			} else if (result.data && result.data.affected > 0) {
@@ -292,7 +299,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			const result = await actions.batchComments({ action: 'delete', ids: checkedIds });
+			const reason = prompt('请输入批量删除理由（2-500 字）：')?.trim() ?? '';
+			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
+			const result = await actions.batchComments({
+				action: 'delete',
+				ids: checkedIds,
+				reason,
+				requestId: crypto.randomUUID()
+			});
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
 			} else if (result.data && result.data.affected > 0) {

@@ -17,6 +17,31 @@ export interface MediaDto {
 	url: string;
 	mimeType: string;
 	type: 'image' | 'attachment';
+	slot: 'thumbnail' | null;
+}
+
+export type AdminAuditAction =
+	| 'user.disable'
+	| 'user.enable'
+	| 'post.delete'
+	| 'post.restore'
+	| 'post.lock'
+	| 'post.unlock'
+	| 'post.pin'
+	| 'post.unpin'
+	| 'comment.delete';
+
+export interface AdminAuditLogDto {
+	id: string;
+	action: AdminAuditAction;
+	targetType: 'user' | 'post' | 'comment';
+	reason: string;
+	result: 'success';
+	requestedCount: number;
+	affectedCount: number;
+	createdAt: string;
+	operator: { id: string; username: string; displayName: string; avatarUrl: string | null };
+	targets: Array<{ targetId: string; outcome: 'updated' | 'unchanged' }>;
 }
 export interface TagDto {
 	id: string;

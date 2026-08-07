@@ -12,10 +12,25 @@ import {
 	batchUsers as batchUsersService,
 	batchPosts as batchPostsService,
 	batchComments as batchCommentsService,
+	queryAdminAuditLogs as queryAdminAuditLogsService,
 	toggleTagVisibility as toggleTagVisibilityService,
 	createUser as createUserService
 } from '@/services/admin.service';
 import { PASSWORD_MIN_LENGTH, USERNAME_PATTERN } from '@/lib/config';
+
+const auditedMutationFields = {
+	ids: z.array(z.string().trim().min(1)).min(1).max(100),
+	reason: z.string().trim().min(2).max(500),
+	requestId: z.string().uuid()
+};
+
+async function requireAdmin(context: Parameters<typeof getUserFromRequest>[0]) {
+	const currentUser = await getUserFromRequest(context);
+	if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+	if (currentUser.role !== 'admin')
+		throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
+	return currentUser;
+}
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -37,20 +52,13 @@ function handleServiceError(e: unknown): never {
 const batchUsers = defineAction({
 	input: z.object({
 		action: z.enum(['disable', 'enable']),
-		ids: z.array(z.string().min(1)).min(1, 'ids 必须是非空数组')
+		...auditedMutationFields
 	}),
 	handler: async (input, context) => {
-		// 验证登录状态和管理员权限
-		const currentUser = await getUserFromRequest(context);
-		if (!currentUser) {
-			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
-		}
-		if (currentUser.role !== 'admin') {
-			throw new ActionError({ code: 'FORBIDDEN', message: '仅管理员可操作' });
-		}
+		const currentUser = await requireAdmin(context);
 
 		try {
-			return await batchUsersService(input);
+			return await batchUsersService({ ...input, operatorId: currentUser.userId });
 		} catch (e) {
 			handleServiceError(e);
 		}
@@ -103,8 +111,7 @@ const createUser = defineAction({
 const batchPosts = defineAction({
 	input: z.object({
 		action: z.enum(['delete', 'restore', 'lock', 'unlock', 'pin', 'unpin']),
-		ids: z.array(z.string().min(1)).min(1, 'ids 必须是非空数组'),
-		reason: z.string().optional()
+		...auditedMutationFields
 	}),
 	handler: async (input, context) => {
 		// 验证登录状态和管理员权限
@@ -139,7 +146,7 @@ const batchPosts = defineAction({
 const batchComments = defineAction({
 	input: z.object({
 		action: z.enum(['delete']),
-		ids: z.array(z.string().min(1)).min(1, 'ids 必须是非空数组')
+		...auditedMutationFields
 	}),
 	handler: async (input, context) => {
 		// 验证登录状态和管理员权限
@@ -152,7 +159,12 @@ const batchComments = defineAction({
 		}
 
 		try {
-			return await batchCommentsService({ ids: input.ids });
+			return await batchCommentsService({
+				ids: input.ids,
+				reason: input.reason,
+				requestId: input.requestId,
+				operatorId: currentUser.userId
+			});
 		} catch (e) {
 			handleServiceError(e);
 		}
@@ -191,4 +203,54 @@ const toggleTagVisibility = defineAction({
 	}
 });
 
-export { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility };
+const queryAdminAuditLogs = defineAction({
+	input: z.object({
+		targetType: z.enum(['user', 'post', 'comment']).optional(),
+		action: z
+			.enum([
+				'user.disable',
+				'user.enable',
+				'post.delete',
+				'post.restore',
+				'post.lock',
+				'post.unlock',
+				'post.pin',
+				'post.unpin',
+				'comment.delete'
+			])
+			.optional(),
+		operatorId: z.string().trim().min(1).optional(),
+		result: z.literal('success').optional(),
+		from: z.string().datetime({ offset: true }).optional(),
+		to: z.string().datetime({ offset: true }).optional(),
+		targetId: z.string().trim().min(1).optional(),
+		cursor: z
+			.object({
+				createdAt: z.string().datetime({ offset: true }),
+				id: z.string().trim().min(1)
+			})
+			.optional(),
+		limit: z.number().int().min(1).max(100).optional()
+	}),
+	handler: async (input, context) => {
+		const currentUser = await requireAdmin(context);
+		try {
+			return await queryAdminAuditLogsService({
+				...input,
+				operatorId: currentUser.userId,
+				auditOperatorId: input.operatorId
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+export {
+	batchUsers,
+	createUser,
+	batchPosts,
+	batchComments,
+	toggleTagVisibility,
+	queryAdminAuditLogs
+};

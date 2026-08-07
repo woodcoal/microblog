@@ -360,7 +360,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			const result = await actions.batchUsers({ action, ids: [userId] });
+			const reason = prompt('请输入处置理由（2-500 字）：')?.trim() ?? '';
+			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
+			const result = await actions.batchUsers({
+				action,
+				ids: [userId],
+				reason,
+				requestId: crypto.randomUUID()
+			});
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
 			} else if (result.data && result.data.affected > 0) {
@@ -421,7 +428,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			)
 				return;
 
-			const result = await actions.batchUsers({ action, ids: checkedIds });
+			const reason = prompt('请输入批量处置理由（2-500 字）：')?.trim() ?? '';
+			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
+			const result = await actions.batchUsers({
+				action,
+				ids: checkedIds,
+				reason,
+				requestId: crypto.randomUUID()
+			});
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
 			} else if (result.data && result.data.affected > 0) {

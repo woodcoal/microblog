@@ -505,7 +505,15 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 					))
 				)
 					return;
-				const result = await actions.batchPosts({ action, ids: [postId] });
+				const reason = prompt('请输入处置理由（2-500 字）：')?.trim() ?? '';
+				if (reason.length < 2)
+					return void (await MutanDialog.alert('理由至少需要 2 个字符'));
+				const result = await actions.batchPosts({
+					action,
+					ids: [postId],
+					reason,
+					requestId: crypto.randomUUID()
+				});
 				if (result.error) {
 					await MutanDialog.alert(result.error.message || '操作失败');
 				} else if (result.data && result.data.affected > 0) {
@@ -546,7 +554,8 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		const result = await actions.batchPosts({
 			action: currentAction,
 			ids: [currentPostId],
-			reason
+			reason,
+			requestId: crypto.randomUUID()
 		});
 		if (result.error) {
 			await MutanDialog.alert(result.error.message || '操作失败');
@@ -614,16 +623,10 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 				return;
 			}
 
-			// 删除/还原/锁定需要填写理由
-			let reason = '';
-			if (action === 'delete' || action === 'restore' || action === 'lock') {
-				const actionLabel =
-					action === 'delete' ? '删除' : action === 'restore' ? '还原' : '锁定';
-				reason = prompt(`请输入批量${actionLabel}的理由：`) || '';
-				if (!reason.trim()) {
-					await MutanDialog.alert('理由不能为空', { title: '提示' });
-					return;
-				}
+			const reason = prompt('请输入批量处置理由（2-500 字）：')?.trim() ?? '';
+			if (reason.length < 2) {
+				await MutanDialog.alert('理由至少需要 2 个字符', { title: '提示' });
+				return;
 			}
 
 			if (
@@ -646,7 +649,12 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 			)
 				return;
 
-			const result = await actions.batchPosts({ action, ids: checkedIds, reason });
+			const result = await actions.batchPosts({
+				action,
+				ids: checkedIds,
+				reason,
+				requestId: crypto.randomUUID()
+			});
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
 			} else if (result.data && result.data.affected > 0) {

@@ -41,6 +41,7 @@ model User {
   categoryInterests    UserCategoryInterest[]
   siteCopiesUpdated    SiteCopy[]        @relation("SiteCopyUpdatedBy")
   siteCopyVersions     SiteCopyVersion[] @relation("SiteCopyVersionUpdatedBy")
+  adminAuditLogs       AdminAuditLog[]
 }
 
 /// 帖子表
@@ -119,10 +120,14 @@ model Media {
   fileType      String   @default("image")  // image / attachment
   originalName  String   @default("")  // 原始文件名（附件保留）
   sortOrder     Int      @default(0)  // 排序
+  slot          String?  // null=普通正文媒体/附件，thumbnail=文章缩略图
   createdAt     DateTime @default(now())
 
   post          Post         @relation(fields: [postId], references: [id])
   fileStorage   FileStorage  @relation(fields: [fileStorageId], references: [id])
+
+  @@unique([postId, slot])
+  @@index([postId, fileType, sortOrder])
 }
 
 /// 评论表
@@ -306,6 +311,42 @@ model ActivityLog {
 
   // 关联关系
   actor        User     @relation(fields: [actorId], references: [id])
+}
+
+
+/// 管理员处置的不可变审计主记录。
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  operatorId     String
+  requestId      String
+  targetType     String
+  action         String
+  reason         String
+  result         String   @default("success")
+  requestedCount Int
+  affectedCount  Int
+  createdAt      DateTime @default(now())
+
+  operator       User               @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  targets        AdminAuditTarget[]
+
+  @@unique([operatorId, requestId])
+  @@index([createdAt, id])
+  @@index([operatorId, createdAt, id])
+  @@index([targetType, action, createdAt, id])
+}
+
+/// 管理员处置的不可变目标明细。
+model AdminAuditTarget {
+  id         String @id @default(cuid())
+  auditLogId String
+  targetId   String
+  outcome    String @default("updated")
+
+  auditLog   AdminAuditLog @relation(fields: [auditLogId], references: [id], onDelete: Restrict)
+
+  @@unique([auditLogId, targetId])
+  @@index([targetId, auditLogId])
 }
 
 /// Webhook 表
