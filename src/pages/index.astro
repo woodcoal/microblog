@@ -1179,10 +1179,24 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 	}
 	#recommend-posts-list .recommend-preview-stats {
 		align-self: center;
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-2);
 		color: var(--color-muted);
 		font-size: 0.75rem;
 		font-variant-numeric: tabular-nums;
 		white-space: nowrap;
+	}
+	#recommend-posts-list .recommend-preview-stat {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+	}
+	#recommend-posts-list .recommend-preview-stat svg {
+		width: 14px;
+		height: 14px;
+		flex: none;
+		stroke: currentColor;
 	}
 	#recommend-posts-list .recommend-post-skeleton {
 		height: 72px;
@@ -1401,6 +1415,36 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			return text.length > length ? `${text.slice(0, length)}…` : text;
 		}
 
+		const interactionIcons = {
+			like: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+			bookmark: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
+			comment: 'M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-4.5-1.3L3 21l2.3-4.5A8.5 8.5 0 1 1 21 11.5z'
+		} as const;
+
+		function safeCount(value: number | undefined): number {
+			return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+		}
+
+		function createInteractionStat(
+			kind: keyof typeof interactionIcons,
+			count: number
+		) {
+			const stat = document.createElement('span');
+			stat.className = 'recommend-preview-stat';
+			stat.setAttribute('aria-hidden', 'true');
+			const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			icon.setAttribute('viewBox', '0 0 24 24');
+			icon.setAttribute('fill', 'none');
+			icon.setAttribute('stroke-width', '2');
+			icon.setAttribute('stroke-linecap', 'round');
+			icon.setAttribute('stroke-linejoin', 'round');
+			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			path.setAttribute('d', interactionIcons[kind]);
+			icon.append(path);
+			stat.append(icon, document.createTextNode(String(count)));
+			return stat;
+		}
+
 		function renderPosts(items: RecommendItem[]) {
 			const fragment = document.createDocumentFragment();
 			for (const item of items) {
@@ -1438,7 +1482,18 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				meta.textContent = `${mode} · ${item.user.displayName}`;
 				const stats = document.createElement('span');
 				stats.className = 'recommend-preview-stats';
-				stats.textContent = `赞 ${item.likeCount} · 藏 ${item.bookmarkCount} · 评 ${item.commentCount}`;
+				const likeCount = safeCount(item.likeCount);
+				const bookmarkCount = safeCount(item.bookmarkCount);
+				const commentCount = safeCount(item.commentCount);
+				stats.setAttribute(
+					'aria-label',
+					`点赞 ${likeCount}，收藏 ${bookmarkCount}，评论 ${commentCount}`
+				);
+				stats.append(
+					createInteractionStat('like', likeCount),
+					createInteractionStat('bookmark', bookmarkCount),
+					createInteractionStat('comment', commentCount)
+				);
 				copy.append(title, meta);
 				previewItem.append(avatarLink, copy, stats);
 				fragment.append(previewItem);

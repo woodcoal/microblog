@@ -29,7 +29,9 @@ test('首页推荐区保留冷启动、独立状态和无障碍交互契约', ()
 	assert.match(page, /avatar\.alt = ''/);
 	assert.match(recommendService, /bookmarkCount: post\._count\.bookmarks/);
 	assert.match(page, /recommend-preview-stats/);
-	assert.match(page, /赞 \$\{item\.likeCount\} · 藏 \$\{item\.bookmarkCount\} · 评 \$\{item\.commentCount\}/);
+	assert.match(page, /createInteractionStat\('bookmark', bookmarkCount\)/);
+	assert.match(page, /safeCount\(item\.bookmarkCount\)/);
+	assert.match(page, /点赞 \$\{likeCount\}，收藏 \$\{bookmarkCount\}，评论 \$\{commentCount\}/);
 	assert.doesNotMatch(page, /home-preview-mark/);
 	assert.doesNotMatch(page, /recommend-table-wrap/);
 	assert.match(page, /style is:global/);
