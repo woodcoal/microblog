@@ -58,10 +58,24 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 				<a
 					href="/weibo"
 					class="sidebar-link"
-					aria-current={currentPath === '/weibo' ? 'page' : undefined}
+					aria-current={currentPath === '/weibo' &&
+					Astro.url.searchParams.get('sort') !== 'popular'
+						? 'page'
+						: undefined}
 				>
-					<span class="sidebar-link-icon">🏠</span>
-					<span>首页</span>
+					<span class="sidebar-link-icon">✨</span>
+					<span>推荐</span>
+				</a>
+				<a
+					href="/weibo?sort=popular"
+					class="sidebar-link"
+					aria-current={currentPath === '/weibo' &&
+					Astro.url.searchParams.get('sort') === 'popular'
+						? 'page'
+						: undefined}
+				>
+					<span class="sidebar-link-icon">🔥</span>
+					<span>热门</span>
 				</a>
 				<a
 					href="/latest"
