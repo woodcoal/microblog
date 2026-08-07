@@ -46,28 +46,72 @@ function formatDate(date: Date): string {
 ---
 
 <div class="blog-article-list">
-	{posts.map((post) => {
-		const isRestricted = restrictedIds.has(post.id);
-		return (
-			<article class="blog-article">
-				<span class="blog-article-eyebrow">{post.category?.name ?? '文章'} · {formatDate(post.createdAt)}</span>
-				<h2><a href={`/${post.user.username}/${post.id}`}>{post.title || '无标题文章'}</a></h2>
-				<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
-				<span class="blog-article-meta">{post.user.displayName} · {post._count.likes} 喜欢 · {post._count.comments} 评论</span>
-			</article>
-		);
-	})}
+	{
+		posts.map((post) => {
+			const isRestricted = restrictedIds.has(post.id);
+			return (
+				<article class="blog-article">
+					<span class="blog-article-eyebrow">{post.category?.name ?? '文章'}</span>
+					<h2>
+						<a href={`/${post.user.username}/${post.id}`}>
+							{post.title || '无标题文章'}
+						</a>
+					</h2>
+					<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
+					<footer class="blog-article-meta">
+						{post.user.displayName} ·{' '}
+						<time datetime={post.createdAt.toISOString()}>
+							{formatDate(post.createdAt)}
+						</time>{' '}
+						· {post._count.likes} 喜欢 · {post._count.comments} 评论
+					</footer>
+				</article>
+			);
+		})
+	}
 </div>
 
 <style>
-	.blog-article-list { display: grid; }
-	.blog-article { padding: 20px 0; border-top: 1px solid var(--color-border); }
-	.blog-article:first-child { border-top: 0; }
-	.blog-article-eyebrow { color: var(--color-primary); font-size: 0.75rem; font-weight: 700; }
-	.blog-article h2 { margin: 6px 0 8px; font-size: 1.3125rem; line-height: 1.35; }
-	.blog-article h2 a { color: var(--color-text); }
-	.blog-article h2 a:hover, .blog-article h2 a:focus-visible { color: var(--color-primary); }
-	.blog-article p { max-width: 650px; margin: 0 0 12px; color: var(--color-muted); line-height: 1.65; }
-	.blog-article-meta { color: var(--color-muted); font-size: 0.8125rem; }
-	@media (max-width: 767px) { .blog-article h2 { font-size: 1.1875rem; } }
+	.blog-article-list {
+		display: grid;
+	}
+	.blog-article {
+		padding: 20px 0;
+		border-top: 1px solid var(--color-border);
+	}
+	.blog-article:first-child {
+		border-top: 0;
+	}
+	.blog-article-eyebrow {
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	.blog-article h2 {
+		margin: 6px 0 8px;
+		font-size: 1.3125rem;
+		line-height: 1.35;
+	}
+	.blog-article h2 a {
+		color: var(--color-text);
+	}
+	.blog-article h2 a:hover,
+	.blog-article h2 a:focus-visible {
+		color: var(--color-primary);
+	}
+	.blog-article p {
+		max-width: 650px;
+		margin: 0 0 12px;
+		color: var(--color-muted);
+		line-height: 1.65;
+	}
+	.blog-article-meta {
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	@media (max-width: 767px) {
+		.blog-article h2 {
+			font-size: 1.1875rem;
+		}
+	}
 </style>
