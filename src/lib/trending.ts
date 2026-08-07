@@ -1,18 +1,37 @@
 /** Pure MT-86 v2 trending configuration, scoring, and deterministic ordering. */
 export interface TrendingConfig { version: 'v2'; wLikes: number; wBookmarks: number; wComments: number; decayHours: number; }
 export const DEFAULT_TRENDING_CONFIG: TrendingConfig = { version: 'v2', wLikes: 1, wBookmarks: 2, wComments: 3, decayHours: 48 };
-const valid = (value: unknown, min: number, max: number) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+const valid = (value: unknown, min: number, max: number): value is number =>
+	typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+const defaults = () => ({ ...DEFAULT_TRENDING_CONFIG });
 
-/** Parses v2 atomically; a complete legacy object is migrated, every other invalid value resets as a whole. */
+/** Parses v2 atomically; the original three-field configuration is migrated without changing its decay curve. */
 export function parseTrendingConfig(raw?: string): TrendingConfig {
-	if (!raw) return { ...DEFAULT_TRENDING_CONFIG };
+	if (!raw) return defaults();
 	try {
-		const value = JSON.parse(raw) as Record<string, unknown>;
-		const version = value.version;
-		const compatible = version === 'v2' || version === undefined;
-		if (!compatible || !valid(value.wLikes, 0, 10) || !valid(value.wBookmarks, 0, 10) || !valid(value.wComments, 0, 10) || !valid(value.decayHours, 1, 168)) return { ...DEFAULT_TRENDING_CONFIG };
-		return { version: 'v2', wLikes: value.wLikes as number, wBookmarks: value.wBookmarks as number, wComments: value.wComments as number, decayHours: value.decayHours as number };
-	} catch { return { ...DEFAULT_TRENDING_CONFIG }; }
+		const value: unknown = JSON.parse(raw);
+		if (!value || typeof value !== 'object' || Array.isArray(value)) return defaults();
+		const config = value as Record<string, unknown>;
+		const { wLikes, wBookmarks, wComments, decayHours } = config;
+
+		if (config.version === undefined && !('wBookmarks' in config)) {
+			const halfLifeHours = typeof decayHours === 'number' ? decayHours * Math.LN2 : NaN;
+			if (!valid(wLikes, 0, 10) || !valid(wComments, 0, 10)
+				|| (wLikes === 0 && wComments === 0) || !valid(halfLifeHours, 1, 720)) return defaults();
+			return {
+				version: 'v2',
+				wLikes,
+				wBookmarks: DEFAULT_TRENDING_CONFIG.wBookmarks,
+				wComments,
+				decayHours: halfLifeHours
+			};
+		}
+
+		if ((config.version !== undefined && config.version !== 'v2')
+			|| !valid(wLikes, 0, 10) || !valid(wBookmarks, 0, 10) || !valid(wComments, 0, 10)
+			|| (wLikes === 0 && wBookmarks === 0 && wComments === 0) || !valid(decayHours, 1, 720)) return defaults();
+		return { version: 'v2', wLikes, wBookmarks, wComments, decayHours };
+	} catch { return defaults(); }
 }
 export interface TrendingSignals { likes: number; bookmarks: number; comments: number; }
 /** v2 = (ln(1+likes)+2ln(1+bookmarks)+3ln(1+independent commenters)) × 48h half-life. */
