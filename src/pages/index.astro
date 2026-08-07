@@ -18,7 +18,7 @@ import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { checkPostVisibility } from '@/lib/visibility';
 import { isSingleMode, singleMode } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
-import { getTrendingFeed } from '@/services/recommend.service';
+import { getRecommendationProfile, getTrendingFeed } from '@/services/recommend.service';
 
 // 单模式时直接重定向到该模式首页
 if (isSingleMode && singleMode) {
@@ -88,6 +88,26 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const canShowRecommendations = !!currentUser;
 const heroCopy = await getPublicSiteCopy('home.hero');
+let recommendationProfile: Awaited<ReturnType<typeof getRecommendationProfile>> | null = null;
+let interestTags: Array<{ id: string; name: string }> = [];
+let interestCategories: Array<{ id: string; name: string }> = [];
+if (currentUser) {
+	[recommendationProfile, interestTags, interestCategories] = await Promise.all([
+		getRecommendationProfile(currentUser.userId),
+		prisma.tag.findMany({
+			where: { isHidden: false },
+			orderBy: [{ posts: { _count: 'desc' } }, { name: 'asc' }],
+			take: 8,
+			select: { id: true, name: true }
+		}),
+		prisma.category.findMany({
+			orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+			take: 6,
+			select: { id: true, name: true }
+		})
+	]);
+}
+const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedAt === null;
 ---
 
 <HomeLayout title="首页">
@@ -237,10 +257,84 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 			<section class="recommend-section" aria-labelledby="recommend-title">
 				<div class="recommend-section-header">
 					<div>
-						<p class="home-eyebrow">为你推荐</p>
-						<h2 id="recommend-title">发现值得关注的内容与创作者</h2>
+						<p class="home-eyebrow">为你准备</p>
+						<h2 id="recommend-title">从正在发生的讨论开始</h2>
+						<p class="recommend-section-lede">
+							根据你的兴趣与社区中的真实互动，挑选值得停留的内容。
+						</p>
 					</div>
 				</div>
+				{shouldShowInterestOnboarding && (
+					<section
+						class="interest-onboarding"
+						id="interest-onboarding"
+						aria-labelledby="interest-onboarding-title"
+					>
+						<div class="interest-onboarding-copy">
+							<p class="home-eyebrow">刚来睦谈？</p>
+							<h3 id="interest-onboarding-title">选几个感兴趣的话题</h3>
+							<p>可跳过；不选也会为你准备多样化的热门内容。</p>
+						</div>
+						<div class="interest-option-groups">
+							{interestTags.length > 0 && (
+								<div class="interest-option-group">
+									<span class="interest-option-label">话题</span>
+									<div class="interest-option-list">
+										{interestTags.map((tag) => (
+											<button
+												type="button"
+												class="interest-option"
+												aria-pressed="false"
+												data-interest-kind="tag"
+												data-interest-id={tag.id}
+											>
+												#{tag.name}
+											</button>
+										))}
+									</div>
+								</div>
+							)}
+							{interestCategories.length > 0 && (
+								<div class="interest-option-group">
+									<span class="interest-option-label">分类</span>
+									<div class="interest-option-list">
+										{interestCategories.map((category) => (
+											<button
+												type="button"
+												class="interest-option"
+												aria-pressed="false"
+												data-interest-kind="category"
+												data-interest-id={category.id}
+											>
+												{category.name}
+											</button>
+										))}
+									</div>
+								</div>
+							)}
+							{interestTags.length === 0 && interestCategories.length === 0 && (
+								<p class="interest-options-empty">
+									社区正在准备话题；你可以直接开始浏览。
+								</p>
+							)}
+						</div>
+						<div class="interest-onboarding-actions">
+							<button type="button" class="btn btn-primary" data-interest-save>
+								开始看看
+							</button>
+							<button type="button" class="btn btn-outline" data-interest-skip>
+								跳过
+							</button>
+							<a href="/settings">稍后设置</a>
+						</div>
+						<p
+							class="interest-feedback"
+							role="status"
+							aria-live="polite"
+							data-interest-feedback
+						/>
+					</section>
+				)}
 				<div class="recommend-grid">
 					<section
 						class="recommend-panel"
@@ -256,7 +350,14 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 						>
 							正在加载推荐帖子…
 						</div>
-						<div class="recommend-list" id="recommend-posts-list" />
+						<div class="recommend-list" id="recommend-posts-list">
+							{Array.from({ length: 4 }).map(() => (
+								<div
+									class="recommend-skeleton recommend-post-skeleton"
+									aria-hidden="true"
+								/>
+							))}
+						</div>
 					</section>
 					<section
 						class="recommend-panel"
@@ -272,7 +373,20 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 						>
 							正在加载推荐用户…
 						</div>
-						<div class="recommend-user-list" id="recommend-users-list" />
+						<div class="recommend-user-list" id="recommend-users-list">
+							{Array.from({ length: 3 }).map(() => (
+								<div
+									class="recommend-skeleton recommend-user-skeleton"
+									aria-hidden="true"
+								/>
+							))}
+						</div>
+						<p
+							class="recommend-feedback"
+							id="recommend-users-feedback"
+							role="status"
+							aria-live="polite"
+						/>
 					</section>
 				</div>
 			</section>
@@ -506,6 +620,95 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		font-weight: 800;
 		letter-spacing: -0.04em;
 	}
+	.recommend-section-lede {
+		max-width: 42rem;
+		margin: var(--spacing-2) 0 0;
+		color: var(--color-muted);
+	}
+	.interest-onboarding {
+		display: grid;
+		grid-template-columns: minmax(12rem, 0.75fr) minmax(0, 1.5fr) auto;
+		gap: var(--spacing-4);
+		align-items: center;
+		margin-bottom: var(--spacing-5);
+		padding: var(--spacing-4) var(--spacing-5);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+	}
+	.interest-onboarding h3 {
+		font-size: 1rem;
+		font-weight: 800;
+	}
+	.interest-onboarding-copy .home-eyebrow {
+		margin-bottom: var(--spacing-1);
+	}
+	.interest-onboarding-copy p:last-child {
+		margin: var(--spacing-1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	.interest-option-groups {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+	.interest-options-empty {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	.interest-option-group {
+		display: flex;
+		gap: var(--spacing-2);
+		align-items: baseline;
+	}
+	.interest-option-label {
+		flex: 0 0 2rem;
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.interest-option-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+	}
+	.interest-option {
+		min-height: 32px;
+		padding: 0 var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: 999px;
+		background: var(--color-card-bg);
+		color: var(--color-text);
+		font: inherit;
+		font-size: 0.8125rem;
+		cursor: pointer;
+	}
+	.interest-option[aria-pressed='true'] {
+		border-color: var(--color-primary);
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+	}
+	.interest-onboarding-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		align-items: center;
+	}
+	.interest-onboarding-actions .btn {
+		min-height: 38px;
+		white-space: nowrap;
+	}
+	.interest-onboarding-actions a {
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		white-space: nowrap;
+	}
+	.interest-feedback {
+		grid-column: 1 / -1;
+		margin: calc(var(--spacing-2) * -1) 0 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
 	.recommend-grid {
 		display: grid;
 		grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
@@ -532,6 +735,39 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 	.recommend-status:empty {
 		display: none;
 	}
+	.recommend-empty-link {
+		display: inline-block;
+		margin-top: var(--spacing-2);
+		color: var(--color-primary);
+		font-weight: 700;
+	}
+	.recommend-skeleton {
+		position: relative;
+		overflow: hidden;
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+	}
+	.recommend-skeleton::after {
+		position: absolute;
+		inset: 0;
+		background: color-mix(in srgb, var(--color-card-bg) 54%, transparent);
+		content: '';
+		animation: recommend-skeleton-pulse 1.2s ease-in-out infinite alternate;
+	}
+	.recommend-post-skeleton {
+		height: 74px;
+	}
+	.recommend-user-skeleton {
+		height: 76px;
+	}
+	@keyframes recommend-skeleton-pulse {
+		from {
+			opacity: 0.35;
+		}
+		to {
+			opacity: 0.8;
+		}
+	}
 	.recommend-retry {
 		margin-top: var(--spacing-3);
 	}
@@ -541,13 +777,12 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		gap: 0.75rem;
 	}
 	.recommend-item {
-		display: flex;
-		align-items: center;
+		display: grid;
+		grid-template-columns: 32px minmax(0, 1fr);
 		gap: 0.75rem;
 		padding: 0.75rem;
 		background: var(--color-surface);
 		border-radius: 0.5rem;
-		text-decoration: none;
 		color: var(--color-text);
 		transition: background 0.2s;
 	}
@@ -578,6 +813,17 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		flex: 1;
 		min-width: 0;
 	}
+	.recommend-item-author {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+	.recommend-item-title-link {
+		display: block;
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 700;
+		text-decoration: none;
+	}
 	.recommend-item-title {
 		font-size: 0.875rem;
 		font-weight: 500;
@@ -589,6 +835,12 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		font-size: 0.75rem;
 		color: var(--color-muted);
 		margin-top: 0.125rem;
+	}
+	.recommend-item-reason {
+		margin: 0.1875rem 0 0;
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 650;
 	}
 	.recommend-user-list {
 		display: flex;
@@ -661,9 +913,18 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		padding-inline: var(--spacing-3);
 		font-size: 0.8125rem;
 	}
+	.recommend-feedback {
+		min-height: 1.25rem;
+		margin: var(--spacing-2) 0 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
 
 	@media (max-width: 1023px) {
 		.recommend-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+		.interest-onboarding {
 			grid-template-columns: minmax(0, 1fr);
 		}
 	}
@@ -712,6 +973,35 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		.recommend-panel {
 			padding: var(--spacing-4);
 		}
+		.interest-onboarding {
+			padding: var(--spacing-4);
+		}
+		.interest-option-group {
+			display: block;
+		}
+		.interest-option-label {
+			display: block;
+			margin-bottom: var(--spacing-1);
+		}
+		.interest-option {
+			min-height: 44px;
+		}
+		.interest-onboarding-actions {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+		}
+		.interest-onboarding-actions .btn {
+			min-height: 44px;
+		}
+		.interest-onboarding-actions a {
+			grid-column: 1 / -1;
+			display: flex;
+			align-items: center;
+			min-height: 44px;
+		}
+		.recommend-follow-button {
+			min-height: 44px;
+		}
 	}
 </style>
 
@@ -735,6 +1025,7 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 		const usersPanelElement: HTMLElement = usersPanel;
 		const usersListElement: HTMLElement = usersList;
 		const usersStatusElement: HTMLElement = usersStatus;
+		const usersFeedback = document.getElementById('recommend-users-feedback');
 
 		function setStatus(status: HTMLElement, message = '') {
 			status.replaceChildren();
@@ -751,48 +1042,124 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 			status.appendChild(retryButton);
 		}
 
+		function showSkeletons(list: HTMLElement, kind: 'post' | 'user') {
+			const fragment = document.createDocumentFragment();
+			for (let index = 0; index < (kind === 'post' ? 4 : 3); index += 1) {
+				const skeleton = document.createElement('div');
+				skeleton.className = `recommend-skeleton recommend-${kind}-skeleton`;
+				skeleton.setAttribute('aria-hidden', 'true');
+				fragment.appendChild(skeleton);
+			}
+			list.replaceChildren(fragment);
+		}
+
+		const onboarding = document.getElementById('interest-onboarding');
+		const interestFeedback = onboarding?.querySelector<HTMLElement>('[data-interest-feedback]');
+		const interestButtons = onboarding?.querySelectorAll<HTMLButtonElement>(
+			'[data-interest-kind][data-interest-id]'
+		);
+		interestButtons?.forEach((button) =>
+			button.addEventListener('click', () => {
+				button.setAttribute(
+					'aria-pressed',
+					String(button.getAttribute('aria-pressed') !== 'true')
+				);
+			})
+		);
+		async function saveInterestSelection(skip: boolean) {
+			if (!onboarding) return;
+			const selected = Array.from(
+				onboarding.querySelectorAll<HTMLButtonElement>('[aria-pressed="true"]')
+			);
+			const tagIds = selected
+				.filter((button) => button.dataset.interestKind === 'tag')
+				.map((button) => button.dataset.interestId!)
+				.filter(Boolean);
+			const categoryIds = selected
+				.filter((button) => button.dataset.interestKind === 'category')
+				.map((button) => button.dataset.interestId!)
+				.filter(Boolean);
+			const controls = onboarding.querySelectorAll<HTMLButtonElement>('button');
+			controls.forEach((button) => {
+				button.disabled = true;
+			});
+			if (interestFeedback)
+				interestFeedback.textContent = skip ? '正在跳过偏好设置…' : '正在保存你的选择…';
+			try {
+				const result = await actions.saveInterests({ tagIds, categoryIds, skip });
+				if (result.error) throw new Error(result.error.message);
+				onboarding.remove();
+				await loadPosts();
+			} catch {
+				controls.forEach((button) => {
+					button.disabled = false;
+				});
+				if (interestFeedback)
+					interestFeedback.textContent = '暂时无法保存，请重试或稍后设置。';
+			}
+		}
+		onboarding
+			?.querySelector<HTMLButtonElement>('[data-interest-save]')
+			?.addEventListener('click', () => void saveInterestSelection(false));
+		onboarding
+			?.querySelector<HTMLButtonElement>('[data-interest-skip]')
+			?.addEventListener('click', () => void saveInterestSelection(true));
+
 		function renderPosts(items: RecommendItem[]) {
 			const fragment = document.createDocumentFragment();
 			for (const item of items) {
-				const a = document.createElement('a');
-				a.href = `/${item.user.username}/${item.id}`;
-				a.className = 'recommend-item';
+				const card = document.createElement('article');
+				card.className = 'recommend-item';
+				const profileUrl = `/${item.user.username}`;
 
-				// 头像
+				const authorLink = document.createElement('a');
+				authorLink.href = profileUrl;
+				authorLink.setAttribute('aria-label', `查看 ${item.user.displayName} 的主页`);
 				if (item.user.avatarUrl) {
 					const img = document.createElement('img');
 					img.src = item.user.avatarUrl;
-					img.alt = item.user.displayName;
+					img.alt = '';
 					img.className = 'recommend-item-avatar';
 					img.loading = 'lazy';
-					a.appendChild(img);
+					authorLink.appendChild(img);
 				} else {
 					const span = document.createElement('span');
 					span.className = 'recommend-item-avatar-placeholder';
 					span.textContent = item.user.displayName.charAt(0).toUpperCase();
-					a.appendChild(span);
+					authorLink.appendChild(span);
 				}
 
 				// 内容区
 				const contentDiv = document.createElement('div');
 				contentDiv.className = 'recommend-item-content';
 
-				const titleDiv = document.createElement('div');
-				titleDiv.className = 'recommend-item-title';
-				// 有标题用标题，否则用内容前 80 字符
-				titleDiv.textContent =
+				const titleLink = document.createElement('a');
+				titleLink.href = `/${item.user.username}/${item.id}`;
+				titleLink.className = 'recommend-item-title-link';
+				titleLink.textContent =
 					item.title || item.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 80);
+				const author = document.createElement('a');
+				author.href = profileUrl;
+				author.className = 'recommend-item-author';
+				author.textContent = `@${item.user.username}`;
 
 				const metaDiv = document.createElement('div');
 				metaDiv.className = 'recommend-item-meta';
 				const likeText = item.likeCount > 0 ? ` · ${item.likeCount} 赞` : '';
 				const commentText = item.commentCount > 0 ? ` · ${item.commentCount} 评论` : '';
-				metaDiv.textContent = `@${item.user.username}${likeText}${commentText}`;
+				metaDiv.textContent = `${likeText.slice(3)}${commentText}`.replace(/^ · /, '');
+				const reason = document.createElement('p');
+				reason.className = 'recommend-item-reason';
+				reason.textContent =
+					item.source === 'interest'
+						? '来自你已选的兴趣'
+						: item.source === 'exploration'
+							? '带你发现新的话题'
+							: '正在被讨论';
 
-				contentDiv.appendChild(titleDiv);
-				contentDiv.appendChild(metaDiv);
-				a.appendChild(contentDiv);
-				fragment.appendChild(a);
+				contentDiv.append(titleLink, author, metaDiv, reason);
+				card.append(authorLink, contentDiv);
+				fragment.appendChild(card);
 			}
 			postsListElement.replaceChildren(fragment);
 		}
@@ -840,7 +1207,7 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 				social.textContent =
 					item.mutualFollowCount > 0
 						? `${item.mutualFollowCount} 位共同关注`
-						: `${item.followerCount} 位关注者`;
+						: '活跃创作者';
 				copy.append(name, handle, bio, social);
 
 				const followButton = document.createElement('button');
@@ -850,17 +1217,26 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 				followButton.setAttribute('aria-label', `关注 ${item.displayName}`);
 				followButton.addEventListener('click', async () => {
 					followButton.disabled = true;
+					followButton.textContent = '关注中…';
+					if (usersFeedback) usersFeedback.textContent = '';
 					try {
 						const result = await actions.toggleFollow({ username: item.username });
 						if (result.data?.following) {
 							card.remove();
+							if (usersFeedback)
+								usersFeedback.textContent = `已关注 ${item.displayName}`;
 							if (!usersListElement.children.length) {
-								setStatus(usersStatusElement, '暂时没有可推荐的用户');
+								setStatus(
+									usersStatusElement,
+									'暂时没有可推荐的用户，可去发现频道看看。'
+								);
 							}
 							return;
 						}
+						throw new Error('关注未完成');
 					} catch {
-						// 保留候选并恢复按钮，允许用户直接重试关注。
+						if (usersFeedback)
+							usersFeedback.textContent = `关注 ${item.displayName} 失败，请重试。`;
 					} finally {
 						if (card.isConnected) {
 							followButton.disabled = false;
@@ -877,7 +1253,7 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 
 		async function loadPosts() {
 			postsPanelElement.setAttribute('aria-busy', 'true');
-			postsListElement.replaceChildren();
+			showSkeletons(postsListElement, 'post');
 			setStatus(postsStatusElement, '正在加载推荐帖子…');
 			try {
 				const result = await actions.getRecommend({ n: 5 });
@@ -887,7 +1263,13 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 				}
 				const items = result.data?.items ?? [];
 				if (!items.length) {
-					setStatus(postsStatusElement, '暂无新的内容推荐');
+					postsListElement.replaceChildren();
+					setStatus(postsStatusElement, '暂无新的内容推荐。');
+					const link = document.createElement('a');
+					link.href = '#home-feed';
+					link.className = 'recommend-empty-link';
+					link.textContent = '浏览全站动态';
+					postsStatusElement.appendChild(link);
 					return;
 				}
 				renderPosts(items);
@@ -901,7 +1283,7 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 
 		async function loadUsers() {
 			usersPanelElement.setAttribute('aria-busy', 'true');
-			usersListElement.replaceChildren();
+			showSkeletons(usersListElement, 'user');
 			setStatus(usersStatusElement, '正在加载推荐用户…');
 			try {
 				const result = await actions.getRecommendUsers({ n: 5 });
@@ -911,7 +1293,13 @@ const heroCopy = await getPublicSiteCopy('home.hero');
 				}
 				const items = result.data?.items ?? [];
 				if (!items.length) {
-					setStatus(usersStatusElement, '暂时没有可推荐的用户');
+					usersListElement.replaceChildren();
+					setStatus(usersStatusElement, '暂时没有可推荐的用户。');
+					const link = document.createElement('a');
+					link.href = '/weibo';
+					link.className = 'recommend-empty-link';
+					link.textContent = '去发现频道';
+					usersStatusElement.appendChild(link);
 					return;
 				}
 				renderUsers(items);
