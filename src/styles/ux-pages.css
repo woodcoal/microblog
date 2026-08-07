@@ -173,116 +173,11 @@
 	width: 100%;
 }
 
-.forum-menu-disclosure > summary {
+.forum-top-menu {
 	display: none;
 }
 
-/* 宽屏直接呈现分组，窄屏再切换为原生可展开菜单。 */
-.forum-menu-content {
-	display: contents;
-}
-
-/* 通用悬浮菜单：定位由放置它的文案行决定，弹层不依赖页面侧栏。 */
-.floating-menu {
-	position: relative;
-	flex: 0 0 auto;
-}
-
-.floating-menu > summary {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	width: 48px;
-	height: 48px;
-	padding: var(--spacing-2);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-full);
-	background: var(--color-card-bg);
-	color: var(--color-sidebar-text);
-	box-shadow: var(--shadow-sm);
-	cursor: pointer;
-	list-style: none;
-}
-
-.floating-menu > summary::-webkit-details-marker {
-	display: none;
-}
-
-.floating-menu-icon {
-	font-size: 1.125rem;
-}
-
-.floating-menu:not([open]) > .floating-menu-panel {
-	display: none;
-}
-
-.floating-menu-panel {
-	position: absolute;
-	top: calc(100% + var(--spacing-2));
-	left: 0;
-	z-index: 30;
-	display: grid;
-	gap: var(--spacing-3);
-	width: min(21rem, calc(100vw - var(--spacing-6)));
-	max-height: min(32rem, calc(100vh - var(--navbar-height) - var(--spacing-12)));
-	overflow-y: auto;
-	padding: var(--spacing-3);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius-lg);
-	background: var(--color-card-bg);
-	box-shadow: var(--shadow-lg);
-}
-
-.forum-floating-menu {
-	display: none;
-}
-
-.forum-floating-menu .forum-sidebar-group {
-	display: grid;
-	gap: var(--spacing-1);
-	margin: 0;
-}
-
-.forum-floating-menu .forum-sidebar-group + .forum-sidebar-group {
-	padding-top: var(--spacing-3);
-	border-top: 1px solid var(--color-border);
-}
-
-.forum-floating-menu .forum-sidebar-group h2 {
-	margin: 0;
-	color: var(--color-muted);
-	font-size: 0.8125rem;
-	font-weight: 700;
-}
-
-.forum-floating-menu .sidebar-link {
-	justify-content: flex-start;
-	width: 100%;
-	min-height: 2.5rem;
-	padding: var(--spacing-2) var(--spacing-3);
-	border-radius: var(--radius-md);
-	font-size: 0.9375rem;
-}
-
-.forum-floating-menu .sidebar-link-icon {
-	display: inline-block;
-	width: 1.25rem;
-	font-size: 1rem;
-}
-
-.forum-floating-menu small {
-	display: block;
-	margin-left: auto;
-}
-
-@media (min-width: 1200px) {
-	/* details 在大屏显式展开，避免浏览器的闭合默认样式隐藏常驻侧栏。 */
-	.forum-menu-disclosure[open] > .forum-menu-content {
-		display: contents;
-	}
-}
-
-/* 非大屏不保留侧栏的导航列；菜单只通过文案区里的共享悬浮组件进入。 */
+/* 非大屏不保留侧栏的导航列；顶部菜单在正常文档流内显示。 */
 @media (max-width: 1199px) {
 	.layout-wide-forum,
 	.layout-wide-forum.layout-wide-with-aside {
@@ -298,24 +193,64 @@
 		display: none;
 	}
 
-	.forum-floating-menu {
-		display: block;
-	}
-
-	.forum-page-header-row,
-	.forum-page-heading--with-menu,
-	.post-detail-topbar--forum {
+	.forum-top-menu {
 		display: flex;
 		align-items: flex-start;
+		flex-wrap: wrap;
 		gap: var(--spacing-3);
+		margin: 0 0 var(--spacing-5);
+		padding: var(--spacing-4) var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: var(--color-card-bg);
 	}
 
-	.forum-page-header-row > .site-copy-content-channel,
-	.forum-page-heading--with-menu .forum-heading-copy,
-	.post-detail-topbar--forum .post-detail-breadcrumb {
-		flex: 1 1 0;
+	.forum-top-menu .forum-sidebar-group {
+		display: flex;
+		flex: 0 1 auto;
+		align-items: center;
 		min-width: 0;
-		text-align: left;
+		max-width: 100%;
+		gap: var(--spacing-2);
+		margin: 0;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		white-space: nowrap;
+	}
+
+	.forum-top-menu .forum-sidebar-primary {
+		flex-basis: 100%;
+		padding-bottom: var(--spacing-3);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.forum-top-menu .forum-sidebar-group h2 {
+		flex: 0 0 auto;
+		margin: 0 var(--spacing-2) 0 0;
+		color: var(--color-text);
+		font-size: 1rem;
+		font-weight: 700;
+		letter-spacing: 0;
+	}
+
+	.forum-top-menu .sidebar-link {
+		flex: 0 0 auto;
+		width: auto;
+		min-height: 2.5rem;
+		padding: var(--spacing-2) var(--spacing-3);
+		border-radius: var(--radius-full);
+		font-size: 0.9375rem;
+	}
+
+	.forum-top-menu .sidebar-link-icon {
+		display: inline-block;
+		width: 1.125rem;
+		font-size: 1rem;
+	}
+
+	.forum-top-menu .sidebar-link-icon-fallback,
+	.forum-top-menu small {
+		display: none;
 	}
 }
 
@@ -2237,6 +2172,15 @@
 	.post-detail-layout-forum .forum-menu-content .forum-sidebar-group small {
 		display: block;
 		margin-left: auto;
+	}
+}
+
+/* 旧版折叠／悬浮菜单规则位于文件前部；最终以顶部菜单模式收口，防止详情侧栏被重新显示。 */
+@media (max-width: 1199px) {
+	.layout-wide-forum .layout-sidebar,
+	.layout-wide-forum .forum-navigation--sidebar,
+	.post-detail-layout-forum .forum-navigation--sidebar {
+		display: none;
 	}
 }
 
