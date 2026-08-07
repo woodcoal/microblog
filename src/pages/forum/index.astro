@@ -17,6 +17,7 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getPopularPostItems } from '@/lib/discovery';
+import { getTrendingFeed } from '@/services/recommend.service';
 import type { Prisma } from '../../../generated/prisma/client';
 
 // 模式未启用时返回 404
@@ -74,17 +75,18 @@ const PAGE_SIZE = 20;
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
-	forumSort === 'hot'
-		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-		: forumSort === 'featured'
+	forumSort === 'featured'
 			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 			: [{ createdAt: 'desc' }];
 const forumPostWhere = { isDeleted: false, mode: 'forum', ...visibilityFilter };
-const totalPosts = await prisma.post.count({ where: forumPostWhere });
-const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
+const hotResult = forumSort === 'hot'
+	? await getTrendingFeed({ viewerId: currentUser?.userId, page: currentPage, pageSize: PAGE_SIZE, mode: 'forum' })
+	: null;
+const totalPosts = hotResult?.total ?? await prisma.post.count({ where: forumPostWhere });
+const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
-const posts = await prisma.post.findMany({
+const posts = hotResult?.items ?? await prisma.post.findMany({
 	where: forumPostWhere,
 	orderBy: forumPostOrder,
 	skip: (safePage - 1) * PAGE_SIZE,
@@ -122,7 +124,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const recommendationItems = await getPopularPostItems({
 	mode: 'forum',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	excludePostIds: posts.map((post) => post.id),
 	responseLabel: '回复'
 });

@@ -14,11 +14,11 @@ import PostCard from '@/components/PostCard.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
-import { calculateTrendingScore } from '@/lib/trending';
-import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
-import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
+import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
+import { checkPostVisibility } from '@/lib/visibility';
 import { isSingleMode, singleMode } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
+import { getTrendingFeed } from '@/services/recommend.service';
 
 // 单模式时直接重定向到该模式首页
 if (isSingleMode && singleMode) {
@@ -51,38 +51,17 @@ if (currentUser) {
 	});
 	followerIds.push(...followers.map((f) => f.followerId));
 }
-const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, {
-	followingIds,
-	followerIds
-});
-
 // 从 URL 查询参数获取当前页码，默认第 1 页
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 
-// 查询全局置顶帖（始终在最前面，不受分页影响）
-const pinnedPosts = await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: true,
-		...visibilityFilter
-	},
-	orderBy: [{ createdAt: 'desc' }],
-	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } },
-		bookmarks: { select: { id: true } }
-	}
-});
-
 // 查询非置顶公开帖子总数，用于计算总页数
-const totalPosts = await prisma.post.count({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: false,
-		...visibilityFilter
-	}
+const unifiedTrending = await getTrendingFeed({
+	viewerId: currentUser?.userId,
+	page: currentPage,
+	pageSize: PAGE_SIZE,
+	includeGlobalPinned: true
 });
+const totalPosts = unifiedTrending.total;
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
@@ -90,38 +69,7 @@ const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 // 确保当前页不超过总页数
 const safePage = Math.min(currentPage, totalPages);
 
-// 查询所有非置顶公开帖子（需要全部加载以计算热门分数后排序）
-const allNonPinnedPosts = await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: false,
-		...visibilityFilter
-	},
-	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } },
-		bookmarks: { select: { id: true } }
-	}
-});
-
-// 为每个非置顶帖子计算热门分数，按分数倒序排列
-const sortedNonPinnedPosts = allNonPinnedPosts
-	.map((post) => ({
-		post,
-		score: calculateTrendingScore(post.likes.length, post.comments.length, post.createdAt)
-	}))
-	.sort((a, b) => b.score - a.score);
-
-// 按页码截取当前页的非置顶帖子
-const skip = (safePage - 1) * PAGE_SIZE;
-const pagedNonPinnedPosts = sortedNonPinnedPosts.slice(skip, skip + PAGE_SIZE);
-
-// 合并置顶帖和当前页非置顶帖（仅第一页显示置顶帖）
-const posts =
-	safePage === 1
-		? [...pinnedPosts, ...pagedNonPinnedPosts.map((item) => item.post)]
-		: pagedNonPinnedPosts.map((item) => item.post);
+const posts = unifiedTrending.items;
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(

@@ -43,9 +43,8 @@ import {
 	checkPostVisibility,
 	getVisibilityFilter
 } from '@/lib/visibility';
-import { HOT_SORT_CANDIDATE_WINDOW, POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
 import type { Prisma } from '../../generated/prisma/client';
-import { calculateTrendingScore } from '@/lib/trending';
 import { hashPassword } from '@/lib/auth';
 
 /** 评论内容最大长度 */
@@ -751,6 +750,8 @@ export async function getPosts(input: GetPostsInput) {
 		isDeleted: false,
 		...visibilityFilter
 	};
+	let tagPostIds: string[] | undefined;
+	let scopedUserIds: string[] | undefined;
 
 	// keyword 过滤
 	if (keyword) {
@@ -776,6 +777,7 @@ export async function getPosts(input: GetPostsInput) {
 		if (postIdsByTag.length === 0) {
 			return [];
 		}
+		tagPostIds = postIdsByTag;
 		where.id = { in: postIdsByTag };
 	}
 
@@ -786,10 +788,13 @@ export async function getPosts(input: GetPostsInput) {
 			return [];
 		}
 		where.userId = targetUser.id;
+		scopedUserIds = [targetUser.id];
 	} else if (userScope === 'following') {
 		where.userId = { in: [...followingIds, userId] };
+		scopedUserIds = [...followingIds, userId];
 	} else if (userScope === 'followers') {
 		where.userId = { in: [...followerIds, userId] };
+		scopedUserIds = [...followerIds, userId];
 	}
 
 	// 查询帖子
@@ -801,26 +806,18 @@ export async function getPosts(input: GetPostsInput) {
 	}>;
 
 	if (sort === 'hot') {
-		// hot 排序：查询满足条件的帖子，内存排序
-		const hotPosts = await findAgentPosts(where, {
-			take: HOT_SORT_CANDIDATE_WINDOW,
-			includeCounts: true
+		const { getTrendingFeed } = await import('@/services/recommend.service');
+		const hot = await getTrendingFeed({
+			viewerId: userId,
+			page: Math.floor(skip / limit) + 1,
+			pageSize: limit,
+			postIds: tagPostIds,
+			userIds: scopedUserIds,
+			keyword,
+			from,
+			to
 		});
-
-		// 计算热门分数并排序
-		const scored = hotPosts
-			.map((p) => ({
-				...p,
-				score: calculateTrendingScore(
-					p._count?.likes ?? 0,
-					p._count?.comments ?? 0,
-					p.createdAt
-				)
-			}))
-			.sort((a, b) => b.score - a.score);
-
-		// 分页截取
-		posts = scored.slice(skip, skip + limit);
+		posts = hot.items;
 	} else {
 		// latest/earliest 排序
 		const orderBy =

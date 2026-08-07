@@ -7,6 +7,7 @@ import { countApiUsers, findApiUser, findApiUsers } from '@/lib/user';
 import { findFollowerIds, findFollowingIds } from '@/lib/social';
 import { findTagByName } from '@/lib/tag';
 import { checkPostVisibility, getVisibilityFilter } from '@/lib/visibility';
+import { getTrendingFeed } from '@/services/recommend.service';
 import type { Prisma } from '../../generated/prisma/client';
 import type { CommentDto, PageDto, PostDto, UserDto } from '@/types/dto';
 
@@ -136,6 +137,26 @@ async function visiblePostWhere(viewerId?: string): Promise<Prisma.PostWhereInpu
 }
 
 export async function getPublicPosts(input: PageInput & { sort?: 'latest' | 'hot' }) {
+	if (input.sort === 'hot') {
+		const feed = await getTrendingFeed({
+			viewerId: input.viewerId,
+			page: input.page,
+			pageSize: input.pageSize
+		});
+		if (feed.items.length === 0) return { items: [], total: feed.total, page: input.page, pageSize: input.pageSize };
+		const visibleWhere = await visiblePostWhere(input.viewerId);
+		const records = await findApiPosts({ ...visibleWhere, id: { in: feed.items.map((item) => item.id) } }, {
+			skip: 0, take: feed.items.length, orderBy: { createdAt: 'desc' }, viewerId: input.viewerId
+		});
+		const byId = new Map(records.map((record) => [record.id, record]));
+		return {
+			items: await Promise.all(feed.items.flatMap((item) => {
+				const record = byId.get(item.id);
+				return record ? [toListPostDto(record, input.viewerId)] : [];
+			})),
+			total: feed.total, page: input.page, pageSize: input.pageSize
+		};
+	}
 	return getPostPage(await visiblePostWhere(input.viewerId), input, input.sort);
 }
 

@@ -16,6 +16,7 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import type { Prisma } from '../../../generated/prisma/client';
 import { getPopularPostItems } from '@/lib/discovery';
+import { getTrendingFeed } from '@/services/recommend.service';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -82,9 +83,7 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
-	forumSort === 'hot'
-		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-		: forumSort === 'featured'
+	forumSort === 'featured'
 			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 			: [{ createdAt: 'desc' }];
 
@@ -92,7 +91,10 @@ const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 
 // 查询该版块下的帖子总数
-const totalPosts = await prisma.post.count({
+const hotResult = forumSort === 'hot'
+	? await getTrendingFeed({ viewerId: currentUser?.userId, page: currentPage, pageSize: PAGE_SIZE, mode: 'forum', categoryId: category.id })
+	: null;
+const totalPosts = hotResult?.total ?? await prisma.post.count({
 	where: {
 		isDeleted: false,
 		mode: 'forum',
@@ -107,7 +109,7 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的帖子
-const posts = await prisma.post.findMany({
+const posts = hotResult?.items ?? await prisma.post.findMany({
 	where: {
 		isDeleted: false,
 		mode: 'forum',
@@ -155,7 +157,7 @@ const hasIcon = !!category.icon;
 const isLeafCategory = category._count.children === 0;
 const recommendationItems = await getPopularPostItems({
 	mode: 'forum',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	categoryId: category.id,
 	excludePostIds: posts.map((post) => post.id),
 	responseLabel: '回复'

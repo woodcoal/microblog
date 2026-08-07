@@ -37,6 +37,8 @@ model User {
   webhooks             Webhook[]
   activityLogs         ActivityLog[]
   postReads            PostRead[]
+  tagInterests         UserTagInterest[]
+  categoryInterests    UserCategoryInterest[]
   siteCopiesUpdated    SiteCopy[]        @relation("SiteCopyUpdatedBy")
   siteCopyVersions     SiteCopyVersion[] @relation("SiteCopyVersionUpdatedBy")
 }
@@ -81,6 +83,7 @@ model Post {
 
   @@index([isDeleted, visibility, createdAt])
   @@index([userId, isDeleted, visibility, createdAt])
+  @@index([mode, isDeleted, createdAt])
 }
 
 /// 帖子版本历史
@@ -138,6 +141,8 @@ model Comment {
   parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
   replies   Comment[] @relation("CommentReplies")
   likes     Like[]
+
+  @@index([postId, isDeleted, userId])
 }
 
 /// 点赞表
@@ -154,6 +159,7 @@ model Like {
 
   @@unique([userId, postId])
   @@unique([userId, commentId])
+  @@index([postId, userId])
 }
 
 /// 关注表
@@ -178,6 +184,7 @@ model Tag {
   createdAt DateTime @default(now())
 
   posts     PostTag[]
+  interests UserTagInterest[]
 }
 
 /// 帖子-标签关联表
@@ -225,9 +232,38 @@ model UserSettings {
   accent               String   @default("")        // blue, green, orange, purple, rose，空字符串表示默认
   commentSortOrder     String   @default("asc")     // asc, desc
   notificationsEnabled Boolean  @default(true)      // 是否接收通知，关闭后通知栏目不显示
+  interestOnboardingCompletedAt DateTime?
   updatedAt            DateTime @updatedAt
 
   user                 User     @relation(fields: [userId], references: [id])
+}
+
+/// 用户明确选择的兴趣标签；不保存推荐分数或推荐位置。
+model UserTagInterest {
+  id        String   @id @default(cuid())
+  userId    String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tagId])
+  @@index([tagId, userId])
+}
+
+/// 用户明确选择的兴趣分类；不保存推荐分数或推荐位置。
+model UserCategoryInterest {
+  id         String   @id @default(cuid())
+  userId     String
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryId])
+  @@index([categoryId, userId])
 }
 
 /// 通知表
@@ -303,6 +339,7 @@ model Category {
   parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryChildren")
   posts       Post[]
+  interests   UserCategoryInterest[]
 }
 
 /// 收藏表 — 用户收藏/书签帖子
@@ -316,6 +353,7 @@ model Bookmark {
   post      Post     @relation(fields: [postId], references: [id])
 
   @@unique([userId, postId])  // 每人每帖只能收藏一次
+  @@index([postId, userId])
 }
 
 /// 站点固定文案的当前值。键由应用层白名单限定，不能作为任意配置存储使用。

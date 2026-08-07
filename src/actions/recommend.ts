@@ -16,6 +16,8 @@ import {
 	getRecommend as getRecommendService,
 	getSimilarPosts as getSimilarPostsService,
 	recordRead as recordReadService,
+	saveInterests as saveInterestsService,
+	getRecommendationProfile as getRecommendationProfileService,
 	RECOMMEND_USER_MAX_COUNT,
 	RECOMMEND_USER_MIN_COUNT
 } from '@/services/recommend.service';
@@ -146,4 +148,29 @@ const recordRead = defineAction({
 	}
 });
 
-export { getRecommend, getRecommendUsers, getSimilarPosts, recordRead };
+/** 新用户兴趣引导的可调用闭环；空选择表示明确跳过。 */
+const saveInterests = defineAction({
+	input: z.object({
+		tagIds: z.array(z.string().min(1)).max(50).default([]),
+		categoryIds: z.array(z.string().min(1)).max(50).default([]),
+		skip: z.boolean().optional()
+	}),
+	handler: async (input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		await saveInterestsService({ userId: currentUser.userId, ...input });
+		return getRecommendationProfileService(currentUser.userId);
+	}
+});
+
+/** 客户端可读取当前冷启动/混合推荐状态以刷新推荐区。 */
+const getRecommendationProfile = defineAction({
+	input: z.object({}),
+	handler: async (_input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		return getRecommendationProfileService(currentUser.userId);
+	}
+});
+
+export { getRecommend, getRecommendUsers, getSimilarPosts, recordRead, saveInterests, getRecommendationProfile };

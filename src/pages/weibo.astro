@@ -20,6 +20,7 @@ import { isModeEnabled, getModeLabel } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getPopularTagItems } from '@/lib/discovery';
 import type { Prisma } from '../../generated/prisma/client';
+import { getTrendingFeed } from '@/services/recommend.service';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('weibo')) {
@@ -55,6 +56,15 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 // 从 URL 查询参数获取当前页码，默认第 1 页
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 const isPopularSort = Astro.url.searchParams.get('sort') === 'popular';
+const unifiedTrending = isPopularSort
+	? await getTrendingFeed({
+			viewerId: currentUser?.userId,
+			page: currentPage,
+			pageSize: PAGE_SIZE,
+			mode: 'weibo',
+			includeGlobalPinned: true
+	})
+	: null;
 const timelineOrderBy: Prisma.PostOrderByWithRelationInput[] = isPopularSort
 	? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 	: [{ createdAt: 'desc' }];
@@ -77,14 +87,14 @@ const pinnedPosts = await prisma.post.findMany({
 });
 
 // 查询非置顶 weibo 帖子总数
-const totalPosts = await prisma.post.count({
+const totalPosts = unifiedTrending?.total ?? (await prisma.post.count({
 	where: {
 		isDeleted: false,
 		isGlobalPinned: false,
 		mode: 'weibo',
 		...visibilityFilter
 	}
-});
+}));
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
@@ -92,7 +102,7 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的微博帖子。热门视图复用既有互动计数排序，不改变数据契约。
-const posts = await prisma.post.findMany({
+const legacyPosts = await prisma.post.findMany({
 	where: {
 		isDeleted: false,
 		isGlobalPinned: false,
@@ -111,7 +121,8 @@ const posts = await prisma.post.findMany({
 });
 
 // 合并置顶帖和当前页帖子（仅第一页显示置顶帖）
-const allPosts = safePage === 1 ? [...pinnedPosts, ...posts] : posts;
+const posts = unifiedTrending?.items ?? legacyPosts;
+const allPosts = unifiedTrending?.items ?? (safePage === 1 ? [...pinnedPosts, ...posts] : posts);
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(

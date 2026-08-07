@@ -90,7 +90,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const recommendationItems = await getPopularPostItems({
 	mode: 'blog',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	categoryId: category.id,
 	excludePostIds: posts.map((post) => post.id)
 });

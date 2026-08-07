@@ -18,6 +18,7 @@ import { isModeEnabled, getModeLabel } from '@/lib/config';
 import type { Prisma } from '../../../generated/prisma/client';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getPopularPostItems } from '@/lib/discovery';
+import { getTrendingFeed } from '@/services/recommend.service';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -83,14 +84,15 @@ if (isBookmarkScope && currentUser) {
 	whereCondition.bookmarks = { some: { userId: currentUser.userId } };
 }
 const blogPostOrder: Prisma.PostOrderByWithRelationInput[] =
-	blogSort === 'hot'
-		? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-		: blogSort === 'recommended'
+	blogSort === 'recommended'
 			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 			: [{ createdAt: 'desc' }];
 
 // 查询博客帖子总数
-const totalPosts = await prisma.post.count({ where: whereCondition });
+const hotResult = blogSort === 'hot' && !isBookmarkScope
+	? await getTrendingFeed({ viewerId: currentUser?.userId, page: currentPage, pageSize: PAGE_SIZE, mode: 'blog', categoryId: filterCategoryId || undefined })
+	: null;
+const totalPosts = hotResult?.total ?? await prisma.post.count({ where: whereCondition });
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
@@ -98,7 +100,7 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的博客帖子（需要 likes 和 comments 计数）
-const posts = await prisma.post.findMany({
+const posts = hotResult?.items ?? await prisma.post.findMany({
 	where: whereCondition,
 	orderBy: blogPostOrder,
 	include: {
@@ -144,7 +146,7 @@ const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId
 const scopeQuery = isBookmarkScope ? '&scope=bookmarks' : '';
 const recommendationItems = await getPopularPostItems({
 	mode: 'blog',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	excludePostIds: posts.map((post) => post.id)
 });
 const discoverySections =
