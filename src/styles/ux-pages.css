@@ -5,10 +5,19 @@
 
 /* A 内容壳：受控阅读列与清晰的标题节奏 */
 [data-ux-shell='weibo'] .layout-main,
+[data-ux-shell='forum'] .layout-main,
+[data-ux-shell='blog'] .layout-main,
 [data-ux-shell='search'] .layout-main,
 [data-ux-shell='notifications'] .layout-main,
 [data-ux-shell='connections'] .layout-main {
 	max-width: var(--layout-content);
+}
+
+/* 三个内容频道使用同一主列和页头轴；登录态的操作按钮仍留在页头右侧。 */
+[data-ux-shell='forum'] .page-header-row > .site-copy-content-channel,
+[data-ux-shell='blog'] .page-header-row > .site-copy-content-channel {
+	flex: 1 1 auto;
+	min-width: 0;
 }
 
 [data-ux-shell='weibo'] .page-header,
@@ -1114,6 +1123,17 @@
 	.notification-header {
 		align-items: flex-start;
 		flex-direction: column;
+	}
+
+	/* 叠放后显式拉伸页头，避免内容按自身宽度收缩至主列右侧。 */
+	[data-ux-shell='forum'] .page-header-row > .site-copy-content-channel,
+	[data-ux-shell='blog'] .page-header-row > .site-copy-content-channel,
+	.forum-page-heading,
+	.blog-page-heading,
+	.forum-heading-copy {
+		align-self: stretch;
+		width: 100%;
+		text-align: left;
 	}
 
 	.forum-category-list,
