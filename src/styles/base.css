@@ -497,19 +497,6 @@ body[data-ux-shell='home'] .navbar-inner {
 	height: fit-content;
 }
 
-/* 三栏至少需要 1200px 的可读空间；中等桌面先保留导航与主列表，避免 1024px
- * 视口将 760px 阅读列压缩到不可用宽度。 */
-@media (min-width: 1024px) and (max-width: 1199px) {
-	.layout-wide-with-aside {
-		max-width: var(--layout-wide);
-		grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
-	}
-
-	.layout-wide-with-aside .layout-discovery-sidebar {
-		display: none;
-	}
-}
-
 /* ===== 桌面侧栏导航项 ===== */
 .sidebar-link {
 	display: flex;
