@@ -57,7 +57,7 @@ npm run dev
 ### 生产部署
 
 ```bash
-# 构建
+# 构建前会自动生成 Prisma Client 并应用已提交迁移
 npm run build
 
 # 方式一：直接启动
@@ -66,6 +66,8 @@ npm run start
 # 方式二：PM2 进程管理
 npm run pm2
 ```
+
+> 既有实例升级后首次重启前，先执行 `npm run db:prepare`，再使用 `npm run build` 和原有方式重启。该命令只会应用未执行的已提交迁移，不会重置数据库。
 
 ## 环境变量
 
@@ -112,6 +114,7 @@ npm run build            # 构建
 npm run start            # 生产启动
 npm run db:generate      # 生成 Prisma Client
 npm run db:migrate       # 数据库迁移
+npm run db:prepare        # 生成 Prisma Client 并应用已提交迁移
 npm run db:migrate:dev   # 生成开发迁移
 npm run db:status        # 查看当前 provider 的迁移状态
 npm run db:studio        # Prisma Studio GUI
@@ -121,7 +124,7 @@ npm run format           # 代码格式化
 
 ### 切换 SQLite / MySQL
 
-`DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量依次执行 `npm run db:generate`、`npm run db:migrate`，再启动应用；`npm run db:setup` 会额外写入管理员种子数据。
+`DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量执行 `npm run db:prepare`，再启动应用；`dev`、`build`、`start` 与 `pm2` 也会自动执行该预处理。`npm run db:setup` 会额外写入管理员种子数据。
 
 SQLite 使用 `prisma/migrations/sqlite/0_init`，MySQL 使用 `prisma/migrations/mysql/0_init`。两个基线描述相同的数据模型，但不互相转换数据；从一种数据库迁移到另一种时请先备份并自行迁移数据，切勿对生产库使用 `prisma migrate reset`。
 
