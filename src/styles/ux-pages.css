@@ -182,6 +182,13 @@
 	display: contents;
 }
 
+@media (min-width: 1200px) {
+	/* details 在大屏显式展开，避免浏览器的闭合默认样式隐藏常驻侧栏。 */
+	.forum-menu-disclosure[open] > .forum-menu-content {
+		display: contents;
+	}
+}
+
 .sidebar-section-label,
 .forum-sidebar-group h2 {
 	margin: 0;
@@ -1943,37 +1950,36 @@
 		display: none;
 	}
 
-	/* 手机上收为置顶菜单按钮，避免多组横向标签挤占正文。 */
+	/* 手机与中屏统一使用左上角圆形悬浮菜单。 */
 	.layout-wide-forum .forum-category-sidebar,
 	.post-detail-layout-forum .forum-category-sidebar {
 		display: block;
 		position: relative;
+		width: 48px;
 	}
 
 	.layout-wide-forum .forum-menu-disclosure,
 	.post-detail-layout-forum .forum-menu-disclosure {
 		position: relative;
+		width: 48px;
 	}
 
 	.layout-wide-forum .forum-menu-disclosure > summary,
 	.post-detail-layout-forum .forum-menu-disclosure > summary {
 		display: flex;
-		position: sticky;
-		top: calc(var(--navbar-height) + var(--spacing-2));
+		position: relative;
 		z-index: 20;
 		align-items: center;
-		gap: var(--spacing-2);
-		width: 100%;
-		min-height: 2.75rem;
-		padding: var(--spacing-2) var(--spacing-3);
+		justify-content: center;
+		width: 48px;
+		height: 48px;
+		padding: var(--spacing-2);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius-full);
 		background: var(--color-card-bg);
 		color: var(--color-sidebar-text);
 		box-shadow: var(--shadow-sm);
 		cursor: pointer;
-		font-size: 0.875rem;
-		font-weight: 600;
 		list-style: none;
 	}
 
@@ -1986,21 +1992,10 @@
 		font-size: 1.125rem;
 	}
 
-	.forum-menu-summary-current {
-		margin-left: auto;
-		color: var(--color-muted);
-		font-size: 0.8125rem;
-		font-weight: 500;
-	}
-
+	.forum-menu-summary-label,
+	.forum-menu-summary-current,
 	.forum-menu-summary-chevron {
-		color: var(--color-muted);
-		font-size: 1.125rem;
-		transition: transform var(--transition-fast);
-	}
-
-	.forum-menu-disclosure[open] .forum-menu-summary-chevron {
-		transform: rotate(180deg);
+		display: none;
 	}
 
 	.layout-wide-forum .forum-menu-disclosure:not([open]) > .forum-menu-content,
@@ -2010,10 +2005,15 @@
 
 	.layout-wide-forum .forum-menu-content,
 	.post-detail-layout-forum .forum-menu-content {
+		position: absolute;
+		top: calc(100% + var(--spacing-2));
+		left: 0;
+		z-index: 20;
 		display: grid;
 		gap: var(--spacing-3);
 		max-height: min(32rem, calc(100vh - var(--navbar-height) - var(--spacing-12)));
-		margin-top: var(--spacing-2);
+		width: min(21rem, calc(100vw - var(--spacing-8)));
+		margin: 0;
 		overflow-y: auto;
 		padding: var(--spacing-3);
 		border: 1px solid var(--color-border);
