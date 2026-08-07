@@ -317,14 +317,6 @@ const resolvedOgType = ogType || 'website';
 						)
 					}
 					<ThemeSwitcher />
-					{
-						currentUser && notificationsEnabled && (
-							<a href="/notifications" class="nav-notification" aria-label="通知">
-								<span aria-hidden="true">🔔</span>
-								{hasUnread && <span class="notification-badge">{unreadCount}</span>}
-							</a>
-						)
-					}
 					<!-- 移动端导航菜单（hamburger 面板内） -->
 					<nav class="mobile-user-area" aria-label="移动端导航">
 						<a href="/" class="mobile-user-link">
