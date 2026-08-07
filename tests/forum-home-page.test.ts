@@ -25,9 +25,10 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.match(navigation, /label: '首页'/);
 	assert.match(navigation, /label: '热门'/);
 	assert.match(navigation, /label: '推荐'/);
-	assert.match(navigation, /const showCategoryGroups = isForumHome && sort === 'latest'/);
-	assert.match(navigation, /showCategoryGroups && groups\.length > 0/);
 	assert.match(navigation, /groups\.map/);
+	assert.doesNotMatch(navigation, /showCategoryGroups/);
+	assert.match(page, /const showCategoryOverview = forumSort === 'latest'/);
+	assert.match(page, /showCategoryOverview && \(/);
 	assert.doesNotMatch(page, /slot="nav"/);
 	assert.doesNotMatch(categoryPage, /slot="nav"/);
 	assert.match(detailPage, /<ForumNavigation presentation="detail" \/>/);

@@ -32,7 +32,7 @@ test('博客浏览页通过共享布局统一提供导航，编辑页保持全�
 	assert.match(blogLayout, /import BlogNavigation/);
 	assert.match(blogLayout, /showNavigation = true/);
 	assert.match(blogLayout, /<BlogNavigation \/>/);
-	assert.match(blogNavigation, /label: '收藏'/);
+	assert.doesNotMatch(blogNavigation, /label: '收藏'/);
 	assert.match(blogNavigation, /文章分类/);
 	assert.doesNotMatch(blogIndex, /slot="nav"/);
 	assert.doesNotMatch(blogCategory, /slot="nav"/);
