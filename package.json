@@ -39,6 +39,7 @@
 		"format:check": "prettier --check .",
 		"test:api-v1": "node scripts/run-api-test.mjs api-v1",
 		"test:api-agent": "node scripts/run-api-test.mjs api-agent",
+		"test:admin-auth": "node scripts/run-api-test.mjs admin-auth",
 		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts",
 		"test:site-config": "tsx --test tests/site-config.test.ts",
 		"test:color-contrast": "tsx --test tests/primary-color-contrast.test.ts",

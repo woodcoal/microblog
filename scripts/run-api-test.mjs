@@ -14,9 +14,11 @@ const testFile =
 		? 'tests/api-v1.acceptance.test.ts'
 		: suite === 'api-agent'
 			? 'tests/agent-api.acceptance.test.ts'
-			: undefined;
+			: suite === 'admin-auth'
+				? 'tests/admin-authorization.acceptance.test.ts'
+				: undefined;
 
-if (!testFile) throw new Error('测试套件必须是 api-v1 或 api-agent');
+if (!testFile) throw new Error('测试套件必须是 api-v1、api-agent 或 admin-auth');
 
 const defaultSqliteUrl = `file:./prisma/${suite}-acceptance.db`;
 const databaseUrl =
