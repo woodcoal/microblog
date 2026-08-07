@@ -132,11 +132,11 @@
 				padding: 0 24px 72px;
 			}
 			.page-intro {
-				display: flex;
-				justify-content: space-between;
-				gap: 24px;
-				padding: 40px 0 28px;
-				border-bottom: 1px solid var(--border);
+				display: grid;
+				grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+				gap: clamp(40px, 6vw, 68px);
+				align-items: center;
+				padding: clamp(50px, 8vw, 96px) 0 clamp(40px, 6vw, 64px);
 			}
 			.eyebrow {
 				margin: 0 0 8px;
@@ -151,13 +151,16 @@
 				letter-spacing: -0.04em;
 			}
 			.page-intro h1 {
-				font-size: clamp(28px, 4vw, 44px);
-				line-height: 1.1;
+				font-size: clamp(42px, 5.5vw, 76px);
+				line-height: 1.02;
+				letter-spacing: -0.08em;
+				text-wrap: pretty;
 			}
 			.page-intro p:last-child {
 				max-width: 530px;
-				margin: 14px 0 0;
+				margin: 20px 0 28px;
 				color: var(--muted);
+				font-size: 18px;
 			}
 			.prototype-note {
 				align-self: start;
@@ -169,34 +172,69 @@
 				font-size: 12px;
 				white-space: nowrap;
 			}
-			.activity {
-				padding: 32px 0 40px;
-			}
-			.activity-head {
+			.hero-actions {
 				display: flex;
-				justify-content: space-between;
-				gap: 16px;
-				align-items: end;
-				margin-bottom: 16px;
+				flex-wrap: wrap;
+				gap: var(--s2);
 			}
-			.activity-head h2 {
-				margin: 0;
-				font-size: 20px;
-				letter-spacing: -0.03em;
-			}
-			.activity-head p {
-				margin: 3px 0 0;
-				color: var(--muted);
-				font-size: 14px;
-			}
-			.feed-card {
-				display: grid;
-				grid-template-columns: 40px 1fr auto;
-				gap: 12px;
-				padding: 16px;
+			.hero-preview {
+				padding: var(--s5);
 				border: 1px solid var(--border);
 				border-radius: var(--radius-lg);
 				background: var(--card);
+				box-shadow: var(--shadow);
+			}
+			.hero-preview-head {
+				display: flex;
+				justify-content: space-between;
+				gap: var(--s3);
+				align-items: center;
+				padding-bottom: var(--s3);
+			}
+			.hero-preview-head h2 {
+				margin: 0;
+				font-size: 16px;
+				letter-spacing: -0.02em;
+			}
+			.hero-preview-head span {
+				color: var(--muted);
+				font-size: 12px;
+			}
+			.trend-row {
+				display: grid;
+				grid-template-columns: 40px minmax(0, 1fr);
+				gap: var(--s3);
+				padding: var(--s4) 0;
+				border-top: 1px solid var(--border);
+			}
+			.trend-mark {
+				display: grid;
+				place-items: center;
+				width: 40px;
+				height: 40px;
+				border-radius: var(--radius-md);
+				background: color-mix(in srgb, var(--primary) 10%, transparent);
+				color: var(--primary);
+				font-size: 12px;
+				font-weight: 800;
+			}
+			.trend-copy {
+				min-width: 0;
+			}
+			.trend-copy strong,
+			.trend-copy small {
+				display: block;
+			}
+			.trend-copy strong {
+				overflow: hidden;
+				font-size: 14px;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.trend-copy small {
+				margin-top: 2px;
+				color: var(--muted);
+				font-size: 12px;
 			}
 			.avatar {
 				display: grid;
@@ -208,26 +246,6 @@
 				color: var(--primary);
 				font-size: 13px;
 				font-weight: 800;
-			}
-			.feed-card strong {
-				font-size: 14px;
-			}
-			.feed-card p {
-				grid-column: 2 / -1;
-				margin: 0;
-				font-size: 15px;
-			}
-			.meta {
-				color: var(--muted);
-				font-size: 12px;
-			}
-			.channel {
-				padding: 2px 7px;
-				border-radius: 99px;
-				background: var(--surface);
-				color: var(--muted);
-				font-size: 12px;
-				white-space: nowrap;
 			}
 			.recommend {
 				border-top: 1px solid var(--border);
@@ -524,9 +542,6 @@
 					display: inline-flex;
 					margin-top: 14px;
 				}
-				.activity {
-					padding-top: 24px;
-				}
 				.activity-head,
 				.recommend-head {
 					align-items: start;
@@ -535,8 +550,7 @@
 				.onboarding {
 					padding: 16px;
 				}
-				.recommend,
-				.activity {
+				.recommend {
 					padding-top: 28px;
 				}
 				.panel {
@@ -588,27 +602,44 @@
 		<main class="shell" id="main">
 			<header class="page-intro">
 				<div>
-					<p class="eyebrow">首页推荐 · 视觉与交互原型</p>
-					<h1>全站动态在前，<br />为你准备在后。</h1>
-					<p>推荐帮助新用户从第一条动态走进社区，但不抢走内容流的主视线。</p>
-				</div>
-				<span class="prototype-note">示例内容，不代表真实用户或关系</span>
-			</header>
-			<section class="activity" aria-labelledby="activity-title">
-				<div class="activity-head">
-					<div>
-						<h2 id="activity-title">正在被讨论</h2>
-						<p>全站热门内容仍是首页第一阅读轴</p>
+					<p class="eyebrow">轻量、多元、自在</p>
+					<h1>在同一个社区，聊聊你关心的事。</h1>
+					<p>
+						微博记录当下，论坛展开讨论，博客沉淀观点。发现值得停留的内容，也分享你的声音。
+					</p>
+					<div class="hero-actions">
+						<a class="btn btn-primary" href="#hero-trending">浏览热门内容</a>
+						<a class="btn" href="#recommend">探索频道</a>
 					</div>
-					<a class="all-link" href="#recommend">浏览更多动态 →</a>
 				</div>
-				<article class="feed-card">
-					<span class="avatar" aria-hidden="true">林</span>
-					<div><strong>林青</strong><span class="meta"> · 18 分钟前</span></div>
-					<span class="channel">论坛</span>
-					<p>关于如何把一个习惯真正坚持下去，大家分享了很多不一样的开始方式。</p>
-				</article>
-			</section>
+				<aside class="hero-preview" aria-labelledby="hero-trending">
+					<div class="hero-preview-head">
+						<h2 id="hero-trending">正在被讨论</h2>
+						<span>示例内容</span>
+					</div>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">微</span>
+						<span class="trend-copy"
+							><strong>把一个小习惯坚持下去</strong
+							><small>微博 · 18 分钟前</small></span
+						>
+					</a>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">论</span>
+						<span class="trend-copy"
+							><strong>你会怎样开始一段新的学习？</strong
+							><small>论坛 · 32 条回复</small></span
+						>
+					</a>
+					<a class="trend-row" href="#posts-title">
+						<span class="trend-mark" aria-hidden="true">博</span>
+						<span class="trend-copy"
+							><strong>给第一次写长文的朋友</strong
+							><small>博客 · 近期更新</small></span
+						>
+					</a>
+				</aside>
+			</header>
 			<section class="recommend" id="recommend" aria-labelledby="recommend-title">
 				<div class="recommend-head">
 					<div>
@@ -618,7 +649,7 @@
 						</h2>
 						<p>内容与创作者各自加载，不影响你继续浏览全站动态。</p>
 					</div>
-					<a class="all-link" href="#activity-title">全站动态 →</a>
+					<a class="all-link" href="#hero-trending">全站动态 →</a>
 				</div>
 				<section class="onboarding" id="onboarding" aria-labelledby="onboarding-title">
 					<div>
