@@ -171,10 +171,7 @@ const discoverySections =
 		: [];
 ---
 
-<ForumLayout
-	title={`${category.name} - ${getModeLabel('forum')}`}
-	hasAside={discoverySections.length > 0}
->
+<ForumLayout title={`${category.name} - ${getModeLabel('forum')}`} hasAside={true}>
 	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
 		<p class="sidebar-section-label">浏览论坛</p>
 		<a href="/forum" class="sidebar-link"

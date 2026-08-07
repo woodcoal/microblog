@@ -31,10 +31,10 @@ const visibleSections = sections
 	.map((section) => ({ ...section, items: section.items.slice(0, 5) }));
 ---
 
-{
-	visibleSections.length > 0 && (
-		<aside class="channel-aside" aria-label={label}>
-			{visibleSections.map((section) => (
+<aside class="channel-aside" aria-label={label}>
+	{
+		visibleSections.length > 0 ? (
+			visibleSections.map((section) => (
 				<section
 					class="channel-aside-section"
 					aria-labelledby={`channel-aside-${section.title}`}
@@ -63,7 +63,12 @@ const visibleSections = sections
 						))}
 					</nav>
 				</section>
-			))}
-		</aside>
-	)
-}
+			))
+		) : (
+			<section class="channel-aside-section">
+				<h2 class="channel-aside-title">发现内容</h2>
+				<p class="channel-aside-empty">暂时没有可浏览的内容。</p>
+			</section>
+		)
+	}
+</aside>
