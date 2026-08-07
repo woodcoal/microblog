@@ -32,6 +32,8 @@ test('首页推荐区保留冷启动、独立状态和无障碍交互契约', ()
 	assert.match(page, /createInteractionStat\('bookmark', bookmarkCount\)/);
 	assert.match(page, /safeCount\(item\.bookmarkCount\)/);
 	assert.match(page, /点赞 \$\{likeCount\}，收藏 \$\{bookmarkCount\}，评论 \$\{commentCount\}/);
+	assert.match(page, /recommend-preview-stat-bookmark\.is-active/);
+	assert.match(page, /count > 0 \? \['is-active'\] : \[\]/);
 	assert.doesNotMatch(page, /home-preview-mark/);
 	assert.doesNotMatch(page, /recommend-table-wrap/);
 	assert.match(page, /style is:global/);

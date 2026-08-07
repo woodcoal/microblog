@@ -1191,6 +1191,28 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		display: inline-flex;
 		align-items: center;
 		gap: 3px;
+		min-width: 28px;
+		justify-content: center;
+		padding: 3px 5px;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-muted) 10%, transparent);
+		color: var(--color-muted);
+		font-weight: 650;
+	}
+	#recommend-posts-list .recommend-preview-stat.is-active {
+		font-weight: 750;
+	}
+	#recommend-posts-list .recommend-preview-stat-like.is-active {
+		background: #fff1f2;
+		color: #be123c;
+	}
+	#recommend-posts-list .recommend-preview-stat-bookmark.is-active {
+		background: #fff7ed;
+		color: #9a3412;
+	}
+	#recommend-posts-list .recommend-preview-stat-comment.is-active {
+		background: #ecfeff;
+		color: #0f766e;
 	}
 	#recommend-posts-list .recommend-preview-stat svg {
 		width: 14px;
@@ -1430,7 +1452,11 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			count: number
 		) {
 			const stat = document.createElement('span');
-			stat.className = 'recommend-preview-stat';
+			stat.className = [
+				'recommend-preview-stat',
+				`recommend-preview-stat-${kind}`,
+				...(count > 0 ? ['is-active'] : [])
+			].join(' ');
 			stat.setAttribute('aria-hidden', 'true');
 			const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 			icon.setAttribute('viewBox', '0 0 24 24');
