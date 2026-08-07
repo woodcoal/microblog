@@ -3,7 +3,7 @@
  * 通知列表组件
  *
  * 服务端渲染通知列表，支持：
- * - 单条标记已读：点击通知链接跳转（服务端在页面加载时标记已读）
+ * - 单条标记已读：由 notifications 页面统一处理，避免重复提交请求
  * - 未读通知背景高亮
  *
  * 注意：标题栏、全部已读按钮、筛选标签、分页按钮由通知页面负责渲染。
@@ -239,61 +239,3 @@ const hasNotifications = notifications.length > 0;
 		)
 	}
 </div>
-
-<script>
-	import { actions } from 'astro:actions';
-
-	/**
-	 * 通知列表组件交互逻辑
-	 *
-	 * 功能：
-	 * - 点击未读通知项：标记该条已读，移除未读样式
-	 */
-
-	/**
-	 * 标记指定通知为已读，并移除未读样式
-	 *
-	 * @param notificationId - 通知 ID
-	 * @param itemEl - 通知项 DOM 元素
-	 */
-	async function markAsRead(notificationId: string, itemEl: HTMLElement) {
-		const result = await actions.markNotificationsRead({ ids: [notificationId] });
-		if (result.error) {
-			// 标记已读失败不影响操作
-			return;
-		}
-		// 移除未读样式和标记
-		itemEl.classList.remove('notification-unread');
-		itemEl.removeAttribute('data-unread');
-		// 移除未读指示点
-		const dot = itemEl.querySelector('.notification-dot');
-		if (dot) dot.remove();
-	}
-
-	// 点击未读通知项时标记已读
-	document.querySelectorAll('.notification-item[data-unread="true"]').forEach((item) => {
-		item.addEventListener('click', (e) => {
-			// 如果点击的是子链接（操作者主页/帖子链接），不拦截，正常跳转
-			const target = e.target as HTMLElement;
-			// 删除按钮点击不触发已读
-			if (target.closest('[data-action="delete-notification"]')) return;
-			if (
-				target.closest('.notification-actor-link') ||
-				target.closest('.notification-post-link') ||
-				target.closest('.notification-avatar-link')
-			) {
-				// 子链接点击：标记已读但不阻止跳转
-				const notificationId = (item as HTMLElement).dataset.notificationId;
-				if (notificationId) {
-					markAsRead(notificationId, item as HTMLElement);
-				}
-				return;
-			}
-			// 点击通知项空白区域：标记已读
-			const notificationId = (item as HTMLElement).dataset.notificationId;
-			if (notificationId) {
-				markAsRead(notificationId, item as HTMLElement);
-			}
-		});
-	});
-</script>

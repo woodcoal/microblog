@@ -744,6 +744,108 @@
 	background: var(--color-card-bg);
 }
 
+/* connections-a：关系成员是带操作的资料行，不以静态头像宫格代替真实关注关系。 */
+.relationship-tabs {
+	display: flex;
+	gap: var(--spacing-4);
+	margin: 0 0 var(--spacing-4);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.relationship-context {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing-3);
+	margin-bottom: var(--spacing-5);
+}
+
+.relationship-context > span:last-child {
+	display: grid;
+	gap: 0.125rem;
+}
+
+.relationship-context small {
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+}
+
+.relationship-context-avatar {
+	display: grid;
+	width: 42px;
+	height: 42px;
+	place-items: center;
+	border-radius: var(--radius-full);
+	background: color-mix(in srgb, var(--color-primary) 14%, var(--color-card-bg));
+	color: var(--color-primary);
+	font-weight: 700;
+}
+
+.relationship-tabs a {
+	padding: var(--spacing-3) var(--spacing-1);
+	border-bottom: 2px solid transparent;
+	color: var(--color-muted);
+	font-weight: 600;
+}
+
+.relationship-tabs a[aria-current='page'] {
+	border-bottom-color: var(--color-primary);
+	color: var(--color-primary);
+}
+
+.relationship-list {
+	border-top: 1px solid var(--color-border);
+}
+
+.relationship-member {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	gap: var(--spacing-3);
+	padding: var(--spacing-4) 0;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.relationship-member-main {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	gap: var(--spacing-3);
+	color: var(--color-text);
+}
+
+.relationship-member-main:hover strong {
+	color: var(--color-primary);
+}
+
+.relationship-member .user-grid-avatar {
+	width: 42px;
+	height: 42px;
+	flex: 0 0 42px;
+}
+
+.relationship-member-copy {
+	display: grid;
+	min-width: 0;
+}
+
+.relationship-member-copy strong,
+.relationship-member-copy span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.relationship-member-copy span {
+	margin-top: 0.125rem;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+}
+
+.relationship-member .follow-form,
+.relationship-member .follow-btn {
+	margin: 0;
+}
+
 .settings-page {
 	max-width: 860px;
 }
@@ -770,6 +872,11 @@
 	width: min(100%, 1040px);
 	margin: 0 auto;
 	padding: clamp(var(--spacing-6), 8vw, var(--spacing-12)) 0;
+}
+
+.auth-page {
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-md);
 }
 
 .auth-page-intro {
@@ -1305,6 +1412,10 @@
 	.forum-category-list,
 	.user-grid {
 		grid-template-columns: 1fr;
+	}
+
+	.relationship-member {
+		gap: var(--spacing-2);
 	}
 
 	.search-template {
