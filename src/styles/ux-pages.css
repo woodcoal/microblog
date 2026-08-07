@@ -1370,12 +1370,7 @@
 
 	.layout-wide-forum .forum-category-sidebar > .sidebar-link,
 	.post-detail-layout-forum .forum-category-sidebar > .sidebar-link {
-		flex: 0 0 auto;
-		width: auto;
-		min-height: 2.25rem;
-		padding: var(--spacing-2) var(--spacing-3);
-		border-radius: var(--radius-full);
-		font-size: 0.8125rem;
+		display: none;
 	}
 
 	.layout-wide-forum .forum-sidebar-group,
