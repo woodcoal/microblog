@@ -122,10 +122,24 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 				<span>{displayName || currentUser.username}</span>
 			</a>
 
-			<nav class="settings-account-links" aria-label="个人入口">
-				<a href={`/${currentUser.username}`}>个人主页</a>
-				<a href="/following">关注与粉丝</a>
-				<a href="/bookmarks">收藏内容</a>
+			<nav class="settings-account-links weibo-sidebar-group" aria-label="个人入口">
+				<h2 class="sidebar-section-label">个人</h2>
+				<a href="/bookmarks" class="sidebar-link">
+					<span class="sidebar-link-icon">🔖</span>
+					<span>收藏</span>
+				</a>
+				<a href="/following" class="sidebar-link">
+					<span class="sidebar-link-icon">👀</span>
+					<span>关注</span>
+				</a>
+				<a href="/followers" class="sidebar-link">
+					<span class="sidebar-link-icon">👥</span>
+					<span>粉丝</span>
+				</a>
+				<a href={`/${currentUser.username}`} class="sidebar-link">
+					<span class="sidebar-link-icon">👤</span>
+					<span>我的主页</span>
+				</a>
 			</nav>
 
 			<nav class="settings-tabs" aria-label="用户中心">
@@ -669,22 +683,6 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 
 	.settings-account-links {
 		margin: 0 0 var(--spacing-4);
-		padding-bottom: var(--spacing-4);
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.settings-account-links a {
-		display: block;
-		padding: 9px 10px;
-		border-radius: 6px;
-		color: var(--color-muted);
-		font-size: 0.875rem;
-		text-decoration: none;
-	}
-
-	.settings-account-links a:hover {
-		background: color-mix(in srgb, var(--color-text) 5%, transparent);
-		color: var(--color-text);
 	}
 
 	.settings-page {
@@ -1169,9 +1167,24 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			padding-bottom: 2px;
 		}
 
-		.settings-user-summary,
-		.settings-account-links {
+		.settings-user-summary {
 			display: none;
+		}
+
+		.settings-sidebar .settings-account-links {
+			display: flex;
+			gap: 4px;
+			margin: 0;
+		}
+
+		.settings-account-links .sidebar-section-label {
+			display: none;
+		}
+
+		.settings-account-links .sidebar-link {
+			flex-shrink: 0;
+			border: 1px solid var(--color-border);
+			white-space: nowrap;
 		}
 
 		.settings-tabs {
