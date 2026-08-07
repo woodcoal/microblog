@@ -1,6 +1,7 @@
 ---
 /** 管理后台 - 站点文案。预览始终采用 Action 返回的服务端安全 HTML。 */
 import AdminLayout from '@/layouts/Admin.astro';
+import SiteCopyEditor from '@/components/admin/SiteCopyEditor';
 
 const copyEntries = [
 	{ key: 'home.hero', title: '首页 Hero', description: '首页引导区左侧的品牌与社区介绍。' },
@@ -26,178 +27,14 @@ const copyEntries = [
 		<div class="site-copy-admin-list">
 			{
 				copyEntries.map((entry) => (
-					<form class="site-copy-admin-card" data-site-copy-key={entry.key}>
-						<header class="site-copy-admin-card-header">
-							<div>
-								<h2>{entry.title}</h2>
-								<p>{entry.description}</p>
-							</div>
-							<code>{entry.key}</code>
-						</header>
-						<div class="site-copy-admin-grid">
-							<div>
-								<label class="form-label" for={entry.key + '-markdown'}>
-									Markdown 文案
-								</label>
-								<textarea
-									id={entry.key + '-markdown'}
-									class="form-textarea site-copy-admin-textarea"
-									data-markdown
-									maxlength="4000"
-									disabled
-								/>
-								<p class="site-copy-admin-help">
-									最多 4000 个字符；保存后立即更新安全预览。
-								</p>
-							</div>
-							<div>
-								<h3 class="site-copy-admin-preview-title">预览</h3>
-								<div
-									class="site-copy-admin-preview"
-									data-preview
-									aria-live="polite"
-								>
-									<p>正在加载预览…</p>
-								</div>
-							</div>
-						</div>
-						<footer class="site-copy-admin-footer">
-							<p class="site-copy-admin-updated" data-updated>
-								正在读取版本信息…
-							</p>
-							<div class="site-copy-admin-actions">
-								<p
-									class="site-copy-admin-status"
-									data-status
-									role="status"
-									aria-live="polite"
-								/>
-								<button type="submit" class="btn btn-primary" data-save disabled>
-									保存文案
-								</button>
-							</div>
-						</footer>
-					</form>
+					<SiteCopyEditor
+						client:load
+						entryKey={entry.key}
+						title={entry.title}
+						description={entry.description}
+					/>
 				))
 			}
 		</div>
 	</section>
 </AdminLayout>
-
-<script>
-	import { actions } from 'astro:actions';
-	import type { SiteCopyKey } from '@/lib/site-copy-definitions';
-
-	type SiteCopy = { html: string; markdown: string; updatedAt: string | null };
-
-	function getMessage(error: { message?: string } | undefined, fallback: string): string {
-		return error?.message || fallback;
-	}
-
-	function formatUpdatedAt(updatedAt: string | null): string {
-		if (!updatedAt) return '尚未保存版本；当前显示代码内默认文案。';
-		return (
-			'版本更新时间：' +
-			new Intl.DateTimeFormat('zh-CN', {
-				dateStyle: 'medium',
-				timeStyle: 'short'
-			}).format(new Date(updatedAt))
-		);
-	}
-
-	function renderCopy(preview: HTMLElement, copy: SiteCopy): void {
-		// 仅插入后端 Action 返回的受限 Markdown 渲染结果，绝不在此解析 textarea 的原始 Markdown。
-		preview.innerHTML = copy.html;
-	}
-
-	function setStatus(status: HTMLElement, message: string, isError = false): void {
-		status.textContent = message;
-		status.classList.toggle('site-copy-admin-status-error', isError);
-	}
-
-	function requireElement<T extends Element>(element: T | null, selector: string): T {
-		if (!element) throw new Error(`站点文案页面缺少 ${selector} 元素。`);
-		return element;
-	}
-
-	document.querySelectorAll<HTMLFormElement>('[data-site-copy-key]').forEach((form) => {
-		const key = form.dataset.siteCopyKey as SiteCopyKey;
-		const textarea = requireElement(
-			form.querySelector<HTMLTextAreaElement>('[data-markdown]'),
-			'[data-markdown]'
-		);
-		const preview = requireElement(
-			form.querySelector<HTMLElement>('[data-preview]'),
-			'[data-preview]'
-		);
-		const updated = requireElement(
-			form.querySelector<HTMLElement>('[data-updated]'),
-			'[data-updated]'
-		);
-		const status = requireElement(
-			form.querySelector<HTMLElement>('[data-status]'),
-			'[data-status]'
-		);
-		const saveButton = requireElement(
-			form.querySelector<HTMLButtonElement>('[data-save]'),
-			'[data-save]'
-		);
-
-		let isSaving = false;
-
-		async function loadCopy(): Promise<void> {
-			const result = await actions.getSiteCopy({ key });
-			if (result.error || !result.data) {
-				setStatus(status, getMessage(result.error, '读取文案失败，请刷新后重试。'), true);
-				preview.replaceChildren(
-					Object.assign(document.createElement('p'), { textContent: '预览暂不可用。' })
-				);
-				updated.textContent = '未能读取版本信息。';
-				return;
-			}
-
-			textarea.value = result.data.markdown;
-			renderCopy(preview, result.data);
-			updated.textContent = formatUpdatedAt(result.data.updatedAt);
-			textarea.disabled = false;
-			saveButton.disabled = false;
-		}
-
-		form.addEventListener('submit', async (event) => {
-			event.preventDefault();
-			if (isSaving || textarea.disabled) return;
-
-			isSaving = true;
-			textarea.disabled = true;
-			saveButton.disabled = true;
-			saveButton.textContent = '保存中…';
-			setStatus(status, '正在保存…');
-
-			try {
-				const result = await actions.updateSiteCopy({ key, markdown: textarea.value });
-				if (result.error || !result.data) {
-					setStatus(status, getMessage(result.error, '保存失败，请稍后重试。'), true);
-					return;
-				}
-
-				textarea.value = result.data.markdown;
-				renderCopy(preview, result.data);
-				updated.textContent = formatUpdatedAt(result.data.updatedAt);
-				setStatus(status, '已保存。');
-			} catch (error) {
-				setStatus(
-					status,
-					error instanceof Error ? error.message : '保存失败，请稍后重试。',
-					true
-				);
-			} finally {
-				isSaving = false;
-				textarea.disabled = false;
-				saveButton.disabled = false;
-				saveButton.textContent = '保存文案';
-			}
-		});
-
-		void loadCopy();
-	});
-</script>
