@@ -16,6 +16,7 @@ import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import type { Prisma } from '../../../generated/prisma/client';
+import { getPopularPostItems } from '@/lib/discovery';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('forum')) {
@@ -141,7 +142,9 @@ const restrictedPostIds = (
 			))
 		}))
 	)
-).filter((post) => post.restricted).map((post) => post.id);
+)
+	.filter((post) => post.restricted)
+	.map((post) => post.id);
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -149,102 +152,154 @@ const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const hasIcon = !!category.icon;
-const recommendationItems = posts.slice(0, 5).map((post) => ({
-	title: post.title || post.content.slice(0, 30) || '未命名讨论',
-	href: `/${post.user.username}/${post.id}`,
-	meta: `${post._count.comments} 条回复`
-}));
+const recommendationItems = await getPopularPostItems({
+	mode: 'forum',
+	visibilityFilter,
+	categoryId: category.id,
+	excludePostIds: posts.map((post) => post.id),
+	responseLabel: '回复'
+});
+const discoverySections =
+	recommendationItems.length > 0
+		? [
+				{
+					title: '本版热门讨论',
+					description: '继续阅读当前版块中更活跃的话题。',
+					items: recommendationItems
+				}
+			]
+		: [];
 ---
 
-<ForumLayout title={`${category.name} - ${getModeLabel('forum')}`}>
+<ForumLayout
+	title={`${category.name} - ${getModeLabel('forum')}`}
+	hasAside={discoverySections.length > 0}
+>
 	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
 		<p class="sidebar-section-label">浏览论坛</p>
-		<a href="/forum" class="sidebar-link"><span class="sidebar-link-icon">🏠</span><span>首页</span></a>
+		<a href="/forum" class="sidebar-link"
+			><span class="sidebar-link-icon">🏠</span><span>首页</span></a
+		>
 		<p class="sidebar-section-label">论坛版块</p>
-		{groups.map((group) => (
-			<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
-				<h2 id={`forum-group-${group.id}`}>{group.icon && `${group.icon} `}{group.name}</h2>
-				{group.children.map((item) => (
-					<a href={`/forum/${item.slug}`} class="sidebar-link" aria-current={item.id === category.id ? 'page' : undefined}>
-						<span>{item.icon && `${item.icon} `}{item.name}</span><small>{item._count.posts}</small>
-					</a>
-				))}
-			</section>
-		))}
+		{
+			groups.map((group) => (
+				<section class="forum-sidebar-group" aria-labelledby={`forum-group-${group.id}`}>
+					<h2 id={`forum-group-${group.id}`}>
+						{group.icon && `${group.icon} `}
+						{group.name}
+					</h2>
+					{group.children.map((item) => (
+						<a
+							href={`/forum/${item.slug}`}
+							class="sidebar-link"
+							aria-current={item.id === category.id ? 'page' : undefined}
+						>
+							<span>
+								{item.icon && `${item.icon} `}
+								{item.name}
+							</span>
+							<small>{item._count.posts}</small>
+						</a>
+					))}
+				</section>
+			))
+		}
 	</nav>
 	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
-	<div class="forum-page-heading">
-		<div class="forum-heading-copy">
-			<nav class="breadcrumb" aria-label="面包屑导航">
-				<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>
-				{category.parent && <><span class="breadcrumb-sep">/</span><span class="breadcrumb-text">{category.parent.name}</span></>}
-				<span class="breadcrumb-sep">/</span><span class="breadcrumb-current">{category.name}</span>
-			</nav>
-			<h1 id="forum-page-title">{hasIcon && <span aria-hidden="true">{category.icon} </span>}{category.name}</h1>
-			{category.description && <p>{category.description}</p>}
-		</div>
-		{currentUser && <button type="button" class="btn btn-primary" data-forum-post-btn={category.id}>✏️ 发帖</button>}
-	</div>
-
-	<nav class="forum-sort-tabs" aria-label="帖子排序">
-		<a href={`/forum/${slug}?sort=latest`} aria-current={forumSort === 'latest' ? 'page' : undefined}>最新</a>
-		<a href={`/forum/${slug}?sort=hot`} aria-current={forumSort === 'hot' ? 'page' : undefined}>热门</a>
-		<a href={`/forum/${slug}?sort=featured`} aria-current={forumSort === 'featured' ? 'page' : undefined}>精华</a>
-	</nav>
-
-	{
-		!hasPosts ? (
-			<div class="empty-state">
-				<p>该版块暂无帖子，来发第一条吧！</p>
+		<div class="forum-page-heading">
+			<div class="forum-heading-copy">
+				<nav class="breadcrumb" aria-label="面包屑导航">
+					<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>
+					{
+						category.parent && (
+							<>
+								<>
+									<span class="breadcrumb-sep">/</span>
+									<span class="breadcrumb-text">{category.parent.name}</span>
+								</>
+							</>
+						)
+					}
+					<span class="breadcrumb-sep">/</span><span class="breadcrumb-current"
+						>{category.name}</span
+					>
+				</nav>
+				<h1 id="forum-page-title">
+					{hasIcon && <span aria-hidden="true">{category.icon} </span>}{category.name}
+				</h1>
+				{category.description && <p>{category.description}</p>}
 			</div>
-		) : (
-			<ForumTopicList posts={posts} restrictedPostIds={restrictedPostIds} />
-		)
-	}
+			{
+				currentUser && (
+					<button type="button" class="btn btn-primary" data-forum-post-btn={category.id}>
+						✏️ 发帖
+					</button>
+				)
+			}
+		</div>
 
-	{/* 分页导航 */}
-	{
-		hasPagination && (
-			<nav class="pagination" aria-label="分页导航">
-				<div class="pagination-inner">
-					{hasPrevPage ? (
-						<a
-							href={`/forum/${slug}?sort=${forumSort}&page=${safePage - 1}`}
-							class="pagination-btn pagination-prev"
-						>
-							← 上一页
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">← 上一页</span>
-					)}
+		<nav class="forum-sort-tabs" aria-label="帖子排序">
+			<a
+				href={`/forum/${slug}?sort=latest`}
+				aria-current={forumSort === 'latest' ? 'page' : undefined}>最新</a
+			>
+			<a
+				href={`/forum/${slug}?sort=hot`}
+				aria-current={forumSort === 'hot' ? 'page' : undefined}>热门</a
+			>
+			<a
+				href={`/forum/${slug}?sort=featured`}
+				aria-current={forumSort === 'featured' ? 'page' : undefined}>精华</a
+			>
+		</nav>
 
-					<span class="pagination-info">
-						第 {safePage} / {totalPages} 页
-					</span>
-
-					{hasNextPage ? (
-						<a
-							href={`/forum/${slug}?sort=${forumSort}&page=${safePage + 1}`}
-							class="pagination-btn pagination-next"
-						>
-							下一页 →
-						</a>
-					) : (
-						<span class="pagination-btn pagination-disabled">下一页 →</span>
-					)}
+		{
+			!hasPosts ? (
+				<div class="empty-state">
+					<p>该版块暂无帖子，来发第一条吧！</p>
 				</div>
-			</nav>
-		)
-	}
-	</section>
-	<ChannelAside
-		slot="aside"
-		title="推荐讨论"
-		description="从正在参与的话题中继续阅读。"
-		items={recommendationItems}
-	/>
-</ForumLayout>
+			) : (
+				<ForumTopicList posts={posts} restrictedPostIds={restrictedPostIds} />
+			)
+		}
 
+		{/* 分页导航 */}
+		{
+			hasPagination && (
+				<nav class="pagination" aria-label="分页导航">
+					<div class="pagination-inner">
+						{hasPrevPage ? (
+							<a
+								href={`/forum/${slug}?sort=${forumSort}&page=${safePage - 1}`}
+								class="pagination-btn pagination-prev"
+							>
+								← 上一页
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">← 上一页</span>
+						)}
+
+						<span class="pagination-info">
+							第 {safePage} / {totalPages} 页
+						</span>
+
+						{hasNextPage ? (
+							<a
+								href={`/forum/${slug}?sort=${forumSort}&page=${safePage + 1}`}
+								class="pagination-btn pagination-next"
+							>
+								下一页 →
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">下一页 →</span>
+						)}
+					</div>
+				</nav>
+			)
+		}
+	</section>
+	<ChannelAside slot="aside" sections={discoverySections} />
+</ForumLayout>
 
 <script>
 	/**

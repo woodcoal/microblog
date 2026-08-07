@@ -6,6 +6,7 @@
  * 用于论坛频道页、版块详情页、论坛帖子详情页。
  */
 import BaseLayout from './Base.astro';
+import ContentListShell from '@/components/ContentListShell.astro';
 
 interface Props {
 	title?: string;
@@ -17,6 +18,7 @@ interface Props {
 	canonicalUrl?: string;
 	noindex?: boolean;
 	jsonLd?: Record<string, unknown>;
+	hasAside?: boolean;
 }
 
 const {
@@ -28,9 +30,10 @@ const {
 	ogType,
 	canonicalUrl,
 	noindex,
-	jsonLd
+	jsonLd,
+	hasAside
 } = Astro.props;
-const isThreeColumn = Astro.slots.has('nav') && Astro.slots.has('aside');
+const isThreeColumn = Astro.slots.has('nav') && (hasAside ?? Astro.slots.has('aside'));
 ---
 
 <BaseLayout
@@ -46,17 +49,15 @@ const isThreeColumn = Astro.slots.has('nav') && Astro.slots.has('aside');
 >
 	{
 		isThreeColumn ? (
-			<div class="layout-wide layout-wide-with-aside">
-				<aside class="layout-sidebar" aria-label="论坛导航">
+			<ContentListShell navLabel="论坛导航" hasAside={true}>
+				<Fragment slot="nav">
 					<slot name="nav" />
-				</aside>
-				<div class="layout-main">
-					<slot />
-				</div>
-				<div class="layout-discovery-sidebar">
+				</Fragment>
+				<slot />
+				<Fragment slot="aside">
 					<slot name="aside" />
-				</div>
-			</div>
+				</Fragment>
+			</ContentListShell>
 		) : (
 			<div class="layout-full">
 				<slot />

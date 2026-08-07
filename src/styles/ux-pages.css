@@ -54,6 +54,12 @@
 	letter-spacing: -0.015em;
 }
 
+.channel-aside-section + .channel-aside-section {
+	margin-top: var(--spacing-5);
+	padding-top: var(--spacing-5);
+	border-top: 1px solid var(--color-border);
+}
+
 .channel-aside-description,
 .channel-aside-empty {
 	margin: var(--spacing-2) 0 0;

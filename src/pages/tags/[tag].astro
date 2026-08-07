@@ -13,6 +13,8 @@ import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getUserFromRequest } from '@/lib/auth';
+import ChannelAside from '@/components/ChannelAside.astro';
+import { getPopularTagItems } from '@/lib/discovery';
 
 // 路由参数
 const tag = Astro.params.tag;
@@ -123,9 +125,20 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((post) => post.id)
 );
+const discoveryItems = await getPopularTagItems({ excludeTagId: tagRecord.id });
+const discoverySections =
+	discoveryItems.length > 0
+		? [
+				{
+					title: '更多热门话题',
+					description: '继续浏览其他正在发生的讨论。',
+					items: discoveryItems
+				}
+			]
+		: [];
 ---
 
-<WeiboLayout title={`#${tag}# - 标签`}>
+<WeiboLayout title={`#${tag}# - 标签`} hasAside={discoverySections.length > 0}>
 	<section class="tag-page ux-channel-page" aria-labelledby="tag-page-title">
 		<div class="tag-page-header">
 			<div class="tag-page-header-left">
@@ -223,13 +236,12 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 		}
 		<InfinitePostList
 			listId="tag-post-list"
-			nextUrl={
-				hasNextPage
-					? `/tags/${encodeURIComponent(tag)}?${querySort}&page=${safePage + 1}`
-					: null
-			}
+			nextUrl={hasNextPage
+				? `/tags/${encodeURIComponent(tag)}?${querySort}&page=${safePage + 1}`
+				: null}
 		/>
 	</section>
+	<ChannelAside slot="aside" sections={discoverySections} />
 </WeiboLayout>
 
 <style>

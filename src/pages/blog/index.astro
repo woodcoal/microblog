@@ -17,6 +17,7 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import type { Prisma } from '../../../generated/prisma/client';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
+import { getPopularPostItems } from '@/lib/discovery';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('blog')) {
@@ -128,7 +129,9 @@ const restrictedPostIds = (
 			))
 		}))
 	)
-).filter((post) => post.restricted).map((post) => post.id);
+)
+	.filter((post) => post.restricted)
+	.map((post) => post.id);
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -139,18 +142,34 @@ const hasPagination = totalPages > 1;
 const hasFilter = !!filterCategoryId;
 const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId)}` : '';
 const scopeQuery = isBookmarkScope ? '&scope=bookmarks' : '';
-const recommendationItems = posts.slice(0, 5).map((post) => ({
-	title: post.title || '无标题文章',
-	href: `/${post.user.username}/${post.id}`,
-	meta: `${post.comments.length} 条评论`
-}));
+const recommendationItems = await getPopularPostItems({
+	mode: 'blog',
+	visibilityFilter,
+	excludePostIds: posts.map((post) => post.id)
+});
+const discoverySections =
+	recommendationItems.length > 0
+		? [
+				{
+					title: '热门文章',
+					description: '从当前列表之外继续探索值得阅读的长文。',
+					items: recommendationItems
+				}
+			]
+		: [];
 const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 ---
 
-<BlogLayout title={getModeLabel('blog')}>
+<BlogLayout title={getModeLabel('blog')} hasAside={discoverySections.length > 0}>
 	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
 		<p class="sidebar-section-label">浏览文章</p>
-		<a href="/blog" class="sidebar-link" aria-current={!isBookmarkScope && blogSort === 'latest' && !hasFilter ? 'page' : undefined}>
+		<a
+			href="/blog"
+			class="sidebar-link"
+			aria-current={!isBookmarkScope && blogSort === 'latest' && !hasFilter
+				? 'page'
+				: undefined}
+		>
 			<span class="sidebar-link-icon">🏠</span><span>首页</span>
 		</a>
 		<a
@@ -269,12 +288,7 @@ const heroCopy = await getPublicSiteCopy('channel.blog.hero');
 			)
 		}
 	</section>
-	<ChannelAside
-		slot="aside"
-		title="推荐文章"
-		description="从正在阅读的长文中继续探索。"
-		items={recommendationItems}
-	/>
+	<ChannelAside slot="aside" sections={discoverySections} />
 </BlogLayout>
 
 <style>

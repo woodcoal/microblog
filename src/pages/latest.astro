@@ -8,11 +8,13 @@
 import WeiboLayout from '@/layouts/WeiboLayout.astro';
 import PostCard from '@/components/PostCard.astro';
 import InfinitePostList from '@/components/InfinitePostList.astro';
+import ChannelAside from '@/components/ChannelAside.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
+import { getPopularTagItems } from '@/lib/discovery';
 
 /** 每页显示帖子数量 */
 const PAGE_SIZE = 20;
@@ -87,6 +89,17 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((p) => p.id)
 );
+const discoveryItems = await getPopularTagItems();
+const discoverySections =
+	discoveryItems.length > 0
+		? [
+				{
+					title: '热门话题',
+					description: '从热门标签继续探索实时内容。',
+					items: discoveryItems
+				}
+			]
+		: [];
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasPosts = posts.length > 0;
@@ -95,7 +108,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 ---
 
-<WeiboLayout title="最新 - 睦谈">
+<WeiboLayout title="最新 - 睦谈" hasAside={discoverySections.length > 0}>
 	<section class="ux-channel-page ux-latest-page" aria-labelledby="latest-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
@@ -186,7 +199,11 @@ const hasPagination = totalPages > 1;
 		{/* 分页导航 */}
 		{
 			hasPagination && (
-				<nav class="pagination" data-infinite-pagination="latest-post-list" aria-label="分页导航">
+				<nav
+					class="pagination"
+					data-infinite-pagination="latest-post-list"
+					aria-label="分页导航"
+				>
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a
@@ -218,6 +235,7 @@ const hasPagination = totalPages > 1;
 			)
 		}
 	</section>
+	<ChannelAside slot="aside" sections={discoverySections} />
 </WeiboLayout>
 
 <style>

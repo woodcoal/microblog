@@ -7,6 +7,7 @@
  */
 import BaseLayout from './Base.astro';
 import { getUserFromRequest } from '@/lib/auth';
+import ContentListShell from '@/components/ContentListShell.astro';
 
 interface Props {
 	title?: string;
@@ -50,8 +51,8 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 	noindex={noindex}
 	jsonLd={jsonLd}
 >
-	<div class:list={['layout-wide', { 'layout-wide-with-aside': hasDiscoveryAside }]}>
-		<aside class="layout-sidebar" aria-label="内容导航">
+	<ContentListShell navLabel="内容导航" hasAside={hasDiscoveryAside}>
+		<Fragment slot="nav">
 			<a
 				href="/weibo"
 				class="sidebar-link"
@@ -117,16 +118,14 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 					</>
 				)
 			}
-		</aside>
-		<div class="layout-main">
-			<slot />
-		</div>
+		</Fragment>
+		<slot />
 		{
 			hasDiscoveryAside && (
-				<div class="layout-discovery-sidebar">
+				<Fragment slot="aside">
 					<slot name="aside" />
-				</div>
+				</Fragment>
 			)
 		}
-	</div>
+	</ContentListShell>
 </BaseLayout>

@@ -8,6 +8,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
+import { getPopularPostItems } from '@/lib/discovery';
 
 if (!isModeEnabled('blog')) return Astro.redirect('/404');
 
@@ -28,15 +29,29 @@ const followingIds: string[] = [];
 const followerIds: string[] = [];
 if (currentUser) {
 	const [follows, followers] = await Promise.all([
-		prisma.follow.findMany({ where: { followerId: currentUser.userId }, select: { followingId: true } }),
-		prisma.follow.findMany({ where: { followingId: currentUser.userId }, select: { followerId: true } })
+		prisma.follow.findMany({
+			where: { followerId: currentUser.userId },
+			select: { followingId: true }
+		}),
+		prisma.follow.findMany({
+			where: { followingId: currentUser.userId },
+			select: { followerId: true }
+		})
 	]);
 	followingIds.push(...follows.map((follow) => follow.followingId));
 	followerIds.push(...followers.map((follow) => follow.followerId));
 }
-const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, { followingIds, followerIds });
+const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, {
+	followingIds,
+	followerIds
+});
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
-const where = { isDeleted: false, mode: 'blog' as const, categoryId: category.id, ...visibilityFilter };
+const where = {
+	isDeleted: false,
+	mode: 'blog' as const,
+	categoryId: category.id,
+	...visibilityFilter
+};
 const totalPosts = await prisma.post.count({ where });
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
@@ -48,50 +63,129 @@ const posts = await prisma.post.findMany({
 	take: PAGE_SIZE
 });
 const restrictedPostIds = (
-	await Promise.all(posts.map(async (post) => ({
-		id: post.id,
-		restricted: !(await checkPostVisibility(
-			{ visibility: post.visibility, userId: post.userId, passwordHash: post.passwordHash, allowedUserIds: post.allowedUserIds },
-			currentUser ? { userId: currentUser.userId } : null,
-			{ isFollower: followingIds.includes(post.userId), isFollowing: followerIds.includes(post.userId) }
-		))
-	})))
-).filter((post) => post.restricted).map((post) => post.id);
+	await Promise.all(
+		posts.map(async (post) => ({
+			id: post.id,
+			restricted: !(await checkPostVisibility(
+				{
+					visibility: post.visibility,
+					userId: post.userId,
+					passwordHash: post.passwordHash,
+					allowedUserIds: post.allowedUserIds
+				},
+				currentUser ? { userId: currentUser.userId } : null,
+				{
+					isFollower: followingIds.includes(post.userId),
+					isFollowing: followerIds.includes(post.userId)
+				}
+			))
+		}))
+	)
+)
+	.filter((post) => post.restricted)
+	.map((post) => post.id);
 const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
-const recommendationItems = posts.slice(0, 5).map((post) => ({
-	title: post.title || '无标题文章',
-	href: `/${post.user.username}/${post.id}`,
-	meta: `${post._count.comments} 条评论`
-}));
+const recommendationItems = await getPopularPostItems({
+	mode: 'blog',
+	visibilityFilter,
+	categoryId: category.id,
+	excludePostIds: posts.map((post) => post.id)
+});
+const discoverySections =
+	recommendationItems.length > 0
+		? [
+				{
+					title: '本分类热门文章',
+					description: '继续阅读同一分类中的高热度内容。',
+					items: recommendationItems
+				}
+			]
+		: [];
 ---
 
-<BlogLayout title={`${category.name} - ${getModeLabel('blog')}`}>
+<BlogLayout
+	title={`${category.name} - ${getModeLabel('blog')}`}
+	hasAside={discoverySections.length > 0}
+>
 	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
 		<p class="sidebar-section-label">浏览文章</p>
-		<a href="/blog" class="sidebar-link"><span class="sidebar-link-icon">🏠</span><span>首页</span></a>
-		<a href="/blog?sort=recommended" class="sidebar-link"><span class="sidebar-link-icon">✨</span><span>推荐</span></a>
-		<a href="/blog?sort=hot" class="sidebar-link"><span class="sidebar-link-icon">🔥</span><span>热门</span></a>
-		<a href={currentUser ? '/blog?scope=bookmarks' : '/login'} class="sidebar-link"><span class="sidebar-link-icon">🔖</span><span>收藏</span></a>
+		<a href="/blog" class="sidebar-link"
+			><span class="sidebar-link-icon">🏠</span><span>首页</span></a
+		>
+		<a href="/blog?sort=recommended" class="sidebar-link"
+			><span class="sidebar-link-icon">✨</span><span>推荐</span></a
+		>
+		<a href="/blog?sort=hot" class="sidebar-link"
+			><span class="sidebar-link-icon">🔥</span><span>热门</span></a
+		>
+		<a href={currentUser ? '/blog?scope=bookmarks' : '/login'} class="sidebar-link"
+			><span class="sidebar-link-icon">🔖</span><span>收藏</span></a
+		>
 		<p class="sidebar-section-label">文章分类</p>
-		{categories.map((item) => <a href={`/blog/${item.slug}`} class="sidebar-link" aria-current={item.id === category.id ? 'page' : undefined}><span>{item.icon && `${item.icon} `}{item.name}</span></a>)}
+		{
+			categories.map((item) => (
+				<a
+					href={`/blog/${item.slug}`}
+					class="sidebar-link"
+					aria-current={item.id === category.id ? 'page' : undefined}
+				>
+					<span>
+						{item.icon && `${item.icon} `}
+						{item.name}
+					</span>
+				</a>
+			))
+		}
 	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
 		<div class="blog-page-heading">
-			<nav class="breadcrumb" aria-label="面包屑导航"><a href="/blog" class="breadcrumb-link">{getModeLabel('blog')}</a><span class="breadcrumb-sep">/</span><span class="breadcrumb-current">{category.name}</span></nav>
-			<h1 id="blog-page-title">{category.icon && <span aria-hidden="true">{category.icon} </span>}{category.name}</h1>
+			<nav class="breadcrumb" aria-label="面包屑导航">
+				<a href="/blog" class="breadcrumb-link">{getModeLabel('blog')}</a><span
+					class="breadcrumb-sep">/</span
+				><span class="breadcrumb-current">{category.name}</span>
+			</nav>
+			<h1 id="blog-page-title">
+				{category.icon && <span aria-hidden="true">{category.icon} </span>}{category.name}
+			</h1>
 			{category.description && <p>{category.description}</p>}
 		</div>
-		{!hasPosts ? <div class="empty-state"><p>该分类暂无文章</p></div> : <BlogArticleList posts={posts} restrictedPostIds={restrictedPostIds} />}
-		{hasPagination && (
-			<nav class="pagination" aria-label="分页导航"><div class="pagination-inner">
-				{hasPrevPage ? <a href={`/blog/${slug}?page=${safePage - 1}`} class="pagination-btn">← 上一页</a> : <span class="pagination-btn pagination-disabled">← 上一页</span>}
-				<span class="pagination-info">第 {safePage} / {totalPages} 页</span>
-				{hasNextPage ? <a href={`/blog/${slug}?page=${safePage + 1}`} class="pagination-btn">下一页 →</a> : <span class="pagination-btn pagination-disabled">下一页 →</span>}
-			</div></nav>
-		)}
+		{
+			!hasPosts ? (
+				<div class="empty-state">
+					<p>该分类暂无文章</p>
+				</div>
+			) : (
+				<BlogArticleList posts={posts} restrictedPostIds={restrictedPostIds} />
+			)
+		}
+		{
+			hasPagination && (
+				<nav class="pagination" aria-label="分页导航">
+					<div class="pagination-inner">
+						{hasPrevPage ? (
+							<a href={`/blog/${slug}?page=${safePage - 1}`} class="pagination-btn">
+								← 上一页
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">← 上一页</span>
+						)}
+						<span class="pagination-info">
+							第 {safePage} / {totalPages} 页
+						</span>
+						{hasNextPage ? (
+							<a href={`/blog/${slug}?page=${safePage + 1}`} class="pagination-btn">
+								下一页 →
+							</a>
+						) : (
+							<span class="pagination-btn pagination-disabled">下一页 →</span>
+						)}
+					</div>
+				</nav>
+			)
+		}
 	</section>
-	<ChannelAside slot="aside" title="推荐文章" description="从正在阅读的长文中继续探索。" items={recommendationItems} />
+	<ChannelAside slot="aside" sections={discoverySections} />
 </BlogLayout>
