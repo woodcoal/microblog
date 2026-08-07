@@ -9,6 +9,7 @@
  */
 import ForumLayout from '@/layouts/ForumLayout.astro';
 import ChannelAside from '@/components/ChannelAside.astro';
+import ForumFloatingMenu from '@/components/ForumFloatingMenu.astro';
 import ForumTopicList from '@/components/ForumTopicList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -154,7 +155,8 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 <ForumLayout title={getModeLabel('forum')} hasAside={true}>
 	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
 		<div class="page-header">
-			<div class="page-header-row">
+			<div class="page-header-row forum-page-header-row">
+				<ForumFloatingMenu />
 				<div
 					id="forum-page-title"
 					class="site-copy-content site-copy-content-channel"

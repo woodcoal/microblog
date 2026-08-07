@@ -182,10 +182,140 @@
 	display: contents;
 }
 
+/* 通用悬浮菜单：定位由放置它的文案行决定，弹层不依赖页面侧栏。 */
+.floating-menu {
+	position: relative;
+	flex: 0 0 auto;
+}
+
+.floating-menu > summary {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	padding: var(--spacing-2);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-full);
+	background: var(--color-card-bg);
+	color: var(--color-sidebar-text);
+	box-shadow: var(--shadow-sm);
+	cursor: pointer;
+	list-style: none;
+}
+
+.floating-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.floating-menu-icon {
+	font-size: 1.125rem;
+}
+
+.floating-menu:not([open]) > .floating-menu-panel {
+	display: none;
+}
+
+.floating-menu-panel {
+	position: absolute;
+	top: calc(100% + var(--spacing-2));
+	left: 0;
+	z-index: 30;
+	display: grid;
+	gap: var(--spacing-3);
+	width: min(21rem, calc(100vw - var(--spacing-6)));
+	max-height: min(32rem, calc(100vh - var(--navbar-height) - var(--spacing-12)));
+	overflow-y: auto;
+	padding: var(--spacing-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-card-bg);
+	box-shadow: var(--shadow-lg);
+}
+
+.forum-floating-menu {
+	display: none;
+}
+
+.forum-floating-menu .forum-sidebar-group {
+	display: grid;
+	gap: var(--spacing-1);
+	margin: 0;
+}
+
+.forum-floating-menu .forum-sidebar-group + .forum-sidebar-group {
+	padding-top: var(--spacing-3);
+	border-top: 1px solid var(--color-border);
+}
+
+.forum-floating-menu .forum-sidebar-group h2 {
+	margin: 0;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	font-weight: 700;
+}
+
+.forum-floating-menu .sidebar-link {
+	justify-content: flex-start;
+	width: 100%;
+	min-height: 2.5rem;
+	padding: var(--spacing-2) var(--spacing-3);
+	border-radius: var(--radius-md);
+	font-size: 0.9375rem;
+}
+
+.forum-floating-menu .sidebar-link-icon {
+	display: inline-block;
+	width: 1.25rem;
+	font-size: 1rem;
+}
+
+.forum-floating-menu small {
+	display: block;
+	margin-left: auto;
+}
+
 @media (min-width: 1200px) {
 	/* details 在大屏显式展开，避免浏览器的闭合默认样式隐藏常驻侧栏。 */
 	.forum-menu-disclosure[open] > .forum-menu-content {
 		display: contents;
+	}
+}
+
+/* 非大屏不保留侧栏的导航列；菜单只通过文案区里的共享悬浮组件进入。 */
+@media (max-width: 1199px) {
+	.layout-wide-forum,
+	.layout-wide-forum.layout-wide-with-aside {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.post-detail-layout-forum {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.layout-wide-forum .layout-sidebar,
+	.post-detail-layout-forum .forum-navigation--sidebar {
+		display: none;
+	}
+
+	.forum-floating-menu {
+		display: block;
+	}
+
+	.forum-page-header-row,
+	.forum-page-heading--with-menu,
+	.post-detail-topbar--forum {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-3);
+	}
+
+	.forum-page-header-row > .site-copy-content-channel,
+	.forum-page-heading--with-menu .forum-heading-copy,
+	.post-detail-topbar--forum .post-detail-breadcrumb {
+		flex: 1 1 0;
+		min-width: 0;
+		text-align: left;
 	}
 }
 
@@ -1734,6 +1864,19 @@
 		overflow: visible;
 	}
 
+	.layout-wide-forum .forum-navigation--sidebar,
+	.post-detail-layout-forum .post-detail-local-nav.forum-navigation--sidebar {
+		display: none;
+	}
+
+	.layout-wide-forum .forum-navigation--mobile,
+	.post-detail-layout-forum .forum-navigation--mobile {
+		display: block;
+		flex: 0 0 48px;
+		position: relative;
+		width: 48px;
+	}
+
 	.layout-wide-forum .forum-category-sidebar,
 	.post-detail-layout-forum .forum-category-sidebar {
 		position: relative;
@@ -1868,7 +2011,7 @@
 	}
 
 	.layout-wide-forum .layout-sidebar {
-		display: block;
+		display: none;
 		position: static;
 		order: 0;
 		height: auto;
@@ -1878,6 +2021,34 @@
 
 	.layout-wide-forum .layout-main {
 		order: 1;
+	}
+
+	.layout-wide-forum .forum-navigation--sidebar,
+	.post-detail-layout-forum .post-detail-local-nav.forum-navigation--sidebar {
+		display: none;
+	}
+
+	.layout-wide-forum .forum-navigation--mobile,
+	.post-detail-layout-forum .forum-navigation--mobile {
+		display: block;
+		flex: 0 0 48px;
+		position: relative;
+		width: 48px;
+	}
+
+	/* 首页和板块页把触发器与其文案导航保持同一阅读行。 */
+	.page-header-row.forum-page-header-row,
+	.forum-page-heading.forum-page-heading--with-menu {
+		align-items: flex-start;
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+	}
+
+	.forum-page-header-row > .site-copy-content-channel,
+	.forum-page-heading--with-menu .forum-heading-copy {
+		flex: 1 1 12rem;
+		min-width: 0;
 	}
 
 	.layout-wide-forum .forum-category-sidebar,

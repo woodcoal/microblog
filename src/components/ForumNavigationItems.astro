@@ -1,0 +1,96 @@
+---
+/** 论坛菜单内容，供大屏侧栏和小屏悬浮菜单共同使用。 */
+import { prisma } from '@/lib/db';
+
+interface Props {
+	/** 同页渲染侧栏和悬浮菜单时保持标题关联 id 唯一。 */
+	idPrefix?: string;
+}
+
+const { idPrefix = 'forum-navigation' } = Astro.props;
+const pathname = Astro.url.pathname;
+const sort = Astro.url.searchParams.get('sort') || 'latest';
+const isForumHome = pathname === '/forum';
+const groups = await prisma.category.findMany({
+	where: { mode: 'forum', parentId: null },
+	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+	include: {
+		children: {
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			include: { _count: { select: { posts: true } } }
+		}
+	}
+});
+
+const primaryItems = [
+	{ href: '/forum', icon: '⌂', label: '首页', current: isForumHome && sort === 'latest' },
+	{ href: '/forum?sort=hot', icon: '🔥', label: '热门', current: isForumHome && sort === 'hot' },
+	{
+		href: '/forum?sort=featured',
+		icon: '✦',
+		label: '推荐',
+		current: isForumHome && sort === 'featured'
+	}
+];
+---
+
+<section
+	class="forum-sidebar-group forum-sidebar-primary"
+	aria-labelledby={`${idPrefix}-primary-nav`}
+>
+	<h2 id={`${idPrefix}-primary-nav`}>导航</h2>
+	{
+		primaryItems.map((item) => (
+			<a
+				href={item.href}
+				class="sidebar-link"
+				aria-current={item.current ? 'page' : undefined}
+				aria-label={item.label}
+				title={item.label}
+			>
+				<span class="sidebar-link-icon" aria-hidden="true">{item.icon}</span>
+				<span>{item.label}</span>
+			</a>
+		))
+	}
+</section>
+{
+	groups.length > 0 ? (
+		groups.map((group) => (
+			<section
+				class="forum-sidebar-group"
+				aria-labelledby={`${idPrefix}-group-${group.id}`}
+			>
+				<h2 id={`${idPrefix}-group-${group.id}`}>
+					{group.icon && (
+						<span class="forum-sidebar-group-icon" aria-hidden="true">{group.icon}</span>
+					)}
+					{group.name}
+				</h2>
+				{group.children.map((category) => (
+					<a
+						href={`/forum/${category.slug}`}
+						class="sidebar-link"
+						aria-current={pathname === `/forum/${category.slug}` ? 'page' : undefined}
+						aria-label={category.name}
+						title={category.name}
+					>
+						<span
+							class:list={[
+								'sidebar-link-icon',
+								{ 'sidebar-link-icon-fallback': !category.icon }
+							]}
+							aria-hidden="true"
+						>
+							{category.icon || category.name.trim().charAt(0).toUpperCase()}
+						</span>
+						<span>{category.name}</span>
+						<small>{category._count.posts}</small>
+					</a>
+				))}
+			</section>
+		))
+	) : (
+		<p class="forum-sidebar-empty">暂无版块</p>
+	)
+}
