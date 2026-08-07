@@ -868,7 +868,7 @@
 .auth-page-shell {
 	display: grid;
 	grid-template-columns: minmax(280px, 390px) minmax(320px, 370px);
-	align-items: start;
+	align-items: center;
 	justify-content: space-between;
 	gap: clamp(var(--spacing-10), 8vw, 10rem);
 	width: 100%;
