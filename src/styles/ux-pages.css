@@ -2182,6 +2182,56 @@
 	.post-detail-layout-forum .forum-navigation--sidebar {
 		display: none;
 	}
+
+	/*
+	 * 顶部菜单复用侧栏入口，须在这里解除 base.css 的中屏图标侧栏规则。
+	 * 详情页还会命中旧版侧栏选择器，因此以更具体的最终规则保证文字和
+	 * 正常流布局不受影响。
+	 */
+	.forum-top-menu .sidebar-link {
+		justify-content: flex-start;
+		width: auto;
+		height: auto;
+	}
+
+	.forum-top-menu .sidebar-link span:not(.sidebar-link-icon),
+	.post-detail-layout-forum .forum-top-menu .sidebar-link span:not(.sidebar-link-icon) {
+		display: inline;
+	}
+
+	.post-detail-layout-forum {
+		display: block;
+		grid-template-columns: none;
+		width: 100%;
+	}
+
+	.post-detail-layout-forum > .forum-navigation--sidebar {
+		display: none;
+	}
+
+	.post-detail-layout-forum > .post-detail-primary {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.post-detail-layout-forum .forum-top-menu .forum-sidebar-group {
+		display: flex;
+		flex: 0 1 auto;
+		align-items: center;
+		min-width: 0;
+		max-width: 100%;
+		gap: var(--spacing-2);
+		margin: 0;
+		overflow-x: auto;
+		overscroll-behavior-x: contain;
+		white-space: nowrap;
+	}
+
+	.post-detail-layout-forum .forum-top-menu .forum-sidebar-primary {
+		flex-basis: 100%;
+		padding-bottom: var(--spacing-3);
+		border-bottom: 1px solid var(--color-border);
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {
