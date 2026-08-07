@@ -2,12 +2,25 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const [page, categoryPage, detailPage, layout, navigation, pageStyles] = await Promise.all([
+const [
+	page,
+	categoryPage,
+	detailPage,
+	layout,
+	navigation,
+	navigationItems,
+	floatingMenu,
+	forumFloatingMenu,
+	pageStyles
+] = await Promise.all([
 	readFile(new URL('../src/pages/forum/index.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/pages/forum/[slug].astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/pages/[username]/[postId]/index.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
+	readFile(new URL('../src/components/ForumNavigationItems.astro', import.meta.url), 'utf8'),
+	readFile(new URL('../src/components/FloatingMenu.astro', import.meta.url), 'utf8'),
+	readFile(new URL('../src/components/ForumFloatingMenu.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
 ]);
 
@@ -23,26 +36,26 @@ test('论坛首页保留分级板块导览与帖子流的阅读顺序', () => {
 test('论坛频道导航由共享布局统一提供首页、热门、推荐与板块入口', () => {
 	assert.match(layout, /import ForumNavigation/);
 	assert.match(layout, /<ForumNavigation \/>/);
-	assert.match(navigation, /label: '首页'/);
-	assert.match(navigation, /label: '热门'/);
-	assert.match(navigation, /label: '推荐'/);
-	assert.match(navigation, /groups\.map/);
-	assert.match(navigation, /<details class="forum-menu-disclosure" open>/);
-	assert.match(navigation, /placement\?: 'sidebar' \| 'mobile'/);
-	assert.match(navigation, /论坛菜单/);
-	assert.match(navigation, /window\.matchMedia\('\(max-width: 1199px\)'\)/);
-	assert.doesNotMatch(navigation, /showCategoryGroups/);
-	assert.match(pageStyles, /forum-menu-disclosure > summary/);
-	assert.match(pageStyles, /forum-menu-content/);
+	assert.match(navigationItems, /label: '首页'/);
+	assert.match(navigationItems, /label: '热门'/);
+	assert.match(navigationItems, /label: '推荐'/);
+	assert.match(navigationItems, /groups\.map/);
+	assert.match(navigation, /ForumNavigationItems/);
+	assert.doesNotMatch(navigation, /forum-menu-disclosure/);
+	assert.match(floatingMenu, /<details/);
+	assert.match(floatingMenu, /floating-menu-panel/);
+	assert.match(forumFloatingMenu, /<FloatingMenu/);
+	assert.match(forumFloatingMenu, /<ForumNavigationItems/);
+	assert.match(pageStyles, /forum-floating-menu/);
 	assert.doesNotMatch(pageStyles, /\.forum-sidebar-primary h2 \{/);
 	assert.match(page, /const showCategoryOverview = forumSort === 'latest'/);
 	assert.match(page, /showCategoryOverview && \(/);
 	assert.doesNotMatch(page, /slot="nav"/);
 	assert.doesNotMatch(categoryPage, /slot="nav"/);
 	assert.match(detailPage, /<ForumNavigation presentation="detail" \/>/);
-	assert.match(page, /<ForumNavigation placement="mobile" \/>/);
-	assert.match(categoryPage, /<ForumNavigation placement="mobile" \/>/);
-	assert.match(detailPage, /<ForumNavigation placement="mobile" \/>/);
-	assert.match(pageStyles, /forum-navigation--mobile/);
+	assert.match(page, /<ForumFloatingMenu \/>/);
+	assert.match(categoryPage, /<ForumFloatingMenu \/>/);
+	assert.match(detailPage, /<ForumFloatingMenu \/>/);
+	assert.match(detailPage, /post-detail-topbar--forum/);
 	assert.doesNotMatch(detailPage, /forumGroups/);
 });

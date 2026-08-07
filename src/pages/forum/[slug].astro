@@ -9,7 +9,7 @@
 import ForumLayout from '@/layouts/ForumLayout.astro';
 import ForumTopicList from '@/components/ForumTopicList.astro';
 import ChannelAside from '@/components/ChannelAside.astro';
-import ForumNavigation from '@/components/ForumNavigation.astro';
+import ForumFloatingMenu from '@/components/ForumFloatingMenu.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CARD_INCLUDE } from '@/lib/queries';
@@ -166,7 +166,7 @@ const discoverySections =
 <ForumLayout title={`${category.name} - ${getModeLabel('forum')}`} hasAside={true}>
 	<section class="ux-channel-page ux-forum-page" aria-labelledby="forum-page-title">
 		<div class="forum-page-heading forum-page-heading--with-menu">
-			<ForumNavigation placement="mobile" />
+			<ForumFloatingMenu />
 			<div class="forum-heading-copy">
 				<nav class="breadcrumb" aria-label="面包屑导航">
 					<a href="/forum" class="breadcrumb-link">{getModeLabel('forum')}</a>

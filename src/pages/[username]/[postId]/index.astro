@@ -15,6 +15,7 @@ import BookmarkButton from '@/components/BookmarkButton.astro';
 import FollowButton from '@/components/FollowButton.astro';
 import WeiboPostActions from '@/components/WeiboPostActions.astro';
 import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
+import ForumFloatingMenu from '@/components/ForumFloatingMenu.astro';
 import ForumNavigation from '@/components/ForumNavigation.astro';
 import CommentList from '@/components/CommentList.astro';
 import ImageLightbox from '@/components/ImageLightbox.astro';
@@ -521,8 +522,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 		{isForum && <ForumNavigation presentation="detail" />}
 		<div class="post-detail-primary">
-			<div class="post-detail-topbar">
-				{isForum && <ForumNavigation placement="mobile" />}
+			<div class:list={['post-detail-topbar', { 'post-detail-topbar--forum': isForum }]}>
+				{isForum && <ForumFloatingMenu />}
 				<nav class="post-detail-breadcrumb" aria-label="详情导航">
 					{
 						isForum ? (
@@ -1783,7 +1784,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		}
 
 		.post-detail-layout-forum {
-			grid-template-columns: 48px minmax(0, 1fr);
+			grid-template-columns: minmax(0, 1fr);
 		}
 
 		.post-detail-local-nav:not(.forum-category-sidebar) .sidebar-link {
@@ -1818,17 +1819,8 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			display: none;
 		}
 
-		/* 论坛导航在窄屏保留在内容上方，由共享组件收为可展开菜单。 */
+		/* 论坛窄屏只保留文案区的悬浮菜单，不让隐藏侧栏占据布局空间。 */
 		.post-detail-layout-forum .post-detail-local-nav {
-			display: block;
-			position: static;
-			height: auto;
-			width: 100%;
-			margin: 0 0 var(--spacing-4);
-			padding: 0;
-		}
-
-		.post-detail-layout-forum .post-detail-local-nav .sidebar-section-label {
 			display: none;
 		}
 
