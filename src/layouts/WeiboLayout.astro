@@ -7,6 +7,7 @@
  */
 import BaseLayout from './Base.astro';
 import ContentListShell from '@/components/ContentListShell.astro';
+import WeiboNavigation from '@/components/WeiboNavigation.astro';
 
 interface Props {
 	title?: string;
@@ -34,7 +35,6 @@ const {
 	hasAside
 } = Astro.props;
 
-const currentPath = Astro.url.pathname;
 const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 ---
 
@@ -51,38 +51,7 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 >
 	<ContentListShell navLabel="内容导航" hasAside={hasDiscoveryAside}>
 		<Fragment slot="nav">
-			<section class="weibo-sidebar-group" aria-label="微博导航">
-				<a
-					href="/weibo"
-					class="sidebar-link"
-					aria-current={currentPath === '/weibo' &&
-					Astro.url.searchParams.get('sort') !== 'popular'
-						? 'page'
-						: undefined}
-				>
-					<span class="sidebar-link-icon">✨</span>
-					<span>推荐</span>
-				</a>
-				<a
-					href="/weibo?sort=popular"
-					class="sidebar-link"
-					aria-current={currentPath === '/weibo' &&
-					Astro.url.searchParams.get('sort') === 'popular'
-						? 'page'
-						: undefined}
-				>
-					<span class="sidebar-link-icon">🔥</span>
-					<span>热门</span>
-				</a>
-				<a
-					href="/latest"
-					class="sidebar-link"
-					aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
-				>
-					<span class="sidebar-link-icon">⏰</span>
-					<span>最新</span>
-				</a>
-			</section>
+			<WeiboNavigation />
 		</Fragment>
 		<slot />
 		{

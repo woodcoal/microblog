@@ -17,14 +17,7 @@ const { slug } = Astro.params;
 const category = await prisma.category.findUnique({ where: { slug } });
 if (!category || category.mode !== 'blog') return Astro.redirect('/404');
 
-const [currentUser, categories] = await Promise.all([
-	getUserFromRequest(Astro),
-	prisma.category.findMany({
-		where: { mode: 'blog' },
-		orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-		select: { id: true, name: true, slug: true, icon: true }
-	})
-]);
+const currentUser = await getUserFromRequest(Astro);
 const followingIds: string[] = [];
 const followerIds: string[] = [];
 if (currentUser) {
@@ -107,36 +100,6 @@ const discoverySections =
 ---
 
 <BlogLayout title={`${category.name} - ${getModeLabel('blog')}`} hasAside={true}>
-	<nav slot="nav" class="blog-channel-nav" aria-label="博客导航">
-		<p class="sidebar-section-label">浏览文章</p>
-		<a href="/blog" class="sidebar-link"
-			><span class="sidebar-link-icon">🏠</span><span>首页</span></a
-		>
-		<a href="/blog?sort=recommended" class="sidebar-link"
-			><span class="sidebar-link-icon">✨</span><span>推荐</span></a
-		>
-		<a href="/blog?sort=hot" class="sidebar-link"
-			><span class="sidebar-link-icon">🔥</span><span>热门</span></a
-		>
-		<a href={currentUser ? '/blog?scope=bookmarks' : '/login'} class="sidebar-link"
-			><span class="sidebar-link-icon">🔖</span><span>收藏</span></a
-		>
-		<p class="sidebar-section-label">文章分类</p>
-		{
-			categories.map((item) => (
-				<a
-					href={`/blog/${item.slug}`}
-					class="sidebar-link"
-					aria-current={item.id === category.id ? 'page' : undefined}
-				>
-					<span>
-						{item.icon && `${item.icon} `}
-						{item.name}
-					</span>
-				</a>
-			))
-		}
-	</nav>
 	<section class="ux-channel-page ux-blog-page" aria-labelledby="blog-page-title">
 		<div class="blog-page-heading">
 			<nav class="breadcrumb" aria-label="面包屑导航">

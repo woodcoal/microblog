@@ -40,7 +40,7 @@ const categories = await prisma.category.findMany({
 const hasCategories = categories.length > 0;
 ---
 
-<BlogLayout title={`写文章 - ${getModeLabel('blog')}`}>
+<BlogLayout title={`写文章 - ${getModeLabel('blog')}`} showNavigation={false}>
 	<section
 		class="blog-write-page ux-editor-page"
 		id="blog-compose-container"
