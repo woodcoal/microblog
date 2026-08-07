@@ -106,44 +106,7 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 <UserLayout title="设置" wide>
 	<div class="settings-layout">
 		<aside class="settings-sidebar">
-			<a href={`/${currentUser.username}`} class="settings-user-summary">
-				{
-					avatarUrl ? (
-						<img src={avatarUrl} alt="" class="settings-user-avatar" />
-					) : (
-						<span
-							class="settings-user-avatar settings-user-avatar-placeholder"
-							aria-hidden="true"
-						>
-							{(displayName || currentUser.username).charAt(0).toUpperCase()}
-						</span>
-					)
-				}
-				<span>{displayName || currentUser.username}</span>
-			</a>
-
-			<nav class="settings-account-links weibo-sidebar-group" aria-label="个人入口">
-				<h2 class="sidebar-section-label">个人</h2>
-				<a href="/bookmarks" class="sidebar-link">
-					<span class="sidebar-link-icon">🔖</span>
-					<span>收藏</span>
-				</a>
-				<a href="/following" class="sidebar-link">
-					<span class="sidebar-link-icon">👀</span>
-					<span>关注</span>
-				</a>
-				<a href="/followers" class="sidebar-link">
-					<span class="sidebar-link-icon">👥</span>
-					<span>粉丝</span>
-				</a>
-				<a href={`/${currentUser.username}`} class="sidebar-link">
-					<span class="sidebar-link-icon">👤</span>
-					<span>我的主页</span>
-				</a>
-			</nav>
-
-			<nav class="settings-tabs" aria-label="用户中心">
-				<h2>用户中心</h2>
+			<nav class="settings-tabs" aria-label="设置菜单">
 				{
 					tabs.map((t) => (
 						<a
@@ -654,37 +617,6 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		min-width: 0;
 	}
 
-	.settings-user-summary {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-2);
-		margin: 0 10px var(--spacing-4);
-		color: var(--color-text);
-		font-size: 0.875rem;
-		font-weight: 700;
-		text-decoration: none;
-	}
-
-	.settings-user-avatar {
-		width: 32px;
-		height: 32px;
-		flex-shrink: 0;
-		border-radius: 50%;
-		object-fit: cover;
-	}
-
-	.settings-user-avatar-placeholder {
-		display: grid;
-		place-items: center;
-		background: var(--color-primary);
-		color: var(--color-primary-foreground);
-		font-size: 0.75rem;
-	}
-
-	.settings-account-links {
-		margin: 0 0 var(--spacing-4);
-	}
-
 	.settings-page {
 		max-width: none;
 		margin: 0;
@@ -716,22 +648,15 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 		border-radius: 0;
 	}
 
-	.settings-tabs h2 {
-		margin: 0 10px 8px;
-		color: var(--color-muted);
-		font-size: 0.75rem;
-		font-weight: 700;
-		text-transform: uppercase;
-	}
-
 	.settings-tab {
 		display: block;
-		padding: 10px;
+		padding: 10px 12px;
 		font-size: 0.875rem;
 		color: var(--color-muted);
 		background: none;
 		border: none;
-		border-radius: var(--radius-sm);
+		border-radius: 0;
+		border-left: 2px solid transparent;
 		cursor: pointer;
 		white-space: nowrap;
 		text-decoration: none;
@@ -745,7 +670,8 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 	}
 
 	.settings-tab.active {
-		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+		background: transparent;
+		border-left-color: var(--color-primary);
 		color: var(--color-primary);
 		font-weight: 600;
 	}
@@ -1167,39 +1093,22 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 			padding-bottom: 2px;
 		}
 
-		.settings-user-summary {
-			display: none;
-		}
-
-		.settings-sidebar .settings-account-links {
-			display: flex;
-			gap: 4px;
-			margin: 0;
-		}
-
-		.settings-account-links .sidebar-section-label {
-			display: none;
-		}
-
-		.settings-account-links .sidebar-link {
-			flex-shrink: 0;
-			border: 1px solid var(--color-border);
-			white-space: nowrap;
-		}
-
 		.settings-tabs {
 			display: flex;
 			gap: 4px;
 		}
 
-		.settings-tabs h2 {
-			display: none;
-		}
-
 		.settings-tab {
 			flex-shrink: 0;
-			border: 1px solid var(--color-border);
+			border: 0;
+			border-bottom: 2px solid transparent;
+			margin-bottom: -2px;
 			white-space: nowrap;
+		}
+
+		.settings-tab.active {
+			border-left-color: transparent;
+			border-bottom-color: var(--color-primary);
 		}
 
 		.settings-page .page-title {

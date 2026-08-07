@@ -283,38 +283,33 @@ const discoverySections =
 		padding: 2rem 0;
 	}
 
-	/* 排序选项卡 — 内联按钮组 */
+	/* 排序选项卡 — 普通下划线状态 */
 	.sort-tabs {
 		display: flex;
-		gap: 0;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		overflow: hidden;
+		gap: 0.25rem;
+		border-bottom: 1px solid var(--color-border);
 	}
 
 	.sort-tab {
-		padding: 0.25rem 0.75rem;
+		padding: 0.5rem 0.75rem;
 		font-size: 0.8125rem;
 		color: var(--color-muted);
 		text-decoration: none;
-		border-right: 1px solid var(--color-border);
+		border-bottom: 2px solid transparent;
+		margin-bottom: -1px;
 		transition:
 			color var(--transition-fast),
 			background var(--transition-fast);
 	}
 
-	.sort-tab:last-child {
-		border-right: none;
-	}
-
 	.sort-tab:hover {
 		color: var(--color-text);
-		background: var(--color-surface);
+		background: transparent;
 	}
 
 	.sort-tab-active {
 		color: var(--color-primary);
-		background: var(--color-surface);
+		border-bottom-color: var(--color-primary);
 		font-weight: 600;
 	}
 </style>

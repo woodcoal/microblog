@@ -44,19 +44,23 @@ const currentUser = await getUserFromRequest(Astro);
 // 判断是否是自己
 const isSelf = currentUser?.userId === user.id;
 
-// 查询当前用户是否已关注该用户
-let isFollowing = false;
-if (currentUser && !isSelf) {
-	const followRecord = await prisma.follow.findUnique({
-		where: {
-			followerId_followingId: {
-				followerId: currentUser.userId,
-				followingId: user.id
-			}
-		}
-	});
-	isFollowing = !!followRecord;
-}
+// 当前用户的关系集合既用于可见度校验，也用于个人页的真实关系列表。
+const [followingRecords, followerRecords] = currentUser
+	? await Promise.all([
+			prisma.follow.findMany({
+				where: { followerId: currentUser.userId },
+				select: { followingId: true }
+			}),
+			prisma.follow.findMany({
+				where: { followingId: currentUser.userId },
+				select: { followerId: true }
+			})
+		])
+	: [[], []];
+const followingIds = followingRecords.map((record) => record.followingId);
+const followerIds = followerRecords.map((record) => record.followerId);
+const isFollowing = !!currentUser && followingIds.includes(user.id);
+const isFollowedByUser = !!currentUser && followerIds.includes(user.id);
 
 // 统计发帖数（未删除）
 const postCount = await prisma.post.count({
@@ -76,38 +80,20 @@ const followingCount = await prisma.follow.count({
 	where: { followerId: user.id }
 });
 
-// 个人主页只展示一个内容模块，避免将微博、讨论与文章混为综合流。
-const modeParam = Astro.url.searchParams.get('mode') || 'weibo';
-const validModes = ['weibo', 'forum', 'blog'];
-const modeFilter = validModes.includes(modeParam) ? modeParam : 'weibo';
+// 个人主页一次仅展示一个模块。收藏、关注、粉丝是仅属于当前登录用户的个人内容。
+const modeParam = Astro.url.searchParams.get('mode');
+const tabParam = Astro.url.searchParams.get('tab');
+const validModes = ['weibo', 'forum', 'blog'] as const;
+const personalTabs = ['bookmarks', 'following', 'followers'] as const;
+const requestedTab = tabParam || modeParam || 'weibo';
+const profileTab =
+	validModes.includes(requestedTab as (typeof validModes)[number]) ||
+	(isSelf && personalTabs.includes(requestedTab as (typeof personalTabs)[number]))
+		? requestedTab
+		: 'weibo';
+const isPostTab = validModes.includes(profileTab as (typeof validModes)[number]);
+const modeFilter = isPostTab ? profileTab : 'weibo';
 const orderBy: Record<string, unknown>[] = [{ isPinned: 'desc' }, { createdAt: 'desc' }];
-
-// 获取用户的帖子列表：置顶优先，然后按时间倒序
-// 根据当前用户身份过滤可见度
-const followingIds: string[] = [];
-const followerIds: string[] = [];
-
-// 如果不是自己，查询关注关系用于可见度过滤
-let isFollowedByUser = false;
-if (currentUser && !isSelf) {
-	// 当前用户是否关注了该用户（当前用户是该用户的粉丝）
-	if (isFollowing) {
-		followerIds.push(user.id);
-	}
-	// 该用户是否关注了当前用户（当前用户在该用户的关注列表中）
-	const followBackRecord = await prisma.follow.findUnique({
-		where: {
-			followerId_followingId: {
-				followerId: user.id,
-				followingId: currentUser.userId
-			}
-		}
-	});
-	isFollowedByUser = !!followBackRecord;
-	if (isFollowedByUser) {
-		followingIds.push(user.id);
-	}
-}
 
 // 生成可见度过滤条件
 const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser.userId } : null, {
@@ -115,65 +101,105 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followerIds
 });
 
-// 构建帖子查询条件
+// 构建帖子查询条件，收藏仅查询当前用户已收藏的微博。
 const postWhere: Record<string, unknown> = {
-	userId: user.id,
 	isDeleted: false,
 	...visibilityFilter
 };
+if (profileTab === 'bookmarks' && currentUser) {
+	postWhere.mode = 'weibo';
+	postWhere.bookmarks = { some: { userId: currentUser.userId } };
+} else {
+	postWhere.userId = user.id;
+	postWhere.mode = modeFilter;
+}
 
-// 每次只读取当前内容模块，个人主页不提供综合结果。
-postWhere.mode = modeFilter;
+const posts =
+	isPostTab || profileTab === 'bookmarks'
+		? await prisma.post.findMany({
+				where: postWhere,
+				orderBy,
+				include: {
+					user: {
+						select: {
+							id: true,
+							username: true,
+							displayName: true,
+							avatarUrl: true
+						}
+					},
+					tags: {
+						include: {
+							tag: {
+								select: {
+									id: true,
+									name: true
+								}
+							}
+						}
+					},
+					media: {
+						include: {
+							fileStorage: {
+								select: {
+									id: true,
+									filePath: true,
+									fileSize: true,
+									mimeType: true,
+									fileType: true
+								}
+							}
+						}
+					},
+					category: {
+						select: {
+							id: true,
+							name: true,
+							slug: true,
+							mode: true
+						}
+					},
+					_count: {
+						select: { likes: true, comments: true, bookmarks: true }
+					}
+				},
+				take: 20
+			})
+		: [];
 
-const posts = await prisma.post.findMany({
-	where: postWhere,
-	orderBy,
-	include: {
-		user: {
-			select: {
-				id: true,
-				username: true,
-				displayName: true,
-				avatarUrl: true
-			}
-		},
-		tags: {
-			include: {
-				tag: {
+const relationshipMembers =
+	profileTab === 'following' && currentUser
+		? (
+				await prisma.follow.findMany({
+					where: { followerId: currentUser.userId },
+					orderBy: { createdAt: 'desc' },
+					take: 50,
 					select: {
-						id: true,
-						name: true
+						following: {
+							select: { id: true, username: true, displayName: true, avatarUrl: true }
+						}
 					}
-				}
-			}
-		},
-		media: {
-			include: {
-				fileStorage: {
-					select: {
-						id: true,
-						filePath: true,
-						fileSize: true,
-						mimeType: true,
-						fileType: true
-					}
-				}
-			}
-		},
-		category: {
-			select: {
-				id: true,
-				name: true,
-				slug: true,
-				mode: true
-			}
-		},
-		_count: {
-			select: { likes: true, comments: true, bookmarks: true }
-		}
-	},
-	take: 20
-});
+				})
+			).map((record) => record.following)
+		: profileTab === 'followers' && currentUser
+			? (
+					await prisma.follow.findMany({
+						where: { followingId: currentUser.userId },
+						orderBy: { createdAt: 'desc' },
+						take: 50,
+						select: {
+							follower: {
+								select: {
+									id: true,
+									username: true,
+									displayName: true,
+									avatarUrl: true
+								}
+							}
+						}
+					})
+				).map((record) => record.follower)
+			: [];
 
 // 查询当前用户对帖子的点赞状态
 const likedPostIds = await getLikedPostIds(
@@ -260,7 +286,10 @@ const [recentFollows, recommendedTags] = await Promise.all([
 						<div class="profile-stats" aria-label="资料统计">
 							{
 								isSelf ? (
-									<a href="/following" class="profile-stat profile-stat-link">
+									<a
+										href={`/${user.username}?tab=following`}
+										class="profile-stat profile-stat-link"
+									>
 										<span class="profile-stat-value">{followingCount}</span>
 										<span class="profile-stat-label">关注</span>
 									</a>
@@ -273,7 +302,10 @@ const [recentFollows, recommendedTags] = await Promise.all([
 							}
 							{
 								isSelf ? (
-									<a href="/followers" class="profile-stat profile-stat-link">
+									<a
+										href={`/${user.username}?tab=followers`}
+										class="profile-stat profile-stat-link"
+									>
 										<span class="profile-stat-value">{followerCount}</span>
 										<span class="profile-stat-label">粉丝</span>
 									</a>
@@ -295,36 +327,126 @@ const [recentFollows, recommendedTags] = await Promise.all([
 
 			<nav class="mode-tabs" aria-label="内容模块">
 				<a
-					href={`/${user.username}?mode=weibo`}
-					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'weibo' }]}
+					href={`/${user.username}?tab=weibo`}
+					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'weibo' }]}
+					aria-current={profileTab === 'weibo' ? 'page' : undefined}
 				>
 					动态
 				</a>
 				<a
-					href={`/${user.username}?mode=blog`}
-					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'blog' }]}
+					href={`/${user.username}?tab=blog`}
+					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'blog' }]}
+					aria-current={profileTab === 'blog' ? 'page' : undefined}
 				>
 					文章
 				</a>
 				<a
-					href={`/${user.username}?mode=forum`}
-					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'forum' }]}
+					href={`/${user.username}?tab=forum`}
+					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'forum' }]}
+					aria-current={profileTab === 'forum' ? 'page' : undefined}
 				>
 					讨论
 				</a>
 				{
 					isSelf && (
-						<a href="/bookmarks" class="mode-tab">
+						<a
+							href={`/${user.username}?tab=bookmarks`}
+							class:list={[
+								'mode-tab',
+								{ 'mode-tab-active': profileTab === 'bookmarks' }
+							]}
+							aria-current={profileTab === 'bookmarks' ? 'page' : undefined}
+						>
 							收藏
+						</a>
+					)
+				}
+				{
+					isSelf && (
+						<a
+							href={`/${user.username}?tab=following`}
+							class:list={[
+								'mode-tab',
+								{ 'mode-tab-active': profileTab === 'following' }
+							]}
+							aria-current={profileTab === 'following' ? 'page' : undefined}
+						>
+							关注
+						</a>
+					)
+				}
+				{
+					isSelf && (
+						<a
+							href={`/${user.username}?tab=followers`}
+							class:list={[
+								'mode-tab',
+								{ 'mode-tab-active': profileTab === 'followers' }
+							]}
+							aria-current={profileTab === 'followers' ? 'page' : undefined}
+						>
+							粉丝
 						</a>
 					)
 				}
 			</nav>
 
 			{
-				posts.length === 0 ? (
+				profileTab === 'following' || profileTab === 'followers' ? (
+					<section
+						class="profile-relationships"
+						aria-labelledby="profile-relationship-title"
+					>
+						<h2 id="profile-relationship-title" class="sr-only">
+							{profileTab === 'following' ? '我的关注' : '我的粉丝'}
+						</h2>
+						{relationshipMembers.length === 0 ? (
+							<div class="empty-state">
+								<p>
+									{profileTab === 'following' ? '还没有关注任何人' : '还没有粉丝'}
+								</p>
+							</div>
+						) : (
+							<div class="relationship-list">
+								{relationshipMembers.map((member) => (
+									<article class="relationship-member">
+										<a
+											href={`/${member.username}`}
+											class="relationship-member-main"
+										>
+											{member.avatarUrl ? (
+												<img
+													src={member.avatarUrl}
+													alt={member.displayName}
+													class="user-grid-avatar"
+												/>
+											) : (
+												<div class="user-grid-avatar user-grid-avatar-placeholder">
+													{member.displayName.charAt(0).toUpperCase()}
+												</div>
+											)}
+											<span class="relationship-member-copy">
+												<strong>{member.displayName}</strong>
+												<span>@{member.username}</span>
+											</span>
+										</a>
+										<FollowButton
+											username={member.username}
+											initialFollowing={followingIds.includes(member.id)}
+											isSelf={currentUser?.userId === member.id}
+										/>
+									</article>
+								))}
+							</div>
+						)}
+					</section>
+				) : posts.length === 0 ? (
 					<div class="empty-state">
-						<p>该用户还没有发布{getModeLabel(modeFilter)}内容</p>
+						<p>
+							{profileTab === 'bookmarks'
+								? '还没有收藏微博'
+								: `该用户还没有发布${getModeLabel(modeFilter)}内容`}
+						</p>
 					</div>
 				) : (
 					<div class="post-list">
@@ -395,8 +517,6 @@ const [recentFollows, recommendedTags] = await Promise.all([
 			<section class="profile-rail-card">
 				<h2>个人菜单</h2>
 				<a href={`/${user.username}`} aria-current="page">我的主页</a>
-				{currentUser && <a href="/bookmarks">收藏内容</a>}
-				{currentUser && <a href="/following">关注与粉丝</a>}
 				{isSelf && <a href="/settings">账户设置</a>}
 			</section>
 

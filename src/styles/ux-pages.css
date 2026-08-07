@@ -666,8 +666,10 @@
 .settings-tabs button {
 	flex: 0 0 auto;
 	min-height: 36px;
-	padding: 0 var(--spacing-3);
-	border-radius: var(--radius-full);
+	padding: 0 var(--spacing-2);
+	border-radius: 0;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
 }
 
 .search-filters {
