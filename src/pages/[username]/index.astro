@@ -14,6 +14,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
+import { getPopularTagItems } from '@/lib/discovery';
 import { SITE_URL, SITE_TITLE, getModeLabel } from '@/lib/config';
 
 // 路由参数
@@ -208,9 +209,22 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser?.userId ?? null,
 	posts.map((post) => post.id)
 );
+
+const [recentFollows, recommendedTags] = await Promise.all([
+	prisma.follow.findMany({
+		where: { followerId: user.id },
+		orderBy: { createdAt: 'desc' },
+		take: 3,
+		include: {
+			following: { select: { username: true, displayName: true } }
+		}
+	}),
+	getPopularTagItems({ limit: 3 })
+]);
 ---
 
 <UserLayout
+	wide
 	title={user.displayName}
 	ogTitle={`${user.displayName} (@${user.username}) - ${SITE_TITLE}`}
 	ogDescription={user.bio || `${user.displayName} 的${getModeLabel('weibo')}主页`}
@@ -226,219 +240,279 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 		description: user.bio
 	}}
 >
-	<div class="profile-banner">
-		<div class="profile-cover" aria-hidden="true"></div>
-		<div class="profile-header">
+	<div class="profile-page-layout">
+		<main class="profile-main">
+			<div class="profile-banner">
+				<div class="profile-cover" aria-hidden="true"></div>
+				<div class="profile-header">
+					{
+						user.avatarUrl ? (
+							<img
+								src={user.avatarUrl}
+								alt={`${user.displayName} 的头像`}
+								class="profile-avatar-img"
+								loading="lazy"
+							/>
+						) : (
+							<div class="profile-avatar-placeholder" aria-hidden="true">
+								{user.displayName.charAt(0).toUpperCase()}
+							</div>
+						)
+					}
+					<div class="profile-info">
+						<div class="profile-top-row">
+							<div>
+								<h1 class="profile-name">{user.displayName}</h1>
+								<p class="profile-username">@{user.username}</p>
+							</div>
+							<div class="profile-actions">
+								{
+									isSelf ? (
+										<a href="/settings" class="btn btn-outline">
+											编辑资料
+										</a>
+									) : (
+										<FollowButton
+											username={user.username}
+											initialFollowing={isFollowing}
+											isSelf={isSelf}
+										/>
+									)
+								}
+							</div>
+						</div>
+						{user.bio && <p class="profile-bio">{user.bio}</p>}
+						<div class="profile-stats" aria-label="资料统计">
+							{
+								isSelf ? (
+									<a href="/following" class="profile-stat profile-stat-link">
+										<span class="profile-stat-value">{followingCount}</span>
+										<span class="profile-stat-label">关注</span>
+									</a>
+								) : (
+									<span class="profile-stat">
+										<span class="profile-stat-value">{followingCount}</span>
+										<span class="profile-stat-label">关注</span>
+									</span>
+								)
+							}
+							{
+								isSelf ? (
+									<a href="/followers" class="profile-stat profile-stat-link">
+										<span class="profile-stat-value">{followerCount}</span>
+										<span class="profile-stat-label">粉丝</span>
+									</a>
+								) : (
+									<span class="profile-stat">
+										<span class="profile-stat-value">{followerCount}</span>
+										<span class="profile-stat-label">粉丝</span>
+									</span>
+								)
+							}
+							<span class="profile-stat">
+								<span class="profile-stat-value">{postCount}</span>
+								<span class="profile-stat-label">内容</span>
+							</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 搜索框 -->
+			<form class="search-form" action={`/${user.username}`} method="get">
+				<input
+					type="text"
+					name="q"
+					class="form-input search-input"
+					placeholder="搜索帖子..."
+					value={Astro.url.searchParams.get('q') || ''}
+				/>
+				<input type="hidden" name="sort" value={sort} />
+				<input type="hidden" name="mode" value={modeFilter} />
+				<button type="submit" class="btn btn-primary search-btn">搜索</button>
+			</form>
+
+			<!-- 模式过滤 tab -->
+			<div class="mode-tabs">
+				<a
+					href={`/${user.username}?mode=all&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'all' }]}
+				>
+					全部
+				</a>
+				<a
+					href={`/${user.username}?mode=weibo&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'weibo' }]}
+				>
+					{getModeLabel('weibo')}
+				</a>
+				<a
+					href={`/${user.username}?mode=forum&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'forum' }]}
+				>
+					{getModeLabel('forum')}
+				</a>
+				<a
+					href={`/${user.username}?mode=blog&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'blog' }]}
+				>
+					{getModeLabel('blog')}
+				</a>
+			</div>
+
+			<!-- 排序选项 -->
+			<div class="sort-tabs">
+				<a
+					href={`/${user.username}?sort=latest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'latest' }]}
+				>
+					最新
+				</a>
+				<a
+					href={`/${user.username}?sort=popular&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'popular' }]}
+				>
+					热门
+				</a>
+				<a
+					href={`/${user.username}?sort=oldest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
+					class:list={['sort-tab', { 'sort-tab-active': sort === 'oldest' }]}
+				>
+					最早
+				</a>
+			</div>
+
 			{
-				user.avatarUrl ? (
-					<img
-						src={user.avatarUrl}
-						alt={`${user.displayName} 的头像`}
-						class="profile-avatar-img"
-						loading="lazy"
-					/>
+				posts.length === 0 ? (
+					<div class="empty-state">
+						<p>{searchQuery ? '没有找到匹配的帖子' : '该用户还没有发布任何动态'}</p>
+					</div>
 				) : (
-					<div class="profile-avatar-placeholder" aria-hidden="true">
-						{user.displayName.charAt(0).toUpperCase()}
+					<div class="post-list">
+						{posts.map(async (post) => {
+							// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
+							const postLiked = likedPostIds.has(post.id);
+							const postBookmarked = bookmarkedPostIds.has(post.id);
+							const postLikeCount = post._count.likes;
+							const postCommentCount = post._count.comments;
+							// 提取标签列表
+							const postTags = post.tags.map((pt) => ({
+								id: pt.tag.id,
+								name: pt.tag.name
+							}));
+							// 检查当前用户是否有权查看帖子内容
+							const isPostRestricted = !(await checkPostVisibility(
+								{
+									visibility: post.visibility,
+									userId: post.userId,
+									passwordHash: post.passwordHash,
+									allowedUserIds: post.allowedUserIds
+								},
+								currentUser ? { userId: currentUser.userId } : null,
+								{ isFollower: isFollowing, isFollowing: isFollowedByUser }
+							));
+
+							return (
+								<PostCard
+									post={{
+										id: post.id,
+										content: post.content,
+										createdAt: post.createdAt.toISOString(),
+										isPinned: post.isPinned,
+										isGlobalPinned: post.isGlobalPinned,
+										user: {
+											id: post.user.id,
+											username: post.user.username,
+											displayName: post.user.displayName,
+											avatarUrl: post.user.avatarUrl
+										},
+										media: post.media,
+										visibility: post.visibility,
+										mode: post.mode,
+										title: post.title,
+										categoryId: post.categoryId,
+										category: post.category
+									}}
+									htmlContent={renderMarkdown(post.content)}
+									likeCount={postLikeCount}
+									liked={postLiked}
+									commentCount={postCommentCount}
+									bookmarkCount={post._count.bookmarks}
+									bookmarked={postBookmarked}
+									showFollow={!!currentUser}
+									following={followingIds.includes(post.user.id)}
+									isSelf={currentUser?.userId === post.user.id}
+									tags={postTags}
+									isRestricted={isPostRestricted}
+								/>
+							);
+						})}
 					</div>
 				)
 			}
-			<div class="profile-info">
-				<div class="profile-top-row">
-					<p class="ux-eyebrow">个人主页</p>
-					<h1 class="profile-name">{user.displayName}</h1>
-					<div class="profile-actions">
-						{
-							isSelf ? (
-								<a href="/settings" class="btn btn-outline">
-									编辑资料
-								</a>
-							) : (
-								<FollowButton
-									username={user.username}
-									initialFollowing={isFollowing}
-									isSelf={isSelf}
-								/>
-							)
-						}
-					</div>
-				</div>
-				<p class="profile-username">@{user.username}</p>
-				{user.bio && <p class="profile-bio">{user.bio}</p>}
-				<div class="profile-stats" aria-label="资料统计">
-					{
-						isSelf ? (
-							<a href="/following" class="profile-stat profile-stat-link">
-								<span class="profile-stat-value">{followingCount}</span>
-								<span class="profile-stat-label">关注</span>
+		</main>
+
+		<aside class="profile-rail" aria-label="个人主页辅助信息">
+			<section class="profile-rail-card">
+				<h2>个人菜单</h2>
+				<a href={`/${user.username}`} aria-current="page">我的主页</a>
+				{currentUser && <a href="/bookmarks">收藏内容</a>}
+				{currentUser && <a href="/following">关注与粉丝</a>}
+				{isSelf && <a href="/settings">账户设置</a>}
+			</section>
+
+			<section class="profile-rail-card">
+				<h2>最近关注</h2>
+				{
+					recentFollows.length > 0 ? (
+						recentFollows.map((follow) => (
+							<a href={`/${follow.following.username}`}>
+								{follow.following.displayName}
 							</a>
-						) : (
-							<span class="profile-stat">
-								<span class="profile-stat-value">{followingCount}</span>
-								<span class="profile-stat-label">关注</span>
-							</span>
-						)
-					}
-					{
-						isSelf ? (
-							<a href="/followers" class="profile-stat profile-stat-link">
-								<span class="profile-stat-value">{followerCount}</span>
-								<span class="profile-stat-label">粉丝</span>
+						))
+					) : (
+						<p class="profile-rail-empty">暂未关注其他用户</p>
+					)
+				}
+			</section>
+
+			<section class="profile-rail-card">
+				<h2>推荐话题</h2>
+				{
+					recommendedTags.length > 0 ? (
+						recommendedTags.map((tag) => (
+							<a href={tag.href}>
+								<span>{tag.title}</span>
+								{tag.meta && <small>{tag.meta}</small>}
 							</a>
-						) : (
-							<span class="profile-stat">
-								<span class="profile-stat-value">{followerCount}</span>
-								<span class="profile-stat-label">粉丝</span>
-							</span>
-						)
-					}
-					<span class="profile-stat">
-						<span class="profile-stat-value">{postCount}</span>
-						<span class="profile-stat-label">内容</span>
-					</span>
-				</div>
-			</div>
-		</div>
+						))
+					) : (
+						<p class="profile-rail-empty">暂无推荐话题</p>
+					)
+				}
+			</section>
+		</aside>
 	</div>
-
-	<!-- 搜索框 -->
-	<form class="search-form" action={`/${user.username}`} method="get">
-		<input
-			type="text"
-			name="q"
-			class="form-input search-input"
-			placeholder="搜索帖子..."
-			value={Astro.url.searchParams.get('q') || ''}
-		/>
-		<input type="hidden" name="sort" value={sort} />
-		<input type="hidden" name="mode" value={modeFilter} />
-		<button type="submit" class="btn btn-primary search-btn">搜索</button>
-	</form>
-
-	<!-- 模式过滤 tab -->
-	<div class="mode-tabs">
-		<a
-			href={`/${user.username}?mode=all&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'all' }]}
-		>
-			全部
-		</a>
-		<a
-			href={`/${user.username}?mode=weibo&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'weibo' }]}
-		>
-			{getModeLabel('weibo')}
-		</a>
-		<a
-			href={`/${user.username}?mode=forum&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'forum' }]}
-		>
-			{getModeLabel('forum')}
-		</a>
-		<a
-			href={`/${user.username}?mode=blog&sort=${sort}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['mode-tab', { 'mode-tab-active': modeFilter === 'blog' }]}
-		>
-			{getModeLabel('blog')}
-		</a>
-	</div>
-
-	<!-- 排序选项 -->
-	<div class="sort-tabs">
-		<a
-			href={`/${user.username}?sort=latest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['sort-tab', { 'sort-tab-active': sort === 'latest' }]}
-		>
-			最新
-		</a>
-		<a
-			href={`/${user.username}?sort=popular&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['sort-tab', { 'sort-tab-active': sort === 'popular' }]}
-		>
-			热门
-		</a>
-		<a
-			href={`/${user.username}?sort=oldest&mode=${modeFilter}${searchQuery ? `&q=${encodeURIComponent(searchQuery)}` : ''}`}
-			class:list={['sort-tab', { 'sort-tab-active': sort === 'oldest' }]}
-		>
-			最早
-		</a>
-	</div>
-
-	{
-		posts.length === 0 ? (
-			<div class="empty-state">
-				<p>{searchQuery ? '没有找到匹配的帖子' : '该用户还没有发布任何动态'}</p>
-			</div>
-		) : (
-			<div class="post-list">
-				{posts.map(async (post) => {
-					// 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
-					const postLiked = likedPostIds.has(post.id);
-					const postBookmarked = bookmarkedPostIds.has(post.id);
-					const postLikeCount = post._count.likes;
-					const postCommentCount = post._count.comments;
-					// 提取标签列表
-					const postTags = post.tags.map((pt) => ({
-						id: pt.tag.id,
-						name: pt.tag.name
-					}));
-					// 检查当前用户是否有权查看帖子内容
-					const isPostRestricted = !(await checkPostVisibility(
-						{
-							visibility: post.visibility,
-							userId: post.userId,
-							passwordHash: post.passwordHash,
-							allowedUserIds: post.allowedUserIds
-						},
-						currentUser ? { userId: currentUser.userId } : null,
-						{ isFollower: isFollowing, isFollowing: isFollowedByUser }
-					));
-
-					return (
-						<PostCard
-							post={{
-								id: post.id,
-								content: post.content,
-								createdAt: post.createdAt.toISOString(),
-								isPinned: post.isPinned,
-								isGlobalPinned: post.isGlobalPinned,
-								user: {
-									id: post.user.id,
-									username: post.user.username,
-									displayName: post.user.displayName,
-									avatarUrl: post.user.avatarUrl
-								},
-								media: post.media,
-								visibility: post.visibility,
-								mode: post.mode,
-								title: post.title,
-								categoryId: post.categoryId,
-								category: post.category
-							}}
-							htmlContent={renderMarkdown(post.content)}
-							likeCount={postLikeCount}
-							liked={postLiked}
-							commentCount={postCommentCount}
-							bookmarkCount={post._count.bookmarks}
-							bookmarked={postBookmarked}
-							showFollow={!!currentUser}
-							following={followingIds.includes(post.user.id)}
-							isSelf={currentUser?.userId === post.user.id}
-							tags={postTags}
-							isRestricted={isPostRestricted}
-						/>
-					);
-				})}
-			</div>
-		)
-	}
 </UserLayout>
 
 <style>
+	.profile-page-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 720px) 260px;
+		gap: 32px;
+		max-width: 1120px;
+		margin: 0 auto;
+		justify-content: center;
+	}
+
+	.profile-main {
+		min-width: 0;
+	}
+
 	.profile-banner {
-		background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg));
-		border-radius: var(--radius-lg);
+		background: var(--color-card-bg);
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
 		margin-bottom: var(--spacing-6);
 		overflow: hidden;
 		padding: 0 var(--spacing-6) var(--spacing-6);
@@ -446,7 +520,7 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	}
 
 	.profile-cover {
-		height: 9.75rem;
+		height: 156px;
 		margin: 0 calc(-1 * var(--spacing-6)) var(--spacing-5);
 		background:
 			linear-gradient(
@@ -462,12 +536,13 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 		display: flex;
 		gap: var(--spacing-5);
 		align-items: flex-start;
+		margin-top: -44px;
 	}
 
 	.profile-avatar-img,
 	.profile-avatar-placeholder {
-		width: 96px;
-		height: 96px;
+		width: 88px;
+		height: 88px;
 		border-radius: 50%;
 		object-fit: cover;
 		flex-shrink: 0;
@@ -491,7 +566,7 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	.profile-info {
 		min-width: 0;
 		flex: 1;
-		padding-bottom: var(--spacing-1);
+		padding-top: var(--spacing-3);
 	}
 
 	.profile-top-row {
@@ -510,7 +585,7 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	.profile-username {
 		font-size: 0.875rem;
 		color: var(--color-muted);
-		margin: var(--spacing-1) 0 var(--spacing-3);
+		margin: var(--spacing-1) 0 0;
 	}
 
 	.profile-bio {
@@ -553,6 +628,52 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 
 	.profile-actions {
 		flex-shrink: 0;
+	}
+
+	.profile-rail-card {
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: 10px;
+		background: var(--color-card-bg);
+	}
+
+	.profile-rail-card + .profile-rail-card {
+		margin-top: var(--spacing-3);
+	}
+
+	.profile-rail-card h2 {
+		margin: 0 0 var(--spacing-2);
+		font-size: 0.875rem;
+		font-weight: 700;
+	}
+
+	.profile-rail-card a {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--spacing-2);
+		padding: 10px 0;
+		border-top: 1px solid var(--color-border);
+		color: var(--color-text);
+		font-size: 0.875rem;
+		text-decoration: none;
+	}
+
+	.profile-rail-card a:hover,
+	.profile-rail-card a[aria-current='page'] {
+		color: var(--color-primary);
+	}
+
+	.profile-rail-card small,
+	.profile-rail-empty {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+	}
+
+	.profile-rail-empty {
+		margin: 0;
+		padding: 10px 0 0;
+		border-top: 1px solid var(--color-border);
 	}
 
 	/* 排序选项卡 */
@@ -615,7 +736,15 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 		font-weight: 600;
 	}
 
-	@media (max-width: 640px) {
+	@media (max-width: 767px) {
+		.profile-page-layout {
+			display: block;
+		}
+
+		.profile-rail {
+			display: none;
+		}
+
 		.profile-banner {
 			padding: 0 var(--spacing-4) var(--spacing-4);
 			margin-left: calc(-1 * var(--spacing-3));

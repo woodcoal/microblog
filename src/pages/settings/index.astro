@@ -103,319 +103,351 @@ const tabs = [
 const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
 
-<UserLayout title="设置">
-	<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
-		<header class="ux-page-heading">
-			<p class="ux-eyebrow">账户中心</p>
-			<h1 class="page-title" id="settings-page-title">个人设置</h1>
-			<p>集中管理资料、安全、外观与通知偏好。</p>
-		</header>
+<UserLayout title="设置" wide>
+	<div class="settings-layout">
+		<aside class="settings-sidebar">
+			<a href={`/${currentUser.username}`} class="settings-user-summary">
+				{
+					avatarUrl ? (
+						<img src={avatarUrl} alt="" class="settings-user-avatar" />
+					) : (
+						<span
+							class="settings-user-avatar settings-user-avatar-placeholder"
+							aria-hidden="true"
+						>
+							{(displayName || currentUser.username).charAt(0).toUpperCase()}
+						</span>
+					)
+				}
+				<span>{displayName || currentUser.username}</span>
+			</a>
 
-		<nav class="settings-tabs" aria-label="设置分类">
-			{
-				tabs.map((t) => (
-					<a
-						href={tabUrl(t.id)}
-						class:list={['settings-tab', { active: tab === t.id }]}
-						aria-current={tab === t.id ? 'page' : undefined}
-					>
-						{t.label}
-					</a>
-				))
-			}
-		</nav>
+			<nav class="settings-account-links" aria-label="个人入口">
+				<a href={`/${currentUser.username}`}>个人主页</a>
+				<a href="/following">关注与粉丝</a>
+				<a href="/bookmarks">收藏内容</a>
+			</nav>
 
-		<div class="settings-content">
-			{
-				tab === 'profile' && (
-					<section class="settings-section">
-						<h2 class="section-title">个人资料</h2>
-						<p class="section-desc">管理你的公开个人信息</p>
-						<form id="profile-form" class="settings-form">
-							<div class="form-group">
-								<label for="displayName" class="form-label">
-									显示名
-								</label>
-								<input
-									type="text"
-									id="displayName"
-									name="displayName"
-									class="form-input"
-									value={displayName}
-									maxlength="50"
-									placeholder="输入显示名"
-								/>
-								<span class="form-hint">1-50 个字符</span>
-							</div>
-							<div class="form-group">
-								<label for="bio" class="form-label">
-									简介
-								</label>
-								<textarea
-									id="bio"
-									name="bio"
-									class="form-input form-textarea"
-									maxlength="160"
-									rows="3"
-									placeholder="介绍一下自己"
-									set:text={initialBio}
-								/>
-								<span class="form-hint">最多 160 个字符</span>
-							</div>
-							<div class="form-group">
-								<label class="form-label">头像</label>
-								<div class="avatar-upload">
-									<div class="avatar-preview" id="avatar-preview">
-										{avatarUrl ? (
-											<img
-												src={avatarUrl}
-												alt="当前头像"
-												class="avatar-img"
-											/>
-										) : (
-											<span class="avatar-placeholder">
-												{displayName.charAt(0).toUpperCase() || 'U'}
-											</span>
-										)}
-									</div>
-									<div class="avatar-actions">
-										<label
-											for="avatar-file"
-											class="btn btn-outline avatar-upload-btn"
-										>
-											选择图片
-										</label>
-										<input
-											type="file"
-											id="avatar-file"
-											name="avatar-file"
-											accept="image/jpeg,image/png,image/gif,image/webp"
-											class="avatar-file-input"
-										/>
-										<span class="avatar-hint">
-											支持 JPG/PNG/GIF/WebP，最大 2MB
-										</span>
-									</div>
+			<nav class="settings-tabs" aria-label="用户中心">
+				<h2>用户中心</h2>
+				{
+					tabs.map((t) => (
+						<a
+							href={tabUrl(t.id)}
+							class:list={['settings-tab', { active: tab === t.id }]}
+							aria-current={tab === t.id ? 'page' : undefined}
+						>
+							{t.label}
+						</a>
+					))
+				}
+			</nav>
+		</aside>
+
+		<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
+			<header class="ux-page-heading">
+				<h1 class="page-title" id="settings-page-title">
+					{tabs.find((item) => item.id === tab)?.label ?? '个人设置'}
+				</h1>
+				<p>管理你的公开资料与账号偏好。</p>
+			</header>
+
+			<div class="settings-content">
+				{
+					tab === 'profile' && (
+						<section class="settings-section">
+							<h2 class="section-title">个人资料</h2>
+							<p class="section-desc">管理你的公开个人信息</p>
+							<form id="profile-form" class="settings-form">
+								<div class="form-group">
+									<label for="displayName" class="form-label">
+										显示名
+									</label>
+									<input
+										type="text"
+										id="displayName"
+										name="displayName"
+										class="form-input"
+										value={displayName}
+										maxlength="50"
+										placeholder="输入显示名"
+									/>
+									<span class="form-hint">1-50 个字符</span>
 								</div>
-								<input
-									type="hidden"
-									id="avatarUrl"
-									name="avatarUrl"
-									value={avatarUrl}
-								/>
+								<div class="form-group">
+									<label for="bio" class="form-label">
+										简介
+									</label>
+									<textarea
+										id="bio"
+										name="bio"
+										class="form-input form-textarea"
+										maxlength="160"
+										rows="3"
+										placeholder="介绍一下自己"
+										set:text={initialBio}
+									/>
+									<span class="form-hint">最多 160 个字符</span>
+								</div>
+								<div class="form-group">
+									<label class="form-label">头像</label>
+									<div class="avatar-upload">
+										<div class="avatar-preview" id="avatar-preview">
+											{avatarUrl ? (
+												<img
+													src={avatarUrl}
+													alt="当前头像"
+													class="avatar-img"
+												/>
+											) : (
+												<span class="avatar-placeholder">
+													{displayName.charAt(0).toUpperCase() || 'U'}
+												</span>
+											)}
+										</div>
+										<div class="avatar-actions">
+											<label
+												for="avatar-file"
+												class="btn btn-outline avatar-upload-btn"
+											>
+												选择图片
+											</label>
+											<input
+												type="file"
+												id="avatar-file"
+												name="avatar-file"
+												accept="image/jpeg,image/png,image/gif,image/webp"
+												class="avatar-file-input"
+											/>
+											<span class="avatar-hint">
+												支持 JPG/PNG/GIF/WebP，最大 2MB
+											</span>
+										</div>
+									</div>
+									<input
+										type="hidden"
+										id="avatarUrl"
+										name="avatarUrl"
+										value={avatarUrl}
+									/>
+								</div>
+								<div class="form-actions">
+									<button type="submit" class="btn btn-primary">
+										保存资料
+									</button>
+									<span
+										id="profile-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							</form>
+						</section>
+					)
+				}
+
+				{
+					tab === 'security' && (
+						<section class="settings-section">
+							<h2 class="section-title">账号安全</h2>
+							<p class="section-desc">修改你的登录密码</p>
+							<form id="password-form" class="settings-form">
+								<div class="form-group">
+									<label for="oldPassword" class="form-label">
+										旧密码
+									</label>
+									<input
+										type="password"
+										id="oldPassword"
+										name="oldPassword"
+										class="form-input"
+										placeholder="输入当前密码"
+										autocomplete="current-password"
+									/>
+								</div>
+								<div class="form-group">
+									<label for="newPassword" class="form-label">
+										新密码
+									</label>
+									<input
+										type="password"
+										id="newPassword"
+										name="newPassword"
+										class="form-input"
+										placeholder="输入新密码"
+										autocomplete="new-password"
+									/>
+									<span class="form-hint">至少 8 个字符</span>
+								</div>
+								<div class="form-group">
+									<label for="confirmPassword" class="form-label">
+										确认新密码
+									</label>
+									<input
+										type="password"
+										id="confirmPassword"
+										name="confirmPassword"
+										class="form-input"
+										placeholder="再次输入新密码"
+										autocomplete="new-password"
+									/>
+								</div>
+								<div class="form-actions">
+									<button type="submit" class="btn btn-primary">
+										修改密码
+									</button>
+									<span
+										id="password-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							</form>
+						</section>
+					)
+				}
+
+				{
+					tab === 'appearance' && (
+						<section class="settings-section">
+							<h2 class="section-title">外观</h2>
+							<p class="section-desc">自定义界面显示偏好</p>
+
+							<div class="form-group">
+								<span class="form-label" aria-label="主题偏好">
+									主题
+								</span>
+								<div class="theme-buttons">
+									{THEMES.map((theme) => {
+										const isActive = theme.id === currentTheme;
+										return (
+											<button
+												type="button"
+												class:list={['theme-btn', { active: isActive }]}
+												data-theme-id={theme.id}
+											>
+												{theme.name}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+							<div class="form-group">
+								<label for="commentSortOrder" class="form-label">
+									评论排序
+								</label>
+								<select id="commentSortOrder" class="form-input form-select">
+									<option value="asc" selected={currentSortOrder === 'asc'}>
+										正序（最早优先）
+									</option>
+									<option value="desc" selected={currentSortOrder === 'desc'}>
+										倒序（最新优先）
+									</option>
+								</select>
 							</div>
 							<div class="form-actions">
-								<button type="submit" class="btn btn-primary">
-									保存资料
+								<button type="button" id="save-appearance" class="btn btn-primary">
+									保存偏好
 								</button>
 								<span
-									id="profile-msg"
+									id="appearance-msg"
 									class="form-msg"
 									role="status"
 									aria-live="polite"
 								/>
 							</div>
-						</form>
-					</section>
-				)
-			}
+						</section>
+					)
+				}
 
-			{
-				tab === 'security' && (
-					<section class="settings-section">
-						<h2 class="section-title">账号安全</h2>
-						<p class="section-desc">修改你的登录密码</p>
-						<form id="password-form" class="settings-form">
+				{
+					tab === 'notification' && (
+						<section class="settings-section">
+							<h2 class="section-title">通知</h2>
+							<p class="section-desc">管理通知接收偏好</p>
 							<div class="form-group">
-								<label for="oldPassword" class="form-label">
-									旧密码
+								<label class="toggle-label">
+									<input
+										type="checkbox"
+										id="notificationsEnabled"
+										name="notificationsEnabled"
+										checked={notificationsEnabled}
+									/>
+									<span>接收通知</span>
 								</label>
-								<input
-									type="password"
-									id="oldPassword"
-									name="oldPassword"
-									class="form-input"
-									placeholder="输入当前密码"
-									autocomplete="current-password"
-								/>
-							</div>
-							<div class="form-group">
-								<label for="newPassword" class="form-label">
-									新密码
-								</label>
-								<input
-									type="password"
-									id="newPassword"
-									name="newPassword"
-									class="form-input"
-									placeholder="输入新密码"
-									autocomplete="new-password"
-								/>
-								<span class="form-hint">至少 8 个字符</span>
-							</div>
-							<div class="form-group">
-								<label for="confirmPassword" class="form-label">
-									确认新密码
-								</label>
-								<input
-									type="password"
-									id="confirmPassword"
-									name="confirmPassword"
-									class="form-input"
-									placeholder="再次输入新密码"
-									autocomplete="new-password"
-								/>
+								<span class="form-hint">
+									关闭后将不再接收任何通知，通知栏目也会隐藏
+								</span>
 							</div>
 							<div class="form-actions">
-								<button type="submit" class="btn btn-primary">
-									修改密码
+								<button
+									type="button"
+									id="save-notification"
+									class="btn btn-primary"
+								>
+									保存设置
 								</button>
 								<span
-									id="password-msg"
+									id="notification-msg"
 									class="form-msg"
 									role="status"
 									aria-live="polite"
 								/>
 							</div>
-						</form>
-					</section>
-				)
-			}
 
-			{
-				tab === 'appearance' && (
-					<section class="settings-section">
-						<h2 class="section-title">外观</h2>
-						<p class="section-desc">自定义界面显示偏好</p>
+							<hr class="settings-divider" />
 
-						<div class="form-group">
-							<span class="form-label" aria-label="主题偏好">
-								主题
-							</span>
-							<div class="theme-buttons">
-								{THEMES.map((theme) => {
-									const isActive = theme.id === currentTheme;
-									return (
-										<button
-											type="button"
-											class:list={['theme-btn', { active: isActive }]}
-											data-theme-id={theme.id}
-										>
-											{theme.name}
-										</button>
-									);
-								})}
-							</div>
-						</div>
+							<WebhookManager initialWebhooks={JSON.stringify(serializedWebhooks)} />
+						</section>
+					)
+				}
 
-						<div class="form-group">
-							<label for="commentSortOrder" class="form-label">
-								评论排序
-							</label>
-							<select id="commentSortOrder" class="form-input form-select">
-								<option value="asc" selected={currentSortOrder === 'asc'}>
-									正序（最早优先）
-								</option>
-								<option value="desc" selected={currentSortOrder === 'desc'}>
-									倒序（最新优先）
-								</option>
-							</select>
-						</div>
-						<div class="form-actions">
-							<button type="button" id="save-appearance" class="btn btn-primary">
-								保存偏好
-							</button>
-							<span
-								id="appearance-msg"
-								class="form-msg"
-								role="status"
-								aria-live="polite"
-							/>
-						</div>
-					</section>
-				)
-			}
+				{
+					tab === 'tokens' && (
+						<section class="settings-section">
+							<TokenManager initialTokens={JSON.stringify(serializedTokens)} />
+						</section>
+					)
+				}
 
-			{
-				tab === 'notification' && (
-					<section class="settings-section">
-						<h2 class="section-title">通知</h2>
-						<p class="section-desc">管理通知接收偏好</p>
-						<div class="form-group">
-							<label class="toggle-label">
-								<input
-									type="checkbox"
-									id="notificationsEnabled"
-									name="notificationsEnabled"
-									checked={notificationsEnabled}
-								/>
-								<span>接收通知</span>
-							</label>
-							<span class="form-hint">
-								关闭后将不再接收任何通知，通知栏目也会隐藏
-							</span>
-						</div>
-						<div class="form-actions">
-							<button type="button" id="save-notification" class="btn btn-primary">
-								保存设置
-							</button>
-							<span
-								id="notification-msg"
-								class="form-msg"
-								role="status"
-								aria-live="polite"
-							/>
-						</div>
-
-						<hr class="settings-divider" />
-
-						<WebhookManager initialWebhooks={JSON.stringify(serializedWebhooks)} />
-					</section>
-				)
-			}
-
-			{
-				tab === 'tokens' && (
-					<section class="settings-section">
-						<TokenManager initialTokens={JSON.stringify(serializedTokens)} />
-					</section>
-				)
-			}
-
-			{
-				tab === 'note' && (
-					<section class="settings-section">
-						<h2 class="section-title">用户记录</h2>
-						<p class="section-desc">记录私人信息，仅自己可见</p>
-						<form id="note-form" class="settings-form">
-							<div class="form-group">
-								<textarea
-									id="note"
-									name="note"
-									class="form-input form-textarea note-textarea"
-									maxlength="2000"
-									placeholder="记录一些私人信息，仅自己可见"
-									set:text={initialNote}
-								/>
-								<span class="form-hint">最多 2000 个字符，仅自己可见</span>
-							</div>
-							<div class="form-actions">
-								<button type="submit" class="btn btn-primary">
-									保存记录
-								</button>
-								<span
-									id="note-msg"
-									class="form-msg"
-									role="status"
-									aria-live="polite"
-								/>
-							</div>
-						</form>
-					</section>
-				)
-			}
-		</div><!-- /.settings-content -->
-	</section>
+				{
+					tab === 'note' && (
+						<section class="settings-section">
+							<h2 class="section-title">用户记录</h2>
+							<p class="section-desc">记录私人信息，仅自己可见</p>
+							<form id="note-form" class="settings-form">
+								<div class="form-group">
+									<textarea
+										id="note"
+										name="note"
+										class="form-input form-textarea note-textarea"
+										maxlength="2000"
+										placeholder="记录一些私人信息，仅自己可见"
+										set:text={initialNote}
+									/>
+									<span class="form-hint">最多 2000 个字符，仅自己可见</span>
+								</div>
+								<div class="form-actions">
+									<button type="submit" class="btn btn-primary">
+										保存记录
+									</button>
+									<span
+										id="note-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							</form>
+						</section>
+					)
+				}
+			</div><!-- /.settings-content -->
+		</section>
+	</div>
 </UserLayout>
 
 <script>
@@ -594,35 +626,111 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 
 <style is:global>
 	/* 设置页面 */
-	.settings-page {
-		max-width: 720px;
+	.settings-layout {
+		display: grid;
+		grid-template-columns: 200px minmax(0, 680px);
+		gap: 36px;
+		max-width: 1040px;
 		margin: 0 auto;
-		padding: var(--spacing-6) var(--spacing-4);
+		padding: 32px 24px 80px;
+		justify-content: center;
+	}
+
+	.settings-sidebar {
+		min-width: 0;
+	}
+
+	.settings-user-summary {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		margin: 0 10px var(--spacing-4);
+		color: var(--color-text);
+		font-size: 0.875rem;
+		font-weight: 700;
+		text-decoration: none;
+	}
+
+	.settings-user-avatar {
+		width: 32px;
+		height: 32px;
+		flex-shrink: 0;
+		border-radius: 50%;
+		object-fit: cover;
+	}
+
+	.settings-user-avatar-placeholder {
+		display: grid;
+		place-items: center;
+		background: var(--color-primary);
+		color: var(--color-primary-foreground);
+		font-size: 0.75rem;
+	}
+
+	.settings-account-links {
+		margin: 0 0 var(--spacing-4);
+		padding-bottom: var(--spacing-4);
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.settings-account-links a {
+		display: block;
+		padding: 9px 10px;
+		border-radius: 6px;
+		color: var(--color-muted);
+		font-size: 0.875rem;
+		text-decoration: none;
+	}
+
+	.settings-account-links a:hover {
+		background: color-mix(in srgb, var(--color-text) 5%, transparent);
+		color: var(--color-text);
+	}
+
+	.settings-page {
+		max-width: none;
+		margin: 0;
+		padding: 0;
 	}
 
 	.settings-page .page-title {
-		font-size: 1.25rem;
+		font-size: 1.75rem;
 		font-weight: 700;
-		margin-bottom: var(--spacing-6);
+		margin: 0;
+	}
+
+	.settings-page .ux-page-heading {
+		margin-bottom: 20px;
+	}
+
+	.settings-page .ux-page-heading p {
+		margin: 4px 0 0;
 	}
 
 	/* 顶部选项卡导航 */
 	.settings-tabs {
-		display: flex;
-		gap: 2px;
-		margin-bottom: var(--spacing-6);
-		padding: var(--spacing-1);
-		background: var(--color-card-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		overflow-x: auto;
+		display: grid;
+		gap: 4px;
+		margin: 0;
+		padding: 0;
+		background: transparent;
+		border: 0;
+		border-radius: 0;
+	}
+
+	.settings-tabs h2 {
+		margin: 0 10px 8px;
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		font-weight: 700;
+		text-transform: uppercase;
 	}
 
 	.settings-tab {
-		flex-shrink: 0;
-		padding: 0.5rem 0.875rem;
+		display: block;
+		padding: 10px;
 		font-size: 0.875rem;
-		color: var(--color-text);
+		color: var(--color-muted);
 		background: none;
 		border: none;
 		border-radius: var(--radius-sm);
@@ -639,16 +747,16 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 	}
 
 	.settings-tab.active {
-		background: var(--color-primary);
-		color: var(--color-primary-foreground);
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+		color: var(--color-primary);
 		font-weight: 600;
 	}
 
 	/* 设置区块 */
 	.settings-section {
-		padding: var(--spacing-5);
+		padding: 20px;
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
+		border-radius: 10px;
 	}
 
 	.settings-section .section-title {
@@ -1044,5 +1152,49 @@ const tabUrl = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=
 
 	.webhook-url {
 		word-break: break-all;
+	}
+
+	@media (max-width: 767px) {
+		.settings-layout {
+			display: block;
+			padding: 20px 14px calc(80px + env(safe-area-inset-bottom, 0));
+		}
+
+		.settings-sidebar {
+			display: flex;
+			gap: var(--spacing-2);
+			align-items: stretch;
+			overflow-x: auto;
+			margin-bottom: 20px;
+			padding-bottom: 2px;
+		}
+
+		.settings-user-summary,
+		.settings-account-links {
+			display: none;
+		}
+
+		.settings-tabs {
+			display: flex;
+			gap: 4px;
+		}
+
+		.settings-tabs h2 {
+			display: none;
+		}
+
+		.settings-tab {
+			flex-shrink: 0;
+			border: 1px solid var(--color-border);
+			white-space: nowrap;
+		}
+
+		.settings-page .page-title {
+			font-size: 1.5rem;
+		}
+
+		.settings-section {
+			padding: var(--spacing-4);
+		}
 	}
 </style>
