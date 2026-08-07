@@ -15,7 +15,7 @@ import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
-import { SITE_URL, SITE_TITLE, getModeLabel } from '@/lib/config';
+import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
 
 // 路由参数
 const { username } = Astro.params;
@@ -84,15 +84,16 @@ const followingCount = await prisma.follow.count({
 const modeParam = Astro.url.searchParams.get('mode');
 const tabParam = Astro.url.searchParams.get('tab');
 const validModes = ['weibo', 'forum', 'blog'] as const;
+const enabledPostModes = validModes.filter(isModeEnabled);
 const relationshipTabs = ['following', 'followers'] as const;
-const requestedTab = tabParam || modeParam || 'weibo';
+const requestedTab = tabParam || modeParam || enabledPostModes[0] || 'following';
 const profileTab =
-	validModes.includes(requestedTab as (typeof validModes)[number]) ||
+	enabledPostModes.includes(requestedTab as (typeof validModes)[number]) ||
 	relationshipTabs.includes(requestedTab as (typeof relationshipTabs)[number])
 		? requestedTab
-		: 'weibo';
-const isPostTab = validModes.includes(profileTab as (typeof validModes)[number]);
-const modeFilter = isPostTab ? profileTab : 'weibo';
+		: enabledPostModes[0] || 'following';
+const isPostTab = enabledPostModes.includes(profileTab as (typeof validModes)[number]);
+const modeFilter = isPostTab ? profileTab : (enabledPostModes[0] ?? 'weibo');
 const orderBy: Record<string, unknown>[] = [{ isPinned: 'desc' }, { createdAt: 'desc' }];
 
 // 生成可见度过滤条件
@@ -302,27 +303,39 @@ const [recentFollows, recommendedTags] = await Promise.all([
 			</div>
 
 			<nav class="mode-tabs" aria-label="内容模块">
-				<a
-					href={`/${user.username}?tab=weibo`}
-					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'weibo' }]}
-					aria-current={profileTab === 'weibo' ? 'page' : undefined}
-				>
-					动态
-				</a>
-				<a
-					href={`/${user.username}?tab=blog`}
-					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'blog' }]}
-					aria-current={profileTab === 'blog' ? 'page' : undefined}
-				>
-					文章
-				</a>
-				<a
-					href={`/${user.username}?tab=forum`}
-					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'forum' }]}
-					aria-current={profileTab === 'forum' ? 'page' : undefined}
-				>
-					讨论
-				</a>
+				{
+					isModeEnabled('weibo') && (
+						<a
+							href={`/${user.username}?tab=weibo`}
+							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'weibo' }]}
+							aria-current={profileTab === 'weibo' ? 'page' : undefined}
+						>
+							动态
+						</a>
+					)
+				}
+				{
+					isModeEnabled('blog') && (
+						<a
+							href={`/${user.username}?tab=blog`}
+							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'blog' }]}
+							aria-current={profileTab === 'blog' ? 'page' : undefined}
+						>
+							文章
+						</a>
+					)
+				}
+				{
+					isModeEnabled('forum') && (
+						<a
+							href={`/${user.username}?tab=forum`}
+							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'forum' }]}
+							aria-current={profileTab === 'forum' ? 'page' : undefined}
+						>
+							讨论
+						</a>
+					)
+				}
 				<a
 					href={`/${user.username}?tab=following`}
 					class:list={['mode-tab', { 'mode-tab-active': profileTab === 'following' }]}
