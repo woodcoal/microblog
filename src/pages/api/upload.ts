@@ -37,7 +37,11 @@ export const POST: APIRoute = async (context) => {
 
 		// 3. 调用 service 保存文件
 		try {
-			const result = await uploadFile({ file, fileType: fileType as 'image' | 'attachment' });
+			const result = await uploadFile({
+				userId: authResult.userId,
+				file,
+				fileType: fileType as 'image' | 'attachment'
+			});
 
 			return new Response(JSON.stringify(successResponse(result)), {
 				status: 201,

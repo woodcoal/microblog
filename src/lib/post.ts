@@ -8,6 +8,52 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
 import { hashPassword } from '@/lib/auth';
 
+export interface PostMediaSnapshotV2 {
+	version: 2;
+	bodyMediaIds: string[];
+	thumbnailMediaId: string | null;
+	attachmentMediaIds: string[];
+}
+
+/** 将旧版 ID 数组和 v2 对象统一读取为稳定快照。 */
+export function parsePostMediaSnapshot(value: string | null): PostMediaSnapshotV2 {
+	if (!value) {
+		return { version: 2, bodyMediaIds: [], thumbnailMediaId: null, attachmentMediaIds: [] };
+	}
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (Array.isArray(parsed)) {
+			return {
+				version: 2,
+				bodyMediaIds: parsed.filter((id): id is string => typeof id === 'string'),
+				thumbnailMediaId: null,
+				attachmentMediaIds: []
+			};
+		}
+		if (parsed && typeof parsed === 'object' && 'version' in parsed && parsed.version === 2) {
+			const snapshot = parsed as Partial<PostMediaSnapshotV2>;
+			return {
+				version: 2,
+				bodyMediaIds: Array.isArray(snapshot.bodyMediaIds)
+					? snapshot.bodyMediaIds.filter((id): id is string => typeof id === 'string')
+					: [],
+				thumbnailMediaId:
+					typeof snapshot.thumbnailMediaId === 'string'
+						? snapshot.thumbnailMediaId
+						: null,
+				attachmentMediaIds: Array.isArray(snapshot.attachmentMediaIds)
+					? snapshot.attachmentMediaIds.filter(
+							(id): id is string => typeof id === 'string'
+						)
+					: []
+			};
+		}
+	} catch {
+		// 历史坏数据按空快照降级，版本正文仍可读取。
+	}
+	return { version: 2, bodyMediaIds: [], thumbnailMediaId: null, attachmentMediaIds: [] };
+}
+
 // ── 查询 ──
 
 /**
@@ -300,7 +346,13 @@ function apiPostInclude(viewerId?: string) {
 			orderBy: { sortOrder: 'asc' as const },
 			include: {
 				fileStorage: {
-					select: { id: true, filePath: true, mimeType: true, fileType: true }
+					select: {
+						id: true,
+						filePath: true,
+						fileSize: true,
+						mimeType: true,
+						fileType: true
+					}
 				}
 			}
 		},
@@ -482,7 +534,14 @@ export async function createPostTransaction(data: {
 		categoryId?: string | null;
 		customCategory?: string | null;
 	};
-	mediaItems: Array<{ fileStorageId: string; fileType: string; sortOrder: number }>;
+	mediaItems: Array<{
+		fileStorageId: string;
+		fileType: string;
+		originalName?: string;
+		sortOrder: number;
+		slot?: string | null;
+		reservationId?: string;
+	}>;
 	mentionUsernames: string[];
 	tagNames: string[];
 	currentUserId: string;
@@ -532,13 +591,15 @@ export async function createPostTransaction(data: {
 
 		// 创建 Media 关联记录
 		if (mediaItems.length > 0) {
+			await consumeUploadReservations(tx, currentUserId, mediaItems);
 			await tx.media.createMany({
 				data: mediaItems.map((item) => ({
 					postId: createdPost.id,
 					fileStorageId: item.fileStorageId,
 					fileType: item.fileType,
-					originalName: '',
-					sortOrder: item.sortOrder
+					originalName: item.originalName || '',
+					sortOrder: item.sortOrder,
+					slot: item.slot || null
 				}))
 			});
 		}
@@ -600,18 +661,34 @@ export async function createPostTransaction(data: {
  */
 export async function updatePostTransaction(data: {
 	postId: string;
+	previousContent: string;
 	updateData: Record<string, unknown>;
-	currentMedia: Array<{ id: string; fileStorageId: string; sortOrder: number }>;
-	mediaIds: string[];
+	currentMedia: Array<{
+		id: string;
+		fileStorageId: string;
+		fileType: string;
+		originalName: string;
+		sortOrder: number;
+		slot: string | null;
+	}>;
+	mediaItems: Array<{
+		fileStorageId: string;
+		fileType: string;
+		originalName?: string;
+		sortOrder: number;
+		slot?: string | null;
+		reservationId?: string;
+	}>;
 	mentionUsernames: string[];
 	tagNames: string[];
 	currentUserId: string;
 }) {
 	const {
 		postId,
+		previousContent,
 		updateData,
 		currentMedia,
-		mediaIds,
+		mediaItems,
 		mentionUsernames,
 		tagNames,
 		currentUserId
@@ -622,44 +699,67 @@ export async function updatePostTransaction(data: {
 		await tx.postRevision.create({
 			data: {
 				postId,
-				content: (updateData.content as string) || '',
-				mediaSnapshot: JSON.stringify(currentMedia.map((m) => m.fileStorageId))
+				content: previousContent,
+				mediaSnapshot: JSON.stringify({
+					version: 2,
+					bodyMediaIds: currentMedia
+						.filter((m) => m.slot === null && m.fileType === 'image')
+						.map((m) => m.id),
+					thumbnailMediaId: currentMedia.find((m) => m.slot === 'thumbnail')?.id || null,
+					attachmentMediaIds: currentMedia
+						.filter((m) => m.slot === null && m.fileType === 'attachment')
+						.map((m) => m.id)
+				})
 			}
 		});
 
-		// 更新 Media 关联：计算 diff
-		const oldFileStorageIds = new Set(currentMedia.map((m) => m.fileStorageId));
-		const newFileStorageIds = new Set(mediaIds);
-
-		// 需要删除的 Media（旧有新无）
-		const toDelete = currentMedia.filter((m) => !newFileStorageIds.has(m.fileStorageId));
-		// 需要新增的 fileStorageId（新有旧无）
-		const toAdd = mediaIds.filter((id) => !oldFileStorageIds.has(id));
+		// 更新 Media 关联：slot + 文件共同标识一个逻辑资产。
+		const keyOf = (item: { fileStorageId: string; slot?: string | null }) =>
+			`${item.slot || ''}:${item.fileStorageId}`;
+		const desiredByKey = new Map(mediaItems.map((item) => [keyOf(item), item]));
+		const currentByKey = new Map(currentMedia.map((item) => [keyOf(item), item]));
+		const toDelete = currentMedia.filter((item) => !desiredByKey.has(keyOf(item)));
+		const toAdd = mediaItems.filter((item) => !currentByKey.has(keyOf(item)));
 
 		// 删除旧的 Media 关联
 		if (toDelete.length > 0) {
 			await tx.media.deleteMany({
 				where: { id: { in: toDelete.map((m) => m.id) } }
 			});
+			for (const item of toDelete) {
+				const decremented = await tx.fileStorage.updateMany({
+					where: { id: item.fileStorageId, refCount: { gt: 0 } },
+					data: { refCount: { decrement: 1 } }
+				});
+				if (decremented.count !== 1) throw new Error('文件引用计数不一致');
+			}
 		}
 
 		// 创建新的 Media 关联
 		if (toAdd.length > 0) {
-			const addFileStorages = await tx.fileStorage.findMany({
-				where: { id: { in: toAdd } }
-			});
-			// 计算排序起始值
-			const maxSortOrder =
-				currentMedia.length > 0 ? Math.max(...currentMedia.map((m) => m.sortOrder)) : -1;
+			await consumeUploadReservations(tx, currentUserId, toAdd);
 			await tx.media.createMany({
-				data: addFileStorages.map((fs, index) => ({
+				data: toAdd.map((item) => ({
 					postId,
-					fileStorageId: fs.id,
-					fileType: fs.fileType,
-					originalName: '',
-					sortOrder: maxSortOrder + 1 + index
+					fileStorageId: item.fileStorageId,
+					fileType: item.fileType,
+					originalName: item.originalName || '',
+					sortOrder: item.sortOrder,
+					slot: item.slot || null
 				}))
 			});
+		}
+		for (const item of mediaItems) {
+			const existing = currentByKey.get(keyOf(item));
+			if (existing) {
+				await tx.media.update({
+					where: { id: existing.id },
+					data: {
+						sortOrder: item.sortOrder,
+						originalName: item.originalName || existing.originalName
+					}
+				});
+			}
 		}
 
 		// 更新帖子内容
@@ -759,8 +859,42 @@ export async function updatePostTransaction(data: {
 			}
 		}
 
-		return updatedPost;
+		return { post: updatedPost, releasedFileStorageIds: toDelete.map((m) => m.fileStorageId) };
 	});
+}
+
+type ReservationMediaItem = {
+	fileStorageId: string;
+	fileType: string;
+	reservationId?: string;
+};
+
+/** 在同一内容事务内以 compare-and-set 消费当前用户的有效上传凭证。 */
+async function consumeUploadReservations(
+	tx: Prisma.TransactionClient,
+	userId: string,
+	items: ReservationMediaItem[]
+): Promise<void> {
+	const now = new Date();
+	for (const item of items) {
+		if (!item.reservationId) continue;
+		const consumed = await tx.uploadReservation.updateMany({
+			where: {
+				id: item.reservationId,
+				userId,
+				fileStorageId: item.fileStorageId,
+				fileType: item.fileType,
+				expiresAt: { gt: now },
+				consumedAt: null,
+				cancelledAt: null
+			},
+			data: { consumedAt: now }
+		});
+		if (consumed.count !== 1) {
+			const { ServiceError } = await import('@/lib/errors');
+			throw new ServiceError('BAD_REQUEST', '上传凭证无效、已过期或已被消费');
+		}
+	}
 }
 
 /**

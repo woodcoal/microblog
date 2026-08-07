@@ -25,64 +25,65 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // 关联关系
-  posts                Post[]
-  comments             Comment[]
-  likes                Like[]
-  followers            Follow[]  @relation("UserFollowers")
-  following            Follow[]  @relation("UserFollowing")
-  settings             UserSettings?
-  mentions             Mention[]
-  sentNotifications    Notification[] @relation("NotificationActor")
-  receivedNotifications Notification[] @relation("NotificationRecipient")
-  bookmarks            Bookmark[]
-  apiTokens            ApiToken[]
-  webhooks             Webhook[]
-  activityLogs         ActivityLog[]
-  postReads            PostRead[]
-  tagInterests         UserTagInterest[]
-  categoryInterests    UserCategoryInterest[]
-  siteCopiesUpdated    SiteCopy[]        @relation("SiteCopyUpdatedBy")
-  siteCopyVersions     SiteCopyVersion[] @relation("SiteCopyVersionUpdatedBy")
-  adminAuditLogs       AdminAuditLog[]
+  posts                 Post[]
+  comments              Comment[]
+  likes                 Like[]
+  followers             Follow[]               @relation("UserFollowers")
+  following             Follow[]               @relation("UserFollowing")
+  settings              UserSettings?
+  mentions              Mention[]
+  sentNotifications     Notification[]         @relation("NotificationActor")
+  receivedNotifications Notification[]         @relation("NotificationRecipient")
+  bookmarks             Bookmark[]
+  apiTokens             ApiToken[]
+  webhooks              Webhook[]
+  activityLogs          ActivityLog[]
+  postReads             PostRead[]
+  tagInterests          UserTagInterest[]
+  categoryInterests     UserCategoryInterest[]
+  siteCopiesUpdated     SiteCopy[]             @relation("SiteCopyUpdatedBy")
+  siteCopyVersions      SiteCopyVersion[]      @relation("SiteCopyVersionUpdatedBy")
+  adminAuditLogs        AdminAuditLog[]
+  uploadReservations    UploadReservation[]
 }
 
 /// 帖子表
 model Post {
-  id             String    @id  // 应用层生成 8 位无规律短链
+  id             String   @id // 应用层生成 8 位无规律短链
   userId         String
-  content        String    @db.LongText
-  visibility     String    @default("public")
-  passwordHash   String?   // password 可见度用
-  allowedUserIds String?   @db.Text // users 可见度用，JSON 数组
-  isPinned       Boolean   @default(false)   // 用户主页置顶
-  isGlobalPinned Boolean   @default(false)   // 管理员全局置顶
-  isLocked       Boolean   @default(false)   // 锁定：禁止编辑和评论
-  lockedBy       String?   // 锁定者 ID（区分管理员/用户锁定）
-  lockReason     String?   @db.Text // 锁定理由
-  isDeleted      Boolean   @default(false)   // 软删除
-  deleteReason   String?   @db.Text // 删除理由（管理员删除时填写）
-  deletedBy      String?   // 删除者 ID
-  restoreReason  String?   @db.Text // 恢复理由（管理员恢复时填写）
-  restoredBy     String?   // 恢复者 ID
-  isEdited       Boolean   @default(false)   // 是否已编辑
-  mode           String    @default("weibo")  // weibo | forum | blog — 帖子模式
-  title          String?   // weibo=可选摘要, forum/blog=标题
-  categoryId     String?   // 外键 → Category
-  customCategory String?   // 博客作者自行填写的分类名称
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  content        String   @db.LongText
+  visibility     String   @default("public")
+  passwordHash   String? // password 可见度用
+  allowedUserIds String?  @db.Text // users 可见度用，JSON 数组
+  isPinned       Boolean  @default(false) // 用户主页置顶
+  isGlobalPinned Boolean  @default(false) // 管理员全局置顶
+  isLocked       Boolean  @default(false) // 锁定：禁止编辑和评论
+  lockedBy       String? // 锁定者 ID（区分管理员/用户锁定）
+  lockReason     String?  @db.Text // 锁定理由
+  isDeleted      Boolean  @default(false) // 软删除
+  deleteReason   String?  @db.Text // 删除理由（管理员删除时填写）
+  deletedBy      String? // 删除者 ID
+  restoreReason  String?  @db.Text // 恢复理由（管理员恢复时填写）
+  restoredBy     String? // 恢复者 ID
+  isEdited       Boolean  @default(false) // 是否已编辑
+  mode           String   @default("weibo") // weibo | forum | blog — 帖子模式
+  title          String? // weibo=可选摘要, forum/blog=标题
+  categoryId     String? // 外键 → Category
+  customCategory String? // 博客作者自行填写的分类名称
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // 关联关系
-  user       User           @relation(fields: [userId], references: [id])
-  category   Category?      @relation(fields: [categoryId], references: [id])
-  revisions  PostRevision[]
-  media      Media[]
-  comments   Comment[]
-  likes      Like[]
-  bookmarks  Bookmark[]
-  tags       PostTag[]
-  mentions   Mention[]
-  reads      PostRead[]
+  user      User           @relation(fields: [userId], references: [id])
+  category  Category?      @relation(fields: [categoryId], references: [id])
+  revisions PostRevision[]
+  media     Media[]
+  comments  Comment[]
+  likes     Like[]
+  bookmarks Bookmark[]
+  tags      PostTag[]
+  mentions  Mention[]
+  reads     PostRead[]
 
   @@index([isDeleted, visibility, createdAt])
   @@index([userId, isDeleted, visibility, createdAt])
@@ -97,21 +98,41 @@ model PostRevision {
   mediaSnapshot String?  @db.Text // 快照：关联的图片/附件 ID 列表（JSON 数组）
   createdAt     DateTime @default(now())
 
-  post          Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 /// 文件存储表（MD5 去重）
 model FileStorage {
   id        String   @id @default(cuid())
-  md5Hash   String   @unique  // MD5 哈希，用于去重
-  filePath  String            // 实际文件路径（本地或 R2）
-  fileSize  Int               // 文件大小（字节）
-  mimeType  String            // MIME 类型
-  fileType  String   @default("image")  // image / attachment
-  refCount  Int      @default(1)  // 引用计数
+  md5Hash   String   @unique // MD5 哈希，用于去重
+  filePath  String // 实际文件路径（本地或 R2）
+  fileSize  Int // 文件大小（字节）
+  mimeType  String // MIME 类型
+  fileType  String   @default("image") // image / attachment
+  refCount  Int      @default(1) // 引用计数
   createdAt DateTime @default(now())
 
-  media     Media[]
+  media              Media[]
+  uploadReservations UploadReservation[]
+}
+
+/// 有期限的上传占位；消费前只允许上传者引用对应文件。
+model UploadReservation {
+  id            String    @id @default(cuid())
+  userId        String
+  fileStorageId String
+  originalName  String    @db.VarChar(512)
+  fileType      String
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  cancelledAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  fileStorage FileStorage @relation(fields: [fileStorageId], references: [id], onDelete: Restrict)
+
+  @@index([userId, fileStorageId, consumedAt, cancelledAt, expiresAt], map: "UploadReservation_owner_file_active_idx")
+  @@index([expiresAt, consumedAt, cancelledAt], map: "UploadReservation_expiry_active_idx")
 }
 
 /// 媒体附件表（帖子与文件的关联）
@@ -119,14 +140,14 @@ model Media {
   id            String   @id @default(cuid())
   postId        String
   fileStorageId String
-  fileType      String   @default("image")  // image / attachment
-  originalName  String   @default("")  // 原始文件名（附件保留）
-  sortOrder     Int      @default(0)  // 排序
-  slot          String?  // null=普通正文媒体/附件，thumbnail=文章缩略图
+  fileType      String   @default("image") // image / attachment
+  originalName  String   @default("") // 原始文件名（附件保留）
+  sortOrder     Int      @default(0) // 排序
+  slot          String? // null=普通正文媒体/附件，thumbnail=文章缩略图
   createdAt     DateTime @default(now())
 
-  post          Post         @relation(fields: [postId], references: [id])
-  fileStorage   FileStorage  @relation(fields: [fileStorageId], references: [id])
+  post        Post        @relation(fields: [postId], references: [id])
+  fileStorage FileStorage @relation(fields: [fileStorageId], references: [id])
 
   @@unique([postId, slot])
   @@index([postId, fileType, sortOrder])
@@ -137,17 +158,17 @@ model Comment {
   id        String   @id @default(cuid())
   postId    String
   userId    String
-  parentId  String?  // 二级评论父 ID
+  parentId  String? // 二级评论父 ID
   content   String   @db.LongText
-  isDeleted Boolean  @default(false)  // 软删除
+  isDeleted Boolean  @default(false) // 软删除
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  post      Post     @relation(fields: [postId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id])
-  replies   Comment[] @relation("CommentReplies")
-  likes     Like[]
+  post    Post      @relation(fields: [postId], references: [id])
+  user    User      @relation(fields: [userId], references: [id])
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+  likes   Like[]
 
   @@index([postId, isDeleted, userId])
 }
@@ -160,9 +181,9 @@ model Like {
   commentId String?
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  post      Post?    @relation(fields: [postId], references: [id])
-  comment   Comment? @relation(fields: [commentId], references: [id])
+  user    User     @relation(fields: [userId], references: [id])
+  post    Post?    @relation(fields: [postId], references: [id])
+  comment Comment? @relation(fields: [commentId], references: [id])
 
   @@unique([userId, postId])
   @@unique([userId, commentId])
@@ -176,8 +197,8 @@ model Follow {
   followingId String
   createdAt   DateTime @default(now())
 
-  follower    User     @relation("UserFollowers", fields: [followerId], references: [id])
-  following   User     @relation("UserFollowing", fields: [followingId], references: [id])
+  follower  User @relation("UserFollowers", fields: [followerId], references: [id])
+  following User @relation("UserFollowing", fields: [followingId], references: [id])
 
   @@unique([followerId, followingId])
   @@index([followingId, followerId])
@@ -187,7 +208,7 @@ model Follow {
 model Tag {
   id        String   @id @default(cuid())
   name      String   @unique
-  isHidden  Boolean  @default(false)  // 管理员隐藏
+  isHidden  Boolean  @default(false) // 管理员隐藏
   createdAt DateTime @default(now())
 
   posts     PostTag[]
@@ -200,8 +221,8 @@ model PostTag {
   postId String
   tagId  String
 
-  post   Post   @relation(fields: [postId], references: [id])
-  tag    Tag    @relation(fields: [tagId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+  tag  Tag  @relation(fields: [tagId], references: [id])
 
   @@unique([postId, tagId])
 }
@@ -213,8 +234,8 @@ model PostRead {
   postId    String
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
   @@index([userId, createdAt])
@@ -227,22 +248,22 @@ model Mention {
   userId    String
   createdAt DateTime @default(now())
 
-  post      Post     @relation(fields: [postId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 用户设置表
 model UserSettings {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  theme                String   @default("light")  // light, dark, eye-care, high-contrast
-  accent               String   @default("")        // blue, green, orange, purple, rose，空字符串表示默认
-  commentSortOrder     String   @default("asc")     // asc, desc
-  notificationsEnabled Boolean  @default(true)      // 是否接收通知，关闭后通知栏目不显示
+  id                            String    @id @default(cuid())
+  userId                        String    @unique
+  theme                         String    @default("light") // light, dark, eye-care, high-contrast
+  accent                        String    @default("") // blue, green, orange, purple, rose，空字符串表示默认
+  commentSortOrder              String    @default("asc") // asc, desc
+  notificationsEnabled          Boolean   @default(true) // 是否接收通知，关闭后通知栏目不显示
   interestOnboardingCompletedAt DateTime?
-  updatedAt            DateTime @updatedAt
+  updatedAt                     DateTime  @updatedAt
 
-  user                 User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 用户明确选择的兴趣标签；不保存推荐分数或推荐位置。
@@ -276,43 +297,43 @@ model UserCategoryInterest {
 /// 通知表
 model Notification {
   id          String   @id @default(cuid())
-  type        String   // follow, comment, like, mention
-  actorId     String   // 触发者
-  recipientId String   // 接收者
-  postId      String?  // 关联帖子 ID
-  commentId   String?  // 关联评论 ID
+  type        String // follow, comment, like, mention
+  actorId     String // 触发者
+  recipientId String // 接收者
+  postId      String? // 关联帖子 ID
+  commentId   String? // 关联评论 ID
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
 
-  actor       User     @relation("NotificationActor", fields: [actorId], references: [id])
-  recipient   User     @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  actor     User @relation("NotificationActor", fields: [actorId], references: [id])
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id])
 }
 
 /// API Token 表
 model ApiToken {
   id         String    @id @default(cuid())
   userId     String
-  name       String    // Token 名称（如"我的客户端"）
+  name       String // Token 名称（如"我的客户端"）
   tokenHash  String    @unique // Token SHA-256 哈希（不存明文）
   lastUsedAt DateTime? // 最后使用时间
   createdAt  DateTime  @default(now())
 
-  user       User      @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 操作日志表（记录用户行为，用于管理后台审计）
 model ActivityLog {
   id           String   @id @default(cuid())
-  action       String   // 操作类型：post.create, post.update, post.delete, comment.create, comment.delete, like.create, like.remove, follow.create, follow.remove
-  actorId      String   // 操作者 ID
-  targetType   String   // 目标类型：post, comment, user
-  targetId     String   // 目标 ID
-  targetUserId String?  // 原始用户 ID（被操作内容的作者）
-  postId       String?  // 关联帖子 ID（便于快速定位）
+  action       String // 操作类型：post.create, post.update, post.delete, comment.create, comment.delete, like.create, like.remove, follow.create, follow.remove
+  actorId      String // 操作者 ID
+  targetType   String // 目标类型：post, comment, user
+  targetId     String // 目标 ID
+  targetUserId String? // 原始用户 ID（被操作内容的作者）
+  postId       String? // 关联帖子 ID（便于快速定位）
   createdAt    DateTime @default(now())
 
   // 关联关系
-  actor        User     @relation(fields: [actorId], references: [id])
+  actor User @relation(fields: [actorId], references: [id])
 }
 
 /// 管理员处置的不可变审计主记录。
@@ -328,8 +349,8 @@ model AdminAuditLog {
   affectedCount  Int
   createdAt      DateTime @default(now())
 
-  operator       User               @relation(fields: [operatorId], references: [id], onDelete: Restrict)
-  targets        AdminAuditTarget[]
+  operator User               @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+  targets  AdminAuditTarget[]
 
   @@unique([operatorId, requestId])
   @@index([createdAt, id])
@@ -344,7 +365,7 @@ model AdminAuditTarget {
   targetId   String
   outcome    String @default("updated")
 
-  auditLog   AdminAuditLog @relation(fields: [auditLogId], references: [id], onDelete: Restrict)
+  auditLog AdminAuditLog @relation(fields: [auditLogId], references: [id], onDelete: Restrict)
 
   @@unique([auditLogId, targetId])
   @@index([targetId, auditLogId])
@@ -361,40 +382,40 @@ model Webhook {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User     @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id])
 }
 
 /// 分类表 — 两级结构，一级为分组，二级为分类
 model Category {
-  id          String     @id @default(cuid())
-  name        String     // 分类名称
-  slug        String     @unique  // URL 友好标识
-  mode        String     // weibo | forum | blog — 分类所属模式
-  parentId    String?    // 父分类 ID（null = 一级分组）
-  description String     @default("")  // 分类描述
-  icon        String     @default("")  // 图标（emoji 或图标名）
-  sortOrder   Int        @default(0)   // 排序权重
-  postCount   Int        @default(0)   // 帖子数缓存
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id          String   @id @default(cuid())
+  name        String // 分类名称
+  slug        String   @unique // URL 友好标识
+  mode        String // weibo | forum | blog — 分类所属模式
+  parentId    String? // 父分类 ID（null = 一级分组）
+  description String   @default("") // 分类描述
+  icon        String   @default("") // 图标（emoji 或图标名）
+  sortOrder   Int      @default(0) // 排序权重
+  postCount   Int      @default(0) // 帖子数缓存
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryChildren")
-  posts       Post[]
-  interests   UserCategoryInterest[]
+  parent    Category?              @relation("CategoryChildren", fields: [parentId], references: [id])
+  children  Category[]             @relation("CategoryChildren")
+  posts     Post[]
+  interests UserCategoryInterest[]
 }
 
 /// 收藏表 — 用户收藏/书签帖子
 model Bookmark {
   id        String   @id @default(cuid())
-  userId    String   // 收藏者
-  postId    String   // 被收藏的帖子
+  userId    String // 收藏者
+  postId    String // 被收藏的帖子
   createdAt DateTime @default(now())
 
-  user      User     @relation(fields: [userId], references: [id])
-  post      Post     @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
 
-  @@unique([userId, postId])  // 每人每帖只能收藏一次
+  @@unique([userId, postId]) // 每人每帖只能收藏一次
   @@index([postId, userId])
 }
 
@@ -405,8 +426,8 @@ model SiteCopy {
   updatedById String
   updatedAt   DateTime @updatedAt
 
-  updatedBy   User              @relation("SiteCopyUpdatedBy", fields: [updatedById], references: [id])
-  versions    SiteCopyVersion[]
+  updatedBy User              @relation("SiteCopyUpdatedBy", fields: [updatedById], references: [id])
+  versions  SiteCopyVersion[]
 }
 
 /// 站点文案不可变审计版本。每次更新必须与 SiteCopy 当前值在同一事务写入。
@@ -417,8 +438,8 @@ model SiteCopyVersion {
   updatedById String
   updatedAt   DateTime @default(now())
 
-  siteCopy    SiteCopy @relation(fields: [key], references: [key], onDelete: Cascade)
-  updatedBy   User     @relation("SiteCopyVersionUpdatedBy", fields: [updatedById], references: [id])
+  siteCopy  SiteCopy @relation(fields: [key], references: [key], onDelete: Cascade)
+  updatedBy User     @relation("SiteCopyVersionUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([key, updatedAt])
 }

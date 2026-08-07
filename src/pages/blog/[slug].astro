@@ -51,7 +51,10 @@ const safePage = Math.min(currentPage, totalPages);
 const posts = await prisma.post.findMany({
 	where,
 	orderBy: [{ createdAt: 'desc' }],
-	include: POST_CARD_INCLUDE,
+	include: {
+		...POST_CARD_INCLUDE,
+		media: { where: { slot: 'thumbnail' }, include: { fileStorage: true } }
+	},
 	skip: (safePage - 1) * PAGE_SIZE,
 	take: PAGE_SIZE
 });

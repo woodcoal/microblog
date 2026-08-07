@@ -167,8 +167,9 @@ export async function loadPostDetail(context: PostDetailContext) {
 	const canPin = isAuthor && MAX_USER_PINNED_POSTS > 0;
 
 	// 分离图片和附件
-	const images = post.media.filter((m) => m.fileType === 'image');
-	const attachments = post.media.filter((m) => m.fileType === 'attachment');
+	const thumbnail = post.media.find((m) => m.slot === 'thumbnail') || null;
+	const images = post.media.filter((m) => m.fileType === 'image' && m.slot === null);
+	const attachments = post.media.filter((m) => m.fileType === 'attachment' && m.slot === null);
 	const hasImages = images.length > 0;
 	const hasAttachments = attachments.length > 0;
 	const isWeiboPost = post.mode === 'weibo';
@@ -475,6 +476,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 		isLocked,
 		canPin,
 		images,
+		thumbnail,
 		attachments,
 		hasImages,
 		hasAttachments,

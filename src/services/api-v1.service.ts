@@ -38,6 +38,47 @@ function toUserDto(user: ApiUser): UserDto {
 
 function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 	const mode = post.mode === 'forum' || post.mode === 'blog' ? post.mode : 'weibo';
+	const bodyMedia = contentRestricted
+		? []
+		: post.media
+				.filter((media) => media.slot === null && media.fileStorage.fileType === 'image')
+				.map((media) => ({
+					id: media.id,
+					url: `/uploads/${media.fileStorage.filePath}`,
+					mimeType: media.fileStorage.mimeType,
+					size: media.fileStorage.fileSize,
+					type: 'image' as const,
+					slot: null
+				}));
+	const thumbnailMedia = contentRestricted
+		? undefined
+		: post.media.find((media) => media.slot === 'thumbnail');
+	const thumbnail = thumbnailMedia
+		? {
+				id: thumbnailMedia.id,
+				url: `/media/${thumbnailMedia.id}`,
+				mimeType: thumbnailMedia.fileStorage.mimeType,
+				size: thumbnailMedia.fileStorage.fileSize,
+				type: 'image' as const,
+				slot: 'thumbnail' as const
+			}
+		: null;
+	const attachments = contentRestricted
+		? []
+		: post.media
+				.filter(
+					(media) => media.slot === null && media.fileStorage.fileType === 'attachment'
+				)
+				.map((media) => ({
+					id: media.id,
+					url: `/media/${media.id}/download`,
+					downloadUrl: `/media/${media.id}/download`,
+					originalName: media.originalName,
+					mimeType: media.fileStorage.mimeType,
+					size: media.fileStorage.fileSize,
+					type: 'attachment' as const,
+					slot: null
+				}));
 	return {
 		id: post.id,
 		title: post.title,
@@ -54,13 +95,11 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 		isLocked: post.isLocked,
 		isEdited: post.isEdited,
 		isPasswordProtected: post.visibility === 'password',
-		media: post.media.map((media) => ({
-			id: media.id,
-			url: media.fileStorage.filePath,
-			mimeType: media.fileStorage.mimeType,
-			type: media.fileStorage.fileType === 'attachment' ? 'attachment' : 'image',
-			slot: media.slot === 'thumbnail' ? 'thumbnail' : null
-		})),
+		// v1 兼容字段继续仅表示正文图片；新资产使用下列显式字段。
+		media: bodyMedia,
+		thumbnail,
+		bodyMedia,
+		attachments,
 		tags: post.tags.map(({ tag }) => ({ id: tag.id, name: tag.name })),
 		createdAt: post.createdAt.toISOString(),
 		updatedAt: post.updatedAt.toISOString()
@@ -144,18 +183,29 @@ export async function getPublicPosts(input: PageInput & { sort?: 'latest' | 'hot
 			page: input.page,
 			pageSize: input.pageSize
 		});
-		if (feed.items.length === 0) return { items: [], total: feed.total, page: input.page, pageSize: input.pageSize };
+		if (feed.items.length === 0)
+			return { items: [], total: feed.total, page: input.page, pageSize: input.pageSize };
 		const visibleWhere = await visiblePostWhere(input.viewerId);
-		const records = await findApiPosts({ ...visibleWhere, id: { in: feed.items.map((item) => item.id) } }, {
-			skip: 0, take: feed.items.length, orderBy: { createdAt: 'desc' }, viewerId: input.viewerId
-		});
+		const records = await findApiPosts(
+			{ ...visibleWhere, id: { in: feed.items.map((item) => item.id) } },
+			{
+				skip: 0,
+				take: feed.items.length,
+				orderBy: { createdAt: 'desc' },
+				viewerId: input.viewerId
+			}
+		);
 		const byId = new Map(records.map((record) => [record.id, record]));
 		return {
-			items: await Promise.all(feed.items.flatMap((item) => {
-				const record = byId.get(item.id);
-				return record ? [toListPostDto(record, input.viewerId)] : [];
-			})),
-			total: feed.total, page: input.page, pageSize: input.pageSize
+			items: await Promise.all(
+				feed.items.flatMap((item) => {
+					const record = byId.get(item.id);
+					return record ? [toListPostDto(record, input.viewerId)] : [];
+				})
+			),
+			total: feed.total,
+			page: input.page,
+			pageSize: input.pageSize
 		};
 	}
 	return getPostPage(await visiblePostWhere(input.viewerId), input, input.sort);

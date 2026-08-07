@@ -247,6 +247,12 @@ const spec = {
 					isEdited: { type: 'boolean' },
 					isPasswordProtected: { type: 'boolean' },
 					media: { type: 'array', items: { $ref: '#/components/schemas/Media' } },
+					thumbnail: { $ref: '#/components/schemas/Media', nullable: true },
+					bodyMedia: { type: 'array', items: { $ref: '#/components/schemas/Media' } },
+					attachments: {
+						type: 'array',
+						items: { $ref: '#/components/schemas/Attachment' }
+					},
 					tags: { type: 'array', items: { $ref: '#/components/schemas/Tag' } },
 					createdAt: { type: 'string', format: 'date-time' },
 					updatedAt: { type: 'string', format: 'date-time' }
@@ -261,6 +267,9 @@ const spec = {
 					'commentCount',
 					'liked',
 					'media',
+					'thumbnail',
+					'bodyMedia',
+					'attachments',
 					'tags',
 					'createdAt',
 					'updatedAt'
@@ -272,9 +281,24 @@ const spec = {
 					id: { type: 'string' },
 					url: { type: 'string' },
 					mimeType: { type: 'string' },
-					type: { type: 'string', enum: ['image', 'attachment'] }
+					size: { type: 'integer', minimum: 0 },
+					type: { type: 'string', enum: ['image', 'attachment'] },
+					slot: { type: 'string', enum: ['thumbnail'], nullable: true }
 				},
-				required: ['id', 'url', 'mimeType', 'type']
+				required: ['id', 'url', 'mimeType', 'size', 'type', 'slot']
+			},
+			Attachment: {
+				allOf: [
+					{ $ref: '#/components/schemas/Media' },
+					{
+						type: 'object',
+						properties: {
+							originalName: { type: 'string' },
+							downloadUrl: { type: 'string' }
+						},
+						required: ['originalName', 'downloadUrl']
+					}
+				]
 			},
 			Tag: {
 				type: 'object',
@@ -345,6 +369,13 @@ const spec = {
 						default: 'public'
 					},
 					mediaIds: { type: 'array', items: { type: 'string' }, uniqueItems: true },
+					thumbnailFileStorageId: { type: 'string', nullable: true },
+					attachmentFileStorageIds: {
+						type: 'array',
+						items: { type: 'string' },
+						maxItems: 10,
+						uniqueItems: true
+					},
 					password: { type: 'string', writeOnly: true },
 					allowedUserIds: { type: 'array', items: { type: 'string' }, uniqueItems: true },
 					categoryId: { type: 'string', nullable: true },
