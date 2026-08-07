@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, beforeEach, test } from 'node:test';
 import { prisma } from '../src/lib/db';
-import { getRecommendationProfile, getTrendingFeed, saveInterests } from '../src/services/recommend.service';
+import { getRecommend, getRecommendationProfile, getTrendingFeed, saveInterests } from '../src/services/recommend.service';
 
 async function user(username: string) {
 	return prisma.user.create({ data: { username, displayName: username, email: `${username}@test`, passwordHash: 'hash' } });
@@ -37,4 +37,21 @@ test('skip persists only completion state and five positive signals switch to bl
 	await prisma.follow.createMany({ data: targets.map((target) => ({ followerId: viewer.id, followingId: target.id })) });
 	profile = await getRecommendationProfile(viewer.id);
 	assert.equal(profile.positiveSignalCount, 5); assert.equal(profile.strategy, 'blended'); assert.deepEqual(profile.weights, { interest: 0.5, trending: 0.4, exploration: 0.1 });
+});
+
+test('blended output deterministically reserves 50/40/10 interest, trending, and exploration slots', async () => {
+	const viewer = await user('blend_viewer'); const author = await user('blend_author');
+	const targets = await Promise.all(Array.from({ length: 5 }, (_, index) => user(`blend_target${index}`)));
+	const tag = await prisma.tag.create({ data: { name: 'interest-tag' } });
+	const now = Date.now();
+	await prisma.post.createMany({ data: Array.from({ length: 12 }, (_, index) => ({ id: `blend_${index}`, userId: author.id, content: `blend ${index}`, createdAt: new Date(now - index * 1000), updatedAt: new Date(now - index * 1000) })) });
+	await prisma.postTag.createMany({ data: Array.from({ length: 5 }, (_, index) => ({ postId: `blend_${index}`, tagId: tag.id })) });
+	await prisma.follow.createMany({ data: targets.map((target) => ({ followerId: viewer.id, followingId: target.id })) });
+	await saveInterests({ userId: viewer.id, tagIds: [tag.id], categoryIds: [] });
+	const first = await getRecommend({ userId: viewer.id, n: 10 });
+	const second = await getRecommend({ userId: viewer.id, n: 10 });
+	assert.equal(first.profile?.strategy, 'blended');
+	assert.deepEqual(first.items.map((item) => item.id), second.items.map((item) => item.id));
+	assert.deepEqual(first.items.reduce((counts, item) => ({ ...counts, [item.source!]: counts[item.source!] + 1 }), { interest: 0, trending: 0, exploration: 0 }), { interest: 5, trending: 4, exploration: 1 });
+	assert.equal(first.items.find((item) => item.source === 'exploration')?.tags.some((item) => item.id === tag.id), false);
 });

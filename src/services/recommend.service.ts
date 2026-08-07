@@ -48,6 +48,7 @@ export interface RecommendItem {
 	liked: boolean;
 	/** 本地热门/相似度综合分，越高越靠前 */
 	score: number;
+	source?: 'interest' | 'trending' | 'exploration';
 }
 
 export interface GetRecommendResult {
@@ -327,22 +328,50 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 	const profile = await getRecommendationProfile(input.userId);
 	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: Math.max(count, 50) });
 	const ordered = profile.strategy === 'blended'
-		? [...feed.items].sort((a, b) => {
-			const interest = (post: TrendingFeedItem) =>
-				post.tags.filter(({ tag }) => profile.interestTagIds.includes(tag.id)).length +
-				(profile.interestCategoryIds.includes(post.categoryId ?? '') ? 1 : 0);
-			return (interest(b) * 0.5 + b.score * 0.4) - (interest(a) * 0.5 + a.score * 0.4) || b.score - a.score;
-		})
-		: feed.items;
+		? allocateBlendedRecommendations(feed.items, profile, count)
+		: feed.items.map((post) => ({ post, source: 'trending' as const }));
 	return {
-		items: ordered.slice(0, count).map((post) => ({
+		items: ordered.slice(0, count).map(({ post, source }) => ({
 			id: post.id, content: post.content, createdAt: post.createdAt.toISOString(), user: post.user,
 			media: post.media.map(({ id, fileType }) => ({ id, fileType })), visibility: post.visibility,
 			mode: post.mode, title: post.title, categoryId: post.categoryId, category: post.category,
 			tags: post.tags.map(({ tag }) => tag), likeCount: post._count.likes,
-			commentCount: post._count.comments, liked: post.liked, score: post.score
+			commentCount: post._count.comments, liked: post.liked, score: post.score, source
 		})), profile
 	};
+}
+
+/** Deterministically compose 50% interest, 40% trending, and 10% exploration. */
+export function allocateBlendedRecommendations(
+	candidates: TrendingFeedItem[],
+	profile: Pick<RecommendationProfile, 'interestTagIds' | 'interestCategoryIds'>,
+	count: number
+): Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> {
+	const interestScore = (post: TrendingFeedItem) =>
+		post.tags.filter(({ tag }) => profile.interestTagIds.includes(tag.id)).length +
+		(profile.interestCategoryIds.includes(post.categoryId ?? '') ? 1 : 0);
+	const interestCount = Math.floor(count * 0.5);
+	const trendingCount = Math.floor(count * 0.4);
+	const explorationCount = count - interestCount - trendingCount;
+	const interest = candidates.filter((post) => interestScore(post) > 0)
+		.sort((a, b) => interestScore(b) - interestScore(a) || b.score - a.score || a.id.localeCompare(b.id));
+	const exploration = candidates.filter((post) => interestScore(post) === 0)
+		.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
+	const chosen = new Set<string>();
+	const output: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> = [];
+	const take = (items: TrendingFeedItem[], amount: number, source: 'interest' | 'trending' | 'exploration') => {
+		for (const post of items) {
+			if (output.length >= count || chosen.has(post.id)) continue;
+			output.push({ post, source }); chosen.add(post.id);
+			if (output.filter((item) => item.source === source).length >= amount) break;
+		}
+	};
+	take(interest, interestCount, 'interest');
+	take(candidates, trendingCount, 'trending');
+	take(exploration, explorationCount, 'exploration');
+	// Sparse pools still return a full page, without pretending fallback items are exploration.
+	take(candidates, count, 'trending');
+	return output;
 }
 
 /**
