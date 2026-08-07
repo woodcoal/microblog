@@ -19,6 +19,7 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { isModeEnabled, getModeLabel } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getPopularTagItems } from '@/lib/discovery';
+import type { Prisma } from '../../generated/prisma/client';
 
 // 模式未启用时返回 404
 if (!isModeEnabled('weibo')) {
@@ -53,6 +54,10 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 
 // 从 URL 查询参数获取当前页码，默认第 1 页
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
+const isPopularSort = Astro.url.searchParams.get('sort') === 'popular';
+const timelineOrderBy: Prisma.PostOrderByWithRelationInput[] = isPopularSort
+	? [{ likes: { _count: 'desc' } }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+	: [{ createdAt: 'desc' }];
 
 // 查询全局置顶帖（weibo 模式，始终在最前面）
 const pinnedPosts = await prisma.post.findMany({
@@ -86,7 +91,7 @@ const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
-// 查询当前页的 weibo 帖子（按时间倒序）
+// 查询当前页的微博帖子。热门视图复用既有互动计数排序，不改变数据契约。
 const posts = await prisma.post.findMany({
 	where: {
 		isDeleted: false,
@@ -94,7 +99,7 @@ const posts = await prisma.post.findMany({
 		mode: 'weibo',
 		...visibilityFilter
 	},
-	orderBy: [{ createdAt: 'desc' }],
+	orderBy: timelineOrderBy,
 	include: {
 		...POST_CARD_INCLUDE,
 		likes: { select: { id: true, userId: true } },
@@ -233,7 +238,9 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 		}
 		<InfinitePostList
 			listId="weibo-post-list"
-			nextUrl={hasNextPage ? `/weibo?page=${safePage + 1}` : null}
+			nextUrl={hasNextPage
+				? `/weibo?page=${safePage + 1}${isPopularSort ? '&sort=popular' : ''}`
+				: null}
 		/>
 
 		{/* 分页导航 */}
@@ -247,7 +254,7 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a
-								href={`/weibo?page=${safePage - 1}`}
+								href={`/weibo?page=${safePage - 1}${isPopularSort ? '&sort=popular' : ''}`}
 								class="pagination-btn pagination-prev"
 							>
 								← 上一页
@@ -262,7 +269,7 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 
 						{hasNextPage ? (
 							<a
-								href={`/weibo?page=${safePage + 1}`}
+								href={`/weibo?page=${safePage + 1}${isPopularSort ? '&sort=popular' : ''}`}
 								class="pagination-btn pagination-next"
 							>
 								下一页 →
