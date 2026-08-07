@@ -62,7 +62,7 @@ const [settings, user, tokens, webhooks] = await Promise.all([
 // 当前主题（设置不存在时使用默认值）
 const currentTheme = settings?.theme ?? DEFAULT_THEME;
 // 当前评论排序偏好
-const currentSortOrder = settings?.commentSortOrder ?? 'asc';
+const currentSortOrder = settings?.commentSortOrder ?? 'desc';
 // 当前通知开关状态
 const notificationsEnabled = settings?.notificationsEnabled ?? true;
 

@@ -218,14 +218,14 @@ if (currentUser) {
 	bookmarked = !!bookmarkRecord;
 }
 
-// 获取评论排序偏好
-let commentSortOrder: 'asc' | 'desc' = 'asc';
+// 评论默认倒序；登录用户可用其已保存的偏好覆盖默认值。
+let commentSortOrder: 'asc' | 'desc' = 'desc';
 if (currentUser) {
 	const settings = await prisma.userSettings.findUnique({
 		where: { userId: currentUser.userId }
 	});
-	if (settings?.commentSortOrder === 'desc') {
-		commentSortOrder = 'desc';
+	if (settings?.commentSortOrder === 'asc') {
+		commentSortOrder = 'asc';
 	}
 }
 

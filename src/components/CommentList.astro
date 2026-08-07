@@ -2,7 +2,7 @@
 /**
  * 评论列表组件（Astro 版本）
  *
- * 展示帖子下所有评论，支持正序/倒序切换。
+ * 展示帖子下所有评论。登录用户可切换正序/倒序，访客固定使用默认倒序。
  * 切换排序时持久化偏好到服务端并刷新页面。
  */
 import CommentItem from '@/components/CommentItem.astro';
@@ -92,26 +92,30 @@ const floorStart = presentation === 'forum' ? 2 : undefined;
 <div class={`comment-list comment-list-${presentation}`}>
 	<div class="comment-list-header">
 		<h3 class="comment-list-title">{commentLabel} ({commentCount})</h3>
-		<div class="comment-list-sort">
-			<button
-				type="button"
-				class={`comment-sort-btn ${isAsc ? 'comment-sort-btn-active' : ''}`}
-				data-action="sort-comments"
-				data-sort="asc"
-				data-post-id={postId}
-			>
-				正序
-			</button>
-			<button
-				type="button"
-				class={`comment-sort-btn ${isDesc ? 'comment-sort-btn-active' : ''}`}
-				data-action="sort-comments"
-				data-sort="desc"
-				data-post-id={postId}
-			>
-				倒序
-			</button>
-		</div>
+		{
+			isLoggedIn && (
+				<div class="comment-list-sort">
+					<button
+						type="button"
+						class={`comment-sort-btn ${isAsc ? 'comment-sort-btn-active' : ''}`}
+						data-action="sort-comments"
+						data-sort="asc"
+						data-post-id={postId}
+					>
+						正序
+					</button>
+					<button
+						type="button"
+						class={`comment-sort-btn ${isDesc ? 'comment-sort-btn-active' : ''}`}
+						data-action="sort-comments"
+						data-sort="desc"
+						data-post-id={postId}
+					>
+						倒序
+					</button>
+				</div>
+			)
+		}
 	</div>
 
 	{/* 评论输入框（仅登录用户可见） */}
@@ -142,7 +146,7 @@ const floorStart = presentation === 'forum' ? 2 : undefined;
 	 *
 	 * 点击排序按钮后：
 	 * 1. 持久化偏好到服务端
-	 * 2. 刷新页面并带上排序参数
+	 * 2. 成功后刷新页面，按已保存偏好重取评论
 	 */
 	document.addEventListener('DOMContentLoaded', () => {
 		document.querySelectorAll('[data-action="sort-comments"]').forEach((btn) => {
@@ -151,15 +155,8 @@ const floorStart = presentation === 'forum' ? 2 : undefined;
 				const postId = (btn as HTMLElement).dataset.postId;
 				if (!newSort || !postId) return;
 
-				// 持久化排序偏好到服务端（Actions 自动处理认证）
-				actions.updateCommentSort({ order: newSort }).catch(() => {
-					// 持久化失败不影响使用
-				});
-
-				// 刷新页面，通过 URL 参数传递排序方式
-				const url = new URL(window.location.href);
-				url.searchParams.set('sort', newSort);
-				window.location.href = url.toString();
+				const result = await actions.updateCommentSort({ order: newSort });
+				if (!result.error) location.reload();
 			});
 		});
 	});
