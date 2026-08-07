@@ -13,7 +13,8 @@
 	max-width: var(--layout-content);
 }
 
-/* 三个内容频道使用同一主列和页头轴；登录态的操作按钮仍留在页头右侧。 */
+/* 三个内容频道使用同一主列和页头轴；登录态的发布操作固定在标题区右上角。 */
+[data-ux-shell='weibo'] .page-header-row > .site-copy-content-channel,
 [data-ux-shell='forum'] .page-header-row > .site-copy-content-channel,
 [data-ux-shell='blog'] .page-header-row > .site-copy-content-channel {
 	flex: 1 1 auto;
@@ -24,7 +25,7 @@
 [data-ux-shell='forum'] .page-header,
 [data-ux-shell='blog'] .page-header {
 	display: flex;
-	align-items: end;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--spacing-4);
 	margin-bottom: var(--spacing-5);
@@ -33,10 +34,16 @@
 
 .page-header-row {
 	display: flex;
-	align-items: end;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--spacing-4);
 	width: 100%;
+}
+
+[data-ux-shell='weibo'] .page-header-row > .btn,
+[data-ux-shell='forum'] .page-header-row > .btn,
+[data-ux-shell='blog'] .page-header-row > .btn {
+	flex: 0 0 auto;
 }
 
 .page-title {
@@ -1193,6 +1200,7 @@
 	/* 叠放后显式拉伸页头，避免内容按自身宽度收缩至主列右侧。 */
 	[data-ux-shell='forum'] .page-header-row > .site-copy-content-channel,
 	[data-ux-shell='blog'] .page-header-row > .site-copy-content-channel,
+	[data-ux-shell='weibo'] .page-header-row > .site-copy-content-channel,
 	.forum-page-heading,
 	.blog-page-heading,
 	.forum-heading-copy {
