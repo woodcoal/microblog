@@ -15,6 +15,7 @@ import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getPopularTagItems } from '@/lib/discovery';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 /** 每页显示帖子数量 */
 const PAGE_SIZE = 20;
@@ -106,17 +107,29 @@ const hasPosts = posts.length > 0;
 const hasPrevPage = safePage > 1;
 const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
+const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 ---
 
 <WeiboLayout title="最新 - 睦谈" hasAside={true}>
 	<section class="ux-channel-page ux-latest-page" aria-labelledby="latest-page-title">
 		<div class="page-header">
 			<div class="page-header-row">
-				<div>
-					<p class="ux-eyebrow">实时内容</p>
-					<h1 class="page-title" id="latest-page-title">最新</h1>
-					<p class="page-desc">所有公开动态，按时间倒序排列</p>
-				</div>
+				<div
+					id="latest-page-title"
+					class="site-copy-content site-copy-content-channel"
+					set:html={heroCopy.html}
+				/>
+				{
+					currentUser && (
+						<button
+							type="button"
+							class="btn btn-primary"
+							onclick="document.dispatchEvent(new CustomEvent('open-compose-modal'))"
+						>
+							✏️ 发布
+						</button>
+					)
+				}
 			</div>
 		</div>
 

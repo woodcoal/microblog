@@ -235,10 +235,15 @@
 .forum-page-heading,
 .blog-page-heading {
 	display: flex;
-	align-items: end;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--spacing-4);
 	margin: var(--spacing-2) 0 var(--spacing-4);
+}
+
+.forum-page-heading > .btn,
+.blog-page-heading > .btn {
+	flex: 0 0 auto;
 }
 
 .forum-heading-copy,
