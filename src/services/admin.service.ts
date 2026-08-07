@@ -12,7 +12,13 @@ import {
 	findUserByUsername
 } from '@/lib/user';
 import { hashPassword } from '@/lib/auth';
-import { batchSoftDeletePosts, batchLockPosts, batchUnlockPosts } from '@/lib/post';
+import {
+	batchSoftDeletePosts,
+	batchLockPosts,
+	batchUnlockPosts,
+	batchRestorePosts,
+	batchSetGlobalPinPosts
+} from '@/lib/post';
 import { batchSoftDeleteComments } from '@/lib/comment';
 import { findTagById, updateTagVisibility } from '@/lib/tag';
 import { ServiceError } from '@/lib/errors';
@@ -42,7 +48,7 @@ export interface BatchUsersInput {
 }
 
 export interface BatchPostsInput {
-	action: 'delete' | 'lock' | 'unlock';
+	action: 'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin';
 	ids: string[];
 	reason?: string;
 	operatorId: string;
@@ -168,9 +174,8 @@ export async function createUser(input: CreateUserInput): Promise<CreateUserResu
 /**
  * 帖子批量操作
  *
- * 管理员批量删除、锁定或解锁帖子。
- * 删除和锁定操作需填写理由。
- * 删除为软删除，锁定设置锁定信息，解锁清除锁定状态。
+ * 管理员批量删除、还原、锁定、解锁或设置全局置顶状态。
+ * 删除、还原和锁定操作需填写理由；还原会保存审计信息。
  *
  * @param input - { action, ids, reason?, operatorId }
  * @returns 受影响的帖子数量
@@ -192,6 +197,11 @@ export async function batchPosts(input: BatchPostsInput): Promise<{ affected: nu
 		}
 		// 软删除：设置 isDeleted、deleteReason、deletedBy
 		result = await batchSoftDeletePosts(ids, reason.trim(), operatorId);
+	} else if (action === 'restore') {
+		if (!reason || !reason.trim()) {
+			throw new ServiceError('BAD_REQUEST', '还原理由不能为空');
+		}
+		result = await batchRestorePosts(ids, reason.trim(), operatorId);
 	} else if (action === 'lock') {
 		// 锁定操作需填写理由
 		if (!reason || !reason.trim()) {
@@ -199,9 +209,11 @@ export async function batchPosts(input: BatchPostsInput): Promise<{ affected: nu
 		}
 		// 锁定：设置 isLocked、lockedBy、lockReason
 		result = await batchLockPosts(ids, reason.trim(), operatorId);
-	} else {
+	} else if (action === 'unlock') {
 		// 解锁：清除锁定状态
 		result = await batchUnlockPosts(ids);
+	} else {
+		result = await batchSetGlobalPinPosts(ids, action === 'pin');
 	}
 
 	return { affected: result.count };

@@ -352,6 +352,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const action = (btn as HTMLElement).dataset.action;
 			const userId = (btn as HTMLElement).dataset.userId || '';
 			if ((action !== 'disable' && action !== 'enable') || !userId) return;
+			if (
+				!(await MutanDialog.confirm(
+					`确认要${action === 'disable' ? '禁用' : '启用'}该用户吗？`,
+					{ title: '用户状态确认', danger: action === 'disable' }
+				))
+			)
+				return;
 
 			const result = await actions.batchUsers({ action, ids: [userId] });
 			if (result.error) {

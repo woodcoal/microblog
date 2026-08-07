@@ -227,6 +227,13 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			const commentId = (btn as HTMLElement).dataset.commentId || '';
 
 			if (!commentId) return;
+			if (
+				!(await MutanDialog.confirm('确认要删除这条评论吗？此操作不可撤销。', {
+					title: '删除评论',
+					danger: true
+				}))
+			)
+				return;
 			const result = await actions.batchComments({ action: 'delete', ids: [commentId] });
 			if (result.error) {
 				await MutanDialog.alert(result.error.message || '操作失败');
