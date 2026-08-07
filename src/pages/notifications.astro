@@ -6,7 +6,7 @@
  * 支持按通知类型筛选（type 查询参数）和分页加载更多。
  * 需要登录，未登录重定向到 /login。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import NotificationList from '@/components/NotificationList.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
@@ -95,7 +95,7 @@ const filterOptions = [
 ];
 ---
 
-<WeiboLayout title="通知">
+<UserLayout title="通知">
 	<section class="ux-notifications-page">
 		<!-- 标题栏 -->
 		<div class="notification-header">
@@ -126,7 +126,7 @@ const filterOptions = [
 		</div>
 
 		<!-- 类型筛选标签 -->
-		<div class="notification-filters">
+		<nav class="notification-filters" aria-label="通知筛选">
 			{
 				filterOptions.map((opt) => (
 					<a
@@ -137,7 +137,7 @@ const filterOptions = [
 					</a>
 				))
 			}
-		</div>
+		</nav>
 
 		<!-- 通知列表 -->
 		<NotificationList notifications={serializedNotifications} unreadCount={unreadCount} />
@@ -158,7 +158,7 @@ const filterOptions = [
 			)
 		}
 	</section>
-</WeiboLayout>
+</UserLayout>
 
 <style>
 	/* 通知标题栏 */
@@ -500,6 +500,7 @@ const filterOptions = [
 		if (isUnread) {
 			item.addEventListener('click', (e) => {
 				const target = e.target as HTMLElement;
+				if (target.closest('[data-action="delete-notification"]')) return;
 				if (
 					target.closest('.notification-actor-link') ||
 					target.closest('.notification-post-link') ||

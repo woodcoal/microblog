@@ -6,15 +6,14 @@
  * 下半部分：粉丝们近 7 天最热门的 10 条帖子。
  * 需要认证，未登录重定向到登录页。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import PostCard from '@/components/PostCard.astro';
-import ChannelAside from '@/components/ChannelAside.astro';
+import FollowButton from '@/components/FollowButton.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { getPopularTagItems } from '@/lib/discovery';
 
 // 需要认证，未登录重定向
 const currentUser = await getUserFromRequest(Astro);
@@ -86,34 +85,25 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser.userId,
 	hotPosts.map((post) => post.id)
 );
-const discoveryItems = await getPopularTagItems();
-const followerItems = followers.slice(0, 5).map((follow) => ({
-	title: follow.follower.displayName,
-	href: `/${follow.follower.username}`,
-	meta: `@${follow.follower.username}`,
-	icon: '👤'
-}));
-const discoverySections = [
-	{
-		title: '热门话题',
-		description: '从正在被讨论的话题继续探索。',
-		items: discoveryItems
-	},
-	{
-		title: '新关注者',
-		description: '最近关注你的人。',
-		items: followerItems
-	}
-];
 ---
 
-<WeiboLayout title="我的粉丝" hasAside={true}>
+<UserLayout title="我的粉丝">
 	<section class="ux-connections-page" aria-labelledby="followers-page-title">
+		<div class="relationship-context">
+			<span class="relationship-context-avatar" aria-hidden="true">
+				{currentUser.username.charAt(0).toUpperCase()}
+			</span>
+			<span><strong>{currentUser.username}</strong><small>我的关系</small></span>
+		</div>
 		<header class="ux-page-heading">
 			<p class="ux-eyebrow">我的关系</p>
 			<h1 class="page-title" id="followers-page-title">我的粉丝</h1>
 			<p>看看哪些人正在关注你的表达，并发现他们的动态。</p>
 		</header>
+		<nav class="relationship-tabs" aria-label="关系页面">
+			<a href="/following">关注 {followingIds.length}</a>
+			<a href="/followers" aria-current="page">粉丝 {followers.length}</a>
+		</nav>
 
 		<!-- 粉丝列表 -->
 		<section class="followers-section">
@@ -124,25 +114,38 @@ const discoverySections = [
 						<p>还没有粉丝</p>
 					</div>
 				) : (
-					<div class="user-grid">
+					<div class="relationship-list">
 						{followers.map((f) => {
 							const avatarUrl = f.follower.avatarUrl;
 							const initial = f.follower.displayName.charAt(0).toUpperCase();
 							return (
-								<a href={`/${f.follower.username}`} class="user-grid-item">
-									{avatarUrl ? (
-										<img
-											src={avatarUrl}
-											alt={f.follower.displayName}
-											class="user-grid-avatar"
-										/>
-									) : (
-										<div class="user-grid-avatar user-grid-avatar-placeholder">
-											{initial}
-										</div>
-									)}
-									<span class="user-grid-name">{f.follower.displayName}</span>
-								</a>
+								<article class="relationship-member">
+									<a
+										href={`/${f.follower.username}`}
+										class="relationship-member-main"
+									>
+										{avatarUrl ? (
+											<img
+												src={avatarUrl}
+												alt={f.follower.displayName}
+												class="user-grid-avatar"
+											/>
+										) : (
+											<div class="user-grid-avatar user-grid-avatar-placeholder">
+												{initial}
+											</div>
+										)}
+										<span class="relationship-member-copy">
+											<strong>{f.follower.displayName}</strong>
+											<span>@{f.follower.username}</span>
+										</span>
+									</a>
+									<FollowButton
+										username={f.follower.username}
+										initialFollowing={followingIds.includes(f.follower.id)}
+										isSelf={currentUser.userId === f.follower.id}
+									/>
+								</article>
 							);
 						})}
 					</div>
@@ -220,8 +223,7 @@ const discoverySections = [
 			}
 		</section>
 	</section>
-	<ChannelAside slot="aside" sections={discoverySections} label="粉丝页辅助信息" />
-</WeiboLayout>
+</UserLayout>
 
 <style>
 	.page-title {

@@ -6,15 +6,14 @@
  * 下半部分：这些用户近 7 天最热门的 10 条帖子。
  * 需要认证，未登录重定向到登录页。
  */
-import WeiboLayout from '@/layouts/WeiboLayout.astro';
+import UserLayout from '@/layouts/UserLayout.astro';
 import PostCard from '@/components/PostCard.astro';
-import ChannelAside from '@/components/ChannelAside.astro';
+import FollowButton from '@/components/FollowButton.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown } from '@/lib/markdown';
 import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
-import { getPopularTagItems } from '@/lib/discovery';
 
 // 需要认证，未登录重定向
 const currentUser = await getUserFromRequest(Astro);
@@ -86,34 +85,25 @@ const bookmarkedPostIds = await getBookmarkedPostIds(
 	currentUser.userId,
 	hotPosts.map((post) => post.id)
 );
-const discoveryItems = await getPopularTagItems();
-const followingItems = follows.slice(0, 5).map((follow) => ({
-	title: follow.following.displayName,
-	href: `/${follow.following.username}`,
-	meta: `@${follow.following.username}`,
-	icon: '👤'
-}));
-const discoverySections = [
-	{
-		title: '热门话题',
-		description: '从正在被讨论的话题继续探索。',
-		items: discoveryItems
-	},
-	{
-		title: '关注清单',
-		description: '快速查看最近关注的创作者。',
-		items: followingItems
-	}
-];
 ---
 
-<WeiboLayout title="我的关注" hasAside={true}>
+<UserLayout title="我的关注">
 	<section class="ux-connections-page" aria-labelledby="following-page-title">
+		<div class="relationship-context">
+			<span class="relationship-context-avatar" aria-hidden="true">
+				{currentUser.username.charAt(0).toUpperCase()}
+			</span>
+			<span><strong>{currentUser.username}</strong><small>我的关系</small></span>
+		</div>
 		<header class="ux-page-heading">
 			<p class="ux-eyebrow">我的关系</p>
 			<h1 class="page-title" id="following-page-title">我的关注</h1>
 			<p>从这里回到你持续关注的人和他们的近期动态。</p>
 		</header>
+		<nav class="relationship-tabs" aria-label="关系页面">
+			<a href="/following" aria-current="page">关注 {follows.length}</a>
+			<a href="/followers">粉丝 {followerIds.length}</a>
+		</nav>
 
 		<!-- 关注用户列表 -->
 		<section class="following-section">
@@ -124,25 +114,38 @@ const discoverySections = [
 						<p>还没有关注任何人</p>
 					</div>
 				) : (
-					<div class="user-grid">
+					<div class="relationship-list">
 						{follows.map((f) => {
 							const avatarUrl = f.following.avatarUrl;
 							const initial = f.following.displayName.charAt(0).toUpperCase();
 							return (
-								<a href={`/${f.following.username}`} class="user-grid-item">
-									{avatarUrl ? (
-										<img
-											src={avatarUrl}
-											alt={f.following.displayName}
-											class="user-grid-avatar"
-										/>
-									) : (
-										<div class="user-grid-avatar user-grid-avatar-placeholder">
-											{initial}
-										</div>
-									)}
-									<span class="user-grid-name">{f.following.displayName}</span>
-								</a>
+								<article class="relationship-member">
+									<a
+										href={`/${f.following.username}`}
+										class="relationship-member-main"
+									>
+										{avatarUrl ? (
+											<img
+												src={avatarUrl}
+												alt={f.following.displayName}
+												class="user-grid-avatar"
+											/>
+										) : (
+											<div class="user-grid-avatar user-grid-avatar-placeholder">
+												{initial}
+											</div>
+										)}
+										<span class="relationship-member-copy">
+											<strong>{f.following.displayName}</strong>
+											<span>@{f.following.username}</span>
+										</span>
+									</a>
+									<FollowButton
+										username={f.following.username}
+										initialFollowing={true}
+										isSelf={false}
+									/>
+								</article>
 							);
 						})}
 					</div>
@@ -220,8 +223,7 @@ const discoverySections = [
 			}
 		</section>
 	</section>
-	<ChannelAside slot="aside" sections={discoverySections} label="关注页辅助信息" />
-</WeiboLayout>
+</UserLayout>
 
 <style>
 	.page-title {
