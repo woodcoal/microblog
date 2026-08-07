@@ -14,6 +14,7 @@ import { SITE_TITLE, SITE_DESCRIPTION, SITE_FAVICON_URL } from '@/lib/config';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
 import { getAccentFromUserSettings, getThemeFromUserSettings } from '@/lib/theme';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
+import packageJson from '../../package.json';
 
 // 导入样式依赖（主题变量 + 全局样式 + 管理后台样式）
 import '@/styles/tokens.css';
@@ -56,6 +57,7 @@ const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
 const userTheme = await getThemeFromUserSettings(currentUser.userId);
 const userAccent = await getAccentFromUserSettings(currentUser.userId);
 const currentPageTitle = title || '仪表盘';
+const appVersion = packageJson.version;
 
 // 按真实信息架构分组，避免把内容治理与站点设置混为同一层级。
 const navGroups = [
@@ -166,7 +168,7 @@ const navGroups = [
 				☰
 			</button>
 			<span class="admin-mobile-title">管理后台</span>
-			<span class="admin-mobile-user">{currentUser.username}</span>
+			<a class="admin-mobile-home" href="/" aria-label="返回首页">返回首页</a>
 		</header>
 
 		<!-- 侧边栏遮罩（移动端） -->
@@ -208,10 +210,10 @@ const navGroups = [
 				}
 			</nav>
 			<div class="admin-sidebar-footer">
-				<div class="admin-sidebar-user">
-					<span class="admin-sidebar-username">👤 {currentUser.username}</span>
+				<div class="admin-version-info" aria-label={`应用版本 ${appVersion}`}>
+					<span>{siteTitle}</span>
+					<span>v{appVersion}</span>
 				</div>
-				<a href="/" class="admin-sidebar-back">← 返回前台</a>
 			</div>
 		</aside>
 
@@ -223,11 +225,11 @@ const navGroups = [
 			</nav>
 			<div class="admin-desktop-actions">
 				<ThemeSwitcher />
-				<a class="admin-account-link" href="/settings" aria-label="打开个人设置">
+				<a class="admin-account-link" href="/" aria-label="返回首页" title="返回首页">
 					<span class="admin-account-avatar" aria-hidden="true">
 						{currentUser.username.slice(0, 1).toUpperCase()}
 					</span>
-					<span>{currentUser.username}</span>
+					<span>返回首页</span>
 				</a>
 			</div>
 		</header>

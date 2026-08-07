@@ -133,12 +133,19 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		<button type="button" class="admin-btn-sm admin-btn-sm-danger" data-batch="delete"
 			>批量删除</button
 		>
+		<button type="button" class="admin-btn-sm admin-btn-sm-primary" data-batch="restore"
+			>批量还原</button
+		>
 		<button type="button" class="admin-btn-sm admin-btn-sm-warning" data-batch="lock"
 			>批量锁定</button
 		>
 		<button type="button" class="admin-btn-sm admin-btn-sm-primary" data-batch="unlock"
 			>批量解锁</button
 		>
+		<button type="button" class="admin-btn-sm admin-btn-sm-primary" data-batch="pin"
+			>批量置顶</button
+		>
+		<button type="button" class="admin-btn-sm" data-batch="unpin">批量取消置顶</button>
 	</div>
 </div>
 
@@ -237,6 +244,16 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 											删除
 										</button>
 									)}
+									{post.isDeleted && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-primary"
+											data-action="restore"
+											data-post-id={post.id}
+										>
+											还原
+										</button>
+									)}
 									{!post.isLocked && (
 										<button
 											type="button"
@@ -255,6 +272,26 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 											data-post-id={post.id}
 										>
 											解锁
+										</button>
+									)}
+									{!post.isDeleted && !post.isGlobalPinned && (
+										<button
+											type="button"
+											class="admin-btn-sm admin-btn-sm-primary"
+											data-action="pin"
+											data-post-id={post.id}
+										>
+											置顶
+										</button>
+									)}
+									{post.isGlobalPinned && (
+										<button
+											type="button"
+											class="admin-btn-sm"
+											data-action="unpin"
+											data-post-id={post.id}
+										>
+											取消置顶
 										</button>
 									)}
 								</div>
@@ -405,15 +442,19 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 	/**
 	 * 操作类型到标题的映射
 	 *
-	 * delete/lock 需弹窗填写理由；
-	 * unlock 直接发送请求无需理由。
+	 * delete/restore/lock 需弹窗填写理由；
+	 * unlock/pin/unpin 使用文字确认后直接提交。
 	 */
 	const actionConfig: Record<
-		'delete' | 'lock' | 'unlock',
+		'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin',
 		{ title: string; needReason: boolean }
 	> = {
 		delete: {
 			title: '删除帖子',
+			needReason: true
+		},
+		restore: {
+			title: '还原帖子',
 			needReason: true
 		},
 		lock: {
@@ -423,6 +464,14 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		unlock: {
 			title: '解锁帖子',
 			needReason: false
+		},
+		pin: {
+			title: '全局置顶帖子',
+			needReason: false
+		},
+		unpin: {
+			title: '取消全局置顶',
+			needReason: false
 		}
 	};
 
@@ -431,13 +480,31 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.action;
 			const postId = (btn as HTMLElement).dataset.postId || '';
-			if ((action !== 'delete' && action !== 'lock' && action !== 'unlock') || !postId)
+			if (
+				(action !== 'delete' &&
+					action !== 'restore' &&
+					action !== 'lock' &&
+					action !== 'unlock' &&
+					action !== 'pin' &&
+					action !== 'unpin') ||
+				!postId
+			)
 				return;
 			const config = actionConfig[action];
 			if (!config) return;
 
-			// 不需要理由的操作（解锁）：直接调用 Action
+			// 不需要理由的操作仍明确告知置顶状态变更。
 			if (!config.needReason) {
+				if (
+					(action === 'pin' || action === 'unpin') &&
+					!(await MutanDialog.confirm(
+						action === 'pin'
+							? '确认要将这条帖子全局置顶吗？'
+							: '确认要取消这条帖子的全局置顶吗？',
+						{ title: config.title, danger: action === 'unpin' }
+					))
+				)
+					return;
 				const result = await actions.batchPosts({ action, ids: [postId] });
 				if (result.error) {
 					await MutanDialog.alert(result.error.message || '操作失败');
@@ -449,7 +516,7 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 				return;
 			}
 
-			// 需要理由的操作（删除/恢复/锁定）：弹出弹窗
+			// 需要理由的操作（删除/还原/锁定）：弹出弹窗
 			currentAction = action;
 			currentPostId = postId;
 			titleEl.textContent = config.title;
@@ -471,7 +538,8 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 			return;
 		}
 
-		if (currentAction !== 'delete' && currentAction !== 'lock') return;
+		if (currentAction !== 'delete' && currentAction !== 'restore' && currentAction !== 'lock')
+			return;
 		const config = actionConfig[currentAction];
 		if (!config) return;
 
@@ -528,7 +596,15 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 	document.querySelectorAll('[data-batch]').forEach((btn) => {
 		btn.addEventListener('click', async () => {
 			const action = (btn as HTMLElement).dataset.batch;
-			if (action !== 'delete' && action !== 'lock' && action !== 'unlock') return;
+			if (
+				action !== 'delete' &&
+				action !== 'restore' &&
+				action !== 'lock' &&
+				action !== 'unlock' &&
+				action !== 'pin' &&
+				action !== 'unpin'
+			)
+				return;
 			const checkedIds = Array.from(document.querySelectorAll('.batch-checkbox:checked'))
 				.map((cb) => (cb as HTMLInputElement).dataset.id)
 				.filter((id): id is string => Boolean(id));
@@ -538,10 +614,12 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 				return;
 			}
 
-			// 删除/锁定需要填写理由
+			// 删除/还原/锁定需要填写理由
 			let reason = '';
-			if (action === 'delete' || action === 'lock') {
-				reason = prompt(`请输入批量${action === 'delete' ? '删除' : '锁定'}的理由：`) || '';
+			if (action === 'delete' || action === 'restore' || action === 'lock') {
+				const actionLabel =
+					action === 'delete' ? '删除' : action === 'restore' ? '还原' : '锁定';
+				reason = prompt(`请输入批量${actionLabel}的理由：`) || '';
 				if (!reason.trim()) {
 					await MutanDialog.alert('理由不能为空', { title: '提示' });
 					return;
@@ -550,7 +628,19 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 
 			if (
 				!(await MutanDialog.confirm(
-					`确认要批量${action === 'delete' ? '删除' : action === 'lock' ? '锁定' : '解锁'} ${checkedIds.length} 项吗？`,
+					`确认要批量${
+						action === 'delete'
+							? '删除'
+							: action === 'restore'
+								? '还原'
+								: action === 'lock'
+									? '锁定'
+									: action === 'unlock'
+										? '解锁'
+										: action === 'pin'
+											? '全局置顶'
+											: '取消全局置顶'
+					} ${checkedIds.length} 项吗？`,
 					{ title: '批量操作', danger: true }
 				))
 			)

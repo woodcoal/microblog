@@ -395,6 +395,32 @@ export function batchUnlockPosts(ids: string[]) {
 	});
 }
 
+/**
+ * 批量还原被管理员软删除的帖子，并保留还原审计信息。
+ */
+export function batchRestorePosts(ids: string[], reason: string, operatorId: string) {
+	return prisma.post.updateMany({
+		where: { id: { in: ids }, isDeleted: true },
+		data: {
+			isDeleted: false,
+			deleteReason: null,
+			deletedBy: null,
+			restoreReason: reason,
+			restoredBy: operatorId
+		}
+	});
+}
+
+/**
+ * 批量设置管理员全局置顶状态。已删除帖子不能进入公开置顶流。
+ */
+export function batchSetGlobalPinPosts(ids: string[], pinned: boolean) {
+	return prisma.post.updateMany({
+		where: { id: { in: ids }, isDeleted: false },
+		data: { isGlobalPinned: pinned }
+	});
+}
+
 // ── 事务内操作 ──
 
 /**

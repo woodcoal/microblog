@@ -52,6 +52,13 @@
 	color: var(--color-muted);
 }
 
+.admin-mobile-home {
+	font-size: 0.8125rem;
+	color: var(--color-primary);
+	font-weight: 600;
+	text-decoration: none;
+}
+
 /* ===== 侧边栏遮罩 ===== */
 
 .admin-sidebar-overlay {
@@ -134,6 +141,15 @@
 .admin-sidebar-footer {
 	padding: var(--spacing-4);
 	border-top: 1px solid var(--color-border);
+}
+
+.admin-version-info {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--spacing-2);
+	color: var(--color-muted);
+	font-size: 0.75rem;
 }
 
 .admin-sidebar-user {
@@ -904,6 +920,39 @@ dialog.admin-modal::backdrop {
 .admin-category-mode-blog {
 	background: color-mix(in srgb, #f59e0b 12%, transparent);
 	color: #92400e;
+}
+
+.admin-category-tabs {
+	display: flex;
+	gap: var(--spacing-1);
+	width: max-content;
+	max-width: 100%;
+	margin-bottom: var(--spacing-4);
+	padding: var(--spacing-1);
+	overflow-x: auto;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-card-bg);
+}
+
+.admin-category-tab {
+	flex: 0 0 auto;
+	padding: 0.5rem 0.75rem;
+	border-radius: var(--radius-sm);
+	color: var(--color-muted);
+	font-size: 0.875rem;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.admin-category-tab:hover {
+	color: var(--color-text);
+	background: var(--color-sidebar-hover);
+}
+
+.admin-category-tab-active {
+	color: var(--color-primary);
+	background: var(--color-sidebar-active);
 }
 
 /* ===== B 型后台工作壳 =====

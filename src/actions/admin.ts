@@ -94,15 +94,15 @@ const createUser = defineAction({
 /**
  * 帖子批量操作 Action
  *
- * 管理员批量删除、锁定或解锁帖子。
+ * 管理员批量删除、还原、锁定、解锁或设置全局置顶状态。
  *
- * @param input - { action: 'delete' | 'lock' | 'unlock', ids: 帖子ID数组, reason?: 理由 }
+ * @param input - { action: 'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin', ids: 帖子ID数组, reason?: 理由 }
  * @param context - Astro APIContext，用于提取认证信息
  * @returns { affected: number } 受影响的帖子数量
  */
 const batchPosts = defineAction({
 	input: z.object({
-		action: z.enum(['delete', 'lock', 'unlock']),
+		action: z.enum(['delete', 'restore', 'lock', 'unlock', 'pin', 'unpin']),
 		ids: z.array(z.string().min(1)).min(1, 'ids 必须是非空数组'),
 		reason: z.string().optional()
 	}),

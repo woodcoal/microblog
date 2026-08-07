@@ -13,6 +13,17 @@ import AdminLayout from '@/layouts/Admin.astro';
 import { prisma } from '@/lib/db';
 import { getModeLabel } from '@/lib/config';
 
+const requestedMode = Astro.url.searchParams.get('mode');
+const activeMode =
+	requestedMode === 'forum' || requestedMode === 'blog' || requestedMode === 'weibo'
+		? requestedMode
+		: 'weibo';
+const categoryTabs = ['weibo', 'forum', 'blog'].map((mode) => ({
+	mode,
+	label: getModeLabel(mode),
+	href: `/admin/categories?mode=${mode}`
+}));
+
 // 查询所有分类，按 sortOrder 排序
 const allCategories = await prisma.category.findMany({
 	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -24,8 +35,9 @@ const allCategories = await prisma.category.findMany({
 });
 
 // 构建两级树形结构
-const parentCategories = allCategories.filter((c) => !c.parentId);
-const childCategories = allCategories.filter((c) => c.parentId);
+const visibleCategories = allCategories.filter((c) => c.mode === activeMode);
+const parentCategories = visibleCategories.filter((c) => !c.parentId);
+const childCategories = visibleCategories.filter((c) => c.parentId);
 
 // 为每个父分类挂载子分类
 const categoryTree = parentCategories.map((parent) => ({
@@ -77,8 +89,25 @@ const hasCategories = serializedTree.length > 0;
 		<header class="admin-page-heading">
 			<p class="admin-page-eyebrow">内容工作区</p>
 			<h1 class="admin-page-title" id="admin-categories-title">分类管理</h1>
-			<p>维护三大内容模块的分类层级与展示顺序。</p>
+			<p>按频道维护分类层级与展示顺序。</p>
 		</header>
+
+		<nav class="admin-category-tabs" aria-label="分类频道切换">
+			{
+				categoryTabs.map((tab) => (
+					<a
+						href={tab.href}
+						class:list={[
+							'admin-category-tab',
+							{ 'admin-category-tab-active': tab.mode === activeMode }
+						]}
+						aria-current={tab.mode === activeMode ? 'page' : undefined}
+					>
+						{tab.label}
+					</a>
+				))
+			}
+		</nav>
 
 		<div class="admin-category-toolbar">
 			<button type="button" class="admin-btn admin-btn-primary" id="category-create-open">
@@ -115,11 +144,9 @@ const hasCategories = serializedTree.length > 0;
 						/>
 					</div>
 					<div class="admin-form-group" id="form-mode-group">
-						<label class="admin-form-label" for="form-mode">模式 *</label>
+						<label class="admin-form-label" for="form-mode">当前频道</label>
 						<select class="admin-form-select" id="form-mode" name="mode" required>
-							<option value="weibo">{getModeLabel('weibo')}</option>
-							<option value="forum">{getModeLabel('forum')}</option>
-							<option value="blog">{getModeLabel('blog')}</option>
+							<option value={activeMode}>{getModeLabel(activeMode)}</option>
 						</select>
 					</div>
 					<div class="admin-form-group">
@@ -318,7 +345,7 @@ const hasCategories = serializedTree.length > 0;
 						!hasCategories && (
 							<tr>
 								<td colspan="6" class="admin-empty-cell">
-									暂无分类，请使用上方表单创建
+									该频道暂无分类，请使用上方表单创建
 								</td>
 							</tr>
 						)
