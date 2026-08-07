@@ -49,31 +49,33 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 	followerIds
 });
 
-// 查询论坛模式的一级分组（parentId 为 null）
-const groups = await prisma.category.findMany({
-	where: {
-		mode: 'forum',
-		parentId: null
-	},
-	orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-	include: {
-		children: {
+const PAGE_SIZE = 20;
+const sortParam = Astro.url.searchParams.get('sort') || 'latest';
+const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
+// 主内容区的板块导览只属于论坛首页；热门、推荐只展示对应内容流。
+const showCategoryOverview = forumSort === 'latest';
+const groups = showCategoryOverview
+	? await prisma.category.findMany({
+			where: {
+				mode: 'forum',
+				parentId: null
+			},
 			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
 			include: {
+				children: {
+					orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+					include: {
+						_count: {
+							select: { posts: true }
+						}
+					}
+				},
 				_count: {
 					select: { posts: true }
 				}
 			}
-		},
-		_count: {
-			select: { posts: true }
-		}
-	}
-});
-
-const PAGE_SIZE = 20;
-const sortParam = Astro.url.searchParams.get('sort') || 'latest';
-const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
+		})
+	: [];
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	forumSort === 'featured'
 		? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
@@ -172,90 +174,95 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 			</div>
 		</div>
 
-		<section class="forum-category-overview" aria-labelledby="forum-category-overview-title">
-			<div class="forum-category-overview-heading">
-				<div>
-					<h2 id="forum-category-overview-title">浏览板块</h2>
-					<p>按主题选择板块，参与正在发生的讨论。</p>
-				</div>
-				{
-					hasGroups && (
-						<span class="forum-category-overview-count">{groups.length} 个分组</span>
-					)
-				}
-			</div>
-			{
-				hasGroups ? (
-					<div class="forum-groups">
-						{groups.map((group) => (
-							<section
-								class="forum-group"
-								aria-labelledby={`forum-overview-group-${group.id}`}
-							>
-								<div class="forum-group-header">
-									{group.icon && (
-										<span class="forum-group-icon" aria-hidden="true">
-											{group.icon}
-										</span>
-									)}
-									<div class="forum-group-copy">
-										<h3
-											class="forum-group-name"
-											id={`forum-overview-group-${group.id}`}
-										>
-											{group.name}
-										</h3>
-										{group.description && <p>{group.description}</p>}
-									</div>
-									<span class="forum-group-count">
-										{group.children.length} 个板块
-									</span>
-								</div>
-								{group.children.length > 0 ? (
-									<div class="forum-category-list">
-										{group.children.map((category) => (
-											<a
-												href={`/forum/${category.slug}`}
-												class="forum-category-item"
+		{
+			showCategoryOverview && (
+				<section
+					class="forum-category-overview"
+					aria-labelledby="forum-category-overview-title"
+				>
+					<div class="forum-category-overview-heading">
+						<div>
+							<h2 id="forum-category-overview-title">浏览板块</h2>
+							<p>按主题选择板块，参与正在发生的讨论。</p>
+						</div>
+						{hasGroups && (
+							<span class="forum-category-overview-count">
+								{groups.length} 个分组
+							</span>
+						)}
+					</div>
+					{hasGroups ? (
+						<div class="forum-groups">
+							{groups.map((group) => (
+								<section
+									class="forum-group"
+									aria-labelledby={`forum-overview-group-${group.id}`}
+								>
+									<div class="forum-group-header">
+										{group.icon && (
+											<span class="forum-group-icon" aria-hidden="true">
+												{group.icon}
+											</span>
+										)}
+										<div class="forum-group-copy">
+											<h3
+												class="forum-group-name"
+												id={`forum-overview-group-${group.id}`}
 											>
-												<span class="forum-category-info">
-													{category.icon && (
-														<span
-															class="forum-category-icon"
-															aria-hidden="true"
-														>
-															{category.icon}
-														</span>
-													)}
-													<span class="forum-category-text">
-														<span class="forum-category-name">
-															{category.name}
-														</span>
-														<span class="forum-category-desc">
-															{category.description ||
-																'暂未添加板块介绍'}
+												{group.name}
+											</h3>
+											{group.description && <p>{group.description}</p>}
+										</div>
+										<span class="forum-group-count">
+											{group.children.length} 个板块
+										</span>
+									</div>
+									{group.children.length > 0 ? (
+										<div class="forum-category-list">
+											{group.children.map((category) => (
+												<a
+													href={`/forum/${category.slug}`}
+													class="forum-category-item"
+												>
+													<span class="forum-category-info">
+														{category.icon && (
+															<span
+																class="forum-category-icon"
+																aria-hidden="true"
+															>
+																{category.icon}
+															</span>
+														)}
+														<span class="forum-category-text">
+															<span class="forum-category-name">
+																{category.name}
+															</span>
+															<span class="forum-category-desc">
+																{category.description ||
+																	'暂未添加板块介绍'}
+															</span>
 														</span>
 													</span>
-												</span>
-												<span class="forum-category-count">
-													{category._count.posts} 篇
-												</span>
-											</a>
-										))}
-									</div>
-								) : (
-									<p class="forum-group-empty">该分组暂未添加二级板块。</p>
-								)}
-							</section>
-						))}
-					</div>
-				) : (
-					<div class="empty-state">
-						<p>暂无可浏览的论坛板块。</p>
-					</div>
-				)
-			}
-		</section>
+													<span class="forum-category-count">
+														{category._count.posts} 篇
+													</span>
+												</a>
+											))}
+										</div>
+									) : (
+										<p class="forum-group-empty">该分组暂未添加二级板块。</p>
+									)}
+								</section>
+							))}
+						</div>
+					) : (
+						<div class="empty-state">
+							<p>暂无可浏览的论坛板块。</p>
+						</div>
+					)}
+				</section>
+			)
+		}
 
 		<h2 class="forum-topic-section-title">全部讨论</h2>
 		<nav class="forum-sort-tabs" aria-label="帖子排序">
