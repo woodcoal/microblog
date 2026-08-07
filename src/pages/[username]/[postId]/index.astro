@@ -481,55 +481,65 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			)
 		}
 		<div class="post-detail-primary">
-			{
-				isForum && post.category && (
-					<a href={`/forum/${post.category.slug}`} class="post-detail-forum-nav">
-						← 论坛 / {post.category.name}
-					</a>
-				)
-			}
-			{
-				isAuthor && !isDeleted && (isWeibo ? !isLocked : true) && (
-					<div class="post-detail-owner-toolbar" aria-label="作者操作">
-						{!isLocked && (
-							<a
-								href={`/${post.user.username}/${post.id}/edit`}
-								class="btn btn-outline"
-							>
-								编辑
+			<div class="post-detail-topbar">
+				<nav class="post-detail-breadcrumb" aria-label="详情导航">
+					{
+						isForum ? (
+							<a href={post.category ? `/forum/${post.category.slug}` : '/forum'}>
+								← 论坛{post.category ? ` / ${post.category.name}` : ''}
 							</a>
-						)}
-						<button
-							class="btn btn-danger"
-							id="delete-btn"
-							data-post-id={post.id}
-							data-username={post.user.username}
-							type="button"
-						>
-							删除
-						</button>
-						{!isWeibo && post.isEdited && (
-							<a
-								href={`/${post.user.username}/${post.id}/revisions`}
-								class="btn btn-outline"
-							>
-								版本历史
+						) : isBlog ? (
+							<a href={post.category ? `/blog/${post.category.slug}` : '/blog'}>
+								← 博客{post.category ? ` / ${post.category.name}` : ''}
 							</a>
-						)}
-						{canPin && (
+						) : (
+							<a href="/weibo">← 微博</a>
+						)
+					}
+				</nav>
+				{
+					isAuthor && !isDeleted && (isWeibo ? !isLocked : true) && (
+						<div class="post-detail-owner-toolbar" aria-label="作者操作">
+							{!isLocked && (
+								<a
+									href={`/${post.user.username}/${post.id}/edit`}
+									class="btn btn-outline"
+								>
+									编辑
+								</a>
+							)}
 							<button
-								class="btn btn-outline"
-								id="pin-btn"
+								class="btn btn-danger"
+								id="delete-btn"
 								data-post-id={post.id}
-								data-pinned={post.isPinned ? 'true' : 'false'}
+								data-username={post.user.username}
 								type="button"
 							>
-								{post.isPinned ? '取消置顶' : '置顶'}
+								删除
 							</button>
-						)}
-					</div>
-				)
-			}
+							{!isWeibo && post.isEdited && (
+								<a
+									href={`/${post.user.username}/${post.id}/revisions`}
+									class="btn btn-outline"
+								>
+									版本历史
+								</a>
+							)}
+							{canPin && (
+								<button
+									class="btn btn-outline"
+									id="pin-btn"
+									data-post-id={post.id}
+									data-pinned={post.isPinned ? 'true' : 'false'}
+									type="button"
+								>
+									{post.isPinned ? '取消置顶' : '置顶'}
+								</button>
+							)}
+						</div>
+					)
+				}
+			</div>
 			<article class="post-detail" data-post-mode={post.mode}>
 				<p class="ux-detail-kicker">
 					{
@@ -1069,9 +1079,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 	}
 	.post-detail-owner-toolbar {
 		display: flex;
+		flex-wrap: wrap;
 		justify-content: flex-end;
 		gap: 0.5rem;
-		margin-bottom: 0.625rem;
+		margin-left: auto;
 	}
 	.post-detail-owner-toolbar .btn {
 		min-height: 2.25rem;
@@ -1319,13 +1330,6 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		margin: 0.5rem 0 1rem;
 		line-height: 1.4;
 	}
-	.post-detail-breadcrumb {
-		display: flex;
-		align-items: center;
-		gap: 0.375rem;
-		font-size: 0.8125rem;
-		margin-bottom: 0.5rem;
-	}
 	.post-detail-breadcrumb-link {
 		color: var(--color-primary);
 		text-decoration: none;
@@ -1446,19 +1450,29 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 		font-size: clamp(1.8125rem, 4vw, 2.375rem);
 	}
 
-	.post-detail-layout-forum .post-detail-forum-header {
-		margin-bottom: 1.25rem;
+	.post-detail-topbar {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin: 0 0 16px;
 	}
 
-	.post-detail-forum-nav {
-		display: inline-block;
-		margin: 0 0 16px;
-		color: var(--color-muted);
+	.post-detail-breadcrumb {
+		min-width: 0;
 		font-size: 0.8125rem;
 	}
 
-	.post-detail-forum-nav:hover {
+	.post-detail-breadcrumb a {
+		color: var(--color-muted);
+		text-decoration: none;
+	}
+
+	.post-detail-breadcrumb a:hover {
 		color: var(--color-primary);
+	}
+
+	.post-detail-layout-forum .post-detail-forum-header {
+		margin-bottom: 1.25rem;
 	}
 
 	.post-detail-forum-category {
@@ -1711,6 +1725,15 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			min-height: 2rem;
 			padding: 0.25rem 0.5rem;
 			font-size: 0.8125rem;
+		}
+
+		.post-detail-topbar {
+			align-items: flex-start;
+			flex-wrap: wrap;
+		}
+
+		.post-detail-owner-toolbar {
+			margin-left: auto;
 		}
 
 		.post-detail-layout-blog .post-detail {
