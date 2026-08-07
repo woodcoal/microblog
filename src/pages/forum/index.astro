@@ -76,23 +76,31 @@ const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	forumSort === 'featured'
-			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-			: [{ createdAt: 'desc' }];
+		? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+		: [{ createdAt: 'desc' }];
 const forumPostWhere = { isDeleted: false, mode: 'forum', ...visibilityFilter };
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
-const hotResult = forumSort === 'hot'
-	? await getTrendingFeed({ viewerId: currentUser?.userId, page: currentPage, pageSize: PAGE_SIZE, mode: 'forum' })
-	: null;
-const totalPosts = hotResult?.total ?? await prisma.post.count({ where: forumPostWhere });
+const hotResult =
+	forumSort === 'hot'
+		? await getTrendingFeed({
+				viewerId: currentUser?.userId,
+				page: currentPage,
+				pageSize: PAGE_SIZE,
+				mode: 'forum'
+			})
+		: null;
+const totalPosts = hotResult?.total ?? (await prisma.post.count({ where: forumPostWhere }));
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
 const safePage = Math.min(currentPage, totalPages);
-const posts = hotResult?.items ?? await prisma.post.findMany({
-	where: forumPostWhere,
-	orderBy: forumPostOrder,
-	skip: (safePage - 1) * PAGE_SIZE,
-	take: PAGE_SIZE,
-	include: POST_CARD_INCLUDE
-});
+const posts =
+	hotResult?.items ??
+	(await prisma.post.findMany({
+		where: forumPostWhere,
+		orderBy: forumPostOrder,
+		skip: (safePage - 1) * PAGE_SIZE,
+		take: PAGE_SIZE,
+		include: POST_CARD_INCLUDE
+	}));
 const restrictedPostIds = (
 	await Promise.all(
 		posts.map(async (post) => ({
@@ -143,15 +151,18 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 
 <ForumLayout title={getModeLabel('forum')} hasAside={true}>
 	<nav slot="nav" class="forum-category-sidebar" aria-label="论坛版块">
-		<a
-			href="/forum"
-			class="sidebar-link"
-			aria-current={Astro.url.pathname === '/forum' ? 'page' : undefined}
-			aria-label="首页"
-			title="首页"
-		>
-			<span class="sidebar-link-icon">🏠</span><span>首页</span>
-		</a>
+		<section class="forum-sidebar-group forum-sidebar-home" aria-labelledby="forum-home-nav">
+			<h2 id="forum-home-nav">导航</h2>
+			<a
+				href="/forum"
+				class="sidebar-link"
+				aria-current={Astro.url.pathname === '/forum' ? 'page' : undefined}
+				aria-label="首页"
+				title="首页"
+			>
+				<span class="sidebar-link-icon">🏠</span><span>首页</span>
+			</a>
+		</section>
 		{
 			hasGroups ? (
 				groups.map((group) => (
@@ -216,6 +227,92 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 			</div>
 		</div>
 
+		<section class="forum-category-overview" aria-labelledby="forum-category-overview-title">
+			<div class="forum-category-overview-heading">
+				<div>
+					<h2 id="forum-category-overview-title">浏览板块</h2>
+					<p>按主题选择板块，参与正在发生的讨论。</p>
+				</div>
+				{
+					hasGroups && (
+						<span class="forum-category-overview-count">{groups.length} 个分组</span>
+					)
+				}
+			</div>
+			{
+				hasGroups ? (
+					<div class="forum-groups">
+						{groups.map((group) => (
+							<section
+								class="forum-group"
+								aria-labelledby={`forum-overview-group-${group.id}`}
+							>
+								<div class="forum-group-header">
+									{group.icon && (
+										<span class="forum-group-icon" aria-hidden="true">
+											{group.icon}
+										</span>
+									)}
+									<div class="forum-group-copy">
+										<h3
+											class="forum-group-name"
+											id={`forum-overview-group-${group.id}`}
+										>
+											{group.name}
+										</h3>
+										{group.description && <p>{group.description}</p>}
+									</div>
+									<span class="forum-group-count">
+										{group.children.length} 个板块
+									</span>
+								</div>
+								{group.children.length > 0 ? (
+									<div class="forum-category-list">
+										{group.children.map((category) => (
+											<a
+												href={`/forum/${category.slug}`}
+												class="forum-category-item"
+											>
+												<span class="forum-category-info">
+													{category.icon && (
+														<span
+															class="forum-category-icon"
+															aria-hidden="true"
+														>
+															{category.icon}
+														</span>
+													)}
+													<span class="forum-category-text">
+														<span class="forum-category-name">
+															{category.name}
+														</span>
+														<span class="forum-category-desc">
+															{category.description ||
+																'暂未添加板块介绍'}
+														</span>
+													</span>
+												</span>
+												<span class="forum-category-count">
+													{category._count.posts} 篇
+												</span>
+											</a>
+										))}
+									</div>
+								) : (
+									<p class="forum-group-empty">该分组暂未添加二级板块。</p>
+								)}
+							</section>
+						))}
+					</div>
+				) : (
+					<div class="empty-state">
+						<p>暂无可浏览的论坛板块。</p>
+					</div>
+				)
+			}
+		</section>
+
+		<h2 class="forum-topic-section-title">全部讨论</h2>
 		<nav class="forum-sort-tabs" aria-label="帖子排序">
 			<a href="/forum?sort=latest" aria-current={forumSort === 'latest' ? 'page' : undefined}
 				>最新</a
@@ -271,141 +368,3 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 	</section>
 	<ChannelAside slot="aside" sections={discoverySections} />
 </ForumLayout>
-
-<style>
-	/* 页面头部 */
-	.page-header {
-		margin-bottom: var(--spacing-4);
-		padding-bottom: 0;
-		border-bottom: 0;
-	}
-
-	.page-header-row {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: var(--spacing-4);
-	}
-
-	.page-title {
-		font-size: 1.5rem;
-		font-weight: 700;
-		margin: 0 0 0.25rem;
-	}
-
-	.page-desc {
-		font-size: 0.875rem;
-		color: var(--color-muted);
-		margin: 0;
-	}
-
-	/* 版块分组 */
-	.forum-groups {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-4);
-	}
-
-	.forum-group {
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		overflow: hidden;
-	}
-
-	.forum-group-header {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-2);
-		padding: var(--spacing-3) var(--spacing-4);
-		background: var(--color-bg);
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.forum-group-icon {
-		font-size: 1.25rem;
-	}
-
-	.forum-group-name {
-		font-size: 1rem;
-		font-weight: 600;
-		margin: 0;
-		flex: 1;
-	}
-
-	.forum-group-count {
-		font-size: 0.75rem;
-		color: var(--color-muted);
-	}
-
-	.forum-group-desc {
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-		margin: 0;
-		padding: var(--spacing-2) var(--spacing-4);
-	}
-
-	/* 分类列表 */
-	.forum-category-list {
-		display: flex;
-		flex-direction: column;
-	}
-
-	.forum-category-item {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: var(--spacing-3) var(--spacing-4);
-		text-decoration: none;
-		color: var(--color-text);
-		transition: background 0.15s;
-		border-bottom: 1px solid var(--color-border);
-	}
-
-	.forum-category-item:last-child {
-		border-bottom: none;
-	}
-
-	.forum-category-item:hover {
-		background: var(--color-bg);
-	}
-
-	.forum-category-info {
-		display: flex;
-		align-items: center;
-		gap: var(--spacing-3);
-		flex: 1;
-		min-width: 0;
-	}
-
-	.forum-category-icon {
-		font-size: 1.25rem;
-		flex-shrink: 0;
-	}
-
-	.forum-category-text {
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-
-	.forum-category-name {
-		font-weight: 500;
-		font-size: 0.9375rem;
-	}
-
-	.forum-category-desc {
-		font-size: 0.75rem;
-		color: var(--color-muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.forum-category-count {
-		font-size: 0.8125rem;
-		color: var(--color-muted);
-		flex-shrink: 0;
-		margin-left: var(--spacing-3);
-	}
-</style>

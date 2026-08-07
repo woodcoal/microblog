@@ -199,6 +199,10 @@
 	margin-top: var(--spacing-4);
 }
 
+.forum-sidebar-home {
+	margin-top: 0;
+}
+
 .forum-sidebar-group small,
 .forum-sidebar-empty {
 	color: var(--color-muted);
@@ -355,6 +359,61 @@
 	border-bottom: 1px solid var(--color-border);
 }
 
+.forum-group-icon {
+	flex: 0 0 auto;
+	font-size: 1.25rem;
+	line-height: 1.4;
+}
+
+.forum-category-overview {
+	margin-bottom: var(--spacing-6);
+}
+
+.forum-category-overview-heading {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: var(--spacing-3);
+	margin-bottom: var(--spacing-4);
+}
+
+.forum-category-overview-heading h2,
+.forum-topic-section-title {
+	margin: 0;
+	font-size: 1.125rem;
+	letter-spacing: -0.025em;
+}
+
+.forum-category-overview-heading p {
+	margin: var(--spacing-1) 0 0;
+	color: var(--color-muted);
+	font-size: 0.875rem;
+	line-height: 1.55;
+}
+
+.forum-category-overview-count {
+	flex: 0 0 auto;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.forum-group-copy {
+	min-width: 0;
+}
+
+.forum-group-copy p,
+.forum-group-empty {
+	margin: var(--spacing-1) 0 0;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	line-height: 1.5;
+}
+
+.forum-group-empty {
+	padding: var(--spacing-4) 0 0;
+}
+
 .forum-group-name {
 	font-size: 1.125rem;
 	letter-spacing: -0.025em;
@@ -391,6 +450,48 @@
 	border-color: var(--color-primary);
 	background: color-mix(in srgb, var(--color-primary) 5%, var(--color-card-bg));
 	transform: translateY(-1px);
+}
+
+.forum-category-item:focus-visible {
+	outline: var(--focus-ring-width) solid var(--color-input-focus);
+	outline-offset: 2px;
+}
+
+.forum-category-info {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--spacing-3);
+	min-width: 0;
+}
+
+.forum-category-icon {
+	flex: 0 0 auto;
+	font-size: 1.25rem;
+	line-height: 1.4;
+}
+
+.forum-category-text {
+	display: grid;
+	min-width: 0;
+}
+
+.forum-category-name {
+	font-size: 0.9375rem;
+	font-weight: 600;
+	line-height: 1.45;
+}
+
+.forum-category-desc {
+	overflow: hidden;
+	color: var(--color-muted);
+	font-size: 0.8125rem;
+	line-height: 1.45;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.forum-topic-section-title {
+	margin-bottom: var(--spacing-3);
 }
 
 /* blog-a：分类胶囊、文章摘要和阅读节奏。 */
@@ -1500,6 +1601,11 @@
 	.settings-section,
 	.auth-page {
 		padding: var(--spacing-4);
+	}
+
+	.forum-category-overview-heading {
+		align-items: flex-start;
+		flex-direction: column;
 	}
 
 	.auth-page-shell {
