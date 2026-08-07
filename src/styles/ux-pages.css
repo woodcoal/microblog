@@ -208,6 +208,15 @@
 	justify-content: space-between;
 }
 
+/* 普通侧栏直接阅读板块名称；图标/首字仅用于折叠侧栏和移动端。 */
+.forum-category-sidebar .forum-sidebar-group .sidebar-link-icon {
+	display: none;
+}
+
+.forum-category-sidebar .forum-sidebar-group-icon {
+	display: none;
+}
+
 .forum-sort-tabs {
 	display: flex;
 	gap: var(--spacing-1);
@@ -1321,8 +1330,86 @@
 		margin-top: 0;
 	}
 
+	.layout-sidebar .forum-category-sidebar .forum-sidebar-group .sidebar-link-icon {
+		display: block;
+	}
+
 	.layout-sidebar .weibo-sidebar-group + .weibo-sidebar-group {
 		margin-top: var(--spacing-3);
+	}
+}
+
+@media (max-width: 767px) {
+	/* 论坛列表把原本会隐藏的侧栏移到内容上方，并保持一级分组的阅读顺序。 */
+	.layout-wide-forum {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-4);
+	}
+
+	.layout-wide-forum .layout-sidebar {
+		display: block;
+		position: static;
+		order: 0;
+		height: auto;
+		max-height: none;
+		overflow: visible;
+	}
+
+	.layout-wide-forum .layout-main {
+		order: 1;
+	}
+
+	.layout-wide-forum .forum-category-sidebar,
+	.post-detail-layout-forum .forum-category-sidebar {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3);
+	}
+
+	.layout-wide-forum .forum-sidebar-group,
+	.post-detail-layout-forum .forum-sidebar-group {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-2);
+		margin: 0;
+	}
+
+	.layout-wide-forum .forum-sidebar-group h2,
+	.post-detail-layout-forum .forum-sidebar-group h2 {
+		flex: 0 0 100%;
+		margin: 0;
+		color: var(--color-text);
+		font-size: 0.9375rem;
+		line-height: 1.35;
+	}
+
+	.layout-wide-forum .forum-sidebar-group-icon,
+	.post-detail-layout-forum .forum-sidebar-group-icon {
+		display: inline;
+	}
+
+	.layout-wide-forum .forum-sidebar-group .sidebar-link,
+	.post-detail-layout-forum .forum-sidebar-group .sidebar-link {
+		flex: 0 0 auto;
+		width: auto;
+		min-height: 2.25rem;
+		padding: var(--spacing-2) var(--spacing-3);
+		border-radius: var(--radius-full);
+		font-size: 0.8125rem;
+		white-space: nowrap;
+	}
+
+	.layout-wide-forum .forum-sidebar-group .sidebar-link-icon,
+	.post-detail-layout-forum .forum-sidebar-group .sidebar-link-icon {
+		display: inline-block;
+		width: 1rem;
+		font-size: 1rem;
+	}
+
+	.layout-wide-forum .forum-sidebar-group small,
+	.post-detail-layout-forum .forum-sidebar-group small {
+		display: none;
 	}
 }
 

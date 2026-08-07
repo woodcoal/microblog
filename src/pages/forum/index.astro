@@ -160,7 +160,11 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 						aria-labelledby={`forum-group-${group.id}`}
 					>
 						<h2 id={`forum-group-${group.id}`}>
-							{group.icon && `${group.icon} `}
+							{group.icon && (
+								<span class="forum-sidebar-group-icon" aria-hidden="true">
+									{group.icon}
+								</span>
+							)}
 							{group.name}
 						</h2>
 						{group.children.map((category) => (
