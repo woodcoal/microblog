@@ -174,6 +174,20 @@
 	letter-spacing: 0.04em;
 }
 
+.weibo-sidebar-group {
+	display: grid;
+	gap: var(--spacing-1);
+}
+
+.weibo-sidebar-group + .weibo-sidebar-group {
+	margin-top: var(--spacing-4);
+}
+
+.weibo-sidebar-group .sidebar-section-label {
+	padding: 0 var(--spacing-3);
+	color: var(--color-muted);
+}
+
 .forum-sidebar-group {
 	margin-top: var(--spacing-4);
 }
@@ -1216,15 +1230,20 @@
 	}
 }
 
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1199px) {
 	.layout-sidebar .sidebar-section-label,
 	.layout-sidebar .forum-sidebar-group h2,
+	.layout-sidebar .weibo-sidebar-group h2,
 	.layout-sidebar .forum-sidebar-group small {
 		display: none;
 	}
 
 	.layout-sidebar .forum-sidebar-group {
 		margin-top: 0;
+	}
+
+	.layout-sidebar .weibo-sidebar-group + .weibo-sidebar-group {
+		margin-top: var(--spacing-3);
 	}
 }
 

@@ -53,25 +53,34 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 >
 	<ContentListShell navLabel="内容导航" hasAside={hasDiscoveryAside}>
 		<Fragment slot="nav">
-			<a
-				href="/weibo"
-				class="sidebar-link"
-				aria-current={currentPath === '/weibo' ? 'page' : undefined}
-			>
-				<span class="sidebar-link-icon">🏠</span>
-				<span>首页</span>
-			</a>
-			<a
-				href="/latest"
-				class="sidebar-link"
-				aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
-			>
-				<span class="sidebar-link-icon">⏰</span>
-				<span>最新</span>
-			</a>
+			<section class="weibo-sidebar-group" aria-labelledby="weibo-sidebar-feed-title">
+				<h2 id="weibo-sidebar-feed-title" class="sidebar-section-label">动态</h2>
+				<a
+					href="/weibo"
+					class="sidebar-link"
+					aria-current={currentPath === '/weibo' ? 'page' : undefined}
+				>
+					<span class="sidebar-link-icon">🏠</span>
+					<span>首页</span>
+				</a>
+				<a
+					href="/latest"
+					class="sidebar-link"
+					aria-current={currentPath.startsWith('/latest') ? 'page' : undefined}
+				>
+					<span class="sidebar-link-icon">⏰</span>
+					<span>最新</span>
+				</a>
+			</section>
 			{
 				currentUser ? (
-					<>
+					<section
+						class="weibo-sidebar-group"
+						aria-labelledby="weibo-sidebar-personal-title"
+					>
+						<h2 id="weibo-sidebar-personal-title" class="sidebar-section-label">
+							个人
+						</h2>
 						<a
 							href="/bookmarks"
 							class="sidebar-link"
@@ -96,9 +105,25 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 							<span class="sidebar-link-icon">👥</span>
 							<span>粉丝</span>
 						</a>
-					</>
+						<a
+							href={`/${currentUser.username}`}
+							class="sidebar-link"
+							aria-current={
+								currentPath === `/${currentUser.username}` ? 'page' : undefined
+							}
+						>
+							<span class="sidebar-link-icon">👤</span>
+							<span>我的主页</span>
+						</a>
+					</section>
 				) : (
-					<>
+					<section
+						class="weibo-sidebar-group"
+						aria-labelledby="weibo-sidebar-account-title"
+					>
+						<h2 id="weibo-sidebar-account-title" class="sidebar-section-label">
+							账户
+						</h2>
 						<a
 							href="/login"
 							class="sidebar-link"
@@ -115,7 +140,7 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 							<span class="sidebar-link-icon">📝</span>
 							<span>注册</span>
 						</a>
-					</>
+					</section>
 				)
 			}
 		</Fragment>
