@@ -45,7 +45,7 @@ const activePrimaryItem = primaryItems.find((item) => item.current);
 	class:list={['forum-category-sidebar', { 'post-detail-local-nav': presentation === 'detail' }]}
 	aria-label="论坛导航"
 >
-	<details class="forum-menu-disclosure">
+	<details class="forum-menu-disclosure" open>
 		<summary title="展开论坛菜单">
 			<span class="forum-menu-summary-icon" aria-hidden="true">☰</span>
 			<span class="forum-menu-summary-label">论坛菜单</span>
@@ -125,3 +125,15 @@ const activePrimaryItem = primaryItems.find((item) => item.current);
 		</div>
 	</details>
 </nav>
+
+<script>
+	const forumMenuQuery = window.matchMedia('(max-width: 1199px)');
+	const syncForumMenus = (): void => {
+		document.querySelectorAll<HTMLDetailsElement>('.forum-menu-disclosure').forEach((menu) => {
+			menu.open = !forumMenuQuery.matches;
+		});
+	};
+
+	syncForumMenus();
+	forumMenuQuery.addEventListener('change', syncForumMenus);
+</script>

@@ -27,8 +27,9 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.match(navigation, /label: '热门'/);
 	assert.match(navigation, /label: '推荐'/);
 	assert.match(navigation, /groups\.map/);
-	assert.match(navigation, /<details class="forum-menu-disclosure">/);
+	assert.match(navigation, /<details class="forum-menu-disclosure" open>/);
 	assert.match(navigation, /论坛菜单/);
+	assert.match(navigation, /window\.matchMedia\('\(max-width: 1199px\)'\)/);
 	assert.doesNotMatch(navigation, /showCategoryGroups/);
 	assert.match(pageStyles, /forum-menu-disclosure > summary/);
 	assert.match(pageStyles, /forum-menu-content/);
