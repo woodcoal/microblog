@@ -1132,8 +1132,10 @@ const MAX_IMAGES = 9;
 
 		// 上传区域点击
 		uploadArea.addEventListener('click', (e: MouseEvent) => {
-			// 避免点击 label 内的 input 时重复触发
-			if ((e.target as HTMLElement).tagName === 'INPUT') return;
+			// 图片和附件均由各自的 label 触发原生文件选择器。若继续向上传区域
+			// 冒泡，会额外调用 fileInput.click()，使附件选择器与图片选择器竞争。
+			const target = e.target;
+			if (target instanceof Element && target.closest('label')) return;
 			if (getImageCount() < MAX_IMAGES) {
 				fileInput.click();
 			}
