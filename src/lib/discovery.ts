@@ -1,6 +1,6 @@
 /** 列表右栏可消费的真实发现入口。 */
 import { prisma } from '@/lib/db';
-import type { Prisma } from '../../generated/prisma/client';
+import { getTrendingFeed } from '@/services/recommend.service';
 
 export interface DiscoveryItem {
 	title: string;
@@ -38,34 +38,21 @@ export async function getPopularTagItems(
  */
 export async function getPopularPostItems(input: {
 	mode: 'forum' | 'blog';
-	visibilityFilter: Prisma.PostWhereInput;
+	viewerId?: string;
 	excludePostIds: string[];
 	categoryId?: string;
 	limit?: number;
 	responseLabel?: string;
 }): Promise<DiscoveryItem[]> {
-	const posts = await prisma.post.findMany({
-		where: {
-			isDeleted: false,
-			mode: input.mode,
-			...(input.categoryId ? { categoryId: input.categoryId } : {}),
-			...(input.excludePostIds.length > 0 ? { id: { notIn: input.excludePostIds } } : {}),
-			...input.visibilityFilter
-		},
-		orderBy: [
-			{ likes: { _count: 'desc' } },
-			{ comments: { _count: 'desc' } },
-			{ createdAt: 'desc' }
-		],
-		take: input.limit ?? 5,
-		select: {
-			id: true,
-			title: true,
-			content: true,
-			user: { select: { username: true } },
-			_count: { select: { comments: true } }
-		}
+	const result = await getTrendingFeed({
+		viewerId: input.viewerId,
+		mode: input.mode,
+		categoryId: input.categoryId,
+		excludePostIds: input.excludePostIds,
+		page: 1,
+		pageSize: input.limit ?? 5
 	});
+	const posts = result.items;
 
 	return posts.map((post) => ({
 		title: post.title || post.content.replace(/\s+/g, ' ').slice(0, 32) || '未命名内容',

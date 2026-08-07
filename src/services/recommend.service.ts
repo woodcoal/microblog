@@ -3,7 +3,10 @@
  *
  * 使用站内热门分数、标签和分类生成推荐结果，不依赖外部推荐服务。
  */
-import { calculateTrendingScore } from '@/lib/trending';
+import { calculateTrendingScore, parseTrendingConfig, stableTrendingSort } from '@/lib/trending';
+import { getEnv } from '@/lib/config';
+import { prisma } from '@/lib/db';
+import { POST_CARD_INCLUDE } from '@/lib/queries';
 import { ServiceError } from '@/lib/errors';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getLikedPostIds } from '@/lib/queries';
@@ -49,6 +52,51 @@ export interface RecommendItem {
 
 export interface GetRecommendResult {
 	items: RecommendItem[];
+}
+
+export interface TrendingFeedInput {
+	viewerId?: string;
+	page: number;
+	pageSize: number;
+	mode?: 'weibo' | 'forum' | 'blog';
+	categoryId?: string;
+	excludePostIds?: string[];
+	/** Only homepage and the weibo channel first page may prepend global pins. */
+	includeGlobalPinned?: boolean;
+}
+
+export interface TrendingFeedItem {
+	id: string;
+	userId: string;
+	content: string;
+	createdAt: Date;
+	updatedAt: Date;
+	visibility: string;
+	passwordHash: string | null;
+	allowedUserIds: string | null;
+	isPinned: boolean;
+	isGlobalPinned: boolean;
+	isLocked: boolean;
+	isEdited: boolean;
+	mode: string;
+	title: string | null;
+	categoryId: string | null;
+	user: { id: string; username: string; displayName: string; avatarUrl: string };
+	media: Array<{ id: string; fileType: string; fileStorage: { id: string; filePath: string; fileSize: number; mimeType: string; fileType: string } }>;
+	tags: Array<{ tag: { id: string; name: string } }>;
+	category: { id: string; name: string; slug: string; mode: string; icon: string } | null;
+	_count: { likes: number; comments: number; bookmarks: number };
+	liked: boolean;
+	bookmarked: boolean;
+	score: number;
+	uniqueInteractorCount: number;
+}
+
+export interface TrendingFeedResult {
+	items: TrendingFeedItem[];
+	total: number;
+	page: number;
+	pageSize: number;
 }
 
 /** 首页右栏可安全展示的推荐用户字段。 */
@@ -150,14 +198,130 @@ async function formatItems(
 		.sort((a, b) => b.score - a.score);
 }
 
+/**
+ * The sole orchestration path for every hot feed.  It deliberately loads one
+ * deterministic 200-post window before applying visibility, scope, scoring,
+ * or pagination so databases cannot drift in their ranking behaviour.
+ */
+export async function getTrendingFeed(input: TrendingFeedInput): Promise<TrendingFeedResult> {
+	const page = Math.max(1, Math.floor(input.page));
+	const pageSize = Math.max(1, Math.min(100, Math.floor(input.pageSize)));
+	const viewerId = input.viewerId;
+	const [followingIds, followerIds] = viewerId
+		? await Promise.all([findFollowingIds(viewerId), findFollowerIds(viewerId)])
+		: [[], []];
+
+	// Do not add mode, category, visibility, or pin filters here: each is an
+	// in-memory filter on the same fixed chronological candidate window.
+	const candidates = await prisma.post.findMany({
+		where: { isDeleted: false },
+		orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+		take: CANDIDATE_LIMIT,
+		include: POST_CARD_INCLUDE
+	});
+
+	const scoped = [] as typeof candidates;
+	for (const post of candidates) {
+		if (input.mode && post.mode !== input.mode) continue;
+		if (input.categoryId && post.categoryId !== input.categoryId) continue;
+		if (input.excludePostIds?.includes(post.id)) continue;
+		if (post.isGlobalPinned) continue;
+		const visible = await checkPostVisibility(
+			{
+				visibility: post.visibility,
+				userId: post.userId,
+				passwordHash: post.passwordHash,
+				allowedUserIds: post.allowedUserIds
+			},
+			viewerId ? { userId: viewerId } : null,
+			{ isFollower: followingIds.includes(post.userId), isFollowing: followerIds.includes(post.userId) }
+		);
+		if (visible) scoped.push(post);
+	}
+
+	const candidateIds = candidates.map((post) => post.id);
+	// Exactly three bounded interaction queries; all aggregation and self-action
+	// exclusion happens here, rather than in vendor-specific ranking SQL.
+	const [likes, bookmarks, comments] = await Promise.all([
+		prisma.like.findMany({ where: { postId: { in: candidateIds } }, select: { postId: true, userId: true } }),
+		prisma.bookmark.findMany({ where: { postId: { in: candidateIds } }, select: { postId: true, userId: true } }),
+		prisma.comment.findMany({ where: { postId: { in: candidateIds }, isDeleted: false }, select: { postId: true, userId: true } })
+	]);
+	const postAuthorIds = new Map(candidates.map((post) => [post.id, post.userId]));
+	const collect = (rows: Array<{ postId: string | null; userId: string }>) => {
+		const values = new Map<string, Set<string>>();
+		for (const row of rows) {
+			if (!row.postId || postAuthorIds.get(row.postId) === row.userId) continue;
+			const users = values.get(row.postId) ?? new Set<string>();
+			users.add(row.userId);
+			values.set(row.postId, users);
+		}
+		return values;
+	};
+	const likesByPost = collect(likes);
+	const bookmarksByPost = collect(bookmarks);
+	const commentsByPost = collect(comments);
+	const likedIds = viewerId ? new Set(likes.filter((row) => row.userId === viewerId).map((row) => row.postId)) : new Set<string | null>();
+	const bookmarkedIds = viewerId ? new Set(bookmarks.filter((row) => row.userId === viewerId).map((row) => row.postId)) : new Set<string | null>();
+	const config = parseTrendingConfig(getEnv('TRENDING_FORMULA'));
+	const scored = stableTrendingSort(
+		scoped.map((post) => {
+			const interactors = new Set([
+				...(likesByPost.get(post.id) ?? []),
+				...(bookmarksByPost.get(post.id) ?? []),
+				...(commentsByPost.get(post.id) ?? [])
+			]);
+			return {
+				...post,
+				liked: likedIds.has(post.id),
+				bookmarked: bookmarkedIds.has(post.id),
+				uniqueInteractorCount: interactors.size,
+				score: calculateTrendingScore(
+					{
+						likes: likesByPost.get(post.id)?.size ?? 0,
+						bookmarks: bookmarksByPost.get(post.id)?.size ?? 0,
+						comments: commentsByPost.get(post.id)?.size ?? 0
+					},
+					post.createdAt,
+					config
+				)
+			};
+		})
+	);
+	const total = Math.min(scored.length, CANDIDATE_LIMIT);
+	const start = (page - 1) * pageSize;
+	let items = start >= total ? [] : scored.slice(start, start + pageSize);
+	if (input.includeGlobalPinned && page === 1) {
+		const pins = await prisma.post.findMany({
+			where: { isDeleted: false, isGlobalPinned: true, ...(input.mode ? { mode: input.mode } : {}) },
+			orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+			include: POST_CARD_INCLUDE
+		});
+		const visiblePins = [] as typeof pins;
+		for (const pin of pins) {
+			if (input.categoryId && pin.categoryId !== input.categoryId) continue;
+			if (input.excludePostIds?.includes(pin.id)) continue;
+			if (await checkPostVisibility({ visibility: pin.visibility, userId: pin.userId, passwordHash: pin.passwordHash, allowedUserIds: pin.allowedUserIds }, viewerId ? { userId: viewerId } : null, { isFollower: followingIds.includes(pin.userId), isFollowing: followerIds.includes(pin.userId) })) visiblePins.push(pin);
+		}
+		const pinItems = visiblePins.map((pin) => ({ ...pin, liked: likedIds.has(pin.id), bookmarked: bookmarkedIds.has(pin.id), uniqueInteractorCount: 0, score: 0 }));
+		items = [...pinItems, ...items.filter((item) => !visiblePins.some((pin) => pin.id === item.id))];
+	}
+	return { items, total, page, pageSize };
+}
+
 /** 获取未读的站内热门帖子。 */
 export async function getRecommend(input: GetRecommendInput): Promise<GetRecommendResult> {
 	const count = input.n ?? 5;
-	const posts = await getVisibleCandidates(input.userId, { userId: { not: input.userId } });
-	const items = await formatItems(input.userId, posts, (post) =>
-		calculateTrendingScore(post._count.likes, post._count.comments, post.createdAt)
-	);
-	return { items: items.slice(0, count) };
+	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: count });
+	return {
+		items: feed.items.map((post) => ({
+			id: post.id, content: post.content, createdAt: post.createdAt.toISOString(), user: post.user,
+			media: post.media.map(({ id, fileType }) => ({ id, fileType })), visibility: post.visibility,
+			mode: post.mode, title: post.title, categoryId: post.categoryId, category: post.category,
+			tags: post.tags.map(({ tag }) => tag), likeCount: post._count.likes,
+			commentCount: post._count.comments, liked: post.liked, score: post.score
+		}))
+	};
 }
 
 /**
@@ -246,7 +410,10 @@ export async function getSimilarPosts(input: GetSimilarPostsInput): Promise<GetR
 		return (
 			sharedTags * 3 +
 			categoryBonus +
-			calculateTrendingScore(post._count.likes, post._count.comments, post.createdAt)
+			calculateTrendingScore(
+				{ likes: post._count.likes, bookmarks: 0, comments: post._count.comments },
+				post.createdAt
+			)
 		);
 	});
 	return { items: items.slice(0, count) };
@@ -256,4 +423,72 @@ export async function getSimilarPosts(input: GetSimilarPostsInput): Promise<GetR
 export async function recordRead(input: RecordReadInput): Promise<{ recorded: true }> {
 	await upsertPostRead(input.userId, input.postId);
 	return { recorded: true };
+}
+
+export interface SaveInterestsInput {
+	userId: string;
+	tagIds: string[];
+	categoryIds: string[];
+	/** A skipped onboarding writes the completion time with empty interests. */
+	skip?: boolean;
+}
+
+export interface RecommendationProfile {
+	onboardingCompletedAt: Date | null;
+	interestTagIds: string[];
+	interestCategoryIds: string[];
+	positiveSignalCount: number;
+	coveredPostCount: number;
+	coveredCreatorCount: number;
+	strategy: 'cold_start' | 'blended';
+	weights: { interest: number; trending: number; exploration: number };
+}
+
+/** Persists only explicit user choices and a completion/skip timestamp. */
+export async function saveInterests(input: SaveInterestsInput): Promise<void> {
+	const tagIds = [...new Set(input.skip ? [] : input.tagIds)];
+	const categoryIds = [...new Set(input.skip ? [] : input.categoryIds)];
+	await prisma.$transaction(async (tx) => {
+		await tx.userSettings.upsert({
+			where: { userId: input.userId },
+			create: { userId: input.userId, interestOnboardingCompletedAt: new Date() },
+			update: { interestOnboardingCompletedAt: new Date() }
+		});
+		await tx.userTagInterest.deleteMany({ where: { userId: input.userId } });
+		await tx.userCategoryInterest.deleteMany({ where: { userId: input.userId } });
+		if (tagIds.length) await tx.userTagInterest.createMany({ data: tagIds.map((tagId) => ({ userId: input.userId, tagId })) });
+		if (categoryIds.length) await tx.userCategoryInterest.createMany({ data: categoryIds.map((categoryId) => ({ userId: input.userId, categoryId })) });
+	});
+}
+
+/**
+ * Counts deduplicated positive actions only. Reads intentionally affect only
+ * exclusion elsewhere and never make a user leave cold-start mode.
+ */
+export async function getRecommendationProfile(userId: string): Promise<RecommendationProfile> {
+	const [settings, tagInterests, categoryInterests, likes, bookmarks, comments, follows] = await Promise.all([
+		prisma.userSettings.findUnique({ where: { userId }, select: { interestOnboardingCompletedAt: true } }),
+		prisma.userTagInterest.findMany({ where: { userId }, select: { tagId: true } }),
+		prisma.userCategoryInterest.findMany({ where: { userId }, select: { categoryId: true } }),
+		prisma.like.findMany({ where: { userId, postId: { not: null } }, select: { postId: true, post: { select: { userId: true } } } }),
+		prisma.bookmark.findMany({ where: { userId }, select: { postId: true, post: { select: { userId: true } } } }),
+		prisma.comment.findMany({ where: { userId, isDeleted: false }, select: { postId: true, post: { select: { userId: true } } } }),
+		prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } })
+	]);
+	const actions = new Set<string>();
+	const posts = new Set<string>();
+	const creators = new Set<string>();
+	for (const row of likes) if (row.post && row.post.userId !== userId && row.postId) { actions.add(`like:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
+	for (const row of bookmarks) if (row.post.userId !== userId) { actions.add(`bookmark:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
+	for (const row of comments) if (row.post.userId !== userId) { actions.add(`comment:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
+	for (const row of follows) if (row.followingId !== userId) { actions.add(`follow:${row.followingId}`); creators.add(row.followingId); }
+	const blended = actions.size >= 5 && (posts.size >= 3 || creators.size >= 2);
+	return {
+		onboardingCompletedAt: settings?.interestOnboardingCompletedAt ?? null,
+		interestTagIds: tagInterests.map((row) => row.tagId),
+		interestCategoryIds: categoryInterests.map((row) => row.categoryId),
+		positiveSignalCount: actions.size, coveredPostCount: posts.size, coveredCreatorCount: creators.size,
+		strategy: blended ? 'blended' : 'cold_start',
+		weights: blended ? { interest: 0.5, trending: 0.4, exploration: 0.1 } : { interest: 1, trending: 0, exploration: 0 }
+	};
 }

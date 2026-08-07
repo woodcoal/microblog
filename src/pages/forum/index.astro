@@ -122,7 +122,7 @@ const hasNextPage = safePage < totalPages;
 const hasPagination = totalPages > 1;
 const recommendationItems = await getPopularPostItems({
 	mode: 'forum',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	excludePostIds: posts.map((post) => post.id),
 	responseLabel: '回复'
 });

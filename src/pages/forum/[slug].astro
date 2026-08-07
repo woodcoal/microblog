@@ -155,7 +155,7 @@ const hasIcon = !!category.icon;
 const isLeafCategory = category._count.children === 0;
 const recommendationItems = await getPopularPostItems({
 	mode: 'forum',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	categoryId: category.id,
 	excludePostIds: posts.map((post) => post.id),
 	responseLabel: '回复'

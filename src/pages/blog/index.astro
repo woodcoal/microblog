@@ -144,7 +144,7 @@ const filterQuery = hasFilter ? `&category=${encodeURIComponent(filterCategoryId
 const scopeQuery = isBookmarkScope ? '&scope=bookmarks' : '';
 const recommendationItems = await getPopularPostItems({
 	mode: 'blog',
-	visibilityFilter,
+	viewerId: currentUser?.userId,
 	excludePostIds: posts.map((post) => post.id)
 });
 const discoverySections =
