@@ -44,6 +44,7 @@ export interface RecommendItem {
 	category: { id: string; name: string; slug: string; mode: string } | null;
 	tags: Array<{ id: string; name: string }>;
 	likeCount: number;
+	bookmarkCount: number;
 	commentCount: number;
 	liked: boolean;
 	/** 本地热门/相似度综合分，越高越靠前 */
@@ -200,6 +201,7 @@ async function formatItems(
 			category: post.category,
 			tags: post.tags.map(({ tag }) => ({ id: tag.id, name: tag.name })),
 			likeCount: post._count.likes,
+			bookmarkCount: post._count.bookmarks,
 			commentCount: post._count.comments,
 			liked: likedPostIds.has(post.id),
 			score: scoreFor(post)
@@ -337,7 +339,8 @@ export async function getRecommend(input: GetRecommendInput): Promise<GetRecomme
 			media: post.media.map(({ id, fileType }) => ({ id, fileType })), visibility: post.visibility,
 			mode: post.mode, title: post.title, categoryId: post.categoryId, category: post.category,
 			tags: post.tags.map(({ tag }) => tag), likeCount: post._count.likes,
-			commentCount: post._count.comments, liked: post.liked, score: post.score, source
+			bookmarkCount: post._count.bookmarks, commentCount: post._count.comments,
+			liked: post.liked, score: post.score, source
 		})), profile
 	};
 }
