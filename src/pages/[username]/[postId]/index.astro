@@ -1785,7 +1785,7 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			grid-template-columns: 48px minmax(0, 1fr);
 		}
 
-		.post-detail-local-nav .sidebar-link {
+		.post-detail-local-nav:not(.forum-category-sidebar) .sidebar-link {
 			justify-content: center;
 			width: 48px;
 			height: 48px;
@@ -1793,7 +1793,9 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			border-radius: var(--radius-full);
 		}
 
-		.post-detail-local-nav .sidebar-link span:not(.sidebar-link-icon) {
+		.post-detail-local-nav:not(.forum-category-sidebar)
+			.sidebar-link
+			span:not(.sidebar-link-icon) {
 			display: none;
 		}
 
@@ -1815,13 +1817,10 @@ const ogImageUrl = hasImages ? `${SITE_URL}/uploads/${images[0].fileStorage.file
 			display: none;
 		}
 
-		/* 论坛导航在窄屏保留在内容上方，一级分类作为整体参与换行。 */
+		/* 论坛导航在窄屏保留在内容上方，由共享组件收为可展开菜单。 */
 		.post-detail-layout-forum .post-detail-local-nav {
-			display: flex;
+			display: block;
 			position: static;
-			flex-flow: row wrap;
-			align-items: center;
-			gap: var(--spacing-2);
 			height: auto;
 			width: 100%;
 			margin: 0 0 var(--spacing-4);

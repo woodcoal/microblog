@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const [page, categoryPage, detailPage, layout, navigation] = await Promise.all([
+const [page, categoryPage, detailPage, layout, navigation, pageStyles] = await Promise.all([
 	readFile(new URL('../src/pages/forum/index.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/pages/forum/[slug].astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/pages/[username]/[postId]/index.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8')
+	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
+	readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
 ]);
 
 test('论坛首页保留分级板块导览与帖子流的阅读顺序', () => {
@@ -26,7 +27,12 @@ test('论坛频道导航由共享布局统一提供首页、热门、推荐与�
 	assert.match(navigation, /label: '热门'/);
 	assert.match(navigation, /label: '推荐'/);
 	assert.match(navigation, /groups\.map/);
+	assert.match(navigation, /<details class="forum-menu-disclosure">/);
+	assert.match(navigation, /论坛菜单/);
 	assert.doesNotMatch(navigation, /showCategoryGroups/);
+	assert.match(pageStyles, /forum-menu-disclosure > summary/);
+	assert.match(pageStyles, /forum-menu-content/);
+	assert.doesNotMatch(pageStyles, /\.forum-sidebar-primary h2 \{/);
 	assert.match(page, /const showCategoryOverview = forumSort === 'latest'/);
 	assert.match(page, /showCategoryOverview && \(/);
 	assert.doesNotMatch(page, /slot="nav"/);
