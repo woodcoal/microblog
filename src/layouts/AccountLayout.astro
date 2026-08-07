@@ -26,12 +26,12 @@ const displayName = accountUser?.displayName || user.displayName || user.usernam
 const avatarUrl = accountUser?.avatarUrl || user.avatarUrl;
 const initial = displayName.charAt(0).toUpperCase();
 const settingItems = [
-	{ id: 'profile', label: '个人资料' },
-	{ id: 'security', label: '账号安全' },
-	{ id: 'appearance', label: '外观' },
-	{ id: 'notification', label: '通知' },
-	{ id: 'tokens', label: 'API Token' },
-	{ id: 'note', label: '用户记录' }
+	{ id: 'profile', label: '个人资料', icon: '✎' },
+	{ id: 'security', label: '账号安全', icon: '🔒' },
+	{ id: 'appearance', label: '外观', icon: '◐' },
+	{ id: 'notification', label: '通知', icon: '🔔' },
+	{ id: 'tokens', label: 'API Token', icon: '⌘' },
+	{ id: 'note', label: '用户记录', icon: '▣' }
 ];
 const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
@@ -61,25 +61,29 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 					href={`/${user.username}`}
 					aria-current={activePersonal === 'profile' ? 'page' : undefined}
 				>
-					我的主页
+					<span class="account-nav-icon" aria-hidden="true">👤</span>
+					<span>我的主页</span>
 				</a>
 				<a
 					href="/bookmarks"
 					aria-current={activePersonal === 'bookmarks' ? 'page' : undefined}
 				>
-					收藏
+					<span class="account-nav-icon" aria-hidden="true">🔖</span>
+					<span>收藏</span>
 				</a>
 				<a
 					href="/following"
 					aria-current={activePersonal === 'following' ? 'page' : undefined}
 				>
-					关注
+					<span class="account-nav-icon" aria-hidden="true">👀</span>
+					<span>关注</span>
 				</a>
 				<a
 					href="/followers"
 					aria-current={activePersonal === 'followers' ? 'page' : undefined}
 				>
-					粉丝
+					<span class="account-nav-icon" aria-hidden="true">👥</span>
+					<span>粉丝</span>
 				</a>
 			</nav>
 
@@ -91,7 +95,10 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 							href={settingHref(item.id)}
 							aria-current={activeSettings === item.id ? 'page' : undefined}
 						>
-							{item.label}
+							<span class="account-nav-icon" aria-hidden="true">
+								{item.icon}
+							</span>
+							<span>{item.label}</span>
 						</a>
 					))
 				}
@@ -106,23 +113,29 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 <style>
 	.account-layout {
 		display: grid;
-		grid-template-columns: 200px minmax(0, 680px);
-		justify-content: center;
-		gap: 36px;
-		max-width: 1040px;
-		margin: 0 auto;
+		grid-template-columns: minmax(210px, 232px) minmax(0, 1fr);
+		gap: clamp(36px, 5vw, 72px);
+		width: auto;
+		max-width: var(--layout-wide);
+		margin: 0 calc(-1 * var(--spacing-4));
 		padding: 32px 24px 80px;
 	}
 
 	.account-sidebar {
 		min-width: 0;
+		padding-right: var(--spacing-5);
+		border-right: 1px solid var(--color-border);
 	}
 
 	.account-user-summary {
 		display: flex;
 		align-items: center;
 		gap: var(--spacing-2);
-		margin: 0 10px var(--spacing-5);
+		margin: 0 0 var(--spacing-5);
+		padding: var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
 		color: var(--color-text);
 		text-decoration: none;
 	}
@@ -168,10 +181,12 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 
 	.account-nav + .account-nav {
 		margin-top: var(--spacing-5);
+		padding-top: var(--spacing-5);
+		border-top: 1px solid var(--color-border);
 	}
 
 	.account-nav h2 {
-		margin: 0 10px var(--spacing-2);
+		margin: 0 0 var(--spacing-2);
 		color: var(--color-muted);
 		font-size: 0.75rem;
 		font-weight: 700;
@@ -179,22 +194,37 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 	}
 
 	.account-nav a {
-		display: block;
-		padding: 10px 12px;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		min-height: 40px;
+		padding: 9px 10px;
 		border-left: 2px solid transparent;
+		border-radius: var(--radius-sm);
 		color: var(--color-muted);
 		font-size: 0.875rem;
 		text-decoration: none;
 	}
 
 	.account-nav a:hover {
+		background: color-mix(in srgb, var(--color-text) 5%, transparent);
 		color: var(--color-text);
 	}
 
 	.account-nav a[aria-current='page'] {
 		border-left-color: var(--color-primary);
+		background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 		color: var(--color-primary);
 		font-weight: 700;
+	}
+
+	.account-nav-icon {
+		display: inline-grid;
+		width: 1.25rem;
+		place-items: center;
+		font-size: 0.875rem;
+		line-height: 1;
+		filter: saturate(0.72);
 	}
 
 	.account-content {
@@ -204,6 +234,7 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 	@media (max-width: 767px) {
 		.account-layout {
 			display: block;
+			margin: 0 calc(-1 * var(--spacing-3));
 			padding: 20px 14px calc(80px + env(safe-area-inset-bottom, 0));
 		}
 
@@ -213,12 +244,17 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 			gap: var(--spacing-3);
 			overflow-x: auto;
 			padding-bottom: 2px;
+			padding-right: 0;
+			border-right: 0;
 			margin-bottom: var(--spacing-5);
 		}
 
 		.account-user-summary {
 			flex: 0 0 auto;
 			margin: 0;
+			padding: 0;
+			border: 0;
+			background: transparent;
 		}
 
 		.account-user-summary > span:last-child {
@@ -233,6 +269,8 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 
 		.account-nav + .account-nav {
 			margin-top: 0;
+			padding-top: 0;
+			border-top: 0;
 		}
 
 		.account-nav h2 {
@@ -240,14 +278,18 @@ const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings
 		}
 
 		.account-nav a {
-			padding: 10px 8px;
+			min-height: 38px;
+			padding: 8px;
 			border-left: 0;
 			border-bottom: 2px solid transparent;
+			border-radius: 0;
+			background: transparent;
 			white-space: nowrap;
 		}
 
 		.account-nav a[aria-current='page'] {
 			border-bottom-color: var(--color-primary);
+			background: transparent;
 		}
 	}
 </style>
