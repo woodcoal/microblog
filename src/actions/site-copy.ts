@@ -8,6 +8,7 @@ import { SITE_COPY_KEYS } from '@/lib/site-copy-definitions';
 import {
 	getAdminSiteCopy,
 	getSiteCopyVersions,
+	previewSiteCopy as previewSiteCopyService,
 	updateSiteCopy as updateSiteCopyService
 } from '@/services/site-copy.service';
 
@@ -47,6 +48,18 @@ export const getSiteCopyHistory = defineAction({
 		await requireAdminUser(context);
 		try {
 			return await getSiteCopyVersions(key);
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+export const previewSiteCopy = defineAction({
+	input: z.object({ markdown: z.string().max(4000, '站点文案不能超过 4000 个字符') }),
+	handler: async ({ markdown }, context) => {
+		await requireAdminUser(context);
+		try {
+			return previewSiteCopyService(markdown);
 		} catch (error) {
 			handleServiceError(error);
 		}

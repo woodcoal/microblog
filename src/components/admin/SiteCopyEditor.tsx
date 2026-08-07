@@ -10,7 +10,7 @@ import TiptapLink from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Markdown } from 'tiptap-markdown';
 import { actions } from 'astro:actions';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode, SubmitEvent } from 'react';
 import type { Editor } from '@tiptap/core';
 import type { SiteCopyKey } from '@/lib/site-copy-definitions';
@@ -105,6 +105,9 @@ export default function SiteCopyEditor({ entryKey, title, description }: SiteCop
 	const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
 	const [linkValue, setLinkValue] = useState('https://');
 	const [linkError, setLinkError] = useState<string | null>(null);
+	const [previewError, setPreviewError] = useState<string | null>(null);
+	const [viewMode, setViewMode] = useState<'edit' | 'preview' | 'split'>('edit');
+	const previewRequestId = useRef(0);
 
 	const editor = useEditor({
 		extensions: [
@@ -176,6 +179,32 @@ export default function SiteCopyEditor({ entryKey, title, description }: SiteCop
 		editor?.setEditable(isLoaded && !isSaving);
 	}, [editor, isLoaded, isSaving]);
 
+	useEffect(() => {
+		if (!isLoaded || markdown.length > MAX_MARKDOWN_LENGTH) return;
+		const requestId = ++previewRequestId.current;
+		const timer = window.setTimeout(() => {
+			void (async () => {
+				try {
+					const result = await actions.previewSiteCopy({ markdown });
+					if (requestId !== previewRequestId.current) return;
+					if (result.error || !result.data) {
+						setPreviewError(getMessage(result.error, '预览渲染失败，请稍后重试。'));
+						return;
+					}
+					setPreviewHtml(result.data.html);
+					setPreviewError(null);
+				} catch (error) {
+					if (requestId !== previewRequestId.current) return;
+					setPreviewError(
+						error instanceof Error ? error.message : '预览渲染失败，请稍后重试。'
+					);
+				}
+			})();
+		}, 300);
+
+		return () => window.clearTimeout(timer);
+	}, [isLoaded, markdown]);
+
 	const saveCopy = useCallback(
 		async (event: SubmitEvent<HTMLFormElement>) => {
 			event.preventDefault();
@@ -230,171 +259,192 @@ export default function SiteCopyEditor({ entryKey, title, description }: SiteCop
 				</div>
 				<code>{entryKey}</code>
 			</header>
-			<div className="site-copy-admin-grid">
-				<div>
-					<p className="form-label" id={`${entryKey}-markdown-label`}>
-						Markdown 文案
-					</p>
+			<div className="site-copy-editor-field">
+				<p className="form-label" id={`${entryKey}-markdown-label`}>
+					Markdown 文案
+				</p>
+				<div className="site-copy-editor" aria-labelledby={`${entryKey}-markdown-label`}>
 					<div
-						className="site-copy-editor"
-						aria-labelledby={`${entryKey}-markdown-label`}
+						className="site-copy-editor-toolbar"
+						role="toolbar"
+						aria-label={`${title}编辑工具`}
 					>
+						<ToolbarButton
+							label="一级标题"
+							active={editor?.isActive('heading', { level: 1 })}
+							disabled={isEditorDisabled}
+							onClick={() =>
+								editor?.chain().focus().toggleHeading({ level: 1 }).run()
+							}
+						>
+							H1
+						</ToolbarButton>
+						<ToolbarButton
+							label="二级标题"
+							active={editor?.isActive('heading', { level: 2 })}
+							disabled={isEditorDisabled}
+							onClick={() =>
+								editor?.chain().focus().toggleHeading({ level: 2 }).run()
+							}
+						>
+							H2
+						</ToolbarButton>
+						<ToolbarButton
+							label="正文"
+							active={editor?.isActive('paragraph')}
+							disabled={isEditorDisabled}
+							onClick={() => editor?.chain().focus().setParagraph().run()}
+						>
+							¶
+						</ToolbarButton>
+						<span className="site-copy-editor-toolbar-sep" aria-hidden="true" />
+						<ToolbarButton
+							label="粗体（Ctrl+B）"
+							active={editor?.isActive('bold')}
+							disabled={isEditorDisabled}
+							onClick={() => editor?.chain().focus().toggleBold().run()}
+						>
+							<strong>B</strong>
+						</ToolbarButton>
+						<ToolbarButton
+							label="斜体（Ctrl+I）"
+							active={editor?.isActive('italic')}
+							disabled={isEditorDisabled}
+							onClick={() => editor?.chain().focus().toggleItalic().run()}
+						>
+							<em>I</em>
+						</ToolbarButton>
+						<ToolbarButton
+							label="删除线"
+							active={editor?.isActive('strike')}
+							disabled={isEditorDisabled}
+							onClick={() => editor?.chain().focus().toggleStrike().run()}
+						>
+							<s>S</s>
+						</ToolbarButton>
+						<ToolbarButton
+							label="行内代码"
+							active={editor?.isActive('code')}
+							disabled={isEditorDisabled}
+							onClick={() => editor?.chain().focus().toggleCode().run()}
+						>
+							{'<>'}
+						</ToolbarButton>
+						<span className="site-copy-editor-toolbar-sep" aria-hidden="true" />
+						<ToolbarButton
+							label={editor?.isActive('link') ? '移除链接' : '插入链接（Ctrl+K）'}
+							active={editor?.isActive('link')}
+							disabled={isEditorDisabled}
+							onClick={() => {
+								if (editor?.isActive('link')) {
+									editor.chain().focus().unsetLink().run();
+									return;
+								}
+								setLinkValue('https://');
+								setLinkError(null);
+								setIsLinkEditorOpen(true);
+							}}
+						>
+							↗
+						</ToolbarButton>
 						<div
-							className="site-copy-editor-toolbar"
-							role="toolbar"
-							aria-label={`${title}编辑工具`}
+							className="site-copy-editor-view-toggle"
+							role="group"
+							aria-label="预览模式"
 						>
 							<ToolbarButton
-								label="一级标题"
-								active={editor?.isActive('heading', { level: 1 })}
-								disabled={isEditorDisabled}
-								onClick={() =>
-									editor?.chain().focus().toggleHeading({ level: 1 }).run()
-								}
+								label="编辑模式"
+								active={viewMode === 'edit'}
+								onClick={() => setViewMode('edit')}
 							>
-								H1
+								编辑
 							</ToolbarButton>
 							<ToolbarButton
-								label="二级标题"
-								active={editor?.isActive('heading', { level: 2 })}
-								disabled={isEditorDisabled}
-								onClick={() =>
-									editor?.chain().focus().toggleHeading({ level: 2 }).run()
-								}
+								label="预览模式"
+								active={viewMode === 'preview'}
+								onClick={() => setViewMode('preview')}
 							>
-								H2
+								预览
 							</ToolbarButton>
 							<ToolbarButton
-								label="正文"
-								active={editor?.isActive('paragraph')}
-								disabled={isEditorDisabled}
-								onClick={() => editor?.chain().focus().setParagraph().run()}
+								label="分屏模式"
+								active={viewMode === 'split'}
+								onClick={() => setViewMode('split')}
 							>
-								¶
+								分屏
 							</ToolbarButton>
-							<span className="site-copy-editor-toolbar-sep" aria-hidden="true" />
-							<ToolbarButton
-								label="粗体（Ctrl+B）"
-								active={editor?.isActive('bold')}
-								disabled={isEditorDisabled}
-								onClick={() => editor?.chain().focus().toggleBold().run()}
-							>
-								<strong>B</strong>
-							</ToolbarButton>
-							<ToolbarButton
-								label="斜体（Ctrl+I）"
-								active={editor?.isActive('italic')}
-								disabled={isEditorDisabled}
-								onClick={() => editor?.chain().focus().toggleItalic().run()}
-							>
-								<em>I</em>
-							</ToolbarButton>
-							<ToolbarButton
-								label="删除线"
-								active={editor?.isActive('strike')}
-								disabled={isEditorDisabled}
-								onClick={() => editor?.chain().focus().toggleStrike().run()}
-							>
-								<s>S</s>
-							</ToolbarButton>
-							<ToolbarButton
-								label="行内代码"
-								active={editor?.isActive('code')}
-								disabled={isEditorDisabled}
-								onClick={() => editor?.chain().focus().toggleCode().run()}
-							>
-								{'<>'}
-							</ToolbarButton>
-							<span className="site-copy-editor-toolbar-sep" aria-hidden="true" />
-							<ToolbarButton
-								label={editor?.isActive('link') ? '移除链接' : '插入链接（Ctrl+K）'}
-								active={editor?.isActive('link')}
-								disabled={isEditorDisabled}
-								onClick={() => {
-									if (editor?.isActive('link')) {
-										editor.chain().focus().unsetLink().run();
-										return;
-									}
-									setLinkValue('https://');
-									setLinkError(null);
-									setIsLinkEditorOpen(true);
-								}}
-							>
-								↗
-							</ToolbarButton>
-						</div>
-						{isLinkEditorOpen && (
-							<div
-								className="site-copy-editor-link-panel"
-								role="group"
-								aria-label="插入链接"
-							>
-								<label htmlFor={`${entryKey}-link`}>链接地址</label>
-								<input
-									id={`${entryKey}-link`}
-									type="url"
-									value={linkValue}
-									onChange={(event) => setLinkValue(event.target.value)}
-									onKeyDown={(event) => {
-										if (event.key !== 'Enter') return;
-										event.preventDefault();
-										submitLink();
-									}}
-									autoFocus
-									placeholder="https://example.com"
-									aria-describedby={
-										linkError ? `${entryKey}-link-error` : undefined
-									}
-								/>
-								<button
-									type="button"
-									className="btn btn-primary"
-									onClick={submitLink}
-								>
-									确认
-								</button>
-								<button
-									type="button"
-									className="btn"
-									onClick={() => setIsLinkEditorOpen(false)}
-								>
-									取消
-								</button>
-								{linkError && (
-									<p
-										id={`${entryKey}-link-error`}
-										className="form-error"
-										role="alert"
-									>
-										{linkError}
-									</p>
-								)}
-							</div>
-						)}
-						<div className="site-copy-editor-body">
-							<EditorContent editor={editor} />
 						</div>
 					</div>
-					<p
-						className={
-							isTooLong
-								? 'site-copy-admin-help site-copy-admin-help-error'
-								: 'site-copy-admin-help'
-						}
-					>
-						{markdown.length}/{MAX_MARKDOWN_LENGTH} 个 Markdown
-						字符；保存后立即更新安全预览。
-					</p>
+					{isLinkEditorOpen && (
+						<div
+							className="site-copy-editor-link-panel"
+							role="group"
+							aria-label="插入链接"
+						>
+							<label htmlFor={`${entryKey}-link`}>链接地址</label>
+							<input
+								id={`${entryKey}-link`}
+								type="url"
+								value={linkValue}
+								onChange={(event) => setLinkValue(event.target.value)}
+								onKeyDown={(event) => {
+									if (event.key !== 'Enter') return;
+									event.preventDefault();
+									submitLink();
+								}}
+								autoFocus
+								placeholder="https://example.com"
+								aria-describedby={linkError ? `${entryKey}-link-error` : undefined}
+							/>
+							<button type="button" className="btn btn-primary" onClick={submitLink}>
+								确认
+							</button>
+							<button
+								type="button"
+								className="btn"
+								onClick={() => setIsLinkEditorOpen(false)}
+							>
+								取消
+							</button>
+							{linkError && (
+								<p
+									id={`${entryKey}-link-error`}
+									className="form-error"
+									role="alert"
+								>
+									{linkError}
+								</p>
+							)}
+						</div>
+					)}
+					<div className="site-copy-editor-body" data-view-mode={viewMode}>
+						<div className="site-copy-editor-edit">
+							<EditorContent editor={editor} />
+						</div>
+						<div className="site-copy-editor-preview" aria-live="polite">
+							{previewError ? (
+								<p className="site-copy-editor-preview-error" role="alert">
+									{previewError}
+								</p>
+							) : (
+								<div
+									// HTML 只来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。
+									dangerouslySetInnerHTML={{ __html: previewHtml }}
+								/>
+							)}
+						</div>
+					</div>
 				</div>
-				<div>
-					<h3 className="site-copy-admin-preview-title">预览</h3>
-					<div
-						className="site-copy-admin-preview"
-						aria-live="polite"
-						// HTML 只来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。
-						dangerouslySetInnerHTML={{ __html: previewHtml }}
-					/>
-				</div>
+				<p
+					className={
+						isTooLong
+							? 'site-copy-admin-help site-copy-admin-help-error'
+							: 'site-copy-admin-help'
+					}
+				>
+					{markdown.length}/{MAX_MARKDOWN_LENGTH} 个 Markdown
+					字符；保存后立即更新安全预览。
+				</p>
 			</div>
 			<footer className="site-copy-admin-footer">
 				<p className="site-copy-admin-updated">{updatedAt}</p>

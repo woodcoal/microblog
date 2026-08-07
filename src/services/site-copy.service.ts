@@ -74,6 +74,14 @@ export async function getAdminSiteCopy(key: string): Promise<AdminSiteCopy> {
 	};
 }
 
+/** 管理端编辑器预览：复用最终展示位的同一受限 Markdown 渲染器。 */
+export function previewSiteCopy(markdown: string): { html: string } {
+	if (markdown.length > 4000) {
+		throw new ServiceError('BAD_REQUEST', '站点文案不能超过 4000 个字符');
+	}
+	return { html: renderSiteCopyMarkdown(markdown) };
+}
+
 /** 管理端读取不可变版本历史。 */
 export async function getSiteCopyVersions(key: string): Promise<SiteCopyVersion[]> {
 	requireSiteCopyKey(key);

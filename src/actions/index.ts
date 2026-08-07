@@ -64,7 +64,7 @@ import { batchUsers, createUser, batchPosts, batchComments, toggleTagVisibility 
 import { markdownPreview } from './misc';
 
 // 站点固定文案管理模块
-import { getSiteCopy, getSiteCopyHistory, updateSiteCopy } from './site-copy';
+import { getSiteCopy, getSiteCopyHistory, previewSiteCopy, updateSiteCopy } from './site-copy';
 
 /** 导出所有服务端 Actions */
 export const server = {
@@ -127,6 +127,7 @@ export const server = {
 	// 站点固定文案（管理员）
 	getSiteCopy,
 	getSiteCopyHistory,
+	previewSiteCopy,
 	updateSiteCopy,
 	// 工具
 	markdownPreview
