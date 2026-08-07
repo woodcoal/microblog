@@ -44,38 +44,28 @@ export async function getPopularPostItems(input: {
 	limit?: number;
 	responseLabel?: string;
 }): Promise<DiscoveryItem[]> {
-	const findItems = (excludeCurrent: boolean) =>
-		prisma.post.findMany({
-			where: {
-				isDeleted: false,
-				mode: input.mode,
-				...(input.categoryId ? { categoryId: input.categoryId } : {}),
-				...(excludeCurrent && input.excludePostIds.length > 0
-					? { id: { notIn: input.excludePostIds } }
-					: {}),
-				...input.visibilityFilter
-			},
-			orderBy: [
-				{ likes: { _count: 'desc' } },
-				{ comments: { _count: 'desc' } },
-				{ createdAt: 'desc' }
-			],
-			take: input.limit ?? 5,
-			select: {
-				id: true,
-				title: true,
-				content: true,
-				user: { select: { username: true } },
-				_count: { select: { comments: true } }
-			}
-		});
-
-	let posts = await findItems(true);
-	// 分页首屏覆盖全部候选时，回退到中心列表的热门项，避免原本完整的
-	// 三栏频道在有效内容存在时退化为空侧栏。
-	if (posts.length === 0 && input.excludePostIds.length > 0) {
-		posts = await findItems(false);
-	}
+	const posts = await prisma.post.findMany({
+		where: {
+			isDeleted: false,
+			mode: input.mode,
+			...(input.categoryId ? { categoryId: input.categoryId } : {}),
+			...(input.excludePostIds.length > 0 ? { id: { notIn: input.excludePostIds } } : {}),
+			...input.visibilityFilter
+		},
+		orderBy: [
+			{ likes: { _count: 'desc' } },
+			{ comments: { _count: 'desc' } },
+			{ createdAt: 'desc' }
+		],
+		take: input.limit ?? 5,
+		select: {
+			id: true,
+			title: true,
+			content: true,
+			user: { select: { username: true } },
+			_count: { select: { comments: true } }
+		}
+	});
 
 	return posts.map((post) => ({
 		title: post.title || post.content.replace(/\s+/g, ' ').slice(0, 32) || '未命名内容',
