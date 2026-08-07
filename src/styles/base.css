@@ -336,7 +336,7 @@ body[data-ux-shell='home'] .navbar-inner {
 	display: none;
 	position: absolute;
 	top: calc(100% + 6px);
-	left: 0;
+	right: 0;
 	min-width: 168px;
 	background: var(--color-surface);
 	border: 1px solid var(--color-border);
@@ -368,6 +368,12 @@ body[data-ux-shell='home'] .navbar-inner {
 	border: none;
 	background: none;
 	font-family: inherit;
+	text-align: left;
+}
+
+/* 覆盖导航通用链接的居中规则，确保用户菜单条目始终从左侧开始排布。 */
+.navbar-actions .nav-dropdown-item {
+	justify-content: flex-start;
 	text-align: left;
 }
 
