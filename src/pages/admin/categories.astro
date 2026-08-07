@@ -11,14 +11,16 @@
  */
 import AdminLayout from '@/layouts/Admin.astro';
 import { prisma } from '@/lib/db';
-import { getModeLabel } from '@/lib/config';
+import { getModeLabel, isModeEnabled } from '@/lib/config';
 
 const requestedMode = Astro.url.searchParams.get('mode');
+const categoryModes = ['weibo', 'forum', 'blog'] as const;
+const enabledCategoryModes = categoryModes.filter(isModeEnabled);
 const activeMode =
-	requestedMode === 'forum' || requestedMode === 'blog' || requestedMode === 'weibo'
-		? requestedMode
-		: 'weibo';
-const categoryTabs = ['weibo', 'forum', 'blog'].map((mode) => ({
+	enabledCategoryModes.includes(requestedMode as (typeof categoryModes)[number])
+		? requestedMode!
+		: (enabledCategoryModes[0] ?? 'weibo');
+const categoryTabs = enabledCategoryModes.map((mode) => ({
 	mode,
 	label: getModeLabel(mode),
 	href: `/admin/categories?mode=${mode}`
