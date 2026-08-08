@@ -10,6 +10,7 @@ import {
 	queryAdminAuditLogs
 } from '../src/services/admin.service';
 
+const isMySql = (process.env.DATABASE_PROVIDER ?? '').toLowerCase() === 'mysql';
 const reason = '自动化审计测试';
 const request = () => randomUUID();
 
@@ -271,7 +272,9 @@ test('九类处置原子审计、幂等、回滚、筛选与复合游标均成�
 
 	const rollbackTarget = await createUser('audit_rollback');
 	await prisma.$executeRawUnsafe(
-		`CREATE TRIGGER "AdminAuditLog_fail_insert" BEFORE INSERT ON "AdminAuditLog" BEGIN SELECT RAISE(ABORT, 'simulated audit failure'); END`
+		isMySql
+			? "CREATE TRIGGER `AdminAuditLog_fail_insert` BEFORE INSERT ON `AdminAuditLog` FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'simulated audit failure'"
+			: `CREATE TRIGGER "AdminAuditLog_fail_insert" BEFORE INSERT ON "AdminAuditLog" BEGIN SELECT RAISE(ABORT, 'simulated audit failure'); END`
 	);
 	await assert.rejects(
 		batchUsers({
@@ -282,7 +285,11 @@ test('九类处置原子审计、幂等、回滚、筛选与复合游标均成�
 			operatorId: admin.id
 		})
 	);
-	await prisma.$executeRawUnsafe(`DROP TRIGGER "AdminAuditLog_fail_insert"`);
+	await prisma.$executeRawUnsafe(
+		isMySql
+			? 'DROP TRIGGER `AdminAuditLog_fail_insert`'
+			: `DROP TRIGGER "AdminAuditLog_fail_insert"`
+	);
 	assert.equal(
 		(await prisma.user.findUniqueOrThrow({ where: { id: rollbackTarget.id } })).isDisabled,
 		false
@@ -318,7 +325,7 @@ test('媒体 slot 唯一约束允许多个 null，但拒绝同帖第二张缩略
 	);
 });
 
-test('SQLite 触发器拒绝修改和删除审计主记录及目标明细', async () => {
+test('数据库触发器拒绝修改和删除审计主记录及目标明细', async () => {
 	const log = await prisma.adminAuditLog.findFirstOrThrow({ include: { targets: true } });
 	await assert.rejects(
 		prisma.adminAuditLog.update({ where: { id: log.id }, data: { reason: '篡改' } })
