@@ -42,12 +42,14 @@ const hasAvatar = !!user.avatarUrl;
 		<span class="weibo-post-author-info">
 			<span class="weibo-post-name">{user.displayName}</span>
 			<span class="weibo-post-meta">
-				@{user.username} <span aria-hidden="true">·</span>{' '}
+				@{user.username}
+				<span aria-hidden="true">·</span>{' '}
 				<time datetime={publishedAt.toISOString()}>{formatRelativeTime(publishedAt)}</time>
 				{
 					isEdited && editedAt && (
 						<>
-							{' '}<span aria-hidden="true">·</span> 已编辑
+							{' '}
+							<span aria-hidden="true">·</span> 已编辑
 						</>
 					)
 				}

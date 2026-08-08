@@ -117,10 +117,10 @@ const globalSearchMode = currentPath.startsWith('/forum')
 	? 'forum'
 	: currentPath.startsWith('/blog')
 		? 'blog'
-	: currentPath.startsWith('/weibo') ||
-				  currentPath.startsWith('/latest') ||
-				  currentPath.startsWith('/tags') ||
-				  currentPath.startsWith('/bookmarks')
+		: currentPath.startsWith('/weibo') ||
+			  currentPath.startsWith('/latest') ||
+			  currentPath.startsWith('/tags') ||
+			  currentPath.startsWith('/bookmarks')
 			? 'weibo'
 			: 'all';
 const globalSearchPlaceholder =
@@ -586,7 +586,9 @@ const resolvedOgType = ogType || 'website';
 							: arrayStart === -1
 								? objectStart
 								: Math.min(objectStart, arrayStart);
-					const parsed = JSON.parse(jsonStart === -1 ? message : message.slice(jsonStart));
+					const parsed = JSON.parse(
+						jsonStart === -1 ? message : message.slice(jsonStart)
+					);
 					const findMessage = function (value) {
 						if (typeof value === 'string' && value.trim()) return value;
 						if (Array.isArray(value)) {

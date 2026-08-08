@@ -1,13 +1,13 @@
 allowBuilds:
-  '@prisma/engines': true
-  esbuild: true
-  prisma: true
-  puppeteer: true
-  sharp: true
-  vue-demi: true
+    '@prisma/engines': true
+    esbuild: true
+    prisma: true
+    puppeteer: true
+    sharp: true
+    vue-demi: true
 minimumReleaseAgeExclude:
-  - '@puppeteer/browsers@3.1.0'
-  - marked@18.0.9
-  - puppeteer-core@25.5.0
-  - puppeteer@25.5.0
-  - tsx@4.23.6 || 4.23.7
+    - '@puppeteer/browsers@3.1.0'
+    - marked@18.0.9
+    - puppeteer-core@25.5.0
+    - puppeteer@25.5.0
+    - tsx@4.23.6 || 4.23.7

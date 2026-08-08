@@ -2,25 +2,17 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
-const [
-	page,
-	categoryPage,
-	detailPage,
-	layout,
-	navigation,
-	navigationItems,
-	topMenu,
-	pageStyles
-] = await Promise.all([
-	readFile(new URL('../src/pages/forum/index.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/pages/forum/[slug].astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/pages/[username]/[postId]/index.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/ForumNavigationItems.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/ForumTopMenu.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
-]);
+const [page, categoryPage, detailPage, layout, navigation, navigationItems, topMenu, pageStyles] =
+	await Promise.all([
+		readFile(new URL('../src/pages/forum/index.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/pages/forum/[slug].astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/pages/[username]/[postId]/index.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/layouts/ForumLayout.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/components/ForumNavigationItems.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/components/ForumTopMenu.astro', import.meta.url), 'utf8'),
+		readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
+	]);
 
 test('论坛首页保留分级板块导览与帖子流的阅读顺序', () => {
 	assert.match(page, /forum-category-overview/);

@@ -48,10 +48,7 @@ test('首页推荐区保留冷启动、独立状态和无障碍关注时序契�
 		page,
 		/if \(followButton\.disabled \|\| card\.classList\.contains\('is-removing'\)\) return;/
 	);
-	assert.match(
-		page,
-		/if \(card\.isConnected && !card\.classList\.contains\('is-removing'\)\)/
-	);
+	assert.match(page, /if \(card\.isConnected && !card\.classList\.contains\('is-removing'\)\)/);
 	assert.match(page, /card\.nextElementSibling\?\.querySelector<HTMLElement>\(/);
 	assert.match(page, /nextFocusTarget\.focus\(\)/);
 	assert.match(page, /showUsersEmptyState\(\)\.focus\(\)/);

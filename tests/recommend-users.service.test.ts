@@ -168,7 +168,9 @@ test('超过候选上限时，用户名尾部的最高分候选仍会被返回',
 	});
 
 	const lowerScoringCandidates = await Promise.all(
-		Array.from({ length: 200 }, (_, index) => createUser(`candidate_${String(index).padStart(3, '0')}`))
+		Array.from({ length: 200 }, (_, index) =>
+			createUser(`candidate_${String(index).padStart(3, '0')}`)
+		)
 	);
 	await prisma.post.createMany({
 		data: [
@@ -199,8 +201,12 @@ test('多关系规模下使用独立索引统计，不产生明细表行数乘�
 	const current = await createUser('performance_viewer');
 	const candidate = await createUser('performance_candidate');
 	const [sharedTargets, followers] = await Promise.all([
-		Promise.all(Array.from({ length: 100 }, (_, index) => createUser(`shared_target_${index}`))),
-		Promise.all(Array.from({ length: 100 }, (_, index) => createUser(`candidate_follower_${index}`)))
+		Promise.all(
+			Array.from({ length: 100 }, (_, index) => createUser(`shared_target_${index}`))
+		),
+		Promise.all(
+			Array.from({ length: 100 }, (_, index) => createUser(`candidate_follower_${index}`))
+		)
 	]);
 
 	await prisma.follow.createMany({
@@ -237,7 +243,10 @@ test('多关系规模下使用独立索引统计，不产生明细表行数乘�
 	const startedAt = performance.now();
 	const result = await getRecommendUsers({ userId: current.id, n: 1 });
 	const elapsedMilliseconds = performance.now() - startedAt;
-	assert.deepEqual(result.items.map((item) => item.username), ['performance_candidate']);
+	assert.deepEqual(
+		result.items.map((item) => item.username),
+		['performance_candidate']
+	);
 	assert.equal(result.items[0].mutualFollowCount, 100);
 	assert.equal(result.items[0].followerCount, 100);
 	assert.ok(
@@ -248,7 +257,9 @@ test('多关系规模下使用独立索引统计，不产生明细表行数乘�
 
 test('未登录调用 getRecommendUsers Action 返回 UNAUTHORIZED', async () => {
 	const anonymousActionContext = {
-		request: new Request('http://localhost/_actions/server.getRecommendUsers', { method: 'POST' }),
+		request: new Request('http://localhost/_actions/server.getRecommendUsers', {
+			method: 'POST'
+		}),
 		cookies: { get: () => undefined }
 	} as unknown as Parameters<typeof getRecommendUsersActionHandler>[1];
 

@@ -104,7 +104,10 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 										loading="lazy"
 									/>
 								) : (
-									<span class="home-preview-avatar home-preview-avatar-placeholder" aria-hidden="true">
+									<span
+										class="home-preview-avatar home-preview-avatar-placeholder"
+										aria-hidden="true"
+									>
 										{post.user.displayName.charAt(0).toUpperCase()}
 									</span>
 								)}
@@ -250,11 +253,18 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 							正在加载推荐帖子…
 						</div>
 						<div class="home-preview-chrome" aria-hidden="true">
-							<span></span><span></span><span></span>
+							<>
+								<span />
+								<span />
+								<span />
+							</>
 						</div>
 						<div class="recommend-preview-list" id="recommend-posts-list">
 							{Array.from({ length: 4 }).map(() => (
-								<div class="recommend-skeleton recommend-post-skeleton" aria-hidden="true" />
+								<div
+									class="recommend-skeleton recommend-post-skeleton"
+									aria-hidden="true"
+								/>
 							))}
 						</div>
 					</section>
@@ -265,7 +275,9 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 					>
 						<div class="recommend-panel-head">
 							<>
-								<h3 id="recommend-users-title" tabindex="-1">推荐创作者</h3>
+								<h3 id="recommend-users-title" tabindex="-1">
+									推荐创作者
+								</h3>
 								<span>可随时关注</span>
 							</>
 						</div>
@@ -296,7 +308,6 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			</section>
 		)
 	}
-
 </HomeLayout>
 
 <style>
@@ -1225,7 +1236,12 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		height: 72px;
 		margin-top: 1px;
 		border-top: 1px solid var(--color-border);
-		background: linear-gradient(90deg, var(--color-surface), var(--color-card-bg), var(--color-surface));
+		background: linear-gradient(
+			90deg,
+			var(--color-surface),
+			var(--color-card-bg),
+			var(--color-surface)
+		);
 		background-size: 200% 100%;
 		animation: recommend-preview-skeleton 1.2s ease-in-out infinite;
 	}
@@ -1234,7 +1250,9 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		border-top: 0;
 	}
 	@keyframes recommend-preview-skeleton {
-		to { background-position: -200% 0; }
+		to {
+			background-position: -200% 0;
+		}
 	}
 
 	/* 推荐创作者与重新插入的骨架也不再丢失样式。 */
@@ -1334,7 +1352,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		font-size: 0.8125rem;
 	}
 	@media (max-width: 767px) {
-			#recommend-users-list .recommend-user-card {
+		#recommend-users-list .recommend-user-card {
 			grid-template-columns: 44px minmax(0, 1fr);
 		}
 		#recommend-users-list .recommend-follow-button {
@@ -1497,17 +1515,15 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		const interactionIcons = {
 			like: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
 			bookmark: 'M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z',
-			comment: 'M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-4.5-1.3L3 21l2.3-4.5A8.5 8.5 0 1 1 21 11.5z'
+			comment:
+				'M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-4.5-1.3L3 21l2.3-4.5A8.5 8.5 0 1 1 21 11.5z'
 		} as const;
 
 		function safeCount(value: number | undefined): number {
 			return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
 		}
 
-		function createInteractionStat(
-			kind: keyof typeof interactionIcons,
-			count: number
-		) {
+		function createInteractionStat(kind: keyof typeof interactionIcons, count: number) {
 			const stat = document.createElement('span');
 			stat.className = [
 				'recommend-preview-stat',

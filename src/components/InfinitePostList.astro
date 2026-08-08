@@ -49,12 +49,19 @@ const { listId, nextUrl = null } = Astro.props;
 			retry.hidden = true;
 
 			try {
-				const response = await fetch(nextUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+				const response = await fetch(nextUrl, {
+					headers: { 'X-Requested-With': 'XMLHttpRequest' }
+				});
 				if (!response.ok) throw new Error(`加载失败：${response.status}`);
 
-				const nextDocument = new DOMParser().parseFromString(await response.text(), 'text/html');
+				const nextDocument = new DOMParser().parseFromString(
+					await response.text(),
+					'text/html'
+				);
 				const nextList = listId ? nextDocument.getElementById(listId) : null;
-				const nextController = nextDocument.querySelector<HTMLElement>('[data-infinite-post-list]');
+				const nextController = nextDocument.querySelector<HTMLElement>(
+					'[data-infinite-post-list]'
+				);
 				if (!nextList || !nextController) throw new Error('未找到下一页列表');
 
 				list.append(...Array.from(nextList.children));

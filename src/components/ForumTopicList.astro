@@ -46,46 +46,129 @@ function excerpt(content: string, maxLength = 120): string {
 ---
 
 <div class="forum-topic-list">
-	{posts.map((post) => {
-		const isRestricted = restrictedIds.has(post.id);
-		const hasAvatar = !!post.user.avatarUrl;
-		const categoryName = post.category?.name ?? '讨论';
-		return (
-			<article class="forum-topic">
-				<a href={`/${post.user.username}`} class="forum-topic-avatar" aria-label={`查看 ${post.user.displayName} 的主页`}>
-					{hasAvatar ? (
-						<img src={post.user.avatarUrl} alt="" loading="lazy" />
-					) : (
-						<span aria-hidden="true">{post.user.displayName.charAt(0).toUpperCase()}</span>
-					)}
-				</a>
-				<div class="forum-topic-copy">
-					<span class="forum-topic-tag">{categoryName}</span>
-					<h2><a href={`/${post.user.username}/${post.id}`}>{post.title || '未命名讨论'}</a></h2>
-					<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
-					<time datetime={post.createdAt.toISOString()}>{post.user.displayName} · {formatRelativeTime(post.createdAt)}</time>
-				</div>
-				<div class="forum-topic-replies" aria-label={`${post._count.comments} 条回复`}>
-					<b>{post._count.comments}</b>回复
-				</div>
-			</article>
-		);
-	})}
+	{
+		posts.map((post) => {
+			const isRestricted = restrictedIds.has(post.id);
+			const hasAvatar = !!post.user.avatarUrl;
+			const categoryName = post.category?.name ?? '讨论';
+			return (
+				<article class="forum-topic">
+					<a
+						href={`/${post.user.username}`}
+						class="forum-topic-avatar"
+						aria-label={`查看 ${post.user.displayName} 的主页`}
+					>
+						{hasAvatar ? (
+							<img src={post.user.avatarUrl} alt="" loading="lazy" />
+						) : (
+							<span aria-hidden="true">
+								{post.user.displayName.charAt(0).toUpperCase()}
+							</span>
+						)}
+					</a>
+					<div class="forum-topic-copy">
+						<span class="forum-topic-tag">{categoryName}</span>
+						<h2>
+							<a href={`/${post.user.username}/${post.id}`}>
+								{post.title || '未命名讨论'}
+							</a>
+						</h2>
+						<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
+						<time datetime={post.createdAt.toISOString()}>
+							{post.user.displayName} · {formatRelativeTime(post.createdAt)}
+						</time>
+					</div>
+					<div class="forum-topic-replies" aria-label={`${post._count.comments} 条回复`}>
+						<b>{post._count.comments}</b>回复
+					</div>
+				</article>
+			);
+		})
+	}
 </div>
 
 <style>
-	.forum-topic-list { display: grid; gap: 12px; }
-	.forum-topic { display: grid; grid-template-columns: 40px minmax(0, 1fr) 54px; gap: 12px; align-items: start; margin: 0; padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-card-bg); }
-	.forum-topic:hover { border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border)); }
-	.forum-topic-avatar { display: grid; width: 40px; height: 40px; place-items: center; overflow: hidden; border-radius: 50%; background: var(--color-muted); color: var(--color-primary-foreground); font-size: 0.75rem; font-weight: 800; }
-	.forum-topic-avatar img { width: 100%; height: 100%; object-fit: cover; }
-	.forum-topic-tag { color: var(--color-primary); font-size: 0.75rem; font-weight: 700; }
-	.forum-topic h2 { margin: 3px 0 7px; font-size: 1rem; line-height: 1.35; }
-	.forum-topic h2 a { color: var(--color-text); }
-	.forum-topic h2 a:hover, .forum-topic h2 a:focus-visible { color: var(--color-primary); }
-	.forum-topic p, .forum-topic time { display: block; margin: 0; color: var(--color-muted); font-size: 0.8125rem; line-height: 1.55; }
-	.forum-topic time { margin-top: 6px; }
-	.forum-topic-replies { color: var(--color-muted); font-size: 0.75rem; text-align: center; }
-	.forum-topic-replies b { display: block; color: var(--color-text); font-size: 1.125rem; }
-	@media (max-width: 767px) { .forum-topic { grid-template-columns: 36px minmax(0, 1fr) 42px; padding: 14px; } .forum-topic-avatar { width: 36px; height: 36px; } }
+	.forum-topic-list {
+		display: grid;
+		gap: 12px;
+	}
+	.forum-topic {
+		display: grid;
+		grid-template-columns: 40px minmax(0, 1fr) 54px;
+		gap: 12px;
+		align-items: start;
+		margin: 0;
+		padding: 16px;
+		border: 1px solid var(--color-border);
+		border-radius: 10px;
+		background: var(--color-card-bg);
+	}
+	.forum-topic:hover {
+		border-color: color-mix(in srgb, var(--color-primary) 32%, var(--color-border));
+	}
+	.forum-topic-avatar {
+		display: grid;
+		width: 40px;
+		height: 40px;
+		place-items: center;
+		overflow: hidden;
+		border-radius: 50%;
+		background: var(--color-muted);
+		color: var(--color-primary-foreground);
+		font-size: 0.75rem;
+		font-weight: 800;
+	}
+	.forum-topic-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.forum-topic-tag {
+		color: var(--color-primary);
+		font-size: 0.75rem;
+		font-weight: 700;
+	}
+	.forum-topic h2 {
+		margin: 3px 0 7px;
+		font-size: 1rem;
+		line-height: 1.35;
+	}
+	.forum-topic h2 a {
+		color: var(--color-text);
+	}
+	.forum-topic h2 a:hover,
+	.forum-topic h2 a:focus-visible {
+		color: var(--color-primary);
+	}
+	.forum-topic p,
+	.forum-topic time {
+		display: block;
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		line-height: 1.55;
+	}
+	.forum-topic time {
+		margin-top: 6px;
+	}
+	.forum-topic-replies {
+		color: var(--color-muted);
+		font-size: 0.75rem;
+		text-align: center;
+	}
+	.forum-topic-replies b {
+		display: block;
+		color: var(--color-text);
+		font-size: 1.125rem;
+	}
+	@media (max-width: 767px) {
+		.forum-topic {
+			grid-template-columns: 36px minmax(0, 1fr) 42px;
+			padding: 14px;
+		}
+		.forum-topic-avatar {
+			width: 36px;
+			height: 36px;
+		}
+	}
 </style>

@@ -106,7 +106,11 @@ test(
 						const attachmentHref = await page.$eval('.post-detail-attachment', (link) =>
 							link.getAttribute('href')
 						);
-						assert.match(thumbnailSrc || '', /^\/media\/[^/]+$/, '博客缩略图应使用受控媒体入口');
+						assert.match(
+							thumbnailSrc || '',
+							/^\/media\/[^/]+$/,
+							'博客缩略图应使用受控媒体入口'
+						);
 						assert.match(
 							attachmentHref || '',
 							/^\/media\/[^/]+\/download$/,
@@ -171,7 +175,9 @@ test(
 				await firstLink.hover();
 				const metrics = await page.evaluate(() => {
 					const navigation = document.querySelector<HTMLElement>('.channel-shell__nav');
-					const tooltip = document.querySelector<HTMLElement>('.channel-navigation-tooltip');
+					const tooltip = document.querySelector<HTMLElement>(
+						'.channel-navigation-tooltip'
+					);
 					const navBounds = navigation?.getBoundingClientRect();
 					const tooltipBounds = tooltip?.getBoundingClientRect();
 					return {
@@ -180,12 +186,19 @@ test(
 						navigationScrollWidth: navigation?.scrollWidth ?? 0,
 						navigationClientWidth: navigation?.clientWidth ?? 0,
 						tooltipVisible: tooltip?.dataset.visible === 'true',
-						tooltipRightOfNavigation: (tooltipBounds?.left ?? 0) >= (navBounds?.right ?? Infinity),
-						tooltipWithinViewport: (tooltipBounds?.right ?? Infinity) <= document.documentElement.clientWidth
+						tooltipRightOfNavigation:
+							(tooltipBounds?.left ?? 0) >= (navBounds?.right ?? Infinity),
+						tooltipWithinViewport:
+							(tooltipBounds?.right ?? Infinity) <=
+							document.documentElement.clientWidth
 					};
 				});
 				assert.equal(metrics.tooltipVisible, true, `${width}px 悬停应显示提示层`);
-				assert.equal(metrics.tooltipRightOfNavigation, true, `${width}px 提示层应在导航外侧`);
+				assert.equal(
+					metrics.tooltipRightOfNavigation,
+					true,
+					`${width}px 提示层应在导航外侧`
+				);
 				assert.equal(metrics.tooltipWithinViewport, true, `${width}px 提示层应完整可见`);
 				assert.ok(
 					metrics.navigationScrollWidth <= metrics.navigationClientWidth,
@@ -200,10 +213,15 @@ test(
 					(link as HTMLElement).focus()
 				);
 				const focusMetrics = await page.evaluate(() => ({
-					navigationScrollWidth: document.querySelector<HTMLElement>('.channel-shell__nav')?.scrollWidth ?? 0,
-					navigationClientWidth: document.querySelector<HTMLElement>('.channel-shell__nav')?.clientWidth ?? 0,
+					navigationScrollWidth:
+						document.querySelector<HTMLElement>('.channel-shell__nav')?.scrollWidth ??
+						0,
+					navigationClientWidth:
+						document.querySelector<HTMLElement>('.channel-shell__nav')?.clientWidth ??
+						0,
 					tooltipVisible:
-						document.querySelector<HTMLElement>('.channel-navigation-tooltip')?.dataset.visible === 'true'
+						document.querySelector<HTMLElement>('.channel-navigation-tooltip')?.dataset
+							.visible === 'true'
 				}));
 				assert.equal(focusMetrics.tooltipVisible, true, `${width}px 键盘焦点应显示提示层`);
 				assert.ok(

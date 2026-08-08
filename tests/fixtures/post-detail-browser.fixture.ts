@@ -134,7 +134,12 @@ async function main() {
 			}
 		}),
 		prisma.notification.create({
-			data: { type: 'comment', actorId: author.id, recipientId: viewer.id, postId: 'qaforum1' }
+			data: {
+				type: 'comment',
+				actorId: author.id,
+				recipientId: viewer.id,
+				postId: 'qaforum1'
+			}
 		})
 	]);
 }

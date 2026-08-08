@@ -1206,7 +1206,9 @@ dialog.dialog-overlay::backdrop {
 	align-items: center;
 	color: var(--color-muted);
 	text-decoration: none;
-	transition: color var(--transition-fast), background var(--transition-fast);
+	transition:
+		color var(--transition-fast),
+		background var(--transition-fast);
 }
 .weibo-post-action:hover,
 .weibo-post-action:focus-visible {
