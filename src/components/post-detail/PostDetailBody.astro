@@ -1015,8 +1015,9 @@ const {
 	}
 
 	.post-detail-layout-blog .post-detail-aside {
-		padding-left: 16px;
-		border-left: 1px solid var(--color-border);
+		display: grid;
+		align-content: start;
+		gap: var(--spacing-4);
 	}
 
 	.post-detail-aside-section,
@@ -1031,6 +1032,16 @@ const {
 	.post-detail-toc {
 		position: sticky;
 		top: calc(var(--navbar-height) + var(--spacing-6));
+	}
+
+	/* 博客目录和相关内容位于右侧阅读辅助列，使用左对齐的信息卡片。 */
+	.post-detail-layout-blog .post-detail-aside-section,
+	.post-detail-layout-blog .post-detail-toc {
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-surface);
+		text-align: left;
 	}
 
 	.post-detail-aside-section h2,
@@ -1174,6 +1185,14 @@ const {
 
 		.post-detail-toc {
 			position: static;
+		}
+
+		.post-detail-layout-blog .post-detail-aside-section,
+		.post-detail-layout-blog .post-detail-toc {
+			padding: var(--spacing-4);
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
+			background: var(--color-surface);
 		}
 
 		.post-detail-layout .post-detail {

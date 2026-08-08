@@ -62,10 +62,13 @@ test('三档响应式规则保护 1024px 阅读列，搜索和通知使用单列
 	assert.match(baseStyles, /\.channel-navigation-tooltip\[data-visible='true'\]/);
 	assert.match(shell, /channel-navigation-tooltip/);
 	assert.match(shell, /positionTooltip\(link\)/);
-	for (const layout of [weiboLayout, forumLayout, blogLayout]) {
+	for (const layout of [weiboLayout, forumLayout]) {
 		assert.match(layout, /import ChannelShell/);
 		assert.match(layout, /variant=\{hasDiscoveryAside \? 'three-column' : 'nav-main'\}/);
 	}
+	assert.match(blogLayout, /variant=\{detail \? 'main-aside' : hasDiscoveryAside \? 'three-column' : 'nav-main'\}/);
+	assert.match(blogLayout, /preserveAsideOnTablet=\{detail\}/);
+	assert.match(baseStyles, /channel-shell--main-aside\.channel-shell--preserve-aside/);
 	assert.match(searchPage, /<ChannelShell variant="single">/);
 	assert.match(notificationsPage, /<ChannelShell variant="single">/);
 });

@@ -12,19 +12,28 @@ interface Props {
 	hasAside?: boolean;
 	/** 由页面语义而非频道名称决定的布局形态。 */
 	variant?: 'three-column' | 'nav-main' | 'main-aside' | 'single';
+	/** 详情页在 tablet 保留辅助信息；移动端仍由共享断点收起。 */
+	preserveAsideOnTablet?: boolean;
 }
 
 const {
 	navLabel,
 	hasAside = Astro.slots.has('aside'),
-	variant = hasAside ? 'three-column' : 'nav-main'
+	variant = hasAside ? 'three-column' : 'nav-main',
+	preserveAsideOnTablet = false
 } = Astro.props;
 const rendersNav = variant === 'three-column' || variant === 'nav-main';
 const rendersAside = hasAside && (variant === 'three-column' || variant === 'main-aside');
 ---
 
 <div class="channel-shell-frame">
-	<div class:list={['channel-shell', `channel-shell--${variant}`]}>
+	<div
+		class:list={[
+			'channel-shell',
+			`channel-shell--${variant}`,
+			{ 'channel-shell--preserve-aside': preserveAsideOnTablet }
+		]}
+	>
 		{
 			rendersNav && (
 				<aside class="channel-shell__nav layout-sidebar" aria-label={navLabel}>

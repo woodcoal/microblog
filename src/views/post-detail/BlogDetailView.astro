@@ -24,6 +24,7 @@ const { model } = Astro.props;
 	noindex={model.isNotPublic}
 	jsonLd={getPostDetailJsonLd(model)}
 	hasAside={true}
+	detail
 >
 	<PostDetailBody model={model} />
 	<div slot="aside" class="post-detail-aside"><PostDetailAside model={model} /></div>

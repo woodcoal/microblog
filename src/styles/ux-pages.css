@@ -174,8 +174,8 @@
 	display: none;
 }
 
-/* 非大屏不保留侧栏的导航列；顶部菜单在正常文档流内显示。 */
-@media (max-width: 767px) {
+/* 非大屏不保留论坛侧栏；顶部菜单在正常文档流内显示。 */
+@media (max-width: 1023px) {
 	.forum-top-menu {
 		display: flex;
 		align-items: flex-start;
@@ -231,8 +231,24 @@
 		font-size: 1rem;
 	}
 
+	/* 覆盖 tablet 图标轨的通用收缩规则，顶部菜单始终保留可读名称。 */
+	.forum-top-menu .sidebar-link span:not(.sidebar-link-icon) {
+		display: inline;
+	}
+
 	.forum-top-menu .sidebar-link-icon-fallback,
 	.forum-top-menu small {
+		display: none;
+	}
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+	[data-ux-shell='forum'] .channel-shell--three-column,
+	[data-ux-shell='forum'] .channel-shell--nav-main {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	[data-ux-shell='forum'] .channel-shell__nav {
 		display: none;
 	}
 }
@@ -1209,7 +1225,11 @@
 }
 
 .post-detail[data-post-mode='weibo'] {
-	max-width: 720px;
+	max-width: none;
+}
+
+.post-detail[data-post-mode='weibo'] .post-detail-content {
+	max-width: none;
 }
 
 .post-detail[data-post-mode='forum'] {
@@ -1217,10 +1237,7 @@
 }
 
 .post-detail[data-post-mode='blog'] {
-	max-width: 900px;
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 12.5rem;
-	column-gap: clamp(var(--spacing-5), 5vw, var(--spacing-10));
+	max-width: none;
 }
 
 .post-detail[data-post-mode='blog'] .post-detail-content {
@@ -1229,23 +1246,15 @@
 	font-size: 1.0625rem;
 }
 
-.post-detail[data-post-mode='blog'] > :not(.post-detail-toc) {
-	grid-column: 1;
-}
-
-.post-detail[data-post-mode='blog'] > .ux-detail-kicker,
-.post-detail[data-post-mode='blog'] > .post-detail-blog-header {
-	grid-column: 1 / -1;
-}
-
 .post-detail-toc {
-	grid-column: 2;
-	grid-row: 3 / span 8;
 	align-self: start;
 	position: sticky;
 	top: calc(var(--navbar-height) + var(--spacing-5));
-	padding-left: var(--spacing-4);
-	border-left: 1px solid var(--color-border);
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+	text-align: left;
 }
 
 .post-detail-toc-title {
@@ -1647,7 +1656,6 @@
 	[data-ux-shell='weibo'] .page-header,
 	[data-ux-shell='forum'] .page-header,
 	[data-ux-shell='blog'] .page-header,
-	.page-header-row,
 	.forum-page-heading,
 	.blog-page-heading,
 	.notification-header {
@@ -1655,10 +1663,14 @@
 		flex-direction: column;
 	}
 
-	/* 叠放后显式拉伸页头，避免内容按自身宽度收缩至主列右侧。 */
-	[data-ux-shell='forum'] .page-header-row > .site-copy-content-channel,
-	[data-ux-shell='blog'] .page-header-row > .site-copy-content-channel,
-	[data-ux-shell='weibo'] .page-header-row > .site-copy-content-channel,
+	/* 文案和发布操作共用一行；仅在可用宽度不足时由 flex 自动换行。 */
+	.page-header-row {
+		align-items: flex-start;
+		flex-direction: row;
+		flex-wrap: wrap;
+	}
+
+	/* 仅独立标题区占满一行；频道页头保留文本和发布操作的 flex 换行能力。 */
 	.forum-page-heading,
 	.blog-page-heading,
 	.forum-heading-copy {
@@ -1724,7 +1736,7 @@
 	}
 
 	.post-detail[data-post-mode='blog'] {
-		display: block;
+		max-width: none;
 	}
 
 	.post-detail-toc {

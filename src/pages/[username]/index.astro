@@ -743,13 +743,20 @@ const [recentFollows, recommendedTags] = await Promise.all([
 		line-height: 1.4;
 	}
 
-	@media (max-width: 767px) {
+	@media (max-width: 1023px) {
 		.profile-page-layout {
-			display: block;
+			grid-template-columns: minmax(0, 720px);
+			max-width: 720px;
 		}
 
 		.profile-rail {
 			display: none;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.profile-page-layout {
+			display: block;
 		}
 
 		.profile-banner {
