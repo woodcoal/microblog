@@ -41,6 +41,7 @@
 		"test:api-agent": "node scripts/run-api-test.mjs api-agent",
 		"test:admin-auth": "node scripts/run-api-test.mjs admin-auth",
 		"test:admin-audit": "node scripts/run-admin-audit-test.mjs",
+		"test:admin-moderation-ui": "tsx --test tests/admin-moderation-ui.test.ts",
 		"test:blog-assets": "node scripts/run-blog-assets-test.mjs",
 		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts",
 		"test:site-config": "tsx --test tests/site-config.test.ts",

@@ -1,0 +1,180 @@
+---
+/** 管理员审计日志：只消费 Action 返回的最小字段。 */
+---
+
+<form class="admin-audit-filters" id="admin-audit-filters">
+	<label
+		>目标类型
+		<select name="targetType"
+			><option value="">全部</option><option value="user">用户</option><option value="post"
+				>帖子</option
+			><option value="comment">评论</option></select
+		>
+	</label>
+	<label
+		>动作
+		<select name="action"
+			><option value="">全部</option><option value="user.disable">禁用用户</option><option
+				value="user.enable">启用用户</option
+			><option value="post.delete">删除帖子</option><option value="post.restore"
+				>还原帖子</option
+			><option value="post.lock">锁定帖子</option><option value="post.unlock">解锁帖子</option
+			><option value="post.pin">置顶帖子</option><option value="post.unpin">取消置顶</option
+			><option value="comment.delete">删除评论</option></select
+		>
+	</label>
+	<label>操作者公开 ID <input name="operatorId" type="text" autocomplete="off" /></label>
+	<label>目标 ID <input name="targetId" type="text" autocomplete="off" /></label>
+	<label
+		>结果 <select name="result"
+			><option value="">全部</option><option value="success">成功</option></select
+		></label
+	>
+	<label>开始时间 <input name="from" type="datetime-local" /></label>
+	<label>结束时间 <input name="to" type="datetime-local" /></label>
+	<button type="submit" class="btn btn-primary">检索日志</button>
+</form>
+<p id="admin-audit-status" class="admin-audit-status" role="status" aria-live="polite">
+	正在加载审计日志…
+</p>
+<div class="admin-table-wrapper" tabindex="0">
+	<table class="admin-table admin-audit-table">
+		<thead
+			><tr
+				><th>时间</th><th>操作者</th><th>动作</th><th>理由</th><th>请求／影响</th><th
+					>目标 ID 与结果</th
+				></tr
+			></thead
+		>
+		<tbody id="admin-audit-results"></tbody>
+	</table>
+</div>
+<button type="button" class="btn btn-outline" id="admin-audit-more" hidden>加载更多</button>
+
+<script>
+	import { actions } from 'astro:actions';
+	import type { AdminAuditLogDto } from '@/types/dto';
+
+	type Cursor = { createdAt: string; id: string } | null;
+	const form = document.getElementById('admin-audit-filters') as HTMLFormElement;
+	const results = document.getElementById('admin-audit-results') as HTMLTableSectionElement;
+	const status = document.getElementById('admin-audit-status') as HTMLParagraphElement;
+	const more = document.getElementById('admin-audit-more') as HTMLButtonElement;
+	let nextCursor: Cursor = null;
+
+	function value(name: string): string | undefined {
+		const input = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+		return input?.value.trim() || undefined;
+	}
+	function isoValue(name: string): string | undefined {
+		const input = form.elements.namedItem(name) as HTMLInputElement | null;
+		return input?.value ? new Date(input.value).toISOString() : undefined;
+	}
+	function addCell(row: HTMLTableRowElement, content: string): void {
+		const cell = document.createElement('td');
+		cell.textContent = content;
+		row.append(cell);
+	}
+	function render(items: AdminAuditLogDto[], append: boolean): void {
+		if (!append) results.replaceChildren();
+		for (const item of items) {
+			const row = document.createElement('tr');
+			addCell(row, new Date(item.createdAt).toLocaleString('zh-CN'));
+			addCell(row, item.operator.displayName || item.operator.username);
+			addCell(row, item.action);
+			addCell(row, item.reason);
+			addCell(row, `${item.requestedCount}／${item.affectedCount}`);
+			addCell(
+				row,
+				item.targets.map((target) => `${target.targetId}（${target.outcome}）`).join('、')
+			);
+			results.append(row);
+		}
+		if (!items.length && !append) {
+			const row = document.createElement('tr');
+			const cell = document.createElement('td');
+			cell.colSpan = 6;
+			cell.className = 'admin-empty-cell';
+			cell.textContent = '没有匹配的审计记录。';
+			row.append(cell);
+			results.append(row);
+		}
+	}
+	async function load(append = false): Promise<void> {
+		status.textContent = append ? '正在加载更多审计日志…' : '正在检索审计日志…';
+		more.disabled = true;
+		const result = await actions.queryAdminAuditLogs({
+			targetType: value('targetType') as 'user' | 'post' | 'comment' | undefined,
+			action: value('action') as AdminAuditLogDto['action'] | undefined,
+			operatorId: value('operatorId'),
+			targetId: value('targetId'),
+			result: value('result') as 'success' | undefined,
+			from: isoValue('from'),
+			to: isoValue('to'),
+			cursor: append ? (nextCursor ?? undefined) : undefined
+		});
+		if (result.error || !result.data) {
+			status.textContent = result.error?.message || '审计日志加载失败，请重试。';
+			more.hidden = true;
+			return;
+		}
+		render(result.data.items, append);
+		nextCursor = result.data.nextCursor;
+		more.hidden = !nextCursor;
+		more.disabled = false;
+		status.textContent = result.data.items.length
+			? `已加载 ${result.data.items.length} 条审计记录。`
+			: '没有匹配的审计记录。';
+	}
+	form.addEventListener('submit', (event) => {
+		event.preventDefault();
+		void load();
+	});
+	more.addEventListener('click', () => {
+		void load(true);
+	});
+	void load();
+</script>
+
+<style>
+	.admin-audit-filters {
+		display: grid;
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 0.75rem;
+		align-items: end;
+		margin-bottom: 1rem;
+	}
+	.admin-audit-filters label {
+		display: grid;
+		gap: 0.25rem;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+	}
+	.admin-audit-filters input,
+	.admin-audit-filters select {
+		min-width: 0;
+		padding: 0.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		background: var(--color-card-bg);
+		color: var(--color-text);
+		font: inherit;
+	}
+	.admin-audit-status {
+		min-height: 1.5rem;
+		color: var(--color-muted);
+	}
+	#admin-audit-more {
+		margin-top: 1rem;
+	}
+	@media (max-width: 900px) {
+		.admin-audit-filters {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+	@media (max-width: 560px) {
+		.admin-audit-filters {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

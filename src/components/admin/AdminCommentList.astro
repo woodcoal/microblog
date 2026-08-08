@@ -213,6 +213,25 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
 <script>
 	import { actions } from 'astro:actions';
+	import { runReasonedAdminAction } from '@/scripts/admin-reason-dialog';
+
+	function deleteComments(ids: string[]): void {
+		runReasonedAdminAction({
+			title: ids.length === 1 ? '删除评论' : '批量删除评论',
+			description: `将删除 ${ids.length} 条评论。此操作需要记录明确理由。`,
+			submit: async ({ reason, requestId }) => {
+				const result = await actions.batchComments({
+					action: 'delete',
+					ids,
+					reason,
+					requestId
+				});
+				if (result.error) throw new Error(result.error.message || '评论删除失败');
+				return { affected: result.data?.affected ?? 0 };
+			},
+			onSuccess: () => window.location.reload()
+		});
+	}
 
 	/**
 	 * 评论管理操作交互逻辑
@@ -223,32 +242,11 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	 * - delete → 删除评论
 	 */
 	document.querySelectorAll('[data-action="delete"]').forEach((btn) => {
-		btn.addEventListener('click', async () => {
+		btn.addEventListener('click', () => {
 			const commentId = (btn as HTMLElement).dataset.commentId || '';
 
 			if (!commentId) return;
-			if (
-				!(await MutanDialog.confirm('确认要删除这条评论吗？此操作不可撤销。', {
-					title: '删除评论',
-					danger: true
-				}))
-			)
-				return;
-			const reason = prompt('请输入删除理由（2-500 字）：')?.trim() ?? '';
-			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
-			const result = await actions.batchComments({
-				action: 'delete',
-				ids: [commentId],
-				reason,
-				requestId: crypto.randomUUID()
-			});
-			if (result.error) {
-				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data && result.data.affected > 0) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert('没有评论被删除');
-			}
+			deleteComments([commentId]);
 		});
 	});
 
@@ -291,29 +289,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				await MutanDialog.alert('请先选择项目', { title: '提示' });
 				return;
 			}
-			if (
-				!(await MutanDialog.confirm(`确认要批量删除 ${checkedIds.length} 条评论吗？`, {
-					title: '批量删除',
-					danger: true
-				}))
-			)
-				return;
-
-			const reason = prompt('请输入批量删除理由（2-500 字）：')?.trim() ?? '';
-			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
-			const result = await actions.batchComments({
-				action: 'delete',
-				ids: checkedIds,
-				reason,
-				requestId: crypto.randomUUID()
-			});
-			if (result.error) {
-				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data && result.data.affected > 0) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert('没有评论被删除');
-			}
+			deleteComments(checkedIds);
 		});
 	});
 </script>

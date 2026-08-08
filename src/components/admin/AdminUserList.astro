@@ -263,6 +263,20 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
 <script>
 	import { actions } from 'astro:actions';
+	import { runReasonedAdminAction } from '@/scripts/admin-reason-dialog';
+
+	function moderateUsers(action: 'disable' | 'enable', ids: string[]): void {
+		runReasonedAdminAction({
+			title: action === 'disable' ? '禁用用户' : '启用用户',
+			description: `将对 ${ids.length} 个用户执行${action === 'disable' ? '禁用' : '启用'}操作。`,
+			submit: async ({ reason, requestId }) => {
+				const result = await actions.batchUsers({ action, ids, reason, requestId });
+				if (result.error) throw new Error(result.error.message || '用户状态更新失败');
+				return { affected: result.data?.affected ?? 0 };
+			},
+			onSuccess: () => window.location.reload()
+		});
+	}
 
 	const createUserDialog = document.getElementById('create-user-dialog') as HTMLDialogElement;
 	const createUserForm = document.getElementById('create-user-form') as HTMLFormElement;
@@ -348,33 +362,11 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	 * - enable  → 启用用户
 	 */
 	document.querySelectorAll('[data-action="disable"], [data-action="enable"]').forEach((btn) => {
-		btn.addEventListener('click', async () => {
+		btn.addEventListener('click', () => {
 			const action = (btn as HTMLElement).dataset.action;
 			const userId = (btn as HTMLElement).dataset.userId || '';
 			if ((action !== 'disable' && action !== 'enable') || !userId) return;
-			if (
-				!(await MutanDialog.confirm(
-					`确认要${action === 'disable' ? '禁用' : '启用'}该用户吗？`,
-					{ title: '用户状态确认', danger: action === 'disable' }
-				))
-			)
-				return;
-
-			const reason = prompt('请输入处置理由（2-500 字）：')?.trim() ?? '';
-			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
-			const result = await actions.batchUsers({
-				action,
-				ids: [userId],
-				reason,
-				requestId: crypto.randomUUID()
-			});
-			if (result.error) {
-				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data && result.data.affected > 0) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert('没有用户被更新');
-			}
+			moderateUsers(action, [userId]);
 		});
 	});
 
@@ -420,29 +412,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				return;
 			}
 
-			if (
-				!(await MutanDialog.confirm(
-					`确认要批量${action === 'disable' ? '禁用' : '启用'} ${checkedIds.length} 个用户吗？`,
-					{ title: '批量操作', danger: true }
-				))
-			)
-				return;
-
-			const reason = prompt('请输入批量处置理由（2-500 字）：')?.trim() ?? '';
-			if (reason.length < 2) return void (await MutanDialog.alert('理由至少需要 2 个字符'));
-			const result = await actions.batchUsers({
-				action,
-				ids: checkedIds,
-				reason,
-				requestId: crypto.randomUUID()
-			});
-			if (result.error) {
-				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data && result.data.affected > 0) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert('没有用户被更新');
-			}
+			moderateUsers(action, checkedIds);
 		});
 	});
 </script>
