@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { createAdminRequestId } from '../src/scripts/admin-reason-dialog';
 
 const root = new URL('..', import.meta.url);
 const read = (path: string) => readFile(new URL(path, root), 'utf8');
@@ -18,7 +19,7 @@ test('后台处置统一经过理由对话框，且不会退回 prompt', async (
 	}
 	assert.match(dialog, /minLength = 2/);
 	assert.match(dialog, /maxLength = 500/);
-	assert.match(dialog, /requestId \?\?= crypto\.randomUUID\(\)/);
+	assert.match(dialog, /requestId \?\?= createAdminRequestId\(\)/);
 	assert.match(dialog, /isSubmitting/);
 	assert.match(dialog, /aria-live/);
 	assert.match(dialog, /form\.noValidate = true/);
@@ -27,6 +28,19 @@ test('后台处置统一经过理由对话框，且不会退回 prompt', async (
 	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*position: fixed/);
 	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*inset: 0/);
 	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*margin: auto/);
+});
+
+test('后台请求 ID 在缺少 crypto.randomUUID 时仍生成 UUID v4', () => {
+	const nativeUuid = 'ce7d58a1-0ac8-4ee7-a3b2-70682592f10d';
+	assert.equal(createAdminRequestId({ randomUUID: () => nativeUuid }), nativeUuid);
+
+	const fallbackUuid = createAdminRequestId({
+		getRandomValues(values) {
+			values.fill(0);
+			return values;
+		}
+	});
+	assert.equal(fallbackUuid, '00000000-0000-4000-8000-000000000000');
 });
 
 test('审计页面通过受保护后台壳和最小 Action DTO 检索游标分页', async () => {
