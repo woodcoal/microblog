@@ -23,7 +23,9 @@ export function runReasonedAdminAction(options: ReasonedAdminActionOptions): voi
 	dialog.setAttribute('aria-labelledby', 'admin-reason-dialog-title');
 
 	const form = document.createElement('form');
-	form.method = 'dialog';
+	// 由 submit 处理器统一校验、提交和关闭；不能使用 method="dialog"，否则原生
+	// 对话框提交会与异步 Action 的完成状态竞争。
+	form.noValidate = true;
 	const title = document.createElement('h2');
 	title.id = 'admin-reason-dialog-title';
 	title.className = 'admin-modal-title';

@@ -21,6 +21,12 @@ test('后台处置统一经过理由对话框，且不会退回 prompt', async (
 	assert.match(dialog, /requestId \?\?= crypto\.randomUUID\(\)/);
 	assert.match(dialog, /isSubmitting/);
 	assert.match(dialog, /aria-live/);
+	assert.match(dialog, /form\.noValidate = true/);
+	assert.doesNotMatch(dialog, /form\.method = 'dialog'/);
+	const styles = await read('src/styles/admin.css');
+	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*position: fixed/);
+	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*inset: 0/);
+	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*margin: auto/);
 });
 
 test('审计页面通过受保护后台壳和最小 Action DTO 检索游标分页', async () => {
