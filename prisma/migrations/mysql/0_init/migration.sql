@@ -42,6 +42,7 @@ CREATE TABLE `Post` (
     `mode` VARCHAR(191) NOT NULL DEFAULT 'weibo',
     `title` VARCHAR(191) NULL,
     `categoryId` VARCHAR(191) NULL,
+    `customCategory` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -82,6 +83,7 @@ CREATE TABLE `Media` (
     `fileType` VARCHAR(191) NOT NULL DEFAULT 'image',
     `originalName` VARCHAR(191) NOT NULL DEFAULT '',
     `sortOrder` INTEGER NOT NULL DEFAULT 0,
+    `slot` VARCHAR(191) NULL,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 
     PRIMARY KEY (`id`)
@@ -176,6 +178,7 @@ CREATE TABLE `UserSettings` (
     `accent` VARCHAR(191) NOT NULL DEFAULT '',
     `commentSortOrder` VARCHAR(191) NOT NULL DEFAULT 'asc',
     `notificationsEnabled` BOOLEAN NOT NULL DEFAULT true,
+    `interestOnboardingCompletedAt` DATETIME(3) NULL,
     `updatedAt` DATETIME(3) NOT NULL,
 
     UNIQUE INDEX `UserSettings_userId_key`(`userId`),
@@ -266,6 +269,133 @@ CREATE TABLE `Bookmark` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `SiteCopy` (
+    `key` VARCHAR(191) NOT NULL,
+    `markdown` LONGTEXT NOT NULL,
+    `updatedById` VARCHAR(191) NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL,
+    PRIMARY KEY (`key`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `SiteCopyVersion` (
+    `id` VARCHAR(191) NOT NULL,
+    `key` VARCHAR(191) NOT NULL,
+    `markdown` LONGTEXT NOT NULL,
+    `updatedById` VARCHAR(191) NOT NULL,
+    `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    INDEX `SiteCopyVersion_key_updatedAt_idx`(`key`, `updatedAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserTagInterest` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `tagId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `UserTagInterest_userId_tagId_key`(`userId`, `tagId`),
+    INDEX `UserTagInterest_tagId_userId_idx`(`tagId`, `userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UserCategoryInterest` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `categoryId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `UserCategoryInterest_userId_categoryId_key`(`userId`, `categoryId`),
+    INDEX `UserCategoryInterest_categoryId_userId_idx`(`categoryId`, `userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `AdminAuditLog` (
+    `id` VARCHAR(191) NOT NULL,
+    `operatorId` VARCHAR(191) NOT NULL,
+    `requestId` VARCHAR(191) NOT NULL,
+    `targetType` VARCHAR(191) NOT NULL,
+    `action` VARCHAR(191) NOT NULL,
+    `reason` TEXT NOT NULL,
+    `result` VARCHAR(191) NOT NULL DEFAULT 'success',
+    `requestedCount` INTEGER NOT NULL,
+    `affectedCount` INTEGER NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `AdminAuditTarget` (
+    `id` VARCHAR(191) NOT NULL,
+    `auditLogId` VARCHAR(191) NOT NULL,
+    `targetId` VARCHAR(191) NOT NULL,
+    `outcome` VARCHAR(191) NOT NULL DEFAULT 'updated',
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UploadReservation` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `fileStorageId` VARCHAR(191) NOT NULL,
+    `originalName` VARCHAR(512) NOT NULL,
+    `fileType` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `consumedAt` DATETIME(3) NULL,
+    `cancelledAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    INDEX `UploadReservation_owner_file_active_idx` (`userId`, `fileStorageId`, `consumedAt`, `cancelledAt`, `expiresAt`),
+    INDEX `UploadReservation_expiry_active_idx` (`expiresAt`, `consumedAt`, `cancelledAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateIndex
+CREATE INDEX `Post_isDeleted_visibility_createdAt_idx` ON `Post`(`isDeleted`, `visibility`, `createdAt`);
+
+-- CreateIndex
+CREATE INDEX `Post_userId_isDeleted_visibility_createdAt_idx` ON `Post`(`userId`, `isDeleted`, `visibility`, `createdAt`);
+
+-- CreateIndex
+CREATE INDEX `Follow_followingId_followerId_idx` ON `Follow`(`followingId`, `followerId`);
+
+-- CreateIndex
+CREATE INDEX `Post_mode_isDeleted_createdAt_idx` ON `Post`(`mode`, `isDeleted`, `createdAt`);
+
+-- CreateIndex
+CREATE INDEX `Like_postId_userId_idx` ON `Like`(`postId`, `userId`);
+
+-- CreateIndex
+CREATE INDEX `Bookmark_postId_userId_idx` ON `Bookmark`(`postId`, `userId`);
+
+-- CreateIndex
+CREATE INDEX `Comment_postId_isDeleted_userId_idx` ON `Comment`(`postId`, `isDeleted`, `userId`);
+
+-- CreateIndex
+CREATE UNIQUE INDEX `Media_postId_slot_key` ON `Media`(`postId`, `slot`);
+
+-- CreateIndex
+CREATE INDEX `Media_postId_fileType_sortOrder_idx` ON `Media`(`postId`, `fileType`, `sortOrder`);
+
+-- CreateIndex
+CREATE UNIQUE INDEX `AdminAuditLog_operatorId_requestId_key` ON `AdminAuditLog`(`operatorId`, `requestId`);
+
+-- CreateIndex
+CREATE INDEX `AdminAuditLog_createdAt_id_idx` ON `AdminAuditLog`(`createdAt`, `id`);
+
+-- CreateIndex
+CREATE INDEX `AdminAuditLog_operatorId_createdAt_id_idx` ON `AdminAuditLog`(`operatorId`, `createdAt`, `id`);
+
+-- CreateIndex
+CREATE INDEX `AdminAuditLog_targetType_action_createdAt_id_idx` ON `AdminAuditLog`(`targetType`, `action`, `createdAt`, `id`);
+
+-- CreateIndex
+CREATE UNIQUE INDEX `AdminAuditTarget_auditLogId_targetId_key` ON `AdminAuditTarget`(`auditLogId`, `targetId`);
+
+-- CreateIndex
+CREATE INDEX `AdminAuditTarget_targetId_auditLogId_idx` ON `AdminAuditTarget`(`targetId`, `auditLogId`);
+
 -- AddForeignKey
 ALTER TABLE `Post` ADD CONSTRAINT `Post_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -349,3 +479,37 @@ ALTER TABLE `Bookmark` ADD CONSTRAINT `Bookmark_userId_fkey` FOREIGN KEY (`userI
 
 -- AddForeignKey
 ALTER TABLE `Bookmark` ADD CONSTRAINT `Bookmark_postId_fkey` FOREIGN KEY (`postId`) REFERENCES `Post`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SiteCopy` ADD CONSTRAINT `SiteCopy_updatedById_fkey` FOREIGN KEY (`updatedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SiteCopyVersion` ADD CONSTRAINT `SiteCopyVersion_key_fkey` FOREIGN KEY (`key`) REFERENCES `SiteCopy`(`key`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `SiteCopyVersion` ADD CONSTRAINT `SiteCopyVersion_updatedById_fkey` FOREIGN KEY (`updatedById`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UserTagInterest` ADD CONSTRAINT `UserTagInterest_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `UserTagInterest` ADD CONSTRAINT `UserTagInterest_tagId_fkey` FOREIGN KEY (`tagId`) REFERENCES `Tag`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `UserCategoryInterest` ADD CONSTRAINT `UserCategoryInterest_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `UserCategoryInterest` ADD CONSTRAINT `UserCategoryInterest_categoryId_fkey` FOREIGN KEY (`categoryId`) REFERENCES `Category`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AdminAuditLog` ADD CONSTRAINT `AdminAuditLog_operatorId_fkey` FOREIGN KEY (`operatorId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `AdminAuditTarget` ADD CONSTRAINT `AdminAuditTarget_auditLogId_fkey` FOREIGN KEY (`auditLogId`) REFERENCES `AdminAuditLog`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `UploadReservation` ADD CONSTRAINT `UploadReservation_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `UploadReservation` ADD CONSTRAINT `UploadReservation_fileStorageId_fkey` FOREIGN KEY (`fileStorageId`) REFERENCES `FileStorage` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE TRIGGER `AdminAuditLog_no_update` BEFORE UPDATE ON `AdminAuditLog`
+FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AdminAuditLog is immutable';
+CREATE TRIGGER `AdminAuditLog_no_delete` BEFORE DELETE ON `AdminAuditLog`
+FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AdminAuditLog is immutable';
+CREATE TRIGGER `AdminAuditTarget_no_update` BEFORE UPDATE ON `AdminAuditTarget`
+FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AdminAuditTarget is immutable';
+CREATE TRIGGER `AdminAuditTarget_no_delete` BEFORE DELETE ON `AdminAuditTarget`
+FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AdminAuditTarget is immutable';

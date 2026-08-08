@@ -38,6 +38,7 @@ CREATE TABLE "Post" (
     "mode" TEXT NOT NULL DEFAULT 'weibo',
     "title" TEXT,
     "categoryId" TEXT,
+    "customCategory" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "Post_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
@@ -74,6 +75,7 @@ CREATE TABLE "Media" (
     "fileType" TEXT NOT NULL DEFAULT 'image',
     "originalName" TEXT NOT NULL DEFAULT '',
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "slot" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Media_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Media_fileStorageId_fkey" FOREIGN KEY ("fileStorageId") REFERENCES "FileStorage" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
@@ -161,6 +163,7 @@ CREATE TABLE "UserSettings" (
     "accent" TEXT NOT NULL DEFAULT '',
     "commentSortOrder" TEXT NOT NULL DEFAULT 'asc',
     "notificationsEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "interestOnboardingCompletedAt" DATETIME,
     "updatedAt" DATETIME NOT NULL,
     CONSTRAINT "UserSettings_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -242,6 +245,85 @@ CREATE TABLE "Bookmark" (
     CONSTRAINT "Bookmark_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "SiteCopy" (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    "markdown" TEXT NOT NULL,
+    "updatedById" TEXT NOT NULL,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "SiteCopy_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "SiteCopyVersion" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "key" TEXT NOT NULL,
+    "markdown" TEXT NOT NULL,
+    "updatedById" TEXT NOT NULL,
+    "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SiteCopyVersion_key_fkey" FOREIGN KEY ("key") REFERENCES "SiteCopy" ("key") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "SiteCopyVersion_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "UserTagInterest" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "tagId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UserTagInterest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "UserTagInterest_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "UserCategoryInterest" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "categoryId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UserCategoryInterest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "UserCategoryInterest_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "AdminAuditLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "operatorId" TEXT NOT NULL,
+    "requestId" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "result" TEXT NOT NULL DEFAULT 'success',
+    "requestedCount" INTEGER NOT NULL,
+    "affectedCount" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AdminAuditLog_operatorId_fkey" FOREIGN KEY ("operatorId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "AdminAuditTarget" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "auditLogId" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "outcome" TEXT NOT NULL DEFAULT 'updated',
+    CONSTRAINT "AdminAuditTarget_auditLogId_fkey" FOREIGN KEY ("auditLogId") REFERENCES "AdminAuditLog" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "UploadReservation" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "fileStorageId" TEXT NOT NULL,
+    "originalName" TEXT NOT NULL,
+    "fileType" TEXT NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "consumedAt" DATETIME,
+    "cancelledAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UploadReservation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "UploadReservation_fileStorageId_fkey" FOREIGN KEY ("fileStorageId") REFERENCES "FileStorage" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
@@ -283,3 +365,89 @@ CREATE UNIQUE INDEX "Category_slug_key" ON "Category"("slug");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Bookmark_userId_postId_key" ON "Bookmark"("userId", "postId");
+
+-- CreateIndex
+CREATE INDEX "SiteCopyVersion_key_updatedAt_idx" ON "SiteCopyVersion"("key", "updatedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_isDeleted_visibility_createdAt_idx" ON "Post"("isDeleted", "visibility", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Post_userId_isDeleted_visibility_createdAt_idx" ON "Post"("userId", "isDeleted", "visibility", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Follow_followingId_followerId_idx" ON "Follow"("followingId", "followerId");
+
+-- CreateIndex
+CREATE INDEX "Post_mode_isDeleted_createdAt_idx" ON "Post"("mode", "isDeleted", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Like_postId_userId_idx" ON "Like"("postId", "userId");
+
+-- CreateIndex
+CREATE INDEX "Bookmark_postId_userId_idx" ON "Bookmark"("postId", "userId");
+
+-- CreateIndex
+CREATE INDEX "Comment_postId_isDeleted_userId_idx" ON "Comment"("postId", "isDeleted", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserTagInterest_userId_tagId_key" ON "UserTagInterest"("userId", "tagId");
+
+-- CreateIndex
+CREATE INDEX "UserTagInterest_tagId_userId_idx" ON "UserTagInterest"("tagId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserCategoryInterest_userId_categoryId_key" ON "UserCategoryInterest"("userId", "categoryId");
+
+-- CreateIndex
+CREATE INDEX "UserCategoryInterest_categoryId_userId_idx" ON "UserCategoryInterest"("categoryId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Media_postId_slot_key" ON "Media"("postId", "slot");
+
+-- CreateIndex
+CREATE INDEX "Media_postId_fileType_sortOrder_idx" ON "Media"("postId", "fileType", "sortOrder");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminAuditLog_operatorId_requestId_key" ON "AdminAuditLog"("operatorId", "requestId");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_createdAt_id_idx" ON "AdminAuditLog"("createdAt", "id");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_operatorId_createdAt_id_idx" ON "AdminAuditLog"("operatorId", "createdAt", "id");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_targetType_action_createdAt_id_idx" ON "AdminAuditLog"("targetType", "action", "createdAt", "id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminAuditTarget_auditLogId_targetId_key" ON "AdminAuditTarget"("auditLogId", "targetId");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditTarget_targetId_auditLogId_idx" ON "AdminAuditTarget"("targetId", "auditLogId");
+
+-- CreateIndex
+CREATE INDEX "UploadReservation_owner_file_active_idx" ON "UploadReservation"("userId", "fileStorageId", "consumedAt", "cancelledAt", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "UploadReservation_expiry_active_idx" ON "UploadReservation"("expiresAt", "consumedAt", "cancelledAt");
+
+CREATE TRIGGER "AdminAuditLog_no_update" BEFORE UPDATE ON "AdminAuditLog"
+BEGIN
+    SELECT RAISE(ABORT, 'AdminAuditLog is immutable');
+END;
+
+CREATE TRIGGER "AdminAuditLog_no_delete" BEFORE DELETE ON "AdminAuditLog"
+BEGIN
+    SELECT RAISE(ABORT, 'AdminAuditLog is immutable');
+END;
+
+CREATE TRIGGER "AdminAuditTarget_no_update" BEFORE UPDATE ON "AdminAuditTarget"
+BEGIN
+    SELECT RAISE(ABORT, 'AdminAuditTarget is immutable');
+END;
+
+CREATE TRIGGER "AdminAuditTarget_no_delete" BEFORE DELETE ON "AdminAuditTarget"
+BEGIN
+    SELECT RAISE(ABORT, 'AdminAuditTarget is immutable');
+END;
