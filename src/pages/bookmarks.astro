@@ -22,7 +22,7 @@ if (!currentUser) {
 	return Astro.redirect('/login');
 }
 
-const bookmarkModes = ['blog', 'forum', 'weibo'].filter(isModeEnabled);
+const bookmarkModes = ['weibo', 'forum', 'blog'].filter(isModeEnabled);
 const requestedMode = Astro.url.searchParams.get('tab');
 const activeMode = bookmarkModes.includes(requestedMode ?? '')
 	? requestedMode!

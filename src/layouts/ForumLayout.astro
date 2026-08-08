@@ -8,6 +8,7 @@
 import BaseLayout from './Base.astro';
 import ChannelShell from '@/components/ChannelShell.astro';
 import ForumNavigation from '@/components/ForumNavigation.astro';
+import { getModeLabel } from '@/lib/config';
 
 interface Props {
 	title?: string;
@@ -49,7 +50,7 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 	jsonLd={jsonLd}
 >
 	<ChannelShell
-		navLabel="论坛导航"
+		navLabel={`${getModeLabel('forum')} 导航`}
 		hasAside={hasDiscoveryAside}
 		variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
 	>

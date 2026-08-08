@@ -310,7 +310,7 @@ const [recentFollows, recommendedTags] = await Promise.all([
 							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'weibo' }]}
 							aria-current={profileTab === 'weibo' ? 'page' : undefined}
 						>
-							动态
+							{getModeLabel('weibo')}
 						</a>
 					)
 				}
@@ -321,7 +321,7 @@ const [recentFollows, recommendedTags] = await Promise.all([
 							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'blog' }]}
 							aria-current={profileTab === 'blog' ? 'page' : undefined}
 						>
-							文章
+							{getModeLabel('blog')}
 						</a>
 					)
 				}
@@ -332,7 +332,7 @@ const [recentFollows, recommendedTags] = await Promise.all([
 							class:list={['mode-tab', { 'mode-tab-active': profileTab === 'forum' }]}
 							aria-current={profileTab === 'forum' ? 'page' : undefined}
 						>
-							讨论
+							{getModeLabel('forum')}
 						</a>
 					)
 				}

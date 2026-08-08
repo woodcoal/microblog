@@ -16,7 +16,7 @@
  * @property formId - 外层表单 ID，用于绑定提交事件
  * @property submitLabel - 提交按钮文字
  */
-import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { POST_CONTENT_MAX_LENGTH, getModeLabel } from '@/lib/config';
 
 interface Props {
 	initialContent?: string;
@@ -42,7 +42,7 @@ const hasInitialContent = initialEditorContent.length > 0;
 
 <div class="forum-editor" id={formId} data-max-length={maxLength} data-category-id={categoryId}>
 	{/* 工具栏 */}
-	<div class="forum-editor-toolbar" role="toolbar" aria-label="论坛 Markdown 工具">
+	<div class="forum-editor-toolbar" role="toolbar" aria-label={`${getModeLabel('forum')} 工具栏`}>
 		<div class="forum-editor-toolbar-group">
 			{/* 标题下拉 */}
 			<button

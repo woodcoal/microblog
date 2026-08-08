@@ -2,6 +2,7 @@
 import { getAsideExcerpt } from '@/lib/post-detail';
 import { formatRelativeTime } from '@/lib/utils';
 import type { PostDetailModel } from '@/lib/post-detail';
+import { getModeLabel } from '@/lib/config';
 
 interface Props {
 	model: PostDetailModel;
@@ -71,9 +72,12 @@ const {
 				</nav>
 			)}
 			<section class="post-detail-aside-section">
-				<h2>相关博客</h2>
+				<h2>相关${getModeLabel('blog')}</h2>
 				{relatedPosts.length ? (
-					<nav class="post-detail-aside-list" aria-label="相关博客列表">
+					<nav
+						class="post-detail-aside-list"
+						aria-label={`相关${getModeLabel('blog')}列表`}
+					>
 						{relatedPosts.map((item) => (
 							<a href={`/${item.user.username}/${item.id}`}>
 								<span>{item.title || getAsideExcerpt(item.content, 42)}</span>
@@ -85,7 +89,7 @@ const {
 						))}
 					</nav>
 				) : (
-					<p class="post-detail-aside-empty">暂时没有相关博客。</p>
+					<p class="post-detail-aside-empty">暂时没有相关${getModeLabel('blog')}。</p>
 				)}
 			</section>
 		</>

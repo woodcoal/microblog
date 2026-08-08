@@ -5,6 +5,7 @@
  * 浏览入口与分类都在此维护，博客首页和分类页只负责内容区，避免菜单在各页漂移。
  */
 import { prisma } from '@/lib/db';
+import { getModeLabel } from '@/lib/config';
 
 const categories = await prisma.category.findMany({
 	where: { mode: 'blog' },
@@ -32,7 +33,7 @@ const primaryItems = [
 ];
 ---
 
-<nav class="blog-category-sidebar" aria-label="博客导航">
+<nav class="blog-category-sidebar" aria-label={`${getModeLabel('blog')}导航`}>
 	<section class="channel-sidebar-group" aria-labelledby="blog-primary-nav">
 		<p class="sidebar-section-label" id="blog-primary-nav">浏览文章</p>
 		{

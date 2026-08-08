@@ -184,7 +184,7 @@ const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 		{
 			!hasPosts ? (
 				<div class="empty-state">
-					<p>还没有微博动态，注册后发第一条吧！</p>
+					<p>还没有{getModeLabel('weibo')}动态，注册后发第一条吧！</p>
 				</div>
 			) : (
 				<div class="post-list" id="weibo-post-list">

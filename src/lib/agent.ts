@@ -306,7 +306,7 @@ export function formatUserDetail(user: {
 		lines.push(`头像：${user.avatarUrl}`);
 	}
 	lines.push(
-		`微博：${user._count.posts}  关注：${user._count.following}  粉丝：${user._count.followers}`
+		`${getModeLabel('weibo')}动态：${user._count.posts}  关注：${user._count.following}  粉丝：${user._count.followers}`
 	);
 	lines.push(`注册时间：${user.createdAt.toISOString().slice(0, 10)}`);
 	return lines.join('\n');

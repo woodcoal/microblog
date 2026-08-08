@@ -334,77 +334,77 @@ export async function loadPostDetail(context: PostDetailContext) {
 	const relatedPosts = isForum
 		? []
 		: await prisma.post.findMany({
-				where: isWeibo
-					? {
-							id: { not: post.id },
-							userId: post.userId,
-							mode: 'weibo',
-							isDeleted: false,
-							visibility: 'public'
-						}
-					: {
-							id: { not: post.id },
-							mode: 'blog',
-							isDeleted: false,
-							visibility: 'public',
-							...(post.categoryId ? { categoryId: post.categoryId } : {})
-						},
-				orderBy: { createdAt: 'desc' },
-				take: 5,
-				select: {
-					id: true,
-					title: true,
-					content: true,
-					createdAt: true,
-					user: { select: { username: true, displayName: true } }
+			where: isWeibo
+				? {
+					id: { not: post.id },
+					userId: post.userId,
+					mode: 'weibo',
+					isDeleted: false,
+					visibility: 'public'
 				}
-			});
+				: {
+					id: { not: post.id },
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					...(post.categoryId ? { categoryId: post.categoryId } : {})
+				},
+			orderBy: { createdAt: 'desc' },
+			take: 5,
+			select: {
+				id: true,
+				title: true,
+				content: true,
+				createdAt: true,
+				user: { select: { username: true, displayName: true } }
+			}
+		});
 	const relatedForums = isForum
 		? await prisma.category.findMany({
-				where: {
-					mode: 'forum',
-					...(post.categoryId ? { id: { not: post.categoryId } } : {})
-				},
-				orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-				take: 5,
-				select: { name: true, slug: true, description: true, icon: true }
-			})
+			where: {
+				mode: 'forum',
+				...(post.categoryId ? { id: { not: post.categoryId } } : {})
+			},
+			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+			take: 5,
+			select: { name: true, slug: true, description: true, icon: true }
+		})
 		: [];
 
 	// 博客文章导航只链接作者公开、未删除的其他博客，避免在公开详情中暴露不可访问文章。
 	const [previousBlog, nextBlog] = isBlog
 		? await Promise.all([
-				prisma.post.findFirst({
-					where: {
-						userId: post.userId,
-						mode: 'blog',
-						isDeleted: false,
-						visibility: 'public',
-						OR: [
-							{ createdAt: { lt: post.createdAt } },
-							{ createdAt: post.createdAt, id: { lt: post.id } }
-						]
-					},
-					orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-					select: { id: true, title: true, content: true }
-				}),
-				prisma.post.findFirst({
-					where: {
-						userId: post.userId,
-						mode: 'blog',
-						isDeleted: false,
-						visibility: 'public',
-						OR: [
-							{ createdAt: { gt: post.createdAt } },
-							{ createdAt: post.createdAt, id: { gt: post.id } }
-						]
-					},
-					orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-					select: { id: true, title: true, content: true }
-				})
-			])
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { lt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { lt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+				select: { id: true, title: true, content: true }
+			}),
+			prisma.post.findFirst({
+				where: {
+					userId: post.userId,
+					mode: 'blog',
+					isDeleted: false,
+					visibility: 'public',
+					OR: [
+						{ createdAt: { gt: post.createdAt } },
+						{ createdAt: post.createdAt, id: { gt: post.id } }
+					]
+				},
+				orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+				select: { id: true, title: true, content: true }
+			})
+		])
 		: [null, null];
-	const blogCategoryLabel = post.customCategory ?? post.category?.name ?? '博客';
+	const blogCategoryLabel = post.customCategory ?? post.category?.name ?? getModeLabel('blog');
 
 	// 渲染内容：forum/blog 模式使用 renderFullMarkdown（支持图片），weibo 使用受限版
 	const htmlContent = isDeleted
@@ -417,16 +417,16 @@ export async function loadPostDetail(context: PostDetailContext) {
 	let blogHeadingIndex = 0;
 	const detailHtmlContent = isBlog
 		? htmlContent.replace(
-				/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g,
-				(_match, level, attributes, content) => {
-					const id = `article-section-${blogHeadingIndex + 1}`;
-					blogHeadingIndex += 1;
-					const text = content.replace(/<[^>]+>/g, '').trim();
-					if (text) blogHeadings.push({ id, text, level: Number(level) });
-					const attributesWithoutId = attributes.replace(/\s+id=("[^"]*"|'[^']*')/i, '');
-					return `<h${level}${attributesWithoutId} id="${id}">${content}</h${level}>`;
-				}
-			)
+			/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g,
+			(_match, level, attributes, content) => {
+				const id = `article-section-${blogHeadingIndex + 1}`;
+				blogHeadingIndex += 1;
+				const text = content.replace(/<[^>]+>/g, '').trim();
+				if (text) blogHeadings.push({ id, text, level: Number(level) });
+				const attributesWithoutId = attributes.replace(/\s+id=("[^"]*"|'[^']*')/i, '');
+				return `<h${level}${attributesWithoutId} id="${id}">${content}</h${level}>`;
+			}
+		)
 		: htmlContent;
 	const hasBlogHeadings = blogHeadings.length > 0;
 	const visibilityLabel =

@@ -1,13 +1,29 @@
 allowBuilds:
-    '@prisma/engines': true
-    esbuild: true
-    prisma: true
-    puppeteer: true
-    sharp: true
-    vue-demi: true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  puppeteer: true
+  sharp: true
+  vue-demi: true
 minimumReleaseAgeExclude:
-    - '@puppeteer/browsers@3.1.0'
-    - marked@18.0.9
-    - puppeteer-core@25.5.0
-    - puppeteer@25.5.0
-    - tsx@4.23.6 || 4.23.7
+  - '@puppeteer/browsers@3.1.0'
+  - marked@18.0.9
+  - puppeteer-core@25.5.0
+  - puppeteer@25.5.0
+  - tsx@4.23.6 || 4.23.7 || 4.23.11
+  - '@scalar/agent-chat@0.12.24'
+  - '@scalar/api-client@3.15.0'
+  - '@scalar/api-reference@1.64.1'
+  - '@scalar/asyncapi-upgrader@0.1.5'
+  - '@scalar/blocks@0.1.10'
+  - '@scalar/components@0.27.11'
+  - '@scalar/helpers@0.10.0'
+  - '@scalar/json-magic@0.12.20'
+  - '@scalar/oas-utils@0.19.10'
+  - '@scalar/openapi-upgrader@0.2.13'
+  - '@scalar/schemas@0.8.1'
+  - '@scalar/sidebar@0.9.35'
+  - '@scalar/snippetz@0.9.25'
+  - '@scalar/types@0.17.1'
+  - '@scalar/workspace-store@0.56.1'
+  - eslint@10.8.1

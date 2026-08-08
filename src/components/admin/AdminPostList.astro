@@ -17,6 +17,8 @@
  * @prop search - 当前搜索关键词
  */
 
+import { getModeLabel } from '@/lib/config';
+
 /** 帖子数据结构 */
 interface PostData {
 	id: string;
@@ -96,9 +98,9 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 	/>
 	<select class="admin-search-input" name="mode" aria-label="帖子类型">
 		<option value="">全部类型</option>
-		<option value="weibo" selected={mode === 'weibo'}>微博</option>
-		<option value="forum" selected={mode === 'forum'}>论坛</option>
-		<option value="blog" selected={mode === 'blog'}>博客</option>
+		<option value="weibo" selected={mode === 'weibo'}>{getModeLabel('weibo')}</option>
+		<option value="forum" selected={mode === 'forum'}>{getModeLabel('forum')}</option>
+		<option value="blog" selected={mode === 'blog'}>{getModeLabel('blog')}</option>
 	</select>
 	<input
 		type="text"

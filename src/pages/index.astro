@@ -12,7 +12,7 @@
 import HomeLayout from '@/layouts/HomeLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { isSingleMode, singleMode } from '@/lib/config';
+import { isSingleMode, singleMode, getModeLabel, isModeEnabled } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getRecommendationProfile, getTrendingFeed } from '@/services/recommend.service';
 
@@ -36,7 +36,6 @@ const heroTrendingFeed = await getTrendingFeed({
 	includeGlobalPinned: true
 });
 const heroTrending = heroTrendingFeed.items.slice(0, 3);
-const modeLabels: Record<string, string> = { weibo: '微博', forum: '论坛', blog: '博客' };
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const canShowRecommendations = !!currentUser;
@@ -116,7 +115,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 								<strong>{post.title || post.content.slice(0, 30)}</strong>
 								<small>
 									{post.isGlobalPinned ? '置顶 · ' : ''}
-									{modeLabels[post.mode]} ·{' '}
+									{getModeLabel(post.mode)} ·{' '}
 									{post._count.comments > 0
 										? `${post._count.comments} 条讨论`
 										: '近期更新'}
@@ -141,15 +140,39 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 			<a href="/latest">浏览全站动态 <span aria-hidden="true">→</span></a>
 		</div>
 		<div class="home-channel-grid">
-			<a class="home-channel home-channel-featured" href="/weibo"
-				><span>即时交流</span><h3>微博</h3><p>短小、及时，和朋友保持同频。</p></a
-			>
-			<a class="home-channel" href="/forum"
-				><span>持续讨论</span><h3>论坛</h3><p>找到同好，把观点慢慢讲清楚。</p></a
-			>
-			<a class="home-channel" href="/blog"
-				><span>深度沉淀</span><h3>博客</h3><p>阅读与写作，都有安静的空间。</p></a
-			>
+			{
+				isModeEnabled('weibo') && (
+					<a class="home-channel home-channel-featured" href="/weibo">
+						<>
+							<span>即时交流</span>
+							<h3>{getModeLabel('weibo')}</h3>
+							<p>短小、及时，和朋友保持同频。</p>
+						</>
+					</a>
+				)
+			}
+			{
+				isModeEnabled('forum') && (
+					<a class="home-channel" href="/forum">
+						<>
+							<span>持续讨论</span>
+							<h3>{getModeLabel('forum')}</h3>
+							<p>找到同好，把观点慢慢讲清楚。</p>
+						</>
+					</a>
+				)
+			}
+			{
+				isModeEnabled('blog') && (
+					<a class="home-channel" href="/blog">
+						<>
+							<span>深度沉淀</span>
+							<h3>{getModeLabel('blog')}</h3>
+							<p>阅读与写作，都有安静的空间。</p>
+						</>
+					</a>
+				)
+			}
 		</div>
 	</section>
 
@@ -1551,8 +1574,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 				previewItem.className = 'home-preview-item';
 				const profileUrl = `/${item.user.username}`;
 				const postUrl = `${profileUrl}/${item.id}`;
-				const mode =
-					item.mode === 'forum' ? '论坛' : item.mode === 'blog' ? '博客' : '微博';
+				const mode = getModeLabel(item.mode);
 				const avatarLink = document.createElement('a');
 				avatarLink.className = 'home-preview-avatar-link';
 				avatarLink.href = profileUrl;

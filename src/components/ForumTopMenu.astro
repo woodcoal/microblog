@@ -5,8 +5,9 @@
  * 每个一级分类保留为独立分组，由容器按组折行，避免板块入口被拆到下一行。
  */
 import ForumNavigationItems from './ForumNavigationItems.astro';
+import { getModeLabel } from '@/lib/config';
 ---
 
-<nav class="forum-top-menu" aria-label="论坛菜单">
+<nav class="forum-top-menu" aria-label={`${getModeLabel('forum')} 顶部菜单`}>
 	<ForumNavigationItems idPrefix="forum-top" />
 </nav>

@@ -1,6 +1,7 @@
 /** 列表右栏可消费的真实发现入口。 */
 import { prisma } from '@/lib/db';
 import { getTrendingFeed } from '@/services/recommend.service';
+import { getModeLabel } from '@/lib/config';
 
 export interface DiscoveryItem {
 	title: string;
@@ -28,7 +29,7 @@ export async function getPopularTagItems(
 	return tags.map((tag) => ({
 		title: `#${tag.name}`,
 		href: `/tags/${encodeURIComponent(tag.name)}`,
-		meta: `${tag._count.posts} 条动态`
+		meta: `${tag._count.posts} ${getModeLabel(tag.mode)}`
 	}));
 }
 
@@ -57,6 +58,6 @@ export async function getPopularPostItems(input: {
 	return posts.map((post) => ({
 		title: post.title || post.content.replace(/\s+/g, ' ').slice(0, 32) || '未命名内容',
 		href: `/${post.user.username}/${post.id}`,
-		meta: `${post._count.comments} 条${input.responseLabel ?? '评论'}`
+		meta: `${post._count.comments} ${getModeLabel(input.mode)}${input.responseLabel ?? '评论'}`
 	}));
 }

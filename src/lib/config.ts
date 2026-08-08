@@ -299,7 +299,7 @@ export const SITE_MODES = (getEnv('SITE_MODES') || 'weibo,forum,blog')
  *
  * 示例：SITE_MODE_BLOG=知识库 → 博客模块全站显示为"知识库"
  */
-const MODE_LABELS: Record<string, string> = {
+export const MODE_LABELS: Record<string, string> = {
 	weibo: getEnv('SITE_MODE_WEIBO') || '微博',
 	forum: getEnv('SITE_MODE_FORUM') || '论坛',
 	blog: getEnv('SITE_MODE_BLOG') || '博客'

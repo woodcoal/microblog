@@ -259,7 +259,7 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 						</div>
 					) : (
 						<div class="empty-state">
-							<p>暂无可浏览的论坛板块。</p>
+							<p>暂无可浏览的{getModeLabel('forum')}板块。</p>
 						</div>
 					)}
 				</section>
@@ -290,7 +290,7 @@ const heroCopy = await getPublicSiteCopy('channel.forum.hero');
 		}
 		{
 			hasPagination && (
-				<nav class="pagination" aria-label="论坛分页导航">
+				<nav class="pagination" aria-label={`${getModeLabel('forum')} 分页导航`}>
 					<div class="pagination-inner">
 						{hasPrevPage ? (
 							<a

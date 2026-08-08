@@ -6,8 +6,12 @@
  * 避免同一 DOM 同时承担两种定位方式。
  */
 import ForumNavigationItems from './ForumNavigationItems.astro';
+import { getModeLabel } from '@/lib/config';
 ---
 
-<nav class="forum-category-sidebar forum-navigation--sidebar" aria-label="论坛导航">
+<nav
+	class="forum-category-sidebar forum-navigation--sidebar"
+	aria-label={`${getModeLabel('forum')} 导导航栏`}
+>
 	<ForumNavigationItems idPrefix="forum-sidebar" />
 </nav>
