@@ -2,7 +2,7 @@
 
 本流程只使用临时 MySQL 实例，不连接生产数据库，也不写入持久化卷。它覆盖：
 
-- `prisma/migrations/mysql/0_init` 到当前最新迁移的 `prisma migrate deploy`；
+- 单一 `prisma/migrations/mysql/0_init` 基线的 `prisma migrate deploy`；
 - `AdminAuditLog` 与 `AdminAuditTarget` 的 UPDATE/DELETE 不可变触发器；
 - 后台审计服务回归（`tests/admin-audit.service.test.ts`）；
 - 媒体 reservation、缩略图/附件消费和过期清理回归（`tests/blog-assets.service.test.ts`）。
