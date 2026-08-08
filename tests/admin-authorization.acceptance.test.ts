@@ -28,6 +28,7 @@ const adminRoutes = [
 
 let adminToken = '';
 let userToken = '';
+let moderatedUserId = '';
 
 function request(path: string, token?: string) {
 	return fetch(`${BASE_URL}${path}`, {
@@ -96,6 +97,7 @@ before(async () => {
 		generateToken({ userId: admin.id, username: admin.username, role: admin.role }),
 		generateToken({ userId: user.id, username: user.username, role: user.role })
 	]);
+	moderatedUserId = user.id;
 
 	spawn('pnpm', ['exec', 'astro', 'dev', '--host', '127.0.0.1', '--port', String(PORT)], {
 		env: { ...process.env },
@@ -140,5 +142,66 @@ test('管理员访问每个后台路由得到完整后台壳', async () => {
 		assert.equal(response.status, 200, `${route} 应允许管理员访问`);
 		const body = await response.text();
 		assert.match(body, /data-ux-shell="admin"/);
+	}
+});
+
+test('后台理由弹窗居中、确认后提交处置，添加用户弹窗可保存', async () => {
+	const { default: puppeteer } = await import('puppeteer');
+	const browser = await puppeteer.launch({ headless: true });
+	const page = await browser.newPage();
+	const createdUsername = `qa_new_${RUN_ID}`.slice(0, 20);
+	try {
+		await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 });
+		await browser.setCookie({
+			name: 'token',
+			value: adminToken,
+			domain: '127.0.0.1',
+			path: '/'
+		});
+		await page.goto(`${BASE_URL}/admin/users`, { waitUntil: 'networkidle0' });
+
+		await page.locator(`button[data-user-id="${moderatedUserId}"]`).click();
+		await page.waitForSelector('dialog.admin-reason-dialog[open]');
+		const reasonDialog = await page.$eval('dialog.admin-reason-dialog', (dialog) => {
+			const rect = dialog.getBoundingClientRect();
+			return {
+				centerX: rect.left + rect.width / 2,
+				centerY: rect.top + rect.height / 2,
+				viewportX: window.innerWidth / 2,
+				viewportY: window.innerHeight / 2
+			};
+		});
+		assert.ok(Math.abs(reasonDialog.centerX - reasonDialog.viewportX) < 2, '理由弹窗应水平居中');
+		assert.ok(Math.abs(reasonDialog.centerY - reasonDialog.viewportY) < 2, '理由弹窗应垂直居中');
+
+		await page.locator('#admin-reason-dialog-input').fill('浏览器回归验证后台处置');
+		const moderationReload = page.waitForNavigation({ waitUntil: 'networkidle0' });
+		await page.locator('.admin-reason-dialog button[type="submit"]').click();
+		await moderationReload;
+		assert.equal((await prisma.user.findUnique({ where: { id: moderatedUserId } }))?.isDisabled, true);
+
+		await page.locator('#create-user-open').click();
+		await page.waitForSelector('#create-user-dialog[open]');
+		const createDialog = await page.$eval('#create-user-dialog', (dialog) => {
+			const rect = dialog.getBoundingClientRect();
+			return {
+				centerX: rect.left + rect.width / 2,
+				centerY: rect.top + rect.height / 2,
+				viewportX: window.innerWidth / 2,
+				viewportY: window.innerHeight / 2
+			};
+		});
+		assert.ok(Math.abs(createDialog.centerX - createDialog.viewportX) < 2, '添加用户弹窗应水平居中');
+		assert.ok(Math.abs(createDialog.centerY - createDialog.viewportY) < 2, '添加用户弹窗应垂直居中');
+
+		await page.locator('#create-user-username').fill(createdUsername);
+		await page.locator('#create-user-email').fill(`${createdUsername}@example.test`);
+		await page.locator('#create-user-password').fill('qa-browser-password');
+		const createReload = page.waitForNavigation({ waitUntil: 'networkidle0' });
+		await page.locator('#create-user-submit').click();
+		await createReload;
+		assert.ok(await prisma.user.findUnique({ where: { username: createdUsername } }));
+	} finally {
+		await browser.close();
 	}
 });

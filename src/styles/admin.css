@@ -190,7 +190,12 @@
 
 /* 管理处置理由对话框由浏览器端共享控制器动态创建，因此样式保持全局。 */
 .admin-reason-dialog {
+	position: fixed;
+	inset: 0;
+	margin: auto;
+	box-sizing: border-box;
 	width: min(32rem, calc(100vw - 2rem));
+	max-height: calc(100dvh - 2rem);
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-lg);
 	padding: var(--spacing-6);
