@@ -6,22 +6,8 @@
  * 避免同一 DOM 同时承担两种定位方式。
  */
 import ForumNavigationItems from './ForumNavigationItems.astro';
-
-interface Props {
-	/** 主题详情沿用同一菜单内容，仅追加详情页侧栏定位类。 */
-	presentation?: 'channel' | 'detail';
-}
-
-const { presentation = 'channel' } = Astro.props;
 ---
 
-<nav
-	class:list={[
-		'forum-category-sidebar',
-		'forum-navigation--sidebar',
-		{ 'post-detail-local-nav': presentation === 'detail' }
-	]}
-	aria-label="论坛导航"
->
+<nav class="forum-category-sidebar forum-navigation--sidebar" aria-label="论坛导航">
 	<ForumNavigationItems idPrefix="forum-sidebar" />
 </nav>
