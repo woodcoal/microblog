@@ -1,5 +1,5 @@
 /* global process */
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
@@ -8,6 +8,18 @@ import { pathToFileURL } from 'node:url';
 
 const databasePath = resolve('prisma/post-detail-browser-test.db');
 const databaseUrl = pathToFileURL(databasePath).href;
+const databaseArtifacts = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
+
+function cleanupDatabase() {
+	for (const artifact of databaseArtifacts) rmSync(artifact, { force: true });
+}
+
+function assertDatabaseCleaned() {
+	const remaining = databaseArtifacts.filter(existsSync);
+	if (remaining.length) {
+		throw new Error(`浏览器回归未清理隔离数据库：${remaining.join(', ')}`);
+	}
+}
 
 function run(command, args, env) {
 	const result = spawnSync(command, args, { env, stdio: 'inherit' });
@@ -41,15 +53,20 @@ async function waitForServer(child, baseUrl) {
 }
 
 async function stopServer(child) {
-	if (child.exitCode !== null) return;
+	const closed = once(child, 'close');
+	if (child.exitCode !== null) {
+		await closed;
+		return;
+	}
 	child.kill('SIGTERM');
 	const stopped = await Promise.race([
-		once(child, 'close'),
+		closed,
 		new Promise((resolve) => globalThis.setTimeout(resolve, 5_000))
 	]);
 	if (!stopped) {
+		const forceClosed = once(child, 'close');
 		child.kill('SIGKILL');
-		await once(child, 'close');
+		await forceClosed;
 	}
 }
 
@@ -66,7 +83,7 @@ async function main() {
 		PORT: port,
 		HOST: '127.0.0.1'
 	};
-	rmSync(databasePath, { force: true });
+	cleanupDatabase();
 	try {
 		run('pnpm', ['exec', 'prisma', 'generate'], env);
 		run('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], env);
@@ -81,7 +98,8 @@ async function main() {
 			await stopServer(server);
 		}
 	} finally {
-		rmSync(databasePath, { force: true });
+		cleanupDatabase();
+		assertDatabaseCleaned();
 	}
 }
 
