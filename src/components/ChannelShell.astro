@@ -12,33 +12,19 @@ interface Props {
 	hasAside?: boolean;
 	/** 由页面语义而非频道名称决定的布局形态。 */
 	variant?: 'three-column' | 'nav-main' | 'main-aside' | 'single';
-	/** 保留论坛导航的专用呈现钩子，不参与网格计算。 */
-	channel?: 'forum';
 }
 
 const {
 	navLabel,
 	hasAside = Astro.slots.has('aside'),
-	variant = hasAside ? 'three-column' : 'nav-main',
-	channel
+	variant = hasAside ? 'three-column' : 'nav-main'
 } = Astro.props;
 const rendersNav = variant === 'three-column' || variant === 'nav-main';
 const rendersAside = hasAside && (variant === 'three-column' || variant === 'main-aside');
 ---
 
 <div class="channel-shell-frame">
-	<div
-		class:list={[
-			'channel-shell',
-			`channel-shell--${variant}`,
-			/* 旧类仅服务论坛菜单等内容样式；布局规则统一由 channel-shell 承担。 */
-			{
-				'layout-wide': rendersNav,
-				'layout-wide-with-aside': rendersAside,
-				'layout-wide-forum': channel === 'forum'
-			}
-		]}
-	>
+	<div class:list={['channel-shell', `channel-shell--${variant}`]}>
 		{
 			rendersNav && (
 				<aside class="channel-shell__nav layout-sidebar" aria-label={navLabel}>
@@ -51,7 +37,7 @@ const rendersAside = hasAside && (variant === 'three-column' || variant === 'mai
 		</main>
 		{
 			rendersAside && (
-				<aside class="channel-shell__aside layout-discovery-sidebar" aria-label="辅助内容">
+				<aside class="channel-shell__aside" aria-label="辅助内容">
 					<slot name="aside" />
 				</aside>
 			)

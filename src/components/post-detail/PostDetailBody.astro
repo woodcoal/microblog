@@ -871,35 +871,12 @@ const {
 		opacity: 0.85;
 	}
 
-	/* 详情页严格沿用 A 模板的内容轴：博客/论坛两列，微博三列。 */
+	/* 导航、正文与辅助区由外层 ChannelShell 的频道变体计算。
+	 * 本组件只负责中列正文，不能再次建立页面级网格。 */
 	.post-detail-layout {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) 260px;
-		gap: 32px;
+		min-width: 0;
 		width: 100%;
 		padding: var(--spacing-8) 0 calc(var(--spacing-12) + 24px);
-	}
-
-	.post-detail-layout-blog {
-		grid-template-columns: minmax(0, 1fr) 220px;
-		gap: 56px;
-	}
-
-	.post-detail-layout-forum {
-		grid-template-columns: var(--layout-sidebar-width) minmax(0, 1fr);
-	}
-
-	.post-detail-layout-weibo {
-		grid-template-columns: var(--layout-sidebar-width) minmax(0, 720px) 260px;
-	}
-
-	.post-detail-local-nav {
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-1);
-		height: fit-content;
-		position: sticky;
-		top: calc(var(--navbar-height) + var(--spacing-6));
 	}
 
 	.post-detail-primary,
@@ -1190,85 +1167,9 @@ const {
 		margin-top: 0;
 	}
 
-	@media (min-width: 768px) and (max-width: 1023px) {
-		.post-detail-layout {
-			grid-template-columns: minmax(0, 1fr) 190px;
-			gap: 24px;
-		}
-		.post-detail-attachments h2 {
-			margin: 0;
-			font-size: 1rem;
-		}
-		.post-detail-blog-thumbnail {
-			margin: 1rem 0;
-		}
-		.post-detail-blog-thumbnail img {
-			display: block;
-			width: 100%;
-			max-height: 420px;
-			object-fit: cover;
-			border-radius: 0.5rem;
-		}
-		.post-detail-body-media {
-			margin-top: 1.25rem;
-		}
-		.post-detail-body-media h2 {
-			margin: 0 0 0.75rem;
-			font-size: 1rem;
-		}
-
-		.post-detail-layout-weibo {
-			grid-template-columns: 48px minmax(0, 1fr) 190px;
-		}
-
-		.post-detail-layout-forum {
-			grid-template-columns: minmax(0, 1fr);
-		}
-
-		.post-detail-local-nav:not(.forum-category-sidebar) .sidebar-link {
-			justify-content: center;
-			width: 48px;
-			height: 48px;
-			padding: var(--spacing-2);
-			border-radius: var(--radius-full);
-		}
-
-		.post-detail-local-nav:not(.forum-category-sidebar)
-			.sidebar-link
-			span:not(.sidebar-link-icon) {
-			display: none;
-		}
-
-		.post-detail-layout-forum .forum-sidebar-group .sidebar-link-icon {
-			display: block;
-		}
-	}
-
 	@media (max-width: 767px) {
-		.post-detail-layout,
-		.post-detail-layout-blog,
-		.post-detail-layout-weibo,
-		.post-detail-layout-forum {
-			display: block;
+		.post-detail-layout {
 			padding: var(--spacing-5) 0 calc(56px + var(--spacing-6));
-		}
-
-		.post-detail-layout-weibo .post-detail-local-nav {
-			display: none;
-		}
-
-		/* 论坛窄屏只保留正文中的顶部菜单，不让隐藏侧栏占据布局空间。 */
-		.post-detail-layout-forum .post-detail-local-nav {
-			display: none;
-		}
-
-		.post-detail-aside {
-			margin-top: var(--spacing-8);
-		}
-
-		.post-detail-layout-blog .post-detail-aside {
-			padding-left: 0;
-			border-left: 0;
 		}
 
 		.post-detail-toc {

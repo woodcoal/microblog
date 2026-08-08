@@ -463,7 +463,6 @@ body[data-ux-shell='home'] .navbar-inner {
 }
 
 .channel-shell__main {
-	max-width: var(--layout-content);
 	width: 100%;
 	min-width: 0;
 }
@@ -483,12 +482,6 @@ body[data-ux-shell='home'] .navbar-inner {
 .channel-shell--single {
 	max-width: 1024px;
 	grid-template-columns: minmax(0, 1fr);
-}
-
-.channel-shell--three-column .channel-shell__main,
-.channel-shell--nav-main .channel-shell__main,
-.channel-shell--main-aside .channel-shell__main {
-	justify-self: center;
 }
 
 .channel-shell__aside {

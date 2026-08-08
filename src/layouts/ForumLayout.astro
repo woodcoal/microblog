@@ -52,7 +52,6 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 		navLabel="论坛导航"
 		hasAside={hasDiscoveryAside}
 		variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
-		channel="forum"
 	>
 		<Fragment slot="nav">
 			<ForumNavigation />
