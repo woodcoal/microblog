@@ -29,6 +29,20 @@ export const ADMIN_AUDIT_ACTIONS = [
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 export type AdminAuditTargetType = 'user' | 'post' | 'comment';
+type PostAuditAction = Extract<AdminAuditAction, `post.${string}`>;
+type PostStateField = 'isDeleted' | 'isLocked' | 'isGlobalPinned';
+
+const POST_ACTION_TARGET_STATES: Record<
+	PostAuditAction,
+	{ field: PostStateField; desired: boolean }
+> = {
+	'post.delete': { field: 'isDeleted', desired: true },
+	'post.restore': { field: 'isDeleted', desired: false },
+	'post.lock': { field: 'isLocked', desired: true },
+	'post.unlock': { field: 'isLocked', desired: false },
+	'post.pin': { field: 'isGlobalPinned', desired: true },
+	'post.unpin': { field: 'isGlobalPinned', desired: false }
+};
 
 function isUniqueConstraintError(error: unknown): error is { code: string } {
 	return (
@@ -175,14 +189,7 @@ async function mutateTargets(
 		) {
 			throw new ServiceError('BAD_REQUEST', '帖子目标不存在或不允许处置');
 		}
-		const desired =
-			action.endsWith('delete') || action.endsWith('lock') || action.endsWith('pin');
-		const field =
-			action.endsWith('delete') || action.endsWith('restore')
-				? 'isDeleted'
-				: action.endsWith('lock') || action.endsWith('unlock')
-					? 'isLocked'
-					: 'isGlobalPinned';
+		const { field, desired } = POST_ACTION_TARGET_STATES[action as PostAuditAction];
 		candidateIds = existing
 			.filter((item) => item[field] !== desired)
 			.map((item) => item.id as string);

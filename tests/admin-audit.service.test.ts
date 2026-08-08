@@ -71,6 +71,75 @@ test('Service 双层校验拒绝非法输入与非管理员调用', async () => 
 	);
 });
 
+test('解锁和取消置顶按完整动作更新状态，且保留审计幂等性', async () => {
+	const admin = await createUser('audit_post_state_admin', 'admin');
+	const author = await createUser('audit_post_state_author');
+	const post = await prisma.post.create({
+		data: {
+			id: 'audit-post-state',
+			userId: author.id,
+			content: 'post state regression',
+			isLocked: true,
+			isGlobalPinned: true
+		}
+	});
+
+	const unlockRequestId = request();
+	assert.deepEqual(
+		await batchPosts({
+			action: 'unlock',
+			ids: [post.id],
+			reason,
+			requestId: unlockRequestId,
+			operatorId: admin.id
+		}),
+		{ affected: 1 }
+	);
+	assert.equal((await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).isLocked, false);
+	assert.deepEqual(
+		await batchPosts({
+			action: 'unlock',
+			ids: [post.id],
+			reason: '同一请求重试不重复处置',
+			requestId: unlockRequestId,
+			operatorId: admin.id
+		}),
+		{ affected: 1 }
+	);
+
+	const unpinRequestId = request();
+	assert.deepEqual(
+		await batchPosts({
+			action: 'unpin',
+			ids: [post.id],
+			reason,
+			requestId: unpinRequestId,
+			operatorId: admin.id
+		}),
+		{ affected: 1 }
+	);
+	assert.equal(
+		(await prisma.post.findUniqueOrThrow({ where: { id: post.id } })).isGlobalPinned,
+		false
+	);
+	assert.deepEqual(
+		await batchPosts({
+			action: 'unpin',
+			ids: [post.id],
+			reason: '同一请求重试不重复处置',
+			requestId: unpinRequestId,
+			operatorId: admin.id
+		}),
+		{ affected: 1 }
+	);
+	assert.equal(
+		await prisma.adminAuditLog.count({
+			where: { operatorId: admin.id, requestId: { in: [unlockRequestId, unpinRequestId] } }
+		}),
+		2
+	);
+});
+
 test('九类处置原子审计、幂等、回滚、筛选与复合游标均成立', async () => {
 	const admin = await createUser('audit_admin', 'admin');
 	const target = await createUser('audit_target');
