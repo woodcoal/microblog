@@ -526,6 +526,15 @@ body[data-ux-shell='home'] .navbar-inner {
 	.channel-shell--main-aside .channel-shell__aside {
 		display: none;
 	}
+
+	/* 博客详情没有左导航；目录与相关文章在 tablet 仍保留为右侧阅读辅助。 */
+	.channel-shell--main-aside.channel-shell--preserve-aside {
+		grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+	}
+
+	.channel-shell--main-aside.channel-shell--preserve-aside .channel-shell__aside {
+		display: block;
+	}
 }
 
 /* ===== 桌面侧栏导航项 ===== */
@@ -1302,6 +1311,14 @@ mark.search-highlight {
 		display: none;
 	}
 
+	.channel-shell--main-aside.channel-shell--preserve-aside {
+		grid-template-columns: minmax(0, 1fr) minmax(12rem, 16rem);
+	}
+
+	.channel-shell--main-aside.channel-shell--preserve-aside .channel-shell__aside {
+		display: block;
+	}
+
 	.sidebar-link {
 		justify-content: center;
 		padding: var(--spacing-2);
@@ -1343,6 +1360,11 @@ mark.search-highlight {
 	}
 
 	.channel-shell__aside {
+		display: none;
+	}
+
+	/* tablet 的博客阅读辅助信息在 mobile 必须收起。 */
+	.channel-shell--main-aside.channel-shell--preserve-aside .channel-shell__aside {
 		display: none;
 	}
 

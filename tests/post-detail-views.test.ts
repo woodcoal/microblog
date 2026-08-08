@@ -28,6 +28,7 @@ test('三种详情 View 复用频道 Layout 与共享详情展示块', () => {
 	assert.match(weiboView, /<WeiboLayout/);
 	assert.match(forumView, /<ForumLayout/);
 	assert.match(blogView, /<BlogLayout/);
+	assert.match(blogView, /\bdetail\b/);
 	for (const view of [weiboView, forumView, blogView]) {
 		assert.match(view, /<PostDetailBody model=\{model\} \/>/);
 		assert.match(view, /<PostDetailAside model=\{model\} \/>/);

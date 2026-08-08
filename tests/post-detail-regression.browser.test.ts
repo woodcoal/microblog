@@ -55,13 +55,30 @@ test(
 						metrics.scrollWidth <= metrics.clientWidth,
 						`${path} @ ${width}px 不应产生页面级横向滚动 (${metrics.scrollWidth}/${metrics.clientWidth})`
 					);
-					if (width === 768) {
+					if (width === 768 && path !== '/forum') {
 						assert.match(
 							metrics.gridTemplateColumns,
 							/^100px /,
 							`${path} 应使用 100px tablet 导航`
 						);
 						assert.equal(metrics.asideDisplay, 'none', `${path} @ 768px 应收起右栏`);
+					}
+					if (width === 768 && path === '/forum') {
+						assert.equal(
+							await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+							1,
+							'论坛 tablet 仍保留语义导航容器'
+						);
+						assert.equal(
+							await page.$eval('.channel-shell__nav', (navigation) => getComputedStyle(navigation).display),
+							'none',
+							'论坛 tablet 不应显示左侧菜单'
+						);
+						assert.equal(
+							await page.$eval('.forum-top-menu', (menu) => getComputedStyle(menu).display),
+							'flex',
+							'论坛 tablet 应显示顶部菜单'
+						);
 					}
 					if (width === 1024) {
 						assert.match(
@@ -133,19 +150,44 @@ test(
 						metrics.scrollWidth <= metrics.clientWidth,
 						`${detail.id} 不应横向溢出`
 					);
-					if (width < 1500) {
+					if (width < 1500 && detail.id !== 'qablog001') {
 						assert.equal(
 							metrics.asideDisplay,
 							'none',
 							`${detail.id} @ ${width}px 不应强制右栏`
 						);
 					}
-					if (width >= 1500) {
-						assert.match(
-							metrics.gridTemplateColumns,
-							/^200px .+ 300px$/,
-							`${detail.id} 应使用三栏频道壳`
+					if (detail.id === 'qablog001' && width < 1500) {
+						assert.equal(
+							metrics.asideDisplay,
+							'block',
+							`博客详情 @ ${width}px 应保留右侧目录与相关文章`
 						);
+						assert.equal(
+							await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+							0,
+							`博客详情 @ ${width}px 不应渲染左侧频道菜单`
+						);
+					}
+					if (width >= 1500) {
+						if (detail.id === 'qablog001') {
+							assert.match(
+								metrics.gridTemplateColumns,
+								/^.+ 300px$/,
+								'博客详情应使用正文加右侧阅读辅助列'
+							);
+							assert.equal(
+								await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+								0,
+								'博客详情 desktop 不应渲染左侧频道菜单'
+							);
+						} else {
+							assert.match(
+								metrics.gridTemplateColumns,
+								/^200px .+ 300px$/,
+								`${detail.id} 应使用三栏频道壳`
+							);
+						}
 						assert.equal(
 							metrics.asideDisplay,
 							'block',
@@ -158,6 +200,70 @@ test(
 					}
 				}
 			}
+		});
+	}
+);
+
+test(
+	'频道列表头部优先保持文案与发布按钮同行，个人页与详情响应式信息区符合约定',
+	{ skip: !baseUrl && '需要运行中的站点，请设置 MUTAN_E2E_BASE_URL' },
+	async () => {
+		await withBrowser(async (page) => {
+			await page.setViewport({ width: 1023, height: 900, deviceScaleFactor: 1 });
+			await page.goto(`${baseUrl}/login?redirect=/weibo`, { waitUntil: 'networkidle0' });
+			await page.locator('#email').fill('qa-viewer@example.test');
+			await page.locator('#password').fill('qa-browser-password');
+			await Promise.all([
+				page.waitForNavigation({ waitUntil: 'networkidle0' }),
+				page.locator('#submit-btn').click()
+			]);
+
+			for (const width of [768, 1023]) {
+				await page.setViewport({ width, height: 900, deviceScaleFactor: 1 });
+				for (const path of ['/weibo', '/forum', '/blog']) {
+					await page.goto(`${baseUrl}${path}`, { waitUntil: 'networkidle0' });
+					const header = await page.$eval('.page-header-row', (row) => {
+						const copy = row.querySelector<HTMLElement>('.site-copy-content-channel');
+						const button = row.querySelector<HTMLElement>('.btn');
+						const copyBounds = copy?.getBoundingClientRect();
+						const buttonBounds = button?.getBoundingClientRect();
+						return {
+							copyTop: copyBounds?.top ?? -1,
+							buttonTop: buttonBounds?.top ?? -1,
+							buttonPresent: Boolean(button),
+							rowScrollWidth: row.scrollWidth,
+							rowClientWidth: row.clientWidth
+						};
+					});
+					assert.equal(header.buttonPresent, true, `${path} @ ${width}px 应显示发布操作`);
+					assert.ok(
+						Math.abs(header.copyTop - header.buttonTop) <= 1,
+						`${path} @ ${width}px 文案与发布操作应优先同行`
+					);
+					assert.ok(
+						header.rowScrollWidth <= header.rowClientWidth,
+						`${path} @ ${width}px 页头不应横向溢出`
+					);
+				}
+			}
+
+			for (const width of [768, 767]) {
+				await page.setViewport({ width, height: 900, deviceScaleFactor: 1 });
+				await page.goto(`${baseUrl}/${author}`, { waitUntil: 'networkidle0' });
+				assert.equal(
+					await page.$eval('.profile-rail', (rail) => getComputedStyle(rail).display),
+					'none',
+					`个人页 @ ${width}px 应隐藏右侧信息`
+				);
+			}
+
+			await page.setViewport({ width: 767, height: 900, deviceScaleFactor: 1 });
+			await page.goto(`${baseUrl}/${author}/qablog001`, { waitUntil: 'networkidle0' });
+			assert.equal(
+				await page.$eval('.channel-shell__aside', (aside) => getComputedStyle(aside).display),
+				'none',
+				'博客详情 mobile 应隐藏右侧阅读辅助信息'
+			);
 		});
 	}
 );

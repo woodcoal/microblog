@@ -22,6 +22,8 @@ interface Props {
 	hasAside?: boolean;
 	/** 写作等任务页保留全宽工作区，浏览页默认注入共享导航。 */
 	showNavigation?: boolean;
+	/** 文章详情不显示左侧博客导航，且在 tablet 保留右侧阅读辅助信息。 */
+	detail?: boolean;
 }
 
 const {
@@ -35,7 +37,8 @@ const {
 	noindex,
 	jsonLd,
 	hasAside,
-	showNavigation = true
+	showNavigation = true,
+	detail = false
 } = Astro.props;
 const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 ---
@@ -56,11 +59,14 @@ const hasDiscoveryAside = hasAside ?? Astro.slots.has('aside');
 			<ChannelShell
 				navLabel="博客导航"
 				hasAside={hasDiscoveryAside}
-				variant={hasDiscoveryAside ? 'three-column' : 'nav-main'}
+				variant={detail ? 'main-aside' : hasDiscoveryAside ? 'three-column' : 'nav-main'}
+				preserveAsideOnTablet={detail}
 			>
-				<Fragment slot="nav">
-					<BlogNavigation />
-				</Fragment>
+				{!detail && (
+					<Fragment slot="nav">
+						<BlogNavigation />
+					</Fragment>
+				)}
 				<slot />
 				{hasDiscoveryAside && (
 					<Fragment slot="aside">

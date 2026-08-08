@@ -1,32 +1,32 @@
 /* global process */
 import { rmSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer } from 'node:net';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const databasePath = resolve('prisma/post-detail-browser-test.db');
 const databaseUrl = pathToFileURL(databasePath).href;
-const port = process.env.MUTAN_E2E_PORT ?? '4321';
-const baseUrl = `http://127.0.0.1:${port}`;
-rmSync(databasePath, { force: true });
 
-const env = {
-	...process.env,
-	DATABASE_PROVIDER: 'sqlite',
-	// Prisma CLI 与运行时 libSQL adapter 必须使用同一绝对 file URL。
-	DATABASE_URL: databaseUrl,
-	SITE_URL: baseUrl,
-	MUTAN_E2E_BASE_URL: baseUrl,
-	PORT: port,
-	HOST: '127.0.0.1'
-};
-
-function run(command, args) {
+function run(command, args, env) {
 	const result = spawnSync(command, args, { env, stdio: 'inherit' });
 	if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-async function waitForServer(child) {
+async function findAvailablePort() {
+	const probe = createServer();
+	probe.listen(0, '127.0.0.1');
+	await once(probe, 'listening');
+	const address = probe.address();
+	if (!address || typeof address === 'string') throw new Error('无法分配浏览器回归测试端口');
+	const { port } = address;
+	probe.close();
+	await once(probe, 'close');
+	return String(port);
+}
+
+async function waitForServer(child, baseUrl) {
 	for (let attempt = 0; attempt < 50; attempt += 1) {
 		if (child.exitCode !== null) throw new Error(`浏览器测试站点提前退出 (${child.exitCode})`);
 		try {
@@ -40,23 +40,49 @@ async function waitForServer(child) {
 	throw new Error('浏览器测试站点未能在 10 秒内启动');
 }
 
-try {
-	run('pnpm', ['exec', 'prisma', 'generate']);
-	run('pnpm', ['exec', 'prisma', 'migrate', 'deploy']);
-	run('pnpm', ['exec', 'tsx', 'tests/fixtures/post-detail-browser.fixture.ts']);
-	run('pnpm', ['run', 'build']);
-
-	const server = spawn(process.execPath, ['dist/server/entry.mjs'], { env, stdio: 'inherit' });
-	try {
-		await waitForServer(server);
-		run(process.execPath, [
-			'--import=tsx',
-			'--test',
-			'tests/post-detail-regression.browser.test.ts'
-		]);
-	} finally {
-		server.kill('SIGTERM');
+async function stopServer(child) {
+	if (child.exitCode !== null) return;
+	child.kill('SIGTERM');
+	const stopped = await Promise.race([
+		once(child, 'close'),
+		new Promise((resolve) => globalThis.setTimeout(resolve, 5_000))
+	]);
+	if (!stopped) {
+		child.kill('SIGKILL');
+		await once(child, 'close');
 	}
-} finally {
-	rmSync(databasePath, { force: true });
 }
+
+async function main() {
+	const port = process.env.MUTAN_E2E_PORT ?? (await findAvailablePort());
+	const baseUrl = `http://127.0.0.1:${port}`;
+	const env = {
+		...process.env,
+		DATABASE_PROVIDER: 'sqlite',
+		// Prisma CLI 与运行时 libSQL adapter 必须使用同一绝对 file URL。
+		DATABASE_URL: databaseUrl,
+		SITE_URL: baseUrl,
+		MUTAN_E2E_BASE_URL: baseUrl,
+		PORT: port,
+		HOST: '127.0.0.1'
+	};
+	rmSync(databasePath, { force: true });
+	try {
+		run('pnpm', ['exec', 'prisma', 'generate'], env);
+		run('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], env);
+		run('pnpm', ['exec', 'tsx', 'tests/fixtures/post-detail-browser.fixture.ts'], env);
+		run('pnpm', ['run', 'build'], env);
+
+		const server = spawn(process.execPath, ['dist/server/entry.mjs'], { env, stdio: 'inherit' });
+		try {
+			await waitForServer(server, baseUrl);
+			run(process.execPath, ['--import=tsx', '--test', 'tests/post-detail-regression.browser.test.ts'], env);
+		} finally {
+			await stopServer(server);
+		}
+	} finally {
+		rmSync(databasePath, { force: true });
+	}
+}
+
+await main();
