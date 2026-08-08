@@ -126,7 +126,9 @@ npm run format           # 代码格式化
 
 `DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量执行 `npm run db:prepare`，再启动应用；`dev`、`build`、`start` 与 `pm2` 也会自动执行该预处理。`npm run db:setup` 会额外写入管理员种子数据。
 
-SQLite 使用 `prisma/migrations/sqlite/0_init`，MySQL 使用 `prisma/migrations/mysql/0_init`。两个基线描述相同的数据模型，但不互相转换数据；从一种数据库迁移到另一种时请先备份并自行迁移数据，切勿对生产库使用 `prisma migrate reset`。
+SQLite 使用 `prisma/migrations/sqlite/0_init`，MySQL 使用 `prisma/migrations/mysql/0_init`。每个 provider 只保留这一个完整基线，适用于新建数据库；两个基线描述相同的数据模型，但不互相转换数据。从一种数据库迁移到另一种时请先备份并自行迁移数据，切勿对生产库使用 `prisma migrate reset`。
+
+已使用旧版多文件迁移的数据库不能直接执行压缩后的迁移。请先备份数据库，并由维护者确认数据库结构与当前 schema 一致后，将 `_prisma_migrations` 重新基线化为对应的 `0_init`；未确认数据状态前不得重置迁移记录或使用 `prisma migrate reset`。
 
 `test:api-v1` 与 `test:api-agent` 只读取 `TEST_DATABASE_URL`。SQLite 默认使用独立文件；MySQL 必须配置独立测试库，禁止指向生产库。
 
