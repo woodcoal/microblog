@@ -462,6 +462,25 @@ body[data-ux-shell='home'] .navbar-inner {
 	overflow-y: auto;
 }
 
+/* tablet 导航的提示层挂在 body 上，以免被该纵向滚动容器裁剪。 */
+.channel-navigation-tooltip {
+	position: fixed;
+	z-index: var(--z-tooltip, 400);
+	max-width: 15rem;
+	padding: var(--spacing-1) var(--spacing-2);
+	border-radius: var(--radius-sm);
+	background: var(--color-text);
+	color: var(--color-card-bg);
+	font-size: 0.8125rem;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(-50%) translateX(-0.25rem);
+	transition:
+		opacity var(--transition-fast),
+		transform var(--transition-fast);
+	visibility: hidden;
+}
+
 .channel-shell__main {
 	width: 100%;
 	min-width: 0;
@@ -1300,34 +1319,10 @@ mark.search-highlight {
 		width: auto;
 	}
 
-	.sidebar-link[aria-label] {
-		position: relative;
-	}
-
-	.sidebar-link[aria-label]::after {
-		position: absolute;
-		left: calc(100% + var(--spacing-2));
-		z-index: var(--z-tooltip, 400);
-		width: max-content;
-		max-width: 15rem;
-		padding: var(--spacing-1) var(--spacing-2);
-		border-radius: var(--radius-sm);
-		background: var(--color-text);
-		color: var(--color-card-bg);
-		content: attr(aria-label);
-		font-size: 0.8125rem;
-		opacity: 0;
-		pointer-events: none;
-		transform: translateX(-0.25rem);
-		transition:
-			opacity var(--transition-fast),
-			transform var(--transition-fast);
-	}
-
-	.sidebar-link[aria-label]:hover::after,
-	.sidebar-link[aria-label]:focus-visible::after {
+	.channel-navigation-tooltip[data-visible='true'] {
 		opacity: 1;
-		transform: translateX(0);
+		transform: translateY(-50%) translateX(0);
+		visibility: visible;
 	}
 }
 

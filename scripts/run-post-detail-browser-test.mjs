@@ -1,8 +1,11 @@
 /* global process */
 import { rmSync } from 'node:fs';
 import { spawn, spawnSync } from 'node:child_process';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
-const databasePath = 'prisma/post-detail-browser-test.db';
+const databasePath = resolve('prisma/post-detail-browser-test.db');
+const databaseUrl = pathToFileURL(databasePath).href;
 const port = process.env.MUTAN_E2E_PORT ?? '4321';
 const baseUrl = `http://127.0.0.1:${port}`;
 rmSync(databasePath, { force: true });
@@ -10,7 +13,8 @@ rmSync(databasePath, { force: true });
 const env = {
 	...process.env,
 	DATABASE_PROVIDER: 'sqlite',
-	DATABASE_URL: `file:./${databasePath}`,
+	// Prisma CLI 与运行时 libSQL adapter 必须使用同一绝对 file URL。
+	DATABASE_URL: databaseUrl,
 	SITE_URL: baseUrl,
 	MUTAN_E2E_BASE_URL: baseUrl,
 	PORT: port,

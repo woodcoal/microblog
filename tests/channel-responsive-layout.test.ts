@@ -59,7 +59,9 @@ test('三档响应式规则保护 1024px 阅读列，搜索和通知使用单列
 	assert.match(detailBody, /\.post-detail-layout \{\s*min-width: 0;\s*width: 100%/);
 	assert.doesNotMatch(detailBody, /\.post-detail-layout \{\s*display: grid/);
 	assert.doesNotMatch(detailBody, /\.post-detail-layout-weibo \{\s*grid-template-columns/);
-	assert.match(baseStyles, /\.sidebar-link\[aria-label\]:focus-visible::after/);
+	assert.match(baseStyles, /\.channel-navigation-tooltip\[data-visible='true'\]/);
+	assert.match(shell, /channel-navigation-tooltip/);
+	assert.match(shell, /positionTooltip\(link\)/);
 	for (const layout of [weiboLayout, forumLayout, blogLayout]) {
 		assert.match(layout, /import ChannelShell/);
 		assert.match(layout, /variant=\{hasDiscoveryAside \? 'three-column' : 'nav-main'\}/);

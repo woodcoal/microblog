@@ -159,6 +159,63 @@ test(
 );
 
 test(
+	'tablet 导航提示层在滚动导航外完整显示且不产生横向滚动',
+	{ skip: !baseUrl && '需要运行中的站点，请设置 MUTAN_E2E_BASE_URL' },
+	async () => {
+		await withBrowser(async (page) => {
+			for (const width of [768, 1023]) {
+				await page.setViewport({ width, height: 900, deviceScaleFactor: 1 });
+				await page.goto(`${baseUrl}/weibo`, { waitUntil: 'networkidle0' });
+
+				const firstLink = page.locator('.channel-shell__nav .sidebar-link[aria-label]');
+				await firstLink.hover();
+				const metrics = await page.evaluate(() => {
+					const navigation = document.querySelector<HTMLElement>('.channel-shell__nav');
+					const tooltip = document.querySelector<HTMLElement>('.channel-navigation-tooltip');
+					const navBounds = navigation?.getBoundingClientRect();
+					const tooltipBounds = tooltip?.getBoundingClientRect();
+					return {
+						documentScrollWidth: document.documentElement.scrollWidth,
+						documentClientWidth: document.documentElement.clientWidth,
+						navigationScrollWidth: navigation?.scrollWidth ?? 0,
+						navigationClientWidth: navigation?.clientWidth ?? 0,
+						tooltipVisible: tooltip?.dataset.visible === 'true',
+						tooltipRightOfNavigation: (tooltipBounds?.left ?? 0) >= (navBounds?.right ?? Infinity),
+						tooltipWithinViewport: (tooltipBounds?.right ?? Infinity) <= document.documentElement.clientWidth
+					};
+				});
+				assert.equal(metrics.tooltipVisible, true, `${width}px 悬停应显示提示层`);
+				assert.equal(metrics.tooltipRightOfNavigation, true, `${width}px 提示层应在导航外侧`);
+				assert.equal(metrics.tooltipWithinViewport, true, `${width}px 提示层应完整可见`);
+				assert.ok(
+					metrics.navigationScrollWidth <= metrics.navigationClientWidth,
+					`${width}px 导航不应产生横向滚动 (${metrics.navigationScrollWidth}/${metrics.navigationClientWidth})`
+				);
+				assert.ok(
+					metrics.documentScrollWidth <= metrics.documentClientWidth,
+					`${width}px 页面不应产生横向滚动 (${metrics.documentScrollWidth}/${metrics.documentClientWidth})`
+				);
+
+				await page.$eval('.channel-shell__nav .sidebar-link[aria-label]', (link) =>
+					(link as HTMLElement).focus()
+				);
+				const focusMetrics = await page.evaluate(() => ({
+					navigationScrollWidth: document.querySelector<HTMLElement>('.channel-shell__nav')?.scrollWidth ?? 0,
+					navigationClientWidth: document.querySelector<HTMLElement>('.channel-shell__nav')?.clientWidth ?? 0,
+					tooltipVisible:
+						document.querySelector<HTMLElement>('.channel-navigation-tooltip')?.dataset.visible === 'true'
+				}));
+				assert.equal(focusMetrics.tooltipVisible, true, `${width}px 键盘焦点应显示提示层`);
+				assert.ok(
+					focusMetrics.navigationScrollWidth <= focusMetrics.navigationClientWidth,
+					`${width}px 焦点提示不应导致导航横向滚动 (${focusMetrics.navigationScrollWidth}/${focusMetrics.navigationClientWidth})`
+				);
+			}
+		});
+	}
+);
+
+test(
 	'详情页持久校验 SEO、论坛内容与异常契约',
 	{ skip: !baseUrl && '需要运行中的站点，请设置 MUTAN_E2E_BASE_URL' },
 	async () => {

@@ -44,3 +44,72 @@ const rendersAside = hasAside && (variant === 'three-column' || variant === 'mai
 		}
 	</div>
 </div>
+
+<script>
+	const tooltipId = 'channel-navigation-tooltip';
+	const tabletQuery = globalThis.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+	const tooltip = document.getElementById(tooltipId) ?? document.body.appendChild(document.createElement('div'));
+
+	tooltip.id = tooltipId;
+	tooltip.className = 'channel-navigation-tooltip';
+	tooltip.setAttribute('role', 'tooltip');
+	tooltip.setAttribute('aria-hidden', 'true');
+
+	let activeLink: HTMLAnchorElement | undefined;
+
+	function positionTooltip(link: HTMLAnchorElement) {
+		const bounds = link.getBoundingClientRect();
+		const navigationBounds = link.closest<HTMLElement>('.channel-shell__nav')?.getBoundingClientRect();
+		tooltip.style.left = `${Math.round((navigationBounds?.right ?? bounds.right) + 8)}px`;
+		tooltip.style.top = `${Math.round(bounds.top + bounds.height / 2)}px`;
+	}
+
+	function showTooltip(link: HTMLAnchorElement) {
+		if (!tabletQuery.matches) return;
+		const label = link.getAttribute('aria-label');
+		if (!label) return;
+
+		activeLink?.removeAttribute('aria-describedby');
+		activeLink = link;
+		tooltip.textContent = label;
+		link.setAttribute('aria-describedby', tooltipId);
+		tooltip.dataset.visible = 'true';
+		tooltip.setAttribute('aria-hidden', 'false');
+		positionTooltip(link);
+	}
+
+	function hideTooltip(link?: HTMLAnchorElement) {
+		if (link && link !== activeLink) return;
+		activeLink?.removeAttribute('aria-describedby');
+		activeLink = undefined;
+		delete tooltip.dataset.visible;
+		tooltip.setAttribute('aria-hidden', 'true');
+	}
+
+	for (const navigation of document.querySelectorAll<HTMLElement>('.channel-shell__nav')) {
+		navigation.addEventListener('pointerover', (event) => {
+			const link = (event.target as Element).closest<HTMLAnchorElement>('.sidebar-link[aria-label]');
+			if (link && navigation.contains(link)) showTooltip(link);
+		});
+		navigation.addEventListener('pointerout', (event) => {
+			const link = (event.target as Element).closest<HTMLAnchorElement>('.sidebar-link[aria-label]');
+			if (link && !link.contains(event.relatedTarget as Node | null)) hideTooltip(link);
+		});
+		navigation.addEventListener('focusin', (event) => {
+			const link = (event.target as Element).closest<HTMLAnchorElement>('.sidebar-link[aria-label]');
+			if (link && navigation.contains(link)) showTooltip(link);
+		});
+		navigation.addEventListener('focusout', (event) => {
+			const link = (event.target as Element).closest<HTMLAnchorElement>('.sidebar-link[aria-label]');
+			if (link) hideTooltip(link);
+		});
+	}
+
+	addEventListener('resize', () => {
+		if (activeLink) showTooltip(activeLink);
+	});
+	addEventListener('scroll', () => {
+		if (activeLink) positionTooltip(activeLink);
+	}, { capture: true });
+	tabletQuery.addEventListener('change', () => hideTooltip());
+</script>
