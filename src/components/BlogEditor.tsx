@@ -62,6 +62,8 @@ interface BlogEditorProps {
 	categorySelectId?: string;
 	/** 页面可见度选择框 ID */
 	visibilitySelectId?: string;
+	/** 右侧发布设置中承载缩略图和附件的容器 ID */
+	assetsContainerId?: string;
 	/** 编辑态已有缩略图 */
 	initialThumbnail?: BlogAsset | null;
 	/** 编辑态已有附件，顺序即文章展示顺序 */
@@ -166,6 +168,7 @@ export default function BlogEditor({
 	titleInputId = 'blog-compose-title',
 	categorySelectId = 'blog-compose-category',
 	visibilitySelectId = 'blog-compose-visibility',
+	assetsContainerId,
 	initialThumbnail = null,
 	initialAttachments = []
 }: BlogEditorProps) {
@@ -730,6 +733,7 @@ export default function BlogEditor({
 				initialThumbnail={initialThumbnail}
 				initialAttachments={initialAttachments}
 				onChange={handleAssetChange}
+				containerId={assetsContainerId}
 			/>
 			{uploadError && (
 				<p className="form-error" role="alert" aria-live="polite">

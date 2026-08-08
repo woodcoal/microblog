@@ -2756,6 +2756,11 @@ dialog.dialog-overlay::backdrop {
 	border-top: 1px solid var(--color-border);
 	background: var(--color-bg);
 }
+.blog-write-assets .blog-assets {
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
 .blog-assets-heading h2,
 .blog-asset-section h3 {
 	margin: 0;
@@ -2777,6 +2782,27 @@ dialog.dialog-overlay::backdrop {
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
 	gap: 1rem;
 	margin-top: 1rem;
+}
+.blog-write-assets .blog-assets-grid {
+	grid-template-columns: 1fr;
+	gap: 0.75rem;
+	margin-top: 0.75rem;
+}
+.blog-write-assets .blog-asset-section {
+	padding: 0;
+	border: 0;
+	background: transparent;
+}
+.blog-write-assets .blog-thumbnail-preview {
+	align-items: flex-start;
+	flex-direction: column;
+}
+.blog-write-assets .blog-thumbnail-preview img {
+	width: 100%;
+}
+.blog-write-assets .blog-attachment-list li {
+	align-items: flex-start;
+	flex-direction: column;
 }
 .blog-asset-section {
 	padding: 0.875rem;

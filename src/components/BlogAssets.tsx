@@ -1,5 +1,6 @@
 import { actions } from 'astro:actions';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ChangeEvent } from 'react';
 
 const MAX_ATTACHMENTS = 10;
@@ -25,6 +26,8 @@ interface BlogAssetsProps {
 	initialThumbnail?: BlogAsset | null;
 	initialAttachments?: BlogAsset[];
 	onChange: (values: BlogAssetValues) => void;
+	/** 右侧发布设置中的资源面板挂载点；缺省时保留在编辑器内。 */
+	containerId?: string;
 }
 
 interface UploadResponse {
@@ -67,7 +70,8 @@ async function uploadAsset(file: File, fileType: 'image' | 'attachment'): Promis
 export default function BlogAssets({
 	initialThumbnail = null,
 	initialAttachments = [],
-	onChange
+	onChange,
+	containerId
 }: BlogAssetsProps) {
 	const [thumbnail, setThumbnail] = useState<BlogAsset | null>(initialThumbnail);
 	const [attachments, setAttachments] = useState<BlogAsset[]>(initialAttachments);
@@ -77,6 +81,11 @@ export default function BlogAssets({
 	const thumbnailInputRef = useRef<HTMLInputElement>(null);
 	const attachmentInputRef = useRef<HTMLInputElement>(null);
 	const assetsRef = useRef({ thumbnail, attachments });
+	const [container, setContainer] = useState<HTMLElement | null>(null);
+
+	useEffect(() => {
+		setContainer(containerId ? document.getElementById(containerId) : null);
+	}, [containerId]);
 
 	useEffect(() => {
 		assetsRef.current = { thumbnail, attachments };
@@ -222,7 +231,7 @@ export default function BlogAssets({
 	}, []);
 
 	const attachmentSize = attachments.reduce((sum, asset) => sum + asset.fileSize, 0);
-	return (
+	const content = (
 		<section className="blog-assets" aria-labelledby="blog-assets-title">
 			<div className="blog-assets-heading">
 				<h2 id="blog-assets-title">文章资源</h2>
@@ -368,4 +377,6 @@ export default function BlogAssets({
 			)}
 		</section>
 	);
+
+	return container ? createPortal(content, container) : content;
 }

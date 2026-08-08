@@ -91,6 +91,7 @@ const hasCategories = categories.length > 0;
 					<option value="private">🔒 仅自己可见</option>
 				</select>
 			</div>
+			<div class="blog-write-assets" id="blog-compose-assets"></div>
 			<div class="blog-write-toolbar-right">
 				<a href="/blog" class="btn blog-write-cancel-btn">取消</a>
 				<button class="btn btn-primary blog-write-publish-btn" id="blog-compose-publish">
@@ -112,7 +113,7 @@ const hasCategories = categories.length > 0;
 				aria-describedby="blog-form-error"
 			/>
 			{/* 内容编辑区 */}
-			<BlogEditor client:load />
+			<BlogEditor client:load assetsContainerId="blog-compose-assets" />
 		</div>
 
 		<p

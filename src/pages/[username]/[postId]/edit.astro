@@ -251,6 +251,7 @@ const initialBlogAttachments = isBlog
 								</option>
 							</select>
 						</div>
+						<div class="blog-write-assets" id="blog-edit-assets" />
 						<div class="blog-write-toolbar-right">
 							<a
 								href={`/${post.user.username}/${post.id}`}
@@ -285,6 +286,7 @@ const initialBlogAttachments = isBlog
 							titleInputId="blog-edit-title"
 							categorySelectId="blog-edit-category"
 							visibilitySelectId="blog-edit-visibility"
+							assetsContainerId="blog-edit-assets"
 							initialThumbnail={
 								initialBlogThumbnail
 									? {

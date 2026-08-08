@@ -24,10 +24,13 @@ test('博客资源面板限制客户端选择，并通过 reservation action 管
 
 test('新建和编辑博客将缩略图、附件与正文一起传入文章 action', () => {
 	assert.match(editor, /BlogAssets/);
+	assert.match(editor, /assetsContainerId/);
 	assert.match(editor, /BlogEditorSubmitData/);
 	for (const page of [writePage, editPage]) {
 		assert.match(page, /thumbnailFileStorageId/);
 		assert.match(page, /attachmentFileStorageIds/);
+		assert.match(page, /blog-(compose|edit)-assets/);
+		assert.match(page, /assetsContainerId/);
 	}
 	assert.match(editPage, /initialBlogThumbnail/);
 	assert.match(editPage, /initialBlogAttachments/);
@@ -36,6 +39,7 @@ test('新建和编辑博客将缩略图、附件与正文一起传入文章 acti
 test('博客读者界面使用受控缩略图和下载地址，并分隔正文媒体与附件', () => {
 	assert.match(articleList, /src=\{`\/media\/\$\{thumbnail\.id\}`\}/);
 	assert.match(detailBody, /src=\{`\/media\/\$\{thumbnail\.id\}`\}/);
+	assert.match(detailBody, /post-detail-blog-thumbnail/);
 	assert.match(detailBody, /正文媒体/);
 	assert.match(detailBody, /附件/);
 	assert.match(detailBody, /href=\{`\/media\/\$\{media\.id\}\/download`\}/);
