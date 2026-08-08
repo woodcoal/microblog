@@ -8,7 +8,12 @@ import { pathToFileURL } from 'node:url';
 
 const databasePath = resolve('prisma/post-detail-browser-test.db');
 const databaseUrl = pathToFileURL(databasePath).href;
-const databaseArtifacts = [databasePath, `${databasePath}-journal`, `${databasePath}-shm`, `${databasePath}-wal`];
+const databaseArtifacts = [
+	databasePath,
+	`${databasePath}-journal`,
+	`${databasePath}-shm`,
+	`${databasePath}-wal`
+];
 
 function cleanupDatabase() {
 	for (const artifact of databaseArtifacts) rmSync(artifact, { force: true });
@@ -90,10 +95,17 @@ async function main() {
 		run('pnpm', ['exec', 'tsx', 'tests/fixtures/post-detail-browser.fixture.ts'], env);
 		run('pnpm', ['run', 'build'], env);
 
-		const server = spawn(process.execPath, ['dist/server/entry.mjs'], { env, stdio: 'inherit' });
+		const server = spawn(process.execPath, ['dist/server/entry.mjs'], {
+			env,
+			stdio: 'inherit'
+		});
 		try {
 			await waitForServer(server, baseUrl);
-			run(process.execPath, ['--import=tsx', '--test', 'tests/post-detail-regression.browser.test.ts'], env);
+			run(
+				process.execPath,
+				['--import=tsx', '--test', 'tests/post-detail-regression.browser.test.ts'],
+				env
+			);
 		} finally {
 			await stopServer(server);
 		}
