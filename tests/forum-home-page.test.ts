@@ -20,7 +20,10 @@ const [
 	readFile(new URL('../src/components/ForumNavigation.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/components/ForumNavigationItems.astro', import.meta.url), 'utf8'),
 	readFile(new URL('../src/components/ForumTopMenu.astro', import.meta.url), 'utf8'),
-	readFile(new URL('../src/components/post-detail/PostDetailBody.astro', import.meta.url), 'utf8'),
+	readFile(
+		new URL('../src/components/post-detail/PostDetailBody.astro', import.meta.url),
+		'utf8'
+	),
 	readFile(new URL('../src/styles/ux-pages.css', import.meta.url), 'utf8')
 ]);
 

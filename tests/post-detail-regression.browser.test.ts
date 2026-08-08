@@ -65,17 +65,26 @@ test(
 					}
 					if (width === 768 && path === '/forum') {
 						assert.equal(
-							await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+							await page.$$eval(
+								'.channel-shell__nav',
+								(navigation) => navigation.length
+							),
 							1,
 							'论坛 tablet 仍保留语义导航容器'
 						);
 						assert.equal(
-							await page.$eval('.channel-shell__nav', (navigation) => getComputedStyle(navigation).display),
+							await page.$eval(
+								'.channel-shell__nav',
+								(navigation) => getComputedStyle(navigation).display
+							),
 							'none',
 							'论坛 tablet 不应显示左侧菜单'
 						);
 						assert.equal(
-							await page.$eval('.forum-top-menu', (menu) => getComputedStyle(menu).display),
+							await page.$eval(
+								'.forum-top-menu',
+								(menu) => getComputedStyle(menu).display
+							),
 							'flex',
 							'论坛 tablet 应显示顶部菜单'
 						);
@@ -164,7 +173,10 @@ test(
 							`博客详情 @ ${width}px 应保留右侧目录与相关文章`
 						);
 						assert.equal(
-							await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+							await page.$$eval(
+								'.channel-shell__nav',
+								(navigation) => navigation.length
+							),
 							0,
 							`博客详情 @ ${width}px 不应渲染左侧频道菜单`
 						);
@@ -177,7 +189,10 @@ test(
 								'博客详情应使用正文加右侧阅读辅助列'
 							);
 							assert.equal(
-								await page.$$eval('.channel-shell__nav', (navigation) => navigation.length),
+								await page.$$eval(
+									'.channel-shell__nav',
+									(navigation) => navigation.length
+								),
 								0,
 								'博客详情 desktop 不应渲染左侧频道菜单'
 							);
@@ -260,7 +275,10 @@ test(
 			await page.setViewport({ width: 767, height: 900, deviceScaleFactor: 1 });
 			await page.goto(`${baseUrl}/${author}/qablog001`, { waitUntil: 'networkidle0' });
 			assert.equal(
-				await page.$eval('.channel-shell__aside', (aside) => getComputedStyle(aside).display),
+				await page.$eval(
+					'.channel-shell__aside',
+					(aside) => getComputedStyle(aside).display
+				),
 				'none',
 				'博客详情 mobile 应隐藏右侧阅读辅助信息'
 			);
