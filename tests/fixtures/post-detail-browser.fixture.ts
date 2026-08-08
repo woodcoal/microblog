@@ -100,6 +100,39 @@ async function main() {
 				}
 			}
 		}),
+		prisma.media.create({
+			data: {
+				post: { connect: { id: 'qablog001' } },
+				fileType: 'image',
+				slot: 'thumbnail',
+				originalName: 'qa-blog-thumbnail.png',
+				fileStorage: {
+					create: {
+						md5Hash: 'qa-browser-fixture-blog-thumbnail',
+						filePath: 'images/qa-blog-thumbnail.png',
+						fileSize: 1024,
+						mimeType: 'image/png',
+						fileType: 'image'
+					}
+				}
+			}
+		}),
+		prisma.media.create({
+			data: {
+				post: { connect: { id: 'qablog001' } },
+				fileType: 'attachment',
+				originalName: 'qa-blog-guide.pdf',
+				fileStorage: {
+					create: {
+						md5Hash: 'qa-browser-fixture-blog-attachment',
+						filePath: 'attachments/qa-blog-guide.pdf',
+						fileSize: 4096,
+						mimeType: 'application/pdf',
+						fileType: 'attachment'
+					}
+				}
+			}
+		}),
 		prisma.notification.create({
 			data: { type: 'comment', actorId: author.id, recipientId: viewer.id, postId: 'qaforum1' }
 		})

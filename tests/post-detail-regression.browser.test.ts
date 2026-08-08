@@ -68,6 +68,26 @@ test(
 				});
 				assert.equal(response?.status(), 200, `${detail.id} 应可正常打开`);
 				assert.match(await bodyText(page), new RegExp(detail.marker));
+				if (detail.id === 'qablog001') {
+					const thumbnailSrc = await page.$eval(
+						'.post-detail-blog-thumbnail img',
+						(image) => image.getAttribute('src')
+					);
+					const attachmentHref = await page.$eval('.post-detail-attachment', (link) =>
+						link.getAttribute('href')
+					);
+					assert.match(
+						thumbnailSrc || '',
+						/^\/media\/[^/]+$/,
+						'博客缩略图应使用受控媒体入口'
+					);
+					assert.match(
+						attachmentHref || '',
+						/^\/media\/[^/]+\/download$/,
+						'博客附件应使用受控下载入口'
+					);
+					assert.match(await bodyText(page), /qa-blog-guide\.pdf/);
+				}
 				const metrics = await pageMetrics(page);
 				assert.equal(metrics.shellCount, 1, `${detail.id} 应仅渲染一个共享壳`);
 				assert.equal(metrics.asideDisplay, 'none', `${detail.id} @ 1024px 应收起右栏`);

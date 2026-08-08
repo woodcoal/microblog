@@ -107,7 +107,7 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的博客帖子（需要 likes 和 comments 计数）
-const posts =
+const loadedPosts =
 	hotResult?.items ??
 	(await prisma.post.findMany({
 		where: whereCondition,
@@ -124,6 +124,21 @@ const posts =
 		skip,
 		take: PAGE_SIZE
 	}));
+// 热门流的轻量查询不携带 slot；页面在这里补齐缩略图投影，避免 UI 回退公开上传路径。
+const hotThumbnails = hotResult
+	? await prisma.media.findMany({
+			where: { postId: { in: loadedPosts.map((post) => post.id) }, slot: 'thumbnail' },
+			select: { id: true, postId: true, slot: true }
+		})
+	: [];
+const posts = hotResult
+	? loadedPosts.map((post) => ({
+			...post,
+			media: hotThumbnails
+				.filter((media) => media.postId === post.id)
+				.map(({ id, slot }) => ({ id, slot }))
+		}))
+	: loadedPosts;
 
 const restrictedPostIds = (
 	await Promise.all(

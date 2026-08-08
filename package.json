@@ -42,6 +42,7 @@
 		"test:admin-auth": "node scripts/run-api-test.mjs admin-auth",
 		"test:admin-audit": "node scripts/run-admin-audit-test.mjs",
 		"test:blog-assets": "node scripts/run-blog-assets-test.mjs",
+		"test:blog-assets-ui": "tsx --test tests/blog-assets-ui.test.ts",
 		"test:site-copy": "tsx --test tests/site-copy-renderer.test.ts",
 		"test:site-config": "tsx --test tests/site-config.test.ts",
 		"test:color-contrast": "tsx --test tests/primary-color-contrast.test.ts",

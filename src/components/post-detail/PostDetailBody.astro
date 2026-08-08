@@ -25,6 +25,7 @@ const {
 	isLocked,
 	canPin,
 	images,
+	thumbnail,
 	attachments,
 	hasImages,
 	hasAttachments,
@@ -255,6 +256,14 @@ const {
 			)
 		}
 
+		{
+			isBlog && thumbnail && !isDeleted && !needPassword && (
+				<div class="post-detail-blog-thumbnail">
+					<img src={`/media/${thumbnail.id}`} alt="文章缩略图" loading="lazy" />
+				</div>
+			)
+		}
+
 		<!-- 帖子内容（密码保护时默认隐藏，验证后显示） -->
 		<div
 			class="post-detail-content"
@@ -297,6 +306,27 @@ const {
 				!needPassword &&
 				(isWeiboPost ? (
 					<WeiboMediaGallery images={images} lightbox />
+				) : isBlog ? (
+					<section
+						class="post-detail-body-media"
+						aria-labelledby="post-detail-body-media-title"
+					>
+						<h2 id="post-detail-body-media-title">正文媒体</h2>
+						<div
+							class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
+						>
+							{images.map((media) => (
+								<div class="post-detail-image-item">
+									<img
+										src={`/uploads/${media.fileStorage.filePath}`}
+										alt=""
+										loading="lazy"
+										data-lightbox="true"
+									/>
+								</div>
+							))}
+						</div>
+					</section>
 				) : (
 					<div
 						class={`post-detail-images post-detail-images-${images.length >= 5 ? 'grid' : images.length}`}
@@ -317,20 +347,24 @@ const {
 
 		{
 			hasAttachments && !isDeleted && !needPassword && (
-				<div class="post-detail-attachments">
+				<section
+					class="post-detail-attachments"
+					aria-labelledby="post-detail-attachments-title"
+				>
+					<h2 id="post-detail-attachments-title">附件</h2>
 					{attachments.map((media) => (
 						<a
 							href={`/media/${media.id}/download`}
 							class="post-detail-attachment"
 							download
 						>
-							📎 {media.originalName || media.fileStorage.filePath.split('/').pop()}
+							📎 {media.originalName || '附件'}
 							<span class="post-detail-attachment-size">
 								({(media.fileStorage.fileSize / 1024).toFixed(1)} KB)
 							</span>
 						</a>
 					))}
-				</div>
+				</section>
 			)
 		}
 
@@ -1160,6 +1194,27 @@ const {
 		.post-detail-layout {
 			grid-template-columns: minmax(0, 1fr) 190px;
 			gap: 24px;
+		}
+		.post-detail-attachments h2 {
+			margin: 0;
+			font-size: 1rem;
+		}
+		.post-detail-blog-thumbnail {
+			margin: 1rem 0;
+		}
+		.post-detail-blog-thumbnail img {
+			display: block;
+			width: 100%;
+			max-height: 420px;
+			object-fit: cover;
+			border-radius: 0.5rem;
+		}
+		.post-detail-body-media {
+			margin-top: 1.25rem;
+		}
+		.post-detail-body-media h2 {
+			margin: 0 0 0.75rem;
+			font-size: 1rem;
 		}
 
 		.post-detail-layout-weibo {

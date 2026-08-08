@@ -276,7 +276,12 @@ const hasCategories = categories.length > 0;
 		 */
 		container.addEventListener('blog-editor-submit', async (e: Event) => {
 			const customEvent = e as CustomEvent;
-			const content = customEvent.detail as string;
+			const submission = customEvent.detail as {
+				content: string;
+				thumbnailFileStorageId: string | null;
+				attachmentFileStorageIds: string[];
+			};
+			const { content, thumbnailFileStorageId, attachmentFileStorageIds } = submission;
 			const title = titleInput.value.trim();
 			const categoryId = categorySelect?.value || '';
 			const customCategory = customCategoryInput?.value.trim() || '';
@@ -310,7 +315,9 @@ const hasCategories = categories.length > 0;
 				content,
 				visibility: visibilitySelect.value,
 				mode: 'blog',
-				title
+				title,
+				thumbnailFileStorageId,
+				attachmentFileStorageIds
 			};
 
 			// 有分类时传入 categoryId
