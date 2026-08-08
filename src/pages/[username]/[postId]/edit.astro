@@ -90,6 +90,12 @@ const blogCategories = isBlog
 		})
 	: [];
 const hasBlogCategories = blogCategories.length > 0;
+const initialBlogThumbnail = isBlog
+	? post.media.find((media) => media.slot === 'thumbnail')
+	: undefined;
+const initialBlogAttachments = isBlog
+	? post.media.filter((media) => media.slot === null && media.fileType === 'attachment')
+	: [];
 ---
 
 <UserLayout title="编辑帖子" wide={isBlog}>
@@ -279,6 +285,23 @@ const hasBlogCategories = blogCategories.length > 0;
 							titleInputId="blog-edit-title"
 							categorySelectId="blog-edit-category"
 							visibilitySelectId="blog-edit-visibility"
+							initialThumbnail={
+								initialBlogThumbnail
+									? {
+											fileStorageId: initialBlogThumbnail.fileStorageId,
+											mediaId: initialBlogThumbnail.id,
+											originalName: '当前缩略图',
+											fileSize: initialBlogThumbnail.fileStorage.fileSize,
+											previewUrl: `/media/${initialBlogThumbnail.id}`
+										}
+									: null
+							}
+							initialAttachments={initialBlogAttachments.map((media) => ({
+								fileStorageId: media.fileStorageId,
+								mediaId: media.id,
+								originalName: media.originalName || '附件',
+								fileSize: media.fileStorage.fileSize
+							}))}
 						/>
 					</div>
 					<p
@@ -427,7 +450,12 @@ const hasBlogCategories = blogCategories.length > 0;
 			if (loading) return;
 
 			const customEvent = e as CustomEvent;
-			const content = customEvent.detail as string;
+			const submission = customEvent.detail as {
+				content: string;
+				thumbnailFileStorageId: string | null;
+				attachmentFileStorageIds: string[];
+			};
+			const { content, thumbnailFileStorageId, attachmentFileStorageIds } = submission;
 			const title = titleInput.value.trim();
 			const customCategory = customCategoryInput?.value.trim() || '';
 
@@ -454,7 +482,9 @@ const hasBlogCategories = blogCategories.length > 0;
 				visibility: visibilitySelect.value,
 				title,
 				categoryId: categorySelect?.value || '',
-				customCategory
+				customCategory,
+				thumbnailFileStorageId,
+				attachmentFileStorageIds
 			});
 
 			if (result.error) {

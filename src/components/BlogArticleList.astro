@@ -18,6 +18,7 @@ interface BlogArticle {
 	category: ArticleCategory | null;
 	customCategory: string | null;
 	_count: { likes: number; comments: number };
+	media?: Array<{ id: string; slot?: string | null }>;
 }
 
 interface Props {
@@ -50,6 +51,7 @@ function formatDate(date: Date): string {
 	{
 		posts.map((post) => {
 			const isRestricted = restrictedIds.has(post.id);
+			const thumbnail = post.media?.find((media) => media.slot === 'thumbnail');
 			return (
 				<article class="blog-article">
 					<span class="blog-article-eyebrow">
@@ -60,6 +62,11 @@ function formatDate(date: Date): string {
 							{post.title || '无标题文章'}
 						</a>
 					</h2>
+					{thumbnail && !isRestricted && (
+						<div class="blog-article-thumbnail">
+							<img src={`/media/${thumbnail.id}`} alt="" loading="lazy" />
+						</div>
+					)}
 					<p>{isRestricted ? '内容受限，无法查看摘要。' : excerpt(post.content)}</p>
 					<footer class="blog-article-meta">
 						{post.user.displayName} ·{' '}
@@ -115,6 +122,17 @@ function formatDate(date: Date): string {
 	@media (max-width: 767px) {
 		.blog-article h2 {
 			font-size: 1.1875rem;
+		}
+		.blog-article-thumbnail {
+			margin: 0 0 12px;
+		}
+		.blog-article-thumbnail img {
+			display: block;
+			width: min(100%, 320px);
+			aspect-ratio: 16 / 9;
+			object-fit: cover;
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
 		}
 	}
 </style>

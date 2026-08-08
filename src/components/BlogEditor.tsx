@@ -34,6 +34,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode, SyntheticEvent } from 'react';
 import type { Editor } from '@tiptap/core';
 import { actions } from 'astro:actions';
+import BlogAssets from './BlogAssets';
+import type { BlogAsset, BlogAssetValues } from './BlogAssets';
 
 /** lowlight 实例，用于代码块语法高亮 */
 const lowlight = createLowlight(common);
@@ -49,7 +51,7 @@ const DEFAULT_DRAFT_KEY = 'blog-draft';
  */
 interface BlogEditorProps {
 	initialContent?: string;
-	onSubmit?: (content: string) => void;
+	onSubmit?: (data: BlogEditorSubmitData) => void;
 	/** 承载发布/保存事件的页面容器 ID */
 	containerId?: string;
 	/** 草稿存储键；编辑态使用独立键，避免覆盖新建草稿 */
@@ -60,6 +62,14 @@ interface BlogEditorProps {
 	categorySelectId?: string;
 	/** 页面可见度选择框 ID */
 	visibilitySelectId?: string;
+	/** 编辑态已有缩略图 */
+	initialThumbnail?: BlogAsset | null;
+	/** 编辑态已有附件，顺序即文章展示顺序 */
+	initialAttachments?: BlogAsset[];
+}
+
+export interface BlogEditorSubmitData extends BlogAssetValues {
+	content: string;
 }
 
 /**
@@ -155,7 +165,9 @@ export default function BlogEditor({
 	draftKey = DEFAULT_DRAFT_KEY,
 	titleInputId = 'blog-compose-title',
 	categorySelectId = 'blog-compose-category',
-	visibilitySelectId = 'blog-compose-visibility'
+	visibilitySelectId = 'blog-compose-visibility',
+	initialThumbnail = null,
+	initialAttachments = []
 }: BlogEditorProps) {
 	// 服务端已在写入时清理空白；这里兼容修复前保存的内容和草稿。
 	const initialEditorContent = initialContent.trimStart();
@@ -167,12 +179,17 @@ export default function BlogEditor({
 	const [isLinkEditorOpen, setIsLinkEditorOpen] = useState(false);
 	const [linkValue, setLinkValue] = useState('https://');
 	const [linkError, setLinkError] = useState<string | null>(null);
+	const [assetValues, setAssetValues] = useState<BlogAssetValues>({
+		thumbnailFileStorageId: initialThumbnail?.fileStorageId ?? null,
+		attachmentFileStorageIds: initialAttachments.map((asset) => asset.fileStorageId)
+	});
 	/** 编辑器实例引用，用于在 handlePaste 闭包中安全访问 */
 	const editorRef = useRef<Editor | null>(null);
 	/** 图片上传文件输入引用 */
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	/** 草稿防抖定时器引用 */
 	const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const handleAssetChange = useCallback((values: BlogAssetValues) => setAssetValues(values), []);
 
 	/** Tiptap 编辑器实例 */
 	const editor = useEditor({
@@ -431,16 +448,17 @@ export default function BlogEditor({
 		const handleDoSubmit = () => {
 			if (loading) return;
 			const markdown = getMarkdown(editor);
+			const submission: BlogEditorSubmitData = { content: markdown, ...assetValues };
 
 			if (onSubmit) {
-				onSubmit(markdown);
+				onSubmit(submission);
 				return;
 			}
 
 			setLoading(true);
 			container.dispatchEvent(
 				new CustomEvent('blog-editor-submit', {
-					detail: markdown,
+					detail: submission,
 					bubbles: true
 				})
 			);
@@ -448,7 +466,7 @@ export default function BlogEditor({
 
 		container.addEventListener('blog-editor-do-submit', handleDoSubmit);
 		return () => container.removeEventListener('blog-editor-do-submit', handleDoSubmit);
-	}, [clearDraft, containerId, editor, loading, onSubmit]);
+	}, [assetValues, clearDraft, containerId, editor, loading, onSubmit]);
 
 	/**
 	 * 监听清除草稿事件
@@ -708,6 +726,11 @@ export default function BlogEditor({
 			<div className="blog-editor-body">
 				<EditorContent editor={editor} />
 			</div>
+			<BlogAssets
+				initialThumbnail={initialThumbnail}
+				initialAttachments={initialAttachments}
+				onChange={handleAssetChange}
+			/>
 			{uploadError && (
 				<p className="form-error" role="alert" aria-live="polite">
 					{uploadError}
