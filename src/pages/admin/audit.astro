@@ -1,0 +1,15 @@
+---
+import AdminLayout from '@/layouts/Admin.astro';
+import AdminAuditLogList from '@/components/admin/AdminAuditLogList.astro';
+---
+
+<AdminLayout title="审计日志">
+	<section class="admin-page-workspace" aria-labelledby="admin-audit-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">内容治理</p>
+			<h1 class="admin-page-title" id="admin-audit-title">审计日志</h1>
+			<p>按条件检索后台处置记录；仅展示审计 Action 返回的最小字段。</p>
+		</header>
+		<AdminAuditLogList />
+	</section>
+</AdminLayout>

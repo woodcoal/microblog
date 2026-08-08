@@ -20,6 +20,7 @@ const adminRoutes = [
 	'/admin/posts',
 	'/admin/users',
 	'/admin/comments',
+	'/admin/audit',
 	'/admin/tags',
 	'/admin/categories',
 	'/admin/site-copy'

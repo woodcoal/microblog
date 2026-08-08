@@ -188,6 +188,49 @@
 	max-width: 1480px;
 }
 
+/* 管理处置理由对话框由浏览器端共享控制器动态创建，因此样式保持全局。 */
+.admin-reason-dialog {
+	width: min(32rem, calc(100vw - 2rem));
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-lg);
+	padding: var(--spacing-6);
+	background: var(--color-card-bg);
+	color: var(--color-text);
+	box-shadow: var(--shadow-lg);
+}
+
+.admin-reason-dialog::backdrop {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.admin-reason-dialog form {
+	display: grid;
+	gap: var(--spacing-3);
+}
+
+.admin-reason-dialog textarea {
+	resize: vertical;
+	min-height: 7rem;
+}
+
+.admin-reason-dialog-description,
+.admin-reason-dialog-hint,
+.admin-reason-dialog-status {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.admin-reason-dialog-status {
+	min-height: 1.5rem;
+}
+
+.admin-reason-dialog textarea:focus-visible,
+.admin-audit-filters input:focus-visible,
+.admin-audit-filters select:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
+
 /* ===== 页面标题 ===== */
 
 .admin-page-title {

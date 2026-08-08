@@ -338,47 +338,7 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 	}
 </div>
 
-<!-- 操作弹窗（删除/恢复/锁定需填写理由） -->
-<dialog id="admin-post-modal" class="admin-modal">
-	<h3 class="admin-modal-title" id="admin-modal-title">操作</h3>
-	<div class="form-group">
-		<label class="form-label" for="admin-modal-reason">理由（必填）</label>
-		<textarea
-			id="admin-modal-reason"
-			class="form-input"
-			style="min-height: 80px"
-			placeholder="请填写操作理由..."></textarea>
-	</div>
-	<div class="admin-modal-actions">
-		<button type="button" class="btn btn-outline" id="admin-modal-cancel"> 取消 </button>
-		<button type="submit" class="btn btn-primary" id="admin-modal-confirm"> 确认 </button>
-	</div>
-</dialog>
-
 <style>
-	/* 弹窗样式 */
-	.admin-modal {
-		border: 1px solid var(--color-border);
-		border-radius: 12px;
-		padding: 1.5rem;
-		max-width: 480px;
-		width: 90%;
-		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-	}
-	.admin-modal::backdrop {
-		background: rgba(0, 0, 0, 0.4);
-	}
-	.admin-modal-title {
-		font-size: 1.125rem;
-		font-weight: 600;
-		margin-bottom: 1rem;
-	}
-	.admin-modal-actions {
-		display: flex;
-		gap: 0.75rem;
-		justify-content: flex-end;
-		margin-top: 1rem;
-	}
 	/* 批量操作栏样式 */
 	.admin-batch-bar {
 		display: flex;
@@ -422,62 +382,33 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 
 <script>
 	import { actions } from 'astro:actions';
+	import { runReasonedAdminAction } from '@/scripts/admin-reason-dialog';
 
-	/**
-	 * 管理员操作弹窗交互逻辑
-	 *
-	 * 使用 HTML <dialog> 元素实现弹窗，
-	 * 删除/恢复/锁定操作需填写理由后提交。
-	 */
-	const modal = document.getElementById('admin-post-modal') as HTMLDialogElement;
-	const titleEl = document.getElementById('admin-modal-title') as HTMLHeadingElement;
-	const reasonEl = document.getElementById('admin-modal-reason') as HTMLTextAreaElement;
-	const cancelBtn = document.getElementById('admin-modal-cancel');
-	const confirmBtn = document.getElementById('admin-modal-confirm');
-
-	// 当前操作状态
-	let currentAction = '';
-	let currentPostId = '';
-
-	/**
-	 * 操作类型到标题的映射
-	 *
-	 * delete/restore/lock 需弹窗填写理由；
-	 * unlock/pin/unpin 使用文字确认后直接提交。
-	 */
-	const actionConfig: Record<
-		'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin',
-		{ title: string; needReason: boolean }
-	> = {
-		delete: {
-			title: '删除帖子',
-			needReason: true
-		},
-		restore: {
-			title: '还原帖子',
-			needReason: true
-		},
-		lock: {
-			title: '锁定帖子',
-			needReason: true
-		},
-		unlock: {
-			title: '解锁帖子',
-			needReason: false
-		},
-		pin: {
-			title: '全局置顶帖子',
-			needReason: false
-		},
-		unpin: {
-			title: '取消全局置顶',
-			needReason: false
-		}
+	type PostAction = 'delete' | 'restore' | 'lock' | 'unlock' | 'pin' | 'unpin';
+	const actionLabels: Record<PostAction, string> = {
+		delete: '删除帖子',
+		restore: '还原帖子',
+		lock: '锁定帖子',
+		unlock: '解锁帖子',
+		pin: '全局置顶帖子',
+		unpin: '取消全局置顶'
 	};
+	function moderatePosts(action: PostAction, ids: string[]): void {
+		runReasonedAdminAction({
+			title: ids.length === 1 ? actionLabels[action] : `批量${actionLabels[action]}`,
+			description: `将对 ${ids.length} 篇帖子执行${actionLabels[action]}操作。`,
+			submit: async ({ reason, requestId }) => {
+				const result = await actions.batchPosts({ action, ids, reason, requestId });
+				if (result.error) throw new Error(result.error.message || '帖子处置失败');
+				return { affected: result.data?.affected ?? 0 };
+			},
+			onSuccess: () => window.location.reload()
+		});
+	}
 
 	// 为所有带 data-action 的按钮绑定点击事件
 	document.querySelectorAll('[data-action]').forEach((btn) => {
-		btn.addEventListener('click', async () => {
+		btn.addEventListener('click', () => {
 			const action = (btn as HTMLElement).dataset.action;
 			const postId = (btn as HTMLElement).dataset.postId || '';
 			if (
@@ -490,87 +421,8 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 				!postId
 			)
 				return;
-			const config = actionConfig[action];
-			if (!config) return;
-
-			// 不需要理由的操作仍明确告知置顶状态变更。
-			if (!config.needReason) {
-				if (
-					(action === 'pin' || action === 'unpin') &&
-					!(await MutanDialog.confirm(
-						action === 'pin'
-							? '确认要将这条帖子全局置顶吗？'
-							: '确认要取消这条帖子的全局置顶吗？',
-						{ title: config.title, danger: action === 'unpin' }
-					))
-				)
-					return;
-				const reason = prompt('请输入处置理由（2-500 字）：')?.trim() ?? '';
-				if (reason.length < 2)
-					return void (await MutanDialog.alert('理由至少需要 2 个字符'));
-				const result = await actions.batchPosts({
-					action,
-					ids: [postId],
-					reason,
-					requestId: crypto.randomUUID()
-				});
-				if (result.error) {
-					await MutanDialog.alert(result.error.message || '操作失败');
-				} else if (result.data && result.data.affected > 0) {
-					window.location.reload();
-				} else {
-					await MutanDialog.alert('没有帖子被更新');
-				}
-				return;
-			}
-
-			// 需要理由的操作（删除/还原/锁定）：弹出弹窗
-			currentAction = action;
-			currentPostId = postId;
-			titleEl.textContent = config.title;
-			reasonEl.value = '';
-			modal.showModal();
+			moderatePosts(action, [postId]);
 		});
-	});
-
-	// 取消按钮关闭弹窗
-	cancelBtn?.addEventListener('click', () => {
-		modal.close();
-	});
-
-	// 确认按钮提交操作
-	confirmBtn?.addEventListener('click', async () => {
-		const reason = reasonEl.value.trim();
-		if (!reason) {
-			await MutanDialog.alert('请填写理由', { title: '提示' });
-			return;
-		}
-
-		if (currentAction !== 'delete' && currentAction !== 'restore' && currentAction !== 'lock')
-			return;
-		const config = actionConfig[currentAction];
-		if (!config) return;
-
-		const result = await actions.batchPosts({
-			action: currentAction,
-			ids: [currentPostId],
-			reason,
-			requestId: crypto.randomUUID()
-		});
-		if (result.error) {
-			await MutanDialog.alert(result.error.message || '操作失败');
-		} else if (result.data && result.data.affected > 0) {
-			window.location.reload();
-		} else {
-			await MutanDialog.alert('没有帖子被更新');
-		}
-	});
-
-	// 点击弹窗外部关闭
-	modal?.addEventListener('click', (e) => {
-		if (e.target === modal) {
-			modal.close();
-		}
 	});
 
 	// ===== 批量操作逻辑 =====
@@ -623,45 +475,7 @@ const pageQuery = filterQuery ? `&${filterQuery}` : '';
 				return;
 			}
 
-			const reason = prompt('请输入批量处置理由（2-500 字）：')?.trim() ?? '';
-			if (reason.length < 2) {
-				await MutanDialog.alert('理由至少需要 2 个字符', { title: '提示' });
-				return;
-			}
-
-			if (
-				!(await MutanDialog.confirm(
-					`确认要批量${
-						action === 'delete'
-							? '删除'
-							: action === 'restore'
-								? '还原'
-								: action === 'lock'
-									? '锁定'
-									: action === 'unlock'
-										? '解锁'
-										: action === 'pin'
-											? '全局置顶'
-											: '取消全局置顶'
-					} ${checkedIds.length} 项吗？`,
-					{ title: '批量操作', danger: true }
-				))
-			)
-				return;
-
-			const result = await actions.batchPosts({
-				action,
-				ids: checkedIds,
-				reason,
-				requestId: crypto.randomUUID()
-			});
-			if (result.error) {
-				await MutanDialog.alert(result.error.message || '操作失败');
-			} else if (result.data && result.data.affected > 0) {
-				window.location.reload();
-			} else {
-				await MutanDialog.alert('没有帖子被更新');
-			}
+			moderatePosts(action, checkedIds);
 		});
 	});
 </script>
