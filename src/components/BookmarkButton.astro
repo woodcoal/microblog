@@ -73,66 +73,66 @@ const isBookmarked = initialBookmarked;
 	document.addEventListener('submit', async (e) => {
 		const form = (e.target as Element | null)?.closest<HTMLFormElement>('.bookmark-btn-form');
 		if (!form) return;
-			e.preventDefault();
+		e.preventDefault();
 
-			const btn = form.querySelector<HTMLButtonElement>('.bookmark-btn');
-			if (!btn || btn.disabled) return;
+		const btn = form.querySelector<HTMLButtonElement>('.bookmark-btn');
+		if (!btn || btn.disabled) return;
 
-			// 从 data 属性获取帖子 ID
-			const postId = form.dataset.postId || '';
+		// 从 data 属性获取帖子 ID
+		const postId = form.dataset.postId || '';
 
-			// 读取当前状态
-			const countEl = btn.querySelector<HTMLSpanElement>('.bookmark-count');
-			const prevBookmarked = btn.classList.contains('bookmark-btn-bookmarked');
-			const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
+		// 读取当前状态
+		const countEl = btn.querySelector<HTMLSpanElement>('.bookmark-count');
+		const prevBookmarked = btn.classList.contains('bookmark-btn-bookmarked');
+		const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
 
-			// 乐观更新：切换 bookmarked 类名、更新计数
-			btn.classList.toggle('bookmark-btn-bookmarked', !prevBookmarked);
-			btn.setAttribute('aria-label', prevBookmarked ? '收藏' : '取消收藏');
+		// 乐观更新：切换 bookmarked 类名、更新计数
+		btn.classList.toggle('bookmark-btn-bookmarked', !prevBookmarked);
+		btn.setAttribute('aria-label', prevBookmarked ? '收藏' : '取消收藏');
+		if (countEl) {
+			countEl.textContent = String(prevBookmarked ? prevCount - 1 : prevCount + 1);
+		}
+
+		// 收藏时触发弹跳动画
+		if (!prevBookmarked) {
+			btn.classList.add('bookmark-btn-animate');
+			setTimeout(() => btn.classList.remove('bookmark-btn-animate'), 400);
+		}
+
+		// 更新 SVG fill 状态
+		const svg = btn.querySelector<SVGElement>('.bookmark-icon');
+		if (svg) {
+			svg.setAttribute('fill', !prevBookmarked ? 'currentColor' : 'none');
+		}
+
+		// 禁用按钮防止重复点击
+		btn.disabled = true;
+
+		const result = await actions.toggleBookmark({ postId });
+
+		if (result.data) {
+			// 以服务端返回为准
+			const { bookmarked, bookmarkCount } = result.data;
+			btn.classList.toggle('bookmark-btn-bookmarked', bookmarked);
+			btn.setAttribute('aria-label', bookmarked ? '取消收藏' : '收藏');
 			if (countEl) {
-				countEl.textContent = String(prevBookmarked ? prevCount - 1 : prevCount + 1);
+				countEl.textContent = String(bookmarkCount);
 			}
-
-			// 收藏时触发弹跳动画
-			if (!prevBookmarked) {
-				btn.classList.add('bookmark-btn-animate');
-				setTimeout(() => btn.classList.remove('bookmark-btn-animate'), 400);
-			}
-
-			// 更新 SVG fill 状态
-			const svg = btn.querySelector<SVGElement>('.bookmark-icon');
 			if (svg) {
-				svg.setAttribute('fill', !prevBookmarked ? 'currentColor' : 'none');
+				svg.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
 			}
-
-			// 禁用按钮防止重复点击
-			btn.disabled = true;
-
-			const result = await actions.toggleBookmark({ postId });
-
-			if (result.data) {
-				// 以服务端返回为准
-				const { bookmarked, bookmarkCount } = result.data;
-				btn.classList.toggle('bookmark-btn-bookmarked', bookmarked);
-				btn.setAttribute('aria-label', bookmarked ? '取消收藏' : '收藏');
-				if (countEl) {
-					countEl.textContent = String(bookmarkCount);
-				}
-				if (svg) {
-					svg.setAttribute('fill', bookmarked ? 'currentColor' : 'none');
-				}
-			} else if (result.error) {
-				// 未登录时跳转登录页
-				const errStatus = (result.error as { status?: number }).status;
-				if (errStatus === 401) {
-					rollback(btn, countEl, svg, prevBookmarked, prevCount);
-					window.location.href = '/login';
-					return;
-				}
-				// 其他错误回滚
+		} else if (result.error) {
+			// 未登录时跳转登录页
+			const errStatus = (result.error as { status?: number }).status;
+			if (errStatus === 401) {
 				rollback(btn, countEl, svg, prevBookmarked, prevCount);
+				window.location.href = '/login';
+				return;
 			}
-			btn.disabled = false;
+			// 其他错误回滚
+			rollback(btn, countEl, svg, prevBookmarked, prevCount);
+		}
+		btn.disabled = false;
 	});
 
 	/**

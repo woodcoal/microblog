@@ -301,45 +301,45 @@ function buildSearchUrl(params: {
 				>
 					综合
 				</a>
-			{
-				isModeEnabled('weibo') && (
-					<a
-						href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
-						class:list={[
-							'search-tab',
-							{ 'search-tab-active': isPostsTab && isModeWeibo }
-						]}
-					>
-						{getModeLabel('weibo')}
-					</a>
-				)
-			}
-			{
-				isModeEnabled('forum') && (
-					<a
-						href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
-						class:list={[
-							'search-tab',
-							{ 'search-tab-active': isPostsTab && isModeForum }
-						]}
-					>
-						{getModeLabel('forum')}
-					</a>
-				)
-			}
-			{
-				isModeEnabled('blog') && (
-					<a
-						href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
-						class:list={[
-							'search-tab',
-							{ 'search-tab-active': isPostsTab && isModeBlog }
-						]}
-					>
-						{getModeLabel('blog')}
-					</a>
-				)
-			}
+				{
+					isModeEnabled('weibo') && (
+						<a
+							href={buildSearchUrl({ tab: 'posts', mode: 'weibo', categoryId: '' })}
+							class:list={[
+								'search-tab',
+								{ 'search-tab-active': isPostsTab && isModeWeibo }
+							]}
+						>
+							{getModeLabel('weibo')}
+						</a>
+					)
+				}
+				{
+					isModeEnabled('forum') && (
+						<a
+							href={buildSearchUrl({ tab: 'posts', mode: 'forum', categoryId: '' })}
+							class:list={[
+								'search-tab',
+								{ 'search-tab-active': isPostsTab && isModeForum }
+							]}
+						>
+							{getModeLabel('forum')}
+						</a>
+					)
+				}
+				{
+					isModeEnabled('blog') && (
+						<a
+							href={buildSearchUrl({ tab: 'posts', mode: 'blog', categoryId: '' })}
+							class:list={[
+								'search-tab',
+								{ 'search-tab-active': isPostsTab && isModeBlog }
+							]}
+						>
+							{getModeLabel('blog')}
+						</a>
+					)
+				}
 				<a
 					href={buildSearchUrl({ tab: 'users', categoryId: '' })}
 					class:list={['search-tab', { 'search-tab-active': isUsersTab }]}

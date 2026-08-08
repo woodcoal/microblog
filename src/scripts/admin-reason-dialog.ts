@@ -21,12 +21,13 @@ export function createAdminRequestId(cryptoSource?: UuidCrypto): string {
 		cryptoSource ??
 		(nativeCrypto
 			? {
-				randomUUID:
-					typeof nativeCrypto.randomUUID === 'function'
-						? nativeCrypto.randomUUID.bind(nativeCrypto)
-						: undefined,
-				getRandomValues: (values: Uint8Array<ArrayBuffer>) => nativeCrypto.getRandomValues(values)
-			}
+					randomUUID:
+						typeof nativeCrypto.randomUUID === 'function'
+							? nativeCrypto.randomUUID.bind(nativeCrypto)
+							: undefined,
+					getRandomValues: (values: Uint8Array<ArrayBuffer>) =>
+						nativeCrypto.getRandomValues(values)
+				}
 			: undefined);
 
 	if (typeof resolvedCrypto?.randomUUID === 'function') {

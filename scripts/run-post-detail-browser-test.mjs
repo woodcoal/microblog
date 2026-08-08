@@ -49,7 +49,11 @@ try {
 	const server = spawn(process.execPath, ['dist/server/entry.mjs'], { env, stdio: 'inherit' });
 	try {
 		await waitForServer(server);
-		run(process.execPath, ['--import=tsx', '--test', 'tests/post-detail-regression.browser.test.ts']);
+		run(process.execPath, [
+			'--import=tsx',
+			'--test',
+			'tests/post-detail-regression.browser.test.ts'
+		]);
 	} finally {
 		server.kill('SIGTERM');
 	}

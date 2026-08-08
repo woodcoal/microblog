@@ -16,10 +16,9 @@ import { getModeLabel, isModeEnabled } from '@/lib/config';
 const requestedMode = Astro.url.searchParams.get('mode');
 const categoryModes = ['weibo', 'forum', 'blog'] as const;
 const enabledCategoryModes = categoryModes.filter(isModeEnabled);
-const activeMode =
-	enabledCategoryModes.includes(requestedMode as (typeof categoryModes)[number])
-		? requestedMode!
-		: (enabledCategoryModes[0] ?? 'weibo');
+const activeMode = enabledCategoryModes.includes(requestedMode as (typeof categoryModes)[number])
+	? requestedMode!
+	: (enabledCategoryModes[0] ?? 'weibo');
 const categoryTabs = enabledCategoryModes.map((mode) => ({
 	mode,
 	label: getModeLabel(mode),

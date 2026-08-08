@@ -34,7 +34,10 @@ test('后台分类管理仅提供已启用频道，并回退关闭频道的 URL 
 		categoryManagementPage,
 		/import \{ getModeLabel, isModeEnabled \} from '@\/lib\/config'/
 	);
-	assert.match(categoryManagementPage, /const enabledCategoryModes = categoryModes\.filter\(isModeEnabled\)/);
+	assert.match(
+		categoryManagementPage,
+		/const enabledCategoryModes = categoryModes\.filter\(isModeEnabled\)/
+	);
 	assert.match(categoryManagementPage, /enabledCategoryModes\.includes\(requestedMode/);
 	assert.match(categoryManagementPage, /const categoryTabs = enabledCategoryModes\.map/);
 });

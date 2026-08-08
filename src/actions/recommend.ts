@@ -173,4 +173,11 @@ const getRecommendationProfile = defineAction({
 	}
 });
 
-export { getRecommend, getRecommendUsers, getSimilarPosts, recordRead, saveInterests, getRecommendationProfile };
+export {
+	getRecommend,
+	getRecommendUsers,
+	getSimilarPosts,
+	recordRead,
+	saveInterests,
+	getRecommendationProfile
+};

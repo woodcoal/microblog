@@ -48,7 +48,9 @@ const primaryItems = [
 				aria-label={item.label}
 				title={item.label}
 			>
-				<span class="sidebar-link-icon" aria-hidden="true">{item.icon}</span>
+				<span class="sidebar-link-icon" aria-hidden="true">
+					{item.icon}
+				</span>
 				<span>{item.label}</span>
 			</a>
 		))
@@ -57,13 +59,12 @@ const primaryItems = [
 {
 	groups.length > 0 ? (
 		groups.map((group) => (
-			<section
-				class="forum-sidebar-group"
-				aria-labelledby={`${idPrefix}-group-${group.id}`}
-			>
+			<section class="forum-sidebar-group" aria-labelledby={`${idPrefix}-group-${group.id}`}>
 				<h2 id={`${idPrefix}-group-${group.id}`}>
 					{group.icon && (
-						<span class="forum-sidebar-group-icon" aria-hidden="true">{group.icon}</span>
+						<span class="forum-sidebar-group-icon" aria-hidden="true">
+							{group.icon}
+						</span>
 					)}
 					{group.name}
 				</h2>

@@ -73,24 +73,33 @@ const sortParam = Astro.url.searchParams.get('sort') || 'latest';
 const forumSort = ['latest', 'featured', 'hot'].includes(sortParam) ? sortParam : 'latest';
 const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	forumSort === 'featured'
-			? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
-			: [{ createdAt: 'desc' }];
+		? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
+		: [{ createdAt: 'desc' }];
 
 // 从 URL 查询参数获取当前页码
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 
 // 查询该版块下的帖子总数
-const hotResult = forumSort === 'hot'
-	? await getTrendingFeed({ viewerId: currentUser?.userId, page: currentPage, pageSize: PAGE_SIZE, mode: 'forum', categoryId: category.id })
-	: null;
-const totalPosts = hotResult?.total ?? await prisma.post.count({
-	where: {
-		isDeleted: false,
-		mode: 'forum',
-		categoryId: category.id,
-		...visibilityFilter
-	}
-});
+const hotResult =
+	forumSort === 'hot'
+		? await getTrendingFeed({
+				viewerId: currentUser?.userId,
+				page: currentPage,
+				pageSize: PAGE_SIZE,
+				mode: 'forum',
+				categoryId: category.id
+			})
+		: null;
+const totalPosts =
+	hotResult?.total ??
+	(await prisma.post.count({
+		where: {
+			isDeleted: false,
+			mode: 'forum',
+			categoryId: category.id,
+			...visibilityFilter
+		}
+	}));
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
@@ -98,20 +107,22 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的帖子
-const posts = hotResult?.items ?? await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		mode: 'forum',
-		categoryId: category.id,
-		...visibilityFilter
-	},
-	orderBy: forumPostOrder,
-	include: {
-		...POST_CARD_INCLUDE
-	},
-	skip,
-	take: PAGE_SIZE
-});
+const posts =
+	hotResult?.items ??
+	(await prisma.post.findMany({
+		where: {
+			isDeleted: false,
+			mode: 'forum',
+			categoryId: category.id,
+			...visibilityFilter
+		},
+		orderBy: forumPostOrder,
+		include: {
+			...POST_CARD_INCLUDE
+		},
+		skip,
+		take: PAGE_SIZE
+	}));
 
 // 查询当前用户对帖子的点赞状态
 const restrictedPostIds = (

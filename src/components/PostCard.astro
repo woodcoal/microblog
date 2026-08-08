@@ -199,20 +199,21 @@ const blogDate = isBlog
 		) : (
 			<div class="post-card-header">
 				<a href={`/${post.user.username}`} class="post-card-author">
-					{
-						hasAvatar ? (
-							<img
-								src={post.user.avatarUrl}
-								alt={`${post.user.displayName} 的头像`}
-								class="post-card-avatar"
-								loading="lazy"
-							/>
-						) : (
-							<div class="post-card-avatar post-card-avatar-placeholder" aria-hidden="true">
-								{post.user.displayName.charAt(0).toUpperCase()}
-							</div>
-						)
-					}
+					{hasAvatar ? (
+						<img
+							src={post.user.avatarUrl}
+							alt={`${post.user.displayName} 的头像`}
+							class="post-card-avatar"
+							loading="lazy"
+						/>
+					) : (
+						<div
+							class="post-card-avatar post-card-avatar-placeholder"
+							aria-hidden="true"
+						>
+							{post.user.displayName.charAt(0).toUpperCase()}
+						</div>
+					)}
 					<div class="post-card-author-info">
 						<span class="post-card-name">{post.user.displayName}</span>
 						<span class="post-card-username">@{post.user.username}</span>
@@ -220,13 +221,11 @@ const blogDate = isBlog
 				</a>
 				<div class="post-card-header-right">
 					{/* 模式标签角标 */}
-					{
-						modeBadge && (
-							<span class={`badge ${modeBadge.cls} post-card-mode-badge`}>
-								{modeBadge.text}
-							</span>
-						)
-					}
+					{modeBadge && (
+						<span class={`badge ${modeBadge.cls} post-card-mode-badge`}>
+							{modeBadge.text}
+						</span>
+					)}
 					<time class="post-card-time" datetime={post.createdAt}>
 						{isBlog ? blogDate : relativeTime}
 					</time>
@@ -321,7 +320,11 @@ const blogDate = isBlog
 				/>
 			) : (
 				<div class="post-card-actions" aria-label="帖子互动">
-					<LikeButton postId={post.id} initialLiked={liked} initialLikeCount={likeCount} />
+					<LikeButton
+						postId={post.id}
+						initialLiked={liked}
+						initialLikeCount={likeCount}
+					/>
 					<BookmarkButton
 						postId={post.id}
 						initialBookmarked={bookmarked}
@@ -342,7 +345,7 @@ const blogDate = isBlog
 							stroke-linecap="round"
 							stroke-linejoin="round"
 						>
-							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+							<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
 						</svg>
 						<span>{commentCount}</span>
 					</a>

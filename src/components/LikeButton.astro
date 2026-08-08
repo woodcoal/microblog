@@ -79,74 +79,74 @@ const isLiked = initialLiked;
 	document.addEventListener('submit', async (e) => {
 		const form = (e.target as Element | null)?.closest<HTMLFormElement>('.like-btn-form');
 		if (!form) return;
-			e.preventDefault();
+		e.preventDefault();
 
-			const btn = form.querySelector<HTMLButtonElement>('.like-btn');
-			if (!btn || btn.disabled) return;
+		const btn = form.querySelector<HTMLButtonElement>('.like-btn');
+		if (!btn || btn.disabled) return;
 
-			// 从 data 属性获取目标信息
-			const targetId = form.dataset.targetId || '';
-			const targetType = (form.dataset.targetType || 'post') as 'post' | 'comment';
+		// 从 data 属性获取目标信息
+		const targetId = form.dataset.targetId || '';
+		const targetType = (form.dataset.targetType || 'post') as 'post' | 'comment';
 
-			// 读取当前状态
-			const countEl = btn.querySelector<HTMLSpanElement>('.like-count');
-			const prevLiked = btn.classList.contains('like-btn-liked');
-			const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
+		// 读取当前状态
+		const countEl = btn.querySelector<HTMLSpanElement>('.like-count');
+		const prevLiked = btn.classList.contains('like-btn-liked');
+		const prevCount = countEl ? parseInt(countEl.textContent || '0', 10) : 0;
 
-			// 乐观更新：切换 liked 类名、更新计数
-			btn.classList.toggle('like-btn-liked', !prevLiked);
-			btn.setAttribute('aria-label', prevLiked ? '点赞' : '取消点赞');
+		// 乐观更新：切换 liked 类名、更新计数
+		btn.classList.toggle('like-btn-liked', !prevLiked);
+		btn.setAttribute('aria-label', prevLiked ? '点赞' : '取消点赞');
+		if (countEl) {
+			countEl.textContent = String(prevLiked ? prevCount - 1 : prevCount + 1);
+		}
+
+		// 点赞时触发弹跳动画
+		if (!prevLiked) {
+			btn.classList.add('like-btn-animate');
+			setTimeout(() => btn.classList.remove('like-btn-animate'), 400);
+		}
+
+		// 更新 SVG fill 状态
+		const svg = btn.querySelector<SVGElement>('.like-icon');
+		if (svg) {
+			svg.setAttribute('fill', !prevLiked ? 'currentColor' : 'none');
+		}
+
+		// 禁用按钮防止重复点击
+		btn.disabled = true;
+
+		const result = await actions.toggleLike({ targetId, type: targetType });
+
+		if (result.data) {
+			// 以服务端返回为准
+			const { liked, likeCount } = result.data;
+			btn.classList.toggle('like-btn-liked', liked);
+			btn.setAttribute('aria-label', liked ? '取消点赞' : '点赞');
 			if (countEl) {
-				countEl.textContent = String(prevLiked ? prevCount - 1 : prevCount + 1);
+				countEl.textContent = String(likeCount);
 			}
-
-			// 点赞时触发弹跳动画
-			if (!prevLiked) {
-				btn.classList.add('like-btn-animate');
-				setTimeout(() => btn.classList.remove('like-btn-animate'), 400);
-			}
-
-			// 更新 SVG fill 状态
-			const svg = btn.querySelector<SVGElement>('.like-icon');
 			if (svg) {
-				svg.setAttribute('fill', !prevLiked ? 'currentColor' : 'none');
+				svg.setAttribute('fill', liked ? 'currentColor' : 'none');
 			}
 
-			// 禁用按钮防止重复点击
-			btn.disabled = true;
-
-			const result = await actions.toggleLike({ targetId, type: targetType });
-
-			if (result.data) {
-				// 以服务端返回为准
-				const { liked, likeCount } = result.data;
-				btn.classList.toggle('like-btn-liked', liked);
-				btn.setAttribute('aria-label', liked ? '取消点赞' : '点赞');
-				if (countEl) {
-					countEl.textContent = String(likeCount);
-				}
-				if (svg) {
-					svg.setAttribute('fill', liked ? 'currentColor' : 'none');
-				}
-
-				// 通知页面点赞状态变更，用于刷新点赞用户列表
-				window.dispatchEvent(
-					new CustomEvent('post-like-changed', {
-						detail: { postId: targetType === 'post' ? targetId : undefined, liked }
-					})
-				);
-			} else if (result.error) {
-				// 未登录时跳转登录页
-				const errStatus = (result.error as { status?: number }).status;
-				if (errStatus === 401) {
-					rollback(btn, countEl, svg, prevLiked, prevCount);
-					window.location.href = '/login';
-					return;
-				}
-				// 其他错误回滚
+			// 通知页面点赞状态变更，用于刷新点赞用户列表
+			window.dispatchEvent(
+				new CustomEvent('post-like-changed', {
+					detail: { postId: targetType === 'post' ? targetId : undefined, liked }
+				})
+			);
+		} else if (result.error) {
+			// 未登录时跳转登录页
+			const errStatus = (result.error as { status?: number }).status;
+			if (errStatus === 401) {
 				rollback(btn, countEl, svg, prevLiked, prevCount);
+				window.location.href = '/login';
+				return;
 			}
-			btn.disabled = false;
+			// 其他错误回滚
+			rollback(btn, countEl, svg, prevLiked, prevCount);
+		}
+		btn.disabled = false;
 	});
 
 	/**

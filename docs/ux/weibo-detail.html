@@ -1,155 +1,191 @@
 <!doctype html>
 <html lang="zh-CN" data-theme="light">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>睦谈 · 微博详情</title>
-<link rel="stylesheet" href="prototype.css">
-</head>
-<body class="has-tabbar">
-<a class="skip" href="#main">跳到内容</a>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>睦谈 · 微博详情</title>
+		<link rel="stylesheet" href="prototype.css" />
+	</head>
+	<body class="has-tabbar">
+		<a class="skip" href="#main">跳到内容</a>
 
-<header class="navbar">
-  <div class="navbar-inner">
-    <a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
-    <nav class="nav-mode-links" aria-label="频道">
-      <a href="index.html">🏠 首页</a>
-      <a href="weibo.html" aria-current="page">💬 微博</a>
-      <a href="forum.html">💬 论坛</a>
-      <a href="blog.html">📖 博客</a>
-    </nav>
-    <div class="navbar-actions">
-      <button class="icon-btn nav-search-btn" data-toast="搜索面板已打开" aria-label="搜索">🔍</button>
-      <button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
-      <button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
-        <span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
-        <span class="nav-user-name">林冲</span>
-        <span class="nav-user-arrow">▾</span>
-      </button>
-      <nav class="nav-dropdown-menu">
-        <a href="profile.html">👤 个人主页</a>
-        <a href="user-center.html">⚙️ 用户中心</a>
-        <a href="#" data-toast="通知中心已打开">🔔 通知 <span class="notification-badge">3</span></a>
-        <a href="admin.html">🛡️ 管理后台</a>
-        <div class="divider"></div>
-        <a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
-      </nav>
-    </div>
-  </div>
-</header>
+		<header class="navbar">
+			<div class="navbar-inner">
+				<a class="navbar-brand brand" href="index.html">睦<b>谈</b></a>
+				<nav class="nav-mode-links" aria-label="频道">
+					<a href="index.html">🏠 首页</a>
+					<a href="weibo.html" aria-current="page">💬 微博</a>
+					<a href="forum.html">💬 论坛</a>
+					<a href="blog.html">📖 博客</a>
+				</nav>
+				<div class="navbar-actions">
+					<button
+						class="icon-btn nav-search-btn"
+						data-toast="搜索面板已打开"
+						aria-label="搜索"
+					>
+						🔍
+					</button>
+					<button class="icon-btn" data-theme-toggle aria-label="切换主题">◐</button>
+					<button class="nav-user-trigger" aria-expanded="false" aria-haspopup="true">
+						<span class="nav-avatar-wrap"><span class="nav-user-avatar">林</span></span>
+						<span class="nav-user-name">林冲</span>
+						<span class="nav-user-arrow">▾</span>
+					</button>
+					<nav class="nav-dropdown-menu">
+						<a href="profile.html">👤 个人主页</a>
+						<a href="user-center.html">⚙️ 用户中心</a>
+						<a href="#" data-toast="通知中心已打开"
+							>🔔 通知 <span class="notification-badge">3</span></a
+						>
+						<a href="admin.html">🛡️ 管理后台</a>
+						<div class="divider"></div>
+						<a href="#" class="logout-option" data-toast="已退出原型登录态">🚪 登出</a>
+					</nav>
+				</div>
+			</div>
+		</header>
 
-<nav class="tab-bar-mobile" aria-label="移动端导航">
-  <a href="index.html"><span>🏠</span>首页</a>
-  <a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
-  <a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
-  <a href="profile.html"><span>👤</span>我的</a>
-</nav>
+		<nav class="tab-bar-mobile" aria-label="移动端导航">
+			<a href="index.html"><span>🏠</span>首页</a>
+			<a href="#" data-toast="搜索面板已打开"><span>🔍</span>搜索</a>
+			<a href="#" data-toast="通知中心已打开"><span>🔔</span>通知</a>
+			<a href="profile.html"><span>👤</span>我的</a>
+		</nav>
 
-<main id="main" class="shell">
-<div class="detail-layout">
+		<main id="main" class="shell">
+			<div class="detail-layout">
+				<section>
+					<a class="back-link" href="weibo.html">← 返回微博</a>
 
-  <section>
-    <a class="back-link" href="weibo.html">← 返回微博</a>
+					<article class="card weibo-detail-post">
+						<div class="post-top">
+							<span class="avatar a-teal">周</span>
+							<div class="post-user">
+								<span class="name">周末读物</span>
+								<span class="handle">@weekend · 今天 10:18</span>
+							</div>
+						</div>
+						<p class="post-text">
+							一条短想法可以先开始，想清楚以后再沉淀成一篇文章。两种表达不该抢占彼此的位置，而应当成为同一段思考的不同阶段。
+						</p>
+						<span class="tag">写作</span><span class="tag">产品</span>
 
-    <article class="card weibo-detail-post">
-      <div class="post-top">
-        <span class="avatar a-teal">周</span>
-        <div class="post-user">
-          <span class="name">周末读物</span>
-          <span class="handle">@weekend · 今天 10:18</span>
-        </div>
-      </div>
-      <p class="post-text">一条短想法可以先开始，想清楚以后再沉淀成一篇文章。两种表达不该抢占彼此的位置，而应当成为同一段思考的不同阶段。</p>
-      <span class="tag">写作</span><span class="tag">产品</span>
+						<div class="weibo-stats">
+							<span>💬 12 评论</span>
+							<span>🔁 8 转发</span>
+							<span>❤️ 47 赞</span>
+						</div>
 
-      <div class="weibo-stats">
-        <span>💬 12 评论</span>
-        <span>🔁 8 转发</span>
-        <span>❤️ 47 赞</span>
-      </div>
+						<div class="post-actions">
+							<button data-like>💬 <span>12</span></button>
+							<button data-like>🔁 <span>8</span></button>
+							<button data-like>❤️ <span>47</span></button>
+							<button data-like>🔖 <span>5</span></button>
+						</div>
+					</article>
 
-      <div class="post-actions">
-        <button data-like>💬 <span>12</span></button>
-        <button data-like>🔁 <span>8</span></button>
-        <button data-like>❤️ <span>47</span></button>
-        <button data-like>🔖 <span>5</span></button>
-      </div>
-    </article>
+					<article class="card card-pad comment-section">
+						<h3>评论</h3>
+						<div class="comment-form">
+							<span class="avatar a-indigo">林</span>
+							<div style="flex: 1">
+								<textarea placeholder="写下你的评论……"></textarea>
+								<div
+									style="
+										display: flex;
+										justify-content: flex-end;
+										margin-top: 8px;
+									"
+								>
+									<button class="btn primary" data-toast="评论已发布">
+										评论
+									</button>
+								</div>
+							</div>
+						</div>
 
-    <article class="card card-pad comment-section">
-      <h3>评论</h3>
-      <div class="comment-form">
-        <span class="avatar a-indigo">林</span>
-        <div style="flex:1">
-          <textarea placeholder="写下你的评论……"></textarea>
-          <div style="display:flex;justify-content:flex-end;margin-top:8px">
-            <button class="btn primary" data-toast="评论已发布">评论</button>
-          </div>
-        </div>
-      </div>
+						<ul class="comment-list">
+							<li class="comment-item">
+								<span class="avatar a-slate">杨</span>
+								<div class="comment-body">
+									<div class="comment-head">
+										<b class="name">杨青</b>
+										<span class="time">30 分钟前</span>
+									</div>
+									<p class="comment-text">
+										深有同感，微博是"开始"，博客是"沉淀"。
+									</p>
+								</div>
+							</li>
+							<li class="comment-item">
+								<span class="avatar a-rose">苏</span>
+								<div class="comment-body">
+									<div class="comment-head">
+										<b class="name">苏晚</b>
+										<span class="time">1 小时前</span>
+									</div>
+									<p class="comment-text">
+										颗粒度选择是关键，不是所有想法都值得长文。
+									</p>
+								</div>
+							</li>
+							<li class="comment-item">
+								<span class="avatar a-amber">墨</span>
+								<div class="comment-body">
+									<div class="comment-head">
+										<b class="name">墨墨</b>
+										<span class="time">2 小时前</span>
+									</div>
+									<p class="comment-text">
+										需要"沉淀"的那一刻其实是有信号的，抓住它。
+									</p>
+								</div>
+							</li>
+						</ul>
 
-      <ul class="comment-list">
-        <li class="comment-item">
-          <span class="avatar a-slate">杨</span>
-          <div class="comment-body">
-            <div class="comment-head">
-              <b class="name">杨青</b>
-              <span class="time">30 分钟前</span>
-            </div>
-            <p class="comment-text">深有同感，微博是"开始"，博客是"沉淀"。</p>
-          </div>
-        </li>
-        <li class="comment-item">
-          <span class="avatar a-rose">苏</span>
-          <div class="comment-body">
-            <div class="comment-head">
-              <b class="name">苏晚</b>
-              <span class="time">1 小时前</span>
-            </div>
-            <p class="comment-text">颗粒度选择是关键，不是所有想法都值得长文。</p>
-          </div>
-        </li>
-        <li class="comment-item">
-          <span class="avatar a-amber">墨</span>
-          <div class="comment-body">
-            <div class="comment-head">
-              <b class="name">墨墨</b>
-              <span class="time">2 小时前</span>
-            </div>
-            <p class="comment-text">需要"沉淀"的那一刻其实是有信号的，抓住它。</p>
-          </div>
-        </li>
-      </ul>
+						<div class="pagination">
+							<a href="#">‹</a>
+							<span>1</span><a href="#">2</a>
+							<a href="#">›</a>
+						</div>
+					</article>
+				</section>
 
-      <div class="pagination">
-        <a href="#">‹</a>
-        <span>1</span><a href="#">2</a>
-        <a href="#">›</a>
-      </div>
-    </article>
-  </section>
+				<aside class="right-rail">
+					<article class="card card-pad">
+						<div class="section-title"><span>作者</span></div>
+						<div style="display: flex; align-items: center; gap: 10px">
+							<span class="avatar a-teal">周</span>
+							<div>
+								<b style="font-size: 14px">周末读物</b><br /><small class="handle"
+									>@weekend</small
+								>
+							</div>
+						</div>
+						<div style="margin-top: 12px">
+							<button
+								class="btn primary"
+								data-toast="已关注该用户"
+								style="width: 100%"
+							>
+								关注
+							</button>
+						</div>
+					</article>
+					<article class="card card-pad" style="margin-top: 12px">
+						<div class="section-title"><span>相关微博</span></div>
+						<a href="#" style="display: block; padding: 8px 0; font-size: 14px"
+							>好的交互不是让用户少点几下……</a
+						>
+						<a href="#" style="display: block; padding: 8px 0; font-size: 14px"
+							>设计系统是由决策构成……</a
+						>
+					</article>
+				</aside>
+			</div>
+		</main>
 
-  <aside class="right-rail">
-    <article class="card card-pad">
-      <div class="section-title"><span>作者</span></div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span class="avatar a-teal">周</span>
-        <div><b style="font-size:14px">周末读物</b><br><small class="handle">@weekend</small></div>
-      </div>
-      <div style="margin-top:12px">
-        <button class="btn primary" data-toast="已关注该用户" style="width:100%">关注</button>
-      </div>
-    </article>
-    <article class="card card-pad" style="margin-top:12px">
-      <div class="section-title"><span>相关微博</span></div>
-      <a href="#" style="display:block;padding:8px 0;font-size:14px">好的交互不是让用户少点几下……</a>
-      <a href="#" style="display:block;padding:8px 0;font-size:14px">设计系统是由决策构成……</a>
-    </article>
-  </aside>
-
-</div>
-</main>
-
-<script src="prototype.js"></script>
-</body>
+		<script src="prototype.js"></script>
+	</body>
 </html>

@@ -63,36 +63,40 @@ const unifiedTrending = isPopularSort
 			pageSize: PAGE_SIZE,
 			mode: 'weibo',
 			includeGlobalPinned: true
-	})
+		})
 	: null;
 const timelineOrderBy: Prisma.PostOrderByWithRelationInput[] = [{ createdAt: 'desc' }];
 
 // 查询全局置顶帖（weibo 模式，始终在最前面）
-const pinnedPosts = unifiedTrending ? [] : await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: true,
-		mode: 'weibo',
-		...visibilityFilter
-	},
-	orderBy: [{ createdAt: 'desc' }],
-	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } },
-		bookmarks: { select: { id: true } }
-	}
-});
+const pinnedPosts = unifiedTrending
+	? []
+	: await prisma.post.findMany({
+			where: {
+				isDeleted: false,
+				isGlobalPinned: true,
+				mode: 'weibo',
+				...visibilityFilter
+			},
+			orderBy: [{ createdAt: 'desc' }],
+			include: {
+				...POST_CARD_INCLUDE,
+				likes: { select: { id: true, userId: true } },
+				comments: { select: { id: true } },
+				bookmarks: { select: { id: true } }
+			}
+		});
 
 // 查询非置顶 weibo 帖子总数
-const totalPosts = unifiedTrending?.total ?? (await prisma.post.count({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: false,
-		mode: 'weibo',
-		...visibilityFilter
-	}
-}));
+const totalPosts =
+	unifiedTrending?.total ??
+	(await prisma.post.count({
+		where: {
+			isDeleted: false,
+			isGlobalPinned: false,
+			mode: 'weibo',
+			...visibilityFilter
+		}
+	}));
 
 // 计算总页数
 const totalPages = Math.max(1, Math.ceil(totalPosts / PAGE_SIZE));
@@ -100,23 +104,25 @@ const safePage = Math.min(currentPage, totalPages);
 const skip = (safePage - 1) * PAGE_SIZE;
 
 // 查询当前页的微博帖子。热门视图复用既有互动计数排序，不改变数据契约。
-const legacyPosts = unifiedTrending ? [] : await prisma.post.findMany({
-	where: {
-		isDeleted: false,
-		isGlobalPinned: false,
-		mode: 'weibo',
-		...visibilityFilter
-	},
-	orderBy: timelineOrderBy,
-	include: {
-		...POST_CARD_INCLUDE,
-		likes: { select: { id: true, userId: true } },
-		comments: { select: { id: true } },
-		bookmarks: { select: { id: true } }
-	},
-	skip,
-	take: PAGE_SIZE
-});
+const legacyPosts = unifiedTrending
+	? []
+	: await prisma.post.findMany({
+			where: {
+				isDeleted: false,
+				isGlobalPinned: false,
+				mode: 'weibo',
+				...visibilityFilter
+			},
+			orderBy: timelineOrderBy,
+			include: {
+				...POST_CARD_INCLUDE,
+				likes: { select: { id: true, userId: true } },
+				comments: { select: { id: true } },
+				bookmarks: { select: { id: true } }
+			},
+			skip,
+			take: PAGE_SIZE
+		});
 
 // 合并置顶帖和当前页帖子（仅第一页显示置顶帖）
 const posts = unifiedTrending?.items ?? legacyPosts;

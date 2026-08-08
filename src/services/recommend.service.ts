@@ -92,7 +92,17 @@ export interface TrendingFeedItem {
 	categoryId: string | null;
 	customCategory: string | null;
 	user: { id: string; username: string; displayName: string; avatarUrl: string };
-	media: Array<{ id: string; fileType: string; fileStorage: { id: string; filePath: string; fileSize: number; mimeType: string; fileType: string } }>;
+	media: Array<{
+		id: string;
+		fileType: string;
+		fileStorage: {
+			id: string;
+			filePath: string;
+			fileSize: number;
+			mimeType: string;
+			fileType: string;
+		};
+	}>;
 	tags: Array<{ tag: { id: string; name: string } }>;
 	category: { id: string; name: string; slug: string; mode: string; icon: string } | null;
 	_count: { likes: number; comments: number; bookmarks: number };
@@ -239,7 +249,12 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 		if (input.excludePostIds?.includes(post.id)) continue;
 		if (input.postIds && !input.postIds.includes(post.id)) continue;
 		if (input.userIds && !input.userIds.includes(post.userId)) continue;
-		if (input.keyword && !post.content.includes(input.keyword) && !(post.title?.includes(input.keyword))) continue;
+		if (
+			input.keyword &&
+			!post.content.includes(input.keyword) &&
+			!post.title?.includes(input.keyword)
+		)
+			continue;
 		if (input.from && post.createdAt < input.from) continue;
 		if (input.to && post.createdAt > input.to) continue;
 		const visible = await checkPostVisibility(
@@ -250,7 +265,10 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 				allowedUserIds: post.allowedUserIds
 			},
 			viewerId ? { userId: viewerId } : null,
-			{ isFollower: followingIds.includes(post.userId), isFollowing: followerIds.includes(post.userId) }
+			{
+				isFollower: followingIds.includes(post.userId),
+				isFollowing: followerIds.includes(post.userId)
+			}
 		);
 		if (visible) scoped.push(post);
 	}
@@ -259,9 +277,18 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 	// Exactly three bounded interaction queries; all aggregation and self-action
 	// exclusion happens here, rather than in vendor-specific ranking SQL.
 	const [likes, bookmarks, comments] = await Promise.all([
-		prisma.like.findMany({ where: { postId: { in: candidateIds } }, select: { postId: true, userId: true } }),
-		prisma.bookmark.findMany({ where: { postId: { in: candidateIds } }, select: { postId: true, userId: true } }),
-		prisma.comment.findMany({ where: { postId: { in: candidateIds }, isDeleted: false }, select: { postId: true, userId: true } })
+		prisma.like.findMany({
+			where: { postId: { in: candidateIds } },
+			select: { postId: true, userId: true }
+		}),
+		prisma.bookmark.findMany({
+			where: { postId: { in: candidateIds } },
+			select: { postId: true, userId: true }
+		}),
+		prisma.comment.findMany({
+			where: { postId: { in: candidateIds }, isDeleted: false },
+			select: { postId: true, userId: true }
+		})
 	]);
 	const postAuthorIds = new Map(candidates.map((post) => [post.id, post.userId]));
 	const collect = (rows: Array<{ postId: string | null; userId: string }>) => {
@@ -277,8 +304,12 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 	const likesByPost = collect(likes);
 	const bookmarksByPost = collect(bookmarks);
 	const commentsByPost = collect(comments);
-	const likedIds = viewerId ? new Set(likes.filter((row) => row.userId === viewerId).map((row) => row.postId)) : new Set<string | null>();
-	const bookmarkedIds = viewerId ? new Set(bookmarks.filter((row) => row.userId === viewerId).map((row) => row.postId)) : new Set<string | null>();
+	const likedIds = viewerId
+		? new Set(likes.filter((row) => row.userId === viewerId).map((row) => row.postId))
+		: new Set<string | null>();
+	const bookmarkedIds = viewerId
+		? new Set(bookmarks.filter((row) => row.userId === viewerId).map((row) => row.postId))
+		: new Set<string | null>();
 	const config = parseTrendingConfig(getEnv('TRENDING_FORMULA'));
 	const scored = stableTrendingSort(
 		scoped.map((post) => {
@@ -309,7 +340,11 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 	let items = start >= total ? [] : scored.slice(start, start + pageSize);
 	if (input.includeGlobalPinned && page === 1) {
 		const pins = await prisma.post.findMany({
-			where: { isDeleted: false, isGlobalPinned: true, ...(input.mode ? { mode: input.mode } : {}) },
+			where: {
+				isDeleted: false,
+				isGlobalPinned: true,
+				...(input.mode ? { mode: input.mode } : {})
+			},
 			orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
 			include: POST_CARD_INCLUDE
 		});
@@ -317,10 +352,34 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 		for (const pin of pins) {
 			if (input.categoryId && pin.categoryId !== input.categoryId) continue;
 			if (input.excludePostIds?.includes(pin.id)) continue;
-			if (await checkPostVisibility({ visibility: pin.visibility, userId: pin.userId, passwordHash: pin.passwordHash, allowedUserIds: pin.allowedUserIds }, viewerId ? { userId: viewerId } : null, { isFollower: followingIds.includes(pin.userId), isFollowing: followerIds.includes(pin.userId) })) visiblePins.push(pin);
+			if (
+				await checkPostVisibility(
+					{
+						visibility: pin.visibility,
+						userId: pin.userId,
+						passwordHash: pin.passwordHash,
+						allowedUserIds: pin.allowedUserIds
+					},
+					viewerId ? { userId: viewerId } : null,
+					{
+						isFollower: followingIds.includes(pin.userId),
+						isFollowing: followerIds.includes(pin.userId)
+					}
+				)
+			)
+				visiblePins.push(pin);
 		}
-		const pinItems = visiblePins.map((pin) => ({ ...pin, liked: likedIds.has(pin.id), bookmarked: bookmarkedIds.has(pin.id), uniqueInteractorCount: 0, score: 0 }));
-		items = [...pinItems, ...items.filter((item) => !visiblePins.some((pin) => pin.id === item.id))];
+		const pinItems = visiblePins.map((pin) => ({
+			...pin,
+			liked: likedIds.has(pin.id),
+			bookmarked: bookmarkedIds.has(pin.id),
+			uniqueInteractorCount: 0,
+			score: 0
+		}));
+		items = [
+			...pinItems,
+			...items.filter((item) => !visiblePins.some((pin) => pin.id === item.id))
+		];
 	}
 	return { items, total, page, pageSize };
 }
@@ -329,19 +388,36 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 export async function getRecommend(input: GetRecommendInput): Promise<GetRecommendResult> {
 	const count = input.n ?? 5;
 	const profile = await getRecommendationProfile(input.userId);
-	const feed = await getTrendingFeed({ viewerId: input.userId, page: 1, pageSize: Math.max(count, 50) });
-	const ordered = profile.strategy === 'blended'
-		? allocateBlendedRecommendations(feed.items, profile, count)
-		: allocateColdStartRecommendations(feed.items, count);
+	const feed = await getTrendingFeed({
+		viewerId: input.userId,
+		page: 1,
+		pageSize: Math.max(count, 50)
+	});
+	const ordered =
+		profile.strategy === 'blended'
+			? allocateBlendedRecommendations(feed.items, profile, count)
+			: allocateColdStartRecommendations(feed.items, count);
 	return {
 		items: ordered.slice(0, count).map(({ post, source }) => ({
-			id: post.id, content: post.content, createdAt: post.createdAt.toISOString(), user: post.user,
-			media: post.media.map(({ id, fileType }) => ({ id, fileType })), visibility: post.visibility,
-			mode: post.mode, title: post.title, categoryId: post.categoryId, category: post.category,
-			tags: post.tags.map(({ tag }) => tag), likeCount: post._count.likes,
-			bookmarkCount: post._count.bookmarks, commentCount: post._count.comments,
-			liked: post.liked, score: post.score, source
-		})), profile
+			id: post.id,
+			content: post.content,
+			createdAt: post.createdAt.toISOString(),
+			user: post.user,
+			media: post.media.map(({ id, fileType }) => ({ id, fileType })),
+			visibility: post.visibility,
+			mode: post.mode,
+			title: post.title,
+			categoryId: post.categoryId,
+			category: post.category,
+			tags: post.tags.map(({ tag }) => tag),
+			likeCount: post._count.likes,
+			bookmarkCount: post._count.bookmarks,
+			commentCount: post._count.comments,
+			liked: post.liked,
+			score: post.score,
+			source
+		})),
+		profile
 	};
 }
 
@@ -357,16 +433,29 @@ export function allocateBlendedRecommendations(
 	const interestCount = Math.floor(count * 0.5);
 	const trendingCount = Math.floor(count * 0.4);
 	const explorationCount = count - interestCount - trendingCount;
-	const interest = candidates.filter((post) => interestScore(post) > 0)
-		.sort((a, b) => interestScore(b) - interestScore(a) || b.score - a.score || a.id.localeCompare(b.id));
-	const exploration = candidates.filter((post) => interestScore(post) === 0)
+	const interest = candidates
+		.filter((post) => interestScore(post) > 0)
+		.sort(
+			(a, b) =>
+				interestScore(b) - interestScore(a) || b.score - a.score || a.id.localeCompare(b.id)
+		);
+	const exploration = candidates
+		.filter((post) => interestScore(post) === 0)
 		.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
 	const chosen = new Set<string>();
-	const output: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> = [];
-	const take = (items: TrendingFeedItem[], amount: number, source: 'interest' | 'trending' | 'exploration') => {
+	const output: Array<{
+		post: TrendingFeedItem;
+		source: 'interest' | 'trending' | 'exploration';
+	}> = [];
+	const take = (
+		items: TrendingFeedItem[],
+		amount: number,
+		source: 'interest' | 'trending' | 'exploration'
+	) => {
 		for (const post of items) {
 			if (output.length >= count || chosen.has(post.id)) continue;
-			output.push({ post, source }); chosen.add(post.id);
+			output.push({ post, source });
+			chosen.add(post.id);
 			if (output.filter((item) => item.source === source).length >= amount) break;
 		}
 	};
@@ -379,12 +468,24 @@ export function allocateBlendedRecommendations(
 }
 
 /** Cold start keeps a real 70/30 hot/exploration split (14/6 for 20 results). */
-export function allocateColdStartRecommendations(candidates: TrendingFeedItem[], count: number): Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> {
+export function allocateColdStartRecommendations(
+	candidates: TrendingFeedItem[],
+	count: number
+): Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> {
 	const hotCount = Math.floor(count * 0.7);
-	const output: Array<{ post: TrendingFeedItem; source: 'interest' | 'trending' | 'exploration' }> = candidates.slice(0, hotCount).map((post) => ({ post, source: 'trending' }));
+	const output: Array<{
+		post: TrendingFeedItem;
+		source: 'interest' | 'trending' | 'exploration';
+	}> = candidates.slice(0, hotCount).map((post) => ({ post, source: 'trending' }));
 	const chosen = new Set(output.map((item) => item.post.id));
-	const exploration = [...candidates].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id));
-	for (const post of exploration) if (!chosen.has(post.id) && output.length < count) { output.push({ post, source: 'exploration' }); chosen.add(post.id); }
+	const exploration = [...candidates].sort(
+		(a, b) => b.createdAt.getTime() - a.createdAt.getTime() || a.id.localeCompare(b.id)
+	);
+	for (const post of exploration)
+		if (!chosen.has(post.id) && output.length < count) {
+			output.push({ post, source: 'exploration' });
+			chosen.add(post.id);
+		}
 	return interleaveAndDiversify(output);
 }
 
@@ -404,28 +505,44 @@ const RECOMMENDATION_SOURCES: RecommendationSource[] = ['interest', 'trending', 
  */
 function interleaveAndDiversify(items: RecommendationAllocation[]): RecommendationAllocation[] {
 	const queues = new Map<RecommendationSource, RecommendationAllocation[]>(
-		RECOMMENDATION_SOURCES.map((source) => [source, items.filter((item) => item.source === source)])
+		RECOMMENDATION_SOURCES.map((source) => [
+			source,
+			items.filter((item) => item.source === source)
+		])
 	);
 	const allocated = new Map<RecommendationSource, number>(
 		RECOMMENDATION_SOURCES.map((source) => [source, queues.get(source)!.length])
 	);
-	const emitted = new Map<RecommendationSource, number>(RECOMMENDATION_SOURCES.map((source) => [source, 0]));
+	const emitted = new Map<RecommendationSource, number>(
+		RECOMMENDATION_SOURCES.map((source) => [source, 0])
+	);
 	const result: RecommendationAllocation[] = [];
 	const authorCounts = new Map<string, number>();
 
-	const sourceOrder = () => RECOMMENDATION_SOURCES
-		.filter((source) => queues.get(source)!.length > 0)
-		.sort((left, right) => {
-			const leftRatio = (emitted.get(left) ?? 0) / (allocated.get(left) ?? 1);
-			const rightRatio = (emitted.get(right) ?? 0) / (allocated.get(right) ?? 1);
-			return leftRatio - rightRatio || RECOMMENDATION_SOURCES.indexOf(left) - RECOMMENDATION_SOURCES.indexOf(right);
-		});
-	const preservesSourceInterleave = (source: RecommendationSource) => {
-		const remaining = RECOMMENDATION_SOURCES.map((candidate) =>
-			queues.get(candidate)!.length - (candidate === source ? 1 : 0)
+	const sourceOrder = () =>
+		RECOMMENDATION_SOURCES.filter((source) => queues.get(source)!.length > 0).sort(
+			(left, right) => {
+				const leftRatio = (emitted.get(left) ?? 0) / (allocated.get(left) ?? 1);
+				const rightRatio = (emitted.get(right) ?? 0) / (allocated.get(right) ?? 1);
+				return (
+					leftRatio - rightRatio ||
+					RECOMMENDATION_SOURCES.indexOf(left) - RECOMMENDATION_SOURCES.indexOf(right)
+				);
+			}
 		);
-		return remaining.every((count, index) =>
-			count <= 2 * (remaining.reduce((sum, other, otherIndex) => sum + (index === otherIndex ? 0 : other), 0) + 1)
+	const preservesSourceInterleave = (source: RecommendationSource) => {
+		const remaining = RECOMMENDATION_SOURCES.map(
+			(candidate) => queues.get(candidate)!.length - (candidate === source ? 1 : 0)
+		);
+		return remaining.every(
+			(count, index) =>
+				count <=
+				2 *
+					(remaining.reduce(
+						(sum, other, otherIndex) => sum + (index === otherIndex ? 0 : other),
+						0
+					) +
+						1)
 		);
 	};
 	const canUse = (item: RecommendationAllocation) => {
@@ -435,10 +552,13 @@ function interleaveAndDiversify(items: RecommendationAllocation[]): Recommendati
 			item.post.categoryId &&
 			previousTwo.length === 2 &&
 			previousTwo.every(({ post }) => post.categoryId === item.post.categoryId)
-		) return false;
+		)
+			return false;
 		const tagIds = item.post.tags.map(({ tag }) => tag.id);
-		return !tagIds.some((tagId) =>
-			previousTwo.length === 2 && previousTwo.every(({ post }) => post.tags.some(({ tag }) => tag.id === tagId))
+		return !tagIds.some(
+			(tagId) =>
+				previousTwo.length === 2 &&
+				previousTwo.every(({ post }) => post.tags.some(({ tag }) => tag.id === tagId))
 		);
 	};
 	const append = (item: RecommendationAllocation) => {
@@ -454,12 +574,14 @@ function interleaveAndDiversify(items: RecommendationAllocation[]): Recommendati
 		// interleaving constraint, relaxed only if its quota is exhausted.
 		for (const avoidSourceStreak of [true, false]) {
 			for (const source of sources) {
-				if (!preservesSourceInterleave(source) && sources.some(preservesSourceInterleave)) continue;
+				if (!preservesSourceInterleave(source) && sources.some(preservesSourceInterleave))
+					continue;
 				if (
 					avoidSourceStreak &&
 					result.length >= 2 &&
 					result.slice(-2).every((item) => item.source === source)
-				) continue;
+				)
+					continue;
 				const queue = queues.get(source)!;
 				const index = queue.findIndex(canUse);
 				if (index >= 0) {
@@ -499,17 +621,16 @@ export async function getRecommendUsers(
 		RECOMMEND_USER_CANDIDATE_LIMIT
 	);
 
-	const items = candidates
-		.map((candidate) => ({
-			id: candidate.id,
-			username: candidate.username,
-			displayName: candidate.displayName,
-			avatarUrl: candidate.avatarUrl,
-			bio: candidate.bio,
-			followerCount: Number(candidate.followerCount),
-			mutualFollowCount: Number(candidate.mutualFollowCount),
-			latestPublicPostAt: new Date(candidate.latestPublicPostAt).toISOString()
-		}));
+	const items = candidates.map((candidate) => ({
+		id: candidate.id,
+		username: candidate.username,
+		displayName: candidate.displayName,
+		avatarUrl: candidate.avatarUrl,
+		bio: candidate.bio,
+		followerCount: Number(candidate.followerCount),
+		mutualFollowCount: Number(candidate.mutualFollowCount),
+		latestPublicPostAt: new Date(candidate.latestPublicPostAt).toISOString()
+	}));
 
 	return { items: items.slice(0, count) };
 }
@@ -614,8 +735,14 @@ export async function saveInterests(input: SaveInterestsInput): Promise<void> {
 		});
 		await tx.userTagInterest.deleteMany({ where: { userId: input.userId } });
 		await tx.userCategoryInterest.deleteMany({ where: { userId: input.userId } });
-		if (tagIds.length) await tx.userTagInterest.createMany({ data: tagIds.map((tagId) => ({ userId: input.userId, tagId })) });
-		if (categoryIds.length) await tx.userCategoryInterest.createMany({ data: categoryIds.map((categoryId) => ({ userId: input.userId, categoryId })) });
+		if (tagIds.length)
+			await tx.userTagInterest.createMany({
+				data: tagIds.map((tagId) => ({ userId: input.userId, tagId }))
+			});
+		if (categoryIds.length)
+			await tx.userCategoryInterest.createMany({
+				data: categoryIds.map((categoryId) => ({ userId: input.userId, categoryId }))
+			});
 	});
 }
 
@@ -624,29 +751,68 @@ export async function saveInterests(input: SaveInterestsInput): Promise<void> {
  * exclusion elsewhere and never make a user leave cold-start mode.
  */
 export async function getRecommendationProfile(userId: string): Promise<RecommendationProfile> {
-	const [settings, tagInterests, categoryInterests, likes, bookmarks, comments, follows] = await Promise.all([
-		prisma.userSettings.findUnique({ where: { userId }, select: { interestOnboardingCompletedAt: true } }),
-		prisma.userTagInterest.findMany({ where: { userId }, select: { tagId: true } }),
-		prisma.userCategoryInterest.findMany({ where: { userId }, select: { categoryId: true } }),
-		prisma.like.findMany({ where: { userId, postId: { not: null } }, select: { postId: true, post: { select: { userId: true } } } }),
-		prisma.bookmark.findMany({ where: { userId }, select: { postId: true, post: { select: { userId: true } } } }),
-		prisma.comment.findMany({ where: { userId, isDeleted: false }, select: { postId: true, post: { select: { userId: true } } } }),
-		prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } })
-	]);
+	const [settings, tagInterests, categoryInterests, likes, bookmarks, comments, follows] =
+		await Promise.all([
+			prisma.userSettings.findUnique({
+				where: { userId },
+				select: { interestOnboardingCompletedAt: true }
+			}),
+			prisma.userTagInterest.findMany({ where: { userId }, select: { tagId: true } }),
+			prisma.userCategoryInterest.findMany({
+				where: { userId },
+				select: { categoryId: true }
+			}),
+			prisma.like.findMany({
+				where: { userId, postId: { not: null } },
+				select: { postId: true, post: { select: { userId: true } } }
+			}),
+			prisma.bookmark.findMany({
+				where: { userId },
+				select: { postId: true, post: { select: { userId: true } } }
+			}),
+			prisma.comment.findMany({
+				where: { userId, isDeleted: false },
+				select: { postId: true, post: { select: { userId: true } } }
+			}),
+			prisma.follow.findMany({ where: { followerId: userId }, select: { followingId: true } })
+		]);
 	const actions = new Set<string>();
 	const posts = new Set<string>();
 	const creators = new Set<string>();
-	for (const row of likes) if (row.post && row.post.userId !== userId && row.postId) { actions.add(`like:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
-	for (const row of bookmarks) if (row.post.userId !== userId) { actions.add(`bookmark:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
-	for (const row of comments) if (row.post.userId !== userId) { actions.add(`comment:${row.postId}`); posts.add(row.postId); creators.add(row.post.userId); }
-	for (const row of follows) if (row.followingId !== userId) { actions.add(`follow:${row.followingId}`); creators.add(row.followingId); }
+	for (const row of likes)
+		if (row.post && row.post.userId !== userId && row.postId) {
+			actions.add(`like:${row.postId}`);
+			posts.add(row.postId);
+			creators.add(row.post.userId);
+		}
+	for (const row of bookmarks)
+		if (row.post.userId !== userId) {
+			actions.add(`bookmark:${row.postId}`);
+			posts.add(row.postId);
+			creators.add(row.post.userId);
+		}
+	for (const row of comments)
+		if (row.post.userId !== userId) {
+			actions.add(`comment:${row.postId}`);
+			posts.add(row.postId);
+			creators.add(row.post.userId);
+		}
+	for (const row of follows)
+		if (row.followingId !== userId) {
+			actions.add(`follow:${row.followingId}`);
+			creators.add(row.followingId);
+		}
 	const blended = actions.size >= 5 && (posts.size >= 3 || creators.size >= 2);
 	return {
 		onboardingCompletedAt: settings?.interestOnboardingCompletedAt ?? null,
 		interestTagIds: tagInterests.map((row) => row.tagId),
 		interestCategoryIds: categoryInterests.map((row) => row.categoryId),
-		positiveSignalCount: actions.size, coveredPostCount: posts.size, coveredCreatorCount: creators.size,
+		positiveSignalCount: actions.size,
+		coveredPostCount: posts.size,
+		coveredCreatorCount: creators.size,
 		strategy: blended ? 'blended' : 'cold_start',
-		weights: blended ? { interest: 0.5, trending: 0.4, exploration: 0.1 } : { interest: 1, trending: 0, exploration: 0 }
+		weights: blended
+			? { interest: 0.5, trending: 0.4, exploration: 0.1 }
+			: { interest: 1, trending: 0, exploration: 0 }
 	};
 }

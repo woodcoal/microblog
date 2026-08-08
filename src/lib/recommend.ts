@@ -50,11 +50,7 @@ export function findRecommendationSource(postId: string) {
  * 靠后的高分候选会被错误排除。查询只返回展示契约所需的公开资料和统计字段，避免
  * 在 Service 层为每个候选执行额外查询。
  */
-export function findRecommendUserCandidates(
-	userId: string,
-	publicPostSince: Date,
-	limit: number
-) {
+export function findRecommendUserCandidates(userId: string, publicPostSince: Date, limit: number) {
 	return prisma.$queryRaw<RecommendUserCandidate[]>(
 		recommendUserCandidatesQuery(userId, publicPostSince, limit)
 	);

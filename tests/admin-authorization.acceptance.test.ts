@@ -178,14 +178,23 @@ test('后台理由弹窗居中、确认后提交处置，添加用户弹窗可�
 				viewportY: window.innerHeight / 2
 			};
 		});
-		assert.ok(Math.abs(reasonDialog.centerX - reasonDialog.viewportX) < 2, '理由弹窗应水平居中');
-		assert.ok(Math.abs(reasonDialog.centerY - reasonDialog.viewportY) < 2, '理由弹窗应垂直居中');
+		assert.ok(
+			Math.abs(reasonDialog.centerX - reasonDialog.viewportX) < 2,
+			'理由弹窗应水平居中'
+		);
+		assert.ok(
+			Math.abs(reasonDialog.centerY - reasonDialog.viewportY) < 2,
+			'理由弹窗应垂直居中'
+		);
 
 		await page.locator('#admin-reason-dialog-input').fill('浏览器回归验证后台处置');
 		const moderationReload = page.waitForNavigation({ waitUntil: 'networkidle0' });
 		await page.locator('.admin-reason-dialog button[type="submit"]').click();
 		await moderationReload;
-		assert.equal((await prisma.user.findUnique({ where: { id: moderatedUserId } }))?.isDisabled, true);
+		assert.equal(
+			(await prisma.user.findUnique({ where: { id: moderatedUserId } }))?.isDisabled,
+			true
+		);
 
 		await page.locator('#create-user-open').click();
 		await page.waitForSelector('#create-user-dialog[open]');
@@ -198,8 +207,14 @@ test('后台理由弹窗居中、确认后提交处置，添加用户弹窗可�
 				viewportY: window.innerHeight / 2
 			};
 		});
-		assert.ok(Math.abs(createDialog.centerX - createDialog.viewportX) < 2, '添加用户弹窗应水平居中');
-		assert.ok(Math.abs(createDialog.centerY - createDialog.viewportY) < 2, '添加用户弹窗应垂直居中');
+		assert.ok(
+			Math.abs(createDialog.centerX - createDialog.viewportX) < 2,
+			'添加用户弹窗应水平居中'
+		);
+		assert.ok(
+			Math.abs(createDialog.centerY - createDialog.viewportY) < 2,
+			'添加用户弹窗应垂直居中'
+		);
 
 		await page.locator('#create-user-username').fill(createdUsername);
 		await page.locator('#create-user-email').fill(`${createdUsername}@example.test`);

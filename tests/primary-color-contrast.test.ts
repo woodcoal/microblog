@@ -13,7 +13,10 @@ function readPalette(selector: string): Palette {
 	assert.ok(match, `未找到令牌选择器：${selector}`);
 
 	return Object.fromEntries(
-		[...match[1].matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6});/g)].map(([, name, value]) => [name, value])
+		[...match[1].matchAll(/--([a-z-]+):\s*(#[0-9a-fA-F]{6});/g)].map(([, name, value]) => [
+			name,
+			value
+		])
 	);
 }
 
@@ -43,7 +46,10 @@ for (const theme of themes) {
 			`默认主色前景不足 4.5:1（${theme}）`
 		);
 		assert.ok(
-			contrastRatio(palette['color-primary-hover-foreground'], palette['color-primary-hover']) >= 4.5,
+			contrastRatio(
+				palette['color-primary-hover-foreground'],
+				palette['color-primary-hover']
+			) >= 4.5,
 			`悬停主色前景不足 4.5:1（${theme}）`
 		);
 	});
@@ -60,7 +66,10 @@ for (const theme of themes) {
 				`默认主色前景不足 4.5:1（${theme} + ${accent}）`
 			);
 			assert.ok(
-				contrastRatio(palette['color-primary-hover-foreground'], palette['color-primary-hover']) >= 4.5,
+				contrastRatio(
+					palette['color-primary-hover-foreground'],
+					palette['color-primary-hover']
+				) >= 4.5,
 				`悬停主色前景不足 4.5:1（${theme} + ${accent}）`
 			);
 		});
