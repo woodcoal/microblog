@@ -6,6 +6,50 @@ export interface ReasonedAdminActionOptions {
 	onSuccess: (affected: number) => void;
 }
 
+type UuidCrypto = {
+	randomUUID?: () => string;
+	getRandomValues?: (values: Uint8Array<ArrayBuffer>) => Uint8Array<ArrayBuffer>;
+};
+
+/**
+ * 生成供后台 Action 幂等校验使用的 UUID v4。
+ * 部分旧浏览器仅提供 crypto.getRandomValues，未实现 crypto.randomUUID。
+ */
+export function createAdminRequestId(cryptoSource?: UuidCrypto): string {
+	const nativeCrypto = typeof globalThis.crypto === 'undefined' ? undefined : globalThis.crypto;
+	const resolvedCrypto =
+		cryptoSource ??
+		(nativeCrypto
+			? {
+				randomUUID:
+					typeof nativeCrypto.randomUUID === 'function'
+						? nativeCrypto.randomUUID.bind(nativeCrypto)
+						: undefined,
+				getRandomValues: (values: Uint8Array<ArrayBuffer>) => nativeCrypto.getRandomValues(values)
+			}
+			: undefined);
+
+	if (typeof resolvedCrypto?.randomUUID === 'function') {
+		return resolvedCrypto.randomUUID();
+	}
+
+	const values = new Uint8Array(new ArrayBuffer(16));
+	if (typeof resolvedCrypto?.getRandomValues === 'function') {
+		resolvedCrypto.getRandomValues(values);
+	} else {
+		for (let index = 0; index < values.length; index += 1) {
+			values[index] = Math.floor(Math.random() * 256);
+		}
+	}
+	values[6] = (values[6] & 0x0f) | 0x40;
+	values[8] = (values[8] & 0x3f) | 0x80;
+
+	return Array.from(values, (value, index) => {
+		const separator = index === 4 || index === 6 || index === 8 || index === 10 ? '-' : '';
+		return `${separator}${value.toString(16).padStart(2, '0')}`;
+	}).join('');
+}
+
 function errorMessage(error: unknown): string {
 	return error instanceof Error && error.message.trim()
 		? error.message
@@ -92,7 +136,7 @@ export function runReasonedAdminAction(options: ReasonedAdminActionOptions): voi
 			return;
 		}
 		reason.removeAttribute('aria-invalid');
-		requestId ??= crypto.randomUUID();
+		requestId ??= createAdminRequestId();
 		isSubmitting = true;
 		cancel.disabled = true;
 		confirm.disabled = true;

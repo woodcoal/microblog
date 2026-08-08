@@ -158,7 +158,14 @@ test('后台理由弹窗居中、确认后提交处置，添加用户弹窗可�
 			domain: '127.0.0.1',
 			path: '/'
 		});
+		await page.evaluateOnNewDocument(() => {
+			Reflect.defineProperty(globalThis.crypto, 'randomUUID', {
+				configurable: true,
+				value: undefined
+			});
+		});
 		await page.goto(`${BASE_URL}/admin/users`, { waitUntil: 'networkidle0' });
+		assert.equal(await page.evaluate(() => typeof crypto.randomUUID), 'undefined');
 
 		await page.locator(`button[data-user-id="${moderatedUserId}"]`).click();
 		await page.waitForSelector('dialog.admin-reason-dialog[open]');
