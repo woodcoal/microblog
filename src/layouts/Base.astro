@@ -124,7 +124,7 @@ const globalSearchMode = currentPath.startsWith('/forum')
 			? 'weibo'
 			: 'all';
 const globalSearchPlaceholder =
-	globalSearchMode === 'all' ? '搜索睦谈' : `搜索${getModeLabel(globalSearchMode)}`;
+	globalSearchMode === 'all' ? `搜索${SITE_TITLE}` : `搜索${getModeLabel(globalSearchMode)}`;
 const uxShell = narrow
 	? 'account'
 	: currentPath === '/'
@@ -309,7 +309,7 @@ const resolvedOgType = ogType || 'website';
 								role="search"
 							>
 								<label class="sr-only" for="global-search-input">
-									搜索睦谈
+									搜索{SITE_TITLE}
 								</label>
 								{globalSearchMode !== 'all' && (
 									<input type="hidden" name="mode" value={globalSearchMode} />

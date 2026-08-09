@@ -6,7 +6,12 @@
  * 如果注册已关闭，显示提示信息；否则显示注册表单。
  */
 import BaseLayout from '@/layouts/Base.astro';
-import { PASSWORD_MIN_LENGTH, ALLOW_REGISTRATION, RESERVED_USERNAMES } from '@/lib/config';
+import {
+	PASSWORD_MIN_LENGTH,
+	ALLOW_REGISTRATION,
+	RESERVED_USERNAMES,
+	SITE_TITLE
+} from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 
 // 从环境变量读取是否允许注册
@@ -22,7 +27,7 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 		</section>
 		<section class="auth-page" aria-labelledby="register-title">
 			<h2 id="register-title" class="auth-title">创建账号</h2>
-			<p class="auth-panel-lead">创建一个睦谈账号，开始参与讨论。</p>
+			<p class="auth-panel-lead">创建一个{SITE_TITLE}账号，开始参与讨论。</p>
 
 			{
 				allowRegistration ? (

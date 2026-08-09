@@ -16,6 +16,7 @@ import { POST_CARD_INCLUDE, getBookmarkedPostIds, getLikedPostIds } from '@/lib/
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getPopularTagItems } from '@/lib/discovery';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
+import { SITE_TITLE } from '@/lib/config';
 
 /** 每页显示帖子数量 */
 const PAGE_SIZE = 20;
@@ -110,7 +111,7 @@ const hasPagination = totalPages > 1;
 const heroCopy = await getPublicSiteCopy('channel.weibo.hero');
 ---
 
-<WeiboLayout title="最新 - 睦谈" hasAside={true}>
+<WeiboLayout title={`最新 - ${SITE_TITLE}`} hasAside={true}>
 	<section class="ux-channel-page ux-latest-page" aria-labelledby="latest-page-title">
 		<div class="page-header">
 			<div class="page-header-row">

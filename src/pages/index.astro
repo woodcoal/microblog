@@ -12,7 +12,7 @@
 import HomeLayout from '@/layouts/HomeLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { isSingleMode, singleMode, getModeLabel, isModeEnabled } from '@/lib/config';
+import { isSingleMode, singleMode, getModeLabel, isModeEnabled, SITE_TITLE } from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getRecommendationProfile, getTrendingFeed } from '@/services/recommend.service';
 
@@ -75,7 +75,7 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 						</a>
 					) : (
 						<a class="btn btn-primary" href="/register">
-							加入睦谈
+							加入{SITE_TITLE}
 						</a>
 					)
 				}
