@@ -16,20 +16,22 @@
 
 ## 技术栈
 
-- **框架**：Astro 6（服务端渲染）
+- **框架**：Astro 7（服务端渲染）
 - **前端**：Astro 组件 + React 19（Tiptap 富文本编辑器）
 - **样式**：纯 CSS（CSS 变量设计令牌，无 UI 框架依赖）
-- **数据库**：SQLite（libSQL）或 MySQL 8+（MariaDB connector），按环境变量切换
+- **数据库**：SQLite（libSQL）或 MySQL 8+（MariaDB adapter），按环境变量切换
 - **ORM**：Prisma 7
 - **认证**：JWT（jose）+ bcryptjs
 - **部署**：Node.js standalone（默认），预留 Cloudflare 适配器
+
+实际依赖版本以 `package.json` 和锁文件为准；当前项目直接依赖 Astro 7.2、React 19、Prisma 7。
 
 ## 快速开始
 
 ### 环境要求
 
-- Node.js 18+
-- npm 或 pnpm
+- Node.js **22.12+**
+- pnpm 10（仓库脚本、`run.cmd`、`reset.cmd` 均使用 pnpm）
 
 ### 安装
 
@@ -39,17 +41,17 @@ git clone https://github.com/woodcoal/microblog.git
 cd microblog
 
 # 安装依赖
-npm install
+pnpm install
 
 # 配置环境变量
 cp .env.example .env
 # 编辑 .env，至少配置 JWT_SECRET
 
 # 初始化数据库（默认 SQLite；修改 DATABASE_PROVIDER=mysql 后使用 MySQL）
-npm run db:setup
+pnpm run db:setup
 
 # 启动开发服务器
-npm run dev
+pnpm run dev
 ```
 
 访问 http://localhost:4321
@@ -58,79 +60,117 @@ npm run dev
 
 ```bash
 # 构建前会自动生成 Prisma Client 并应用已提交迁移
-npm run build
+ pnpm run build
 
-# 方式一：直接启动
-npm run start
+ # 方式一：直接启动
+ pnpm run start
 
-# 方式二：PM2 进程管理
-npm run pm2
+ # 方式二：PM2 进程管理
+ pnpm run pm2
 ```
 
-> 既有实例升级后首次重启前，先执行 `npm run db:prepare`，再使用 `npm run build` 和原有方式重启。该命令只会应用未执行的已提交迁移，不会重置数据库。
+> 既有实例升级后首次重启前，先执行 `pnpm run db:prepare`，再使用 `pnpm run build` 和原有方式重启。该命令只会应用未执行的已提交迁移，不会重置数据库。
 
 ## 环境变量
 
 复制 `.env.example` 为 `.env` 进行配置：
 
-| 变量                 | 说明                                 | 默认值                                  |
-| -------------------- | ------------------------------------ | --------------------------------------- |
-| `DATABASE_PROVIDER`  | 数据库类型：`sqlite` 或 `mysql`      | `sqlite`                                |
-| `DATABASE_URL`       | 当前数据库连接                       | `file:./prisma/dev.db`                  |
-| `TEST_DATABASE_URL`  | API 验收测试专用连接（必须独立）     | `file:./prisma/test.db`                 |
-| `JWT_SECRET`         | JWT 签名密钥（**生产环境务必更换**） | `mutan-dev-secret-change-in-production` |
-| `JWT_EXPIRES_DAYS`   | JWT 有效期（天）                     | `7`                                     |
-| `UPLOAD_DIR`         | 文件上传目录                         | `./uploads`                             |
-| `SITE_URL`           | 站点 URL                             | `http://localhost:4321`                 |
-| `SITE_TITLE`         | 站点标题                             | `睦谈`                                  |
-| `SITE_DESCRIPTION`   | 站点描述                             | `世间纷纷扰扰，此处和睦相谈`            |
-| `SITE_MODES`         | 启用的模式（逗号分隔）               | `weibo,forum,blog`                      |
-| `ALLOW_REGISTRATION` | 是否允许注册                         | `true`                                  |
+| 变量                                                   | 说明                                    | 示例/默认值                                                    |
+| ------------------------------------------------------ | --------------------------------------- | -------------------------------------------------------------- |
+| `DATABASE_PROVIDER`                                    | 数据库类型：`sqlite` 或 `mysql`         | `sqlite`                                                       |
+| `DATABASE_URL`                                         | 当前数据库连接                          | `.env.example` 使用 `file:./prisma/dev.db`，实际以 `.env` 为准 |
+| `TEST_DATABASE_URL`                                    | 验收测试专用连接，必须独立于开发/生产库 | `file:./prisma/test.db`                                        |
+| `JWT_SECRET`                                           | JWT 签名密钥，生产环境务必更换          | 开发用占位值                                                   |
+| `JWT_EXPIRES_DAYS`                                     | JWT 有效期（天）                        | `7`                                                            |
+| `UPLOAD_DIR`                                           | 文件上传目录                            | `./uploads`                                                    |
+| `SITE_URL`                                             | 站点 URL，用于生成绝对链接              | `http://localhost:4321`                                        |
+| `SITE_TITLE` / `SITE_DESCRIPTION`                      | 站点标题和描述                          | `睦谈` / 默认文案                                              |
+| `SITE_MODES`                                           | 启用模式，逗号分隔                      | `weibo,forum,blog`                                             |
+| `ALLOW_REGISTRATION`                                   | 是否允许注册                            | `true`                                                         |
+| `API_V1_ENABLED` / `API_AGENT_ENABLED`                 | 是否启用两组外部 API                    | `true` / `true`                                                |
+| `API_CORS_ORIGINS`                                     | API CORS 来源白名单                     | `self`                                                         |
+| `API_RATE_LIMIT_*`                                     | API 限流窗口与读/写/上传上限            | 见 `.env.example`                                              |
+| `API_BODY_LIMIT_BYTES` / `API_UPLOAD_BODY_LIMIT_BYTES` | 普通请求体/上传请求体上限               | 见 `.env.example`                                              |
+| `TRENDING_FORMULA`                                     | 热门分数公式 JSON                       | 见 `.env.example`                                              |
+| `WEIBO_MEDIA_MAX_WIDTH_PX`                             | 微博媒体区域最大宽度                    | `640`                                                          |
 
-完整变量列表见 `.env.example`。
+`SITE_LOGO_URL`、`SITE_FAVICON_URL`、密码保护、置顶上限、保留用户名和模式别名等高级变量见 `.env.example`。不要提交 `.env` 或生产凭证。
 
 ## 项目结构
 
-```
 src/
-  actions/          # Astro Actions（服务端 RPC）
-  pages/            # 文件路由
-  layouts/          # 布局组件
-  components/       # UI 组件
-  lib/              # 工具库
-  services/         # 业务 Service 层
-  styles/           # 样式文件
+actions/ # Astro Actions（服务端 RPC）
+pages/ # 文件路由、SSR 页面和 /api 路由
+layouts/ # 基础、频道、账号和后台布局
+components/ # Astro 组件与 React 岛
+views/ # 帖子详情的微博/论坛/博客视图
+services/ # 业务 Service 层
+lib/ # 数据访问、认证、可见度、推荐等原子模块
+types/ # API DTO 与共享类型
+styles/ # CSS 设计令牌与组件样式
+middleware.ts # 管理后台守卫、CSRF、API CORS/限流/请求体限制
 prisma/
-  schema.sqlite.prisma  # SQLite 数据库模型
-  schema.mysql.prisma   # MySQL 数据库模型
-  migrations/           # 按 provider 分开的基线迁移
-```
+schema.sqlite.prisma # SQLite 数据库模型
+schema.mysql.prisma # MySQL 数据库模型
+migrations/ # 按 provider 分开的基线迁移
+tests/ # node:test/tsx 测试与 Puppeteer 浏览器测试
+skills/ # Agent API 使用说明
 
 ## 常用命令
 
-```bash
-npm run dev              # 开发服务器
-npm run build            # 构建
-npm run start            # 生产启动
-npm run db:generate      # 生成 Prisma Client
-npm run db:migrate       # 数据库迁移
-npm run db:prepare        # 生成 Prisma Client 并应用已提交迁移
-npm run db:migrate:dev   # 生成开发迁移
-npm run db:status        # 查看当前 provider 的迁移状态
-npm run db:studio        # Prisma Studio GUI
-npm run db:setup         # 一键初始化数据库
-npm run format           # 代码格式化
-```
+pnpm run dev # 开发服务器（会先执行 db:prepare）
+pnpm run build # 生产构建（会先执行 db:prepare）
+pnpm run start # 启动 dist/server/entry.mjs
+pnpm run preview # 预览构建产物
+pnpm run typecheck # astro check
+pnpm run lint # ESLint
+pnpm run format:check # Prettier 检查
+pnpm run format # Prettier 写入
+pnpm run db:generate # 生成 Prisma Client
+pnpm run db:migrate # 应用已提交迁移
+pnpm run db:prepare # 生成 Client 并应用迁移
+pnpm run db:migrate:dev # 创建/应用开发迁移
+pnpm run db:status # 查看当前 provider 的迁移状态
+pnpm run db:studio # Prisma Studio GUI
+pnpm run db:seed # 写入种子数据
+pnpm run db:setup # generate + migrate + seed
+pnpm run pm2 # 用 ecosystem.config.js 启动 PM2
 
 ### 切换 SQLite / MySQL
 
-`DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量执行 `npm run db:prepare`，再启动应用；`dev`、`build`、`start` 与 `pm2` 也会自动执行该预处理。`npm run db:setup` 会额外写入管理员种子数据。
+`DATABASE_PROVIDER` 决定 Prisma schema、迁移目录和运行时 driver adapter，支持 `sqlite`（`file:` URL）与 `mysql`（`mysql://` URL）。每次修改该值后，使用同一组环境变量执行 `pnpm run db:prepare`，再启动应用；`dev`、`build`、`start` 与 `pm2` 会自动执行该预处理。`pnpm run db:setup` 会额外写入管理员种子数据。
 
 SQLite 使用 `prisma/migrations/sqlite/0_init`，MySQL 使用 `prisma/migrations/mysql/0_init`。每个 provider 只保留这一个完整基线，适用于新建数据库；两个基线描述相同的数据模型，但不互相转换数据。从一种数据库迁移到另一种时请先备份并自行迁移数据，切勿对生产库使用 `prisma migrate reset`。
 
 已使用旧版多文件迁移的数据库不能直接执行压缩后的迁移。请先备份数据库，并由维护者确认数据库结构与当前 schema 一致后，将 `_prisma_migrations` 重新基线化为对应的 `0_init`；未确认数据状态前不得重置迁移记录或使用 `prisma migrate reset`。
 
-`test:api-v1` 与 `test:api-agent` 只读取 `TEST_DATABASE_URL`。SQLite 默认使用独立文件；MySQL 必须配置独立测试库，禁止指向生产库。
+验收测试必须使用独立的 `TEST_DATABASE_URL`。SQLite 默认使用独立文件；MySQL 必须配置独立测试库，禁止指向生产库。
+
+## 测试与 QA
+
+测试使用 Node 内置 `node:test` + `tsx`，浏览器测试使用 Puppeteer；项目没有统一 `test` 脚本、CI 配置或覆盖率工具。
+
+无需数据库即可直接运行的测试：
+
+```bash
+pnpm run test:site-config
+pnpm run test:site-copy
+pnpm run test:color-contrast
+pnpm run test:admin-moderation-ui
+pnpm run test:blog-assets-ui
+```
+
+推荐、频道和详情等未接入 package script 的测试，可按文件运行：
+
+```bash
+pnpm exec tsx --test tests/trending.test.ts
+```
+
+Service 测试会清空并写入 `DATABASE_URL` 指向的数据库，禁止直接对开发库或生产库运行。API 验收测试需要独立测试库、已应用迁移、空闲端口和运行中的 Astro 服务；浏览器测试需要 `MUTAN_E2E_BASE_URL` 与夹具数据。
+
+注意：当前 `package.json` 中 `test:api-v1`、`test:api-agent`、`test:admin-auth`、`test:admin-audit`、`test:mysql-qa`、`test:blog-assets`、`test:post-detail-browser`、`test:recommend-users` 引用的 `scripts/run-*.mjs` 文件在仓库中不存在，这些命令目前不可直接运行；修复运行器前不要把它们当作通过的 QA 证据。
+
+页面、API 或数据库改动至少执行相关的 `typecheck`、格式检查和针对性测试；涉及真实 HTTP/认证/数据库链路时优先使用验收测试，而不是只 mock Service。
 
 ## 内容模式
 
