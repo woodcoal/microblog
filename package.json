@@ -1,7 +1,7 @@
 {
 	"name": "mutan",
 	"type": "module",
-	"version": "1.26.808",
+	"version": "1.26.811",
 	"description": "睦谈 — 轻量级多用户微博系统",
 	"author": "MuTan",
 	"license": "MIT",
@@ -96,9 +96,9 @@
 		"prettier-plugin-astro": "^0.14.1",
 		"prisma": "^7.9.1",
 		"puppeteer": "^25.5.0",
-		"tsx": "^4.23.11",
+		"tsx": "^4.23.12",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.66.0"
+		"typescript-eslint": "^8.67.0"
 	},
 	"allowScripts": {
 		"@prisma/engines@7.8.0": true,

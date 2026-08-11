@@ -27,3 +27,14 @@ minimumReleaseAgeExclude:
   - '@scalar/types@0.17.1'
   - '@scalar/workspace-store@0.56.1'
   - eslint@10.8.1
+  - '@typescript-eslint/eslint-plugin@8.67.0'
+  - '@typescript-eslint/parser@8.67.0'
+  - '@typescript-eslint/project-service@8.67.0'
+  - '@typescript-eslint/scope-manager@8.67.0'
+  - '@typescript-eslint/tsconfig-utils@8.67.0'
+  - '@typescript-eslint/type-utils@8.67.0'
+  - '@typescript-eslint/types@8.67.0'
+  - '@typescript-eslint/typescript-estree@8.67.0'
+  - '@typescript-eslint/utils@8.67.0'
+  - '@typescript-eslint/visitor-keys@8.67.0'
+  - typescript-eslint@8.67.0
