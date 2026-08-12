@@ -39,6 +39,7 @@
 		"format:check": "prettier --check .",
 		"test:api-v1": "node scripts/run-api-test.mjs api-v1",
 		"test:api-agent": "node scripts/run-api-test.mjs api-agent",
+		"test:password-reset-delivery-failure": "node scripts/run-api-test.mjs password-reset-delivery-failure",
 		"test:admin-auth": "node scripts/run-api-test.mjs admin-auth",
 		"test:admin-audit": "node scripts/run-admin-audit-test.mjs",
 		"test:mysql-qa": "node scripts/run-mysql-qa.mjs",

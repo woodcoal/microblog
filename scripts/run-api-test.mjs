@@ -22,6 +22,10 @@ const suites = {
 			API_RATE_LIMIT_WRITE: '1000',
 			API_RATE_LIMIT_UPLOAD: '1000'
 		}
+	},
+	'password-reset-delivery-failure': {
+		testFile: 'tests/password-reset-delivery-failure.acceptance.test.ts',
+		rateLimits: { API_RATE_LIMIT_READ: '1000', API_RATE_LIMIT_WRITE: '1000' }
 	}
 };
 
