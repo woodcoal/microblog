@@ -14,6 +14,9 @@ import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
 import { SITE_MODES, SITE_URL } from '@/lib/config';
 
+/** 只有 forum 与 blog 实现了 `/${mode}/[slug]` 的公开分类页。 */
+const CATEGORY_ROUTE_MODES = new Set(['forum', 'blog']);
+
 function escapeXml(value: string): string {
 	return value.replace(/[<>&'"]/g, (character) => {
 		const entities: Record<string, string> = {
@@ -69,7 +72,7 @@ export const GET: APIRoute = async () => {
 			select: { name: true }
 		}),
 		prisma.category.findMany({
-			where: { mode: { in: SITE_MODES } },
+			where: { mode: { in: SITE_MODES.filter((mode) => CATEGORY_ROUTE_MODES.has(mode)) } },
 			select: { slug: true, mode: true, updatedAt: true }
 		})
 	]);

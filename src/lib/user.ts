@@ -82,7 +82,7 @@ export async function isTombstonedUsername(username: string): Promise<boolean> {
 		where: { username: normalizedUsername },
 		select: { user: { select: { deletedAt: true } } }
 	});
-	return claim?.user.deletedAt !== null;
+	return claim ? claim.user.deletedAt !== null : false;
 }
 
 /** 创建用户并在同一事务中占用用户名，避免并发注册留下无 claim 的用户。 */
