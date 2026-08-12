@@ -17,6 +17,7 @@ export interface JwtPayload {
 	userId: string;
 	username: string;
 	role: string;
+	credentialVersion?: number;
 }
 
 /** 将密钥转为 Uint8Array，供 jose 使用 */
@@ -50,7 +51,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
  * @returns 签名后的 JWT 字符串
  */
 export async function generateToken(payload: JwtPayload): Promise<string> {
-	return new SignJWT({ ...payload })
+	return new SignJWT({ ...payload, credentialVersion: payload.credentialVersion ?? 0 })
 		.setProtectedHeader({ alg: 'HS256' })
 		.setIssuedAt()
 		.setExpirationTime(`${JWT_EXPIRES_DAYS}d`)
@@ -69,7 +70,8 @@ async function verifyToken(token: string): Promise<JwtPayload | null> {
 		return {
 			userId: payload.userId as string,
 			username: payload.username as string,
-			role: payload.role as string
+			role: payload.role as string,
+			credentialVersion: Number(payload.credentialVersion ?? 0)
 		};
 	} catch {
 		return null;
@@ -85,15 +87,20 @@ async function verifyToken(token: string): Promise<JwtPayload | null> {
  * @param userId - 用户 ID
  * @returns 用户已被禁用返回 true，否则返回 false
  */
-async function isUserUnavailable(userId: string): Promise<boolean> {
+async function isUserUnavailable(userId: string, credentialVersion?: number): Promise<boolean> {
 	try {
 		const { prisma } = await import('./db');
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { isDisabled: true, emailVerifiedAt: true }
+			select: { isDisabled: true, emailVerifiedAt: true, credentialVersion: true }
 		});
 		// 用户不存在时视为禁用（JWT 中的 userId 对应的用户已被删除）
-		return user?.isDisabled || !user?.emailVerifiedAt;
+		return (
+			user?.isDisabled ||
+			!user?.emailVerifiedAt ||
+			credentialVersion === undefined ||
+			user.credentialVersion !== credentialVersion
+		);
 	} catch {
 		// 查询失败时采用 fail-closed 策略，拒绝访问
 		console.error('检查用户状态失败，默认拒绝访问');
@@ -154,7 +161,8 @@ export async function getUserFromBearerRequest(request: Request): Promise<JwtPay
 	if (token.startsWith('mt_')) return verifyApiTokenFromRequest(token);
 
 	const payload = await verifyToken(token);
-	if (payload && (await isUserUnavailable(payload.userId))) return null;
+	if (payload && (await isUserUnavailable(payload.userId, payload.credentialVersion)))
+		return null;
 	return payload;
 }
 
@@ -168,7 +176,7 @@ export async function getUserFromRequest(context: AuthContext): Promise<JwtPaylo
 	const cookieToken = context.cookies.get('token')?.value;
 	if (cookieToken) {
 		const payload = await verifyToken(cookieToken);
-		if (payload && (await isUserUnavailable(payload.userId))) {
+		if (payload && (await isUserUnavailable(payload.userId, payload.credentialVersion))) {
 			return null;
 		}
 		return payload;
@@ -225,7 +233,8 @@ async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | nu
 		return {
 			userId: apiToken.user.id,
 			username: apiToken.user.username,
-			role: apiToken.user.role
+			role: apiToken.user.role,
+			credentialVersion: 0
 		};
 	} catch {
 		return null;

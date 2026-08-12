@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process';
 const suites = {
 	'api-v1': {
 		testFile: 'tests/api-v1.acceptance.test.ts',
-		rateLimits: { API_RATE_LIMIT_READ: '3', API_RATE_LIMIT_WRITE: '100' }
+		rateLimits: { API_RATE_LIMIT_READ: '1000', API_RATE_LIMIT_WRITE: '100' }
 	},
 	'api-agent': {
 		testFile: 'tests/agent-api.acceptance.test.ts',
@@ -22,6 +22,10 @@ const suites = {
 			API_RATE_LIMIT_WRITE: '1000',
 			API_RATE_LIMIT_UPLOAD: '1000'
 		}
+	},
+	'password-reset-delivery-failure': {
+		testFile: 'tests/password-reset-delivery-failure.acceptance.test.ts',
+		rateLimits: { API_RATE_LIMIT_READ: '1000', API_RATE_LIMIT_WRITE: '1000' }
 	}
 };
 

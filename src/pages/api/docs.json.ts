@@ -519,6 +519,57 @@ const spec = {
 				}
 			}
 		},
+		'/auth/forgot-password': {
+			post: {
+				tags: ['认证'],
+				summary: '请求密码重置邮件（抗枚举）',
+				security: [],
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: { email: { type: 'string', format: 'email' } },
+								required: ['email']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('请求已接受'),
+					400: commonResponses[400],
+					500: commonResponses[500]
+				}
+			}
+		},
+		'/auth/reset-password': {
+			post: {
+				tags: ['认证'],
+				summary: '消费一次性密码重置令牌并撤销旧凭据',
+				security: [],
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									token: { type: 'string', writeOnly: true },
+									password: { type: 'string', minLength: 8, writeOnly: true }
+								},
+								required: ['token', 'password']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('重置成功'),
+					400: commonResponses[400],
+					500: commonResponses[500]
+				}
+			}
+		},
 		'/posts': {
 			get: {
 				tags: ['帖子'],

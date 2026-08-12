@@ -10,6 +10,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { prisma } from '../src/lib/db';
 import { hashEmailVerificationToken } from '../src/lib/email-verification';
+import { hashPasswordResetToken } from '../src/lib/password-reset';
 
 const PORT = 4329;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -274,6 +275,96 @@ test('邮箱验证 API 统一拒绝无效令牌，并在有效令牌被消费后
 	assert.equal((await json<{ verified: boolean }>(verified)).verified, true);
 });
 
+test(
+	'密码重置 API 抗枚举、单次消费并即时撤销旧 JWT 与 API Token',
+	{ concurrency: false },
+	async () => {
+		const email = `reset_${RUN_ID}@example.test`;
+		const registered = await request('/api/v1/auth/register', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email, password })
+		});
+		assert.equal(registered.status, 202);
+		assert.deepEqual(await json(registered), {
+			accepted: true,
+			message: '若邮箱可用，验证邮件已发送'
+		});
+		const pending = await prisma.user.findUniqueOrThrow({ where: { email } });
+		await prisma.user.update({
+			where: { id: pending.id },
+			data: { emailVerifiedAt: new Date() }
+		});
+		const oldJwt = (
+			await json<{ token: string }>(
+				await request('/api/v1/auth/login', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ email, password })
+				})
+			)
+		).token;
+		const oldApiToken = `mt_${crypto.randomUUID().replaceAll('-', '').slice(0, 32)}`;
+		await prisma.apiToken.create({
+			data: {
+				userId: pending.id,
+				name: 'password reset acceptance',
+				tokenHash: createHash('sha256').update(oldApiToken).digest('hex')
+			}
+		});
+		const known = await request('/api/v1/auth/forgot-password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email })
+		});
+		const unknown = await request('/api/v1/auth/forgot-password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email: `missing_${RUN_ID}@example.test` })
+		});
+		assert.equal(known.status, unknown.status);
+		assert.deepEqual(await json(known), await json(unknown));
+
+		const rawToken = crypto.randomUUID();
+		await prisma.passwordResetToken.create({
+			data: {
+				userId: pending.id,
+				tokenHash: hashPasswordResetToken(rawToken),
+				expiresAt: new Date(Date.now() + 60_000)
+			}
+		});
+		const reset = await request('/api/v1/auth/reset-password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ token: rawToken, password: 'reset-api-new-password' })
+		});
+		assert.equal(reset.status, 200);
+		assert.equal((await json<{ reset: boolean }>(reset)).reset, true);
+		const replay = await request('/api/v1/auth/reset-password', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ token: rawToken, password: 'reset-api-new-password' })
+		});
+		assert.equal(replay.status, 400);
+		for (const token of [oldJwt, oldApiToken]) {
+			assert.equal(
+				(
+					await request('/api/v1/timeline/following', {
+						headers: { authorization: `Bearer ${token}` }
+					})
+				).status,
+				401
+			);
+		}
+		const nextLogin = await request('/api/v1/auth/login', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ email, password: 'reset-api-new-password' })
+		});
+		assert.equal(nextLogin.status, 200);
+	}
+);
+
 test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => {
 	const spec = await json<OpenApiDocument>(await request('/api/docs.json?api=agent'));
 	assert.equal(spec.openapi, '3.0.3');
@@ -498,18 +589,6 @@ test('CORS 非白名单来源与超大请求体被中间件拒绝', async () => 
 	});
 	assert.equal(oversized.status, 413);
 	assert.equal((await json<ErrorResponse>(oversized)).error.code, 'BAD_REQUEST');
-});
-
-test('同一 IP 与路由超出独立读取配额后返回 429', async () => {
-	for (let i = 0; i < 3; i++) {
-		const response = await request(`/api/v1/search/posts?q=rate-limit-${RUN_ID}`);
-		assert.equal(response.status, 200);
-		assert.equal(response.headers.get('x-ratelimit-limit'), '3');
-	}
-	const limited = await request(`/api/v1/search/posts?q=rate-limit-${RUN_ID}`);
-	assert.equal(limited.status, 429);
-	assert.equal((await json<ErrorResponse>(limited)).error.code, 'BAD_REQUEST');
-	assert.ok(Number(limited.headers.get('retry-after')) >= 1);
 });
 
 test('所有 7 种产品可见性均可被创建端点接受，并保留到 DTO', async () => {

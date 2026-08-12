@@ -124,7 +124,8 @@ const renameUsername = defineAction({
 				await generateToken({
 					userId: currentUser.userId,
 					username: result.username,
-					role: currentUser.role
+					role: currentUser.role,
+					credentialVersion: currentUser.credentialVersion
 				})
 			);
 			return result;

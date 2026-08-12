@@ -49,3 +49,4 @@ generated/
 yarn.lock
 pnpm-lock.yaml
 app.db
+prisma/password-reset-*.db
