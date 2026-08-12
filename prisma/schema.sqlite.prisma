@@ -19,6 +19,7 @@ model User {
   note         String   @default("") // 个人备注，仅自己可见
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
+  emailVerifiedAt DateTime?
   hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -47,6 +48,24 @@ model User {
   usernameClaims        UsernameClaim[]
   usernameRenameTargets UsernameRenameAudit[] @relation("UsernameRenameTarget")
   usernameRenameActors  UsernameRenameAudit[] @relation("UsernameRenameActor")
+  emailVerificationTokens EmailVerificationToken[]
+}
+
+/// 邮箱所有权验证令牌。仅保存不可逆摘要，原始令牌只出现在一次性邮件链接中。
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  purpose   String   @default("verify_email")
+  expiresAt DateTime
+  consumedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt, consumedAt, revokedAt])
 }
 
 /// 永久用户名占用记录；当前名和历史名都保留，禁止再次分配。

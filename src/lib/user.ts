@@ -84,6 +84,7 @@ export function findUserDetailByUsername(username: string) {
 			avatarUrl: true,
 			createdAt: true,
 			isDisabled: true,
+			emailVerifiedAt: true,
 			_count: {
 				select: { posts: { where: { isDeleted: false } }, following: true, followers: true }
 			}
@@ -168,7 +169,8 @@ export async function searchUsersByUsernames<T extends Prisma.UserSelect>(
 	return prisma.user.findMany({
 		where: {
 			username: { in: usernames },
-			isDisabled: false
+			isDisabled: false,
+			emailVerifiedAt: { not: null }
 		},
 		...(select ? { select } : {})
 	});
@@ -219,7 +221,7 @@ export function findAgentUsers(input: {
 	currentUserId?: string;
 	sort?: string;
 }) {
-	const where: Prisma.UserWhereInput = { isDisabled: false };
+	const where: Prisma.UserWhereInput = { isDisabled: false, emailVerifiedAt: { not: null } };
 	if (input.keyword) {
 		where.OR = [
 			{ username: { contains: input.keyword } },
@@ -253,7 +255,7 @@ export function findAgentUsers(input: {
 export function findApiUser(username: string, viewerId?: string) {
 	const viewerFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
 	return prisma.user.findFirst({
-		where: { username, isDisabled: false },
+		where: { username, isDisabled: false, emailVerifiedAt: { not: null } },
 		select: apiUserSelect(viewerFilter)
 	});
 }
@@ -263,6 +265,7 @@ export function findApiUsers(query: string, skip: number, take: number, viewerId
 	return prisma.user.findMany({
 		where: {
 			isDisabled: false,
+			emailVerifiedAt: { not: null },
 			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 		},
 		skip,
@@ -276,6 +279,7 @@ export function countApiUsers(query: string) {
 	return prisma.user.count({
 		where: {
 			isDisabled: false,
+			emailVerifiedAt: { not: null },
 			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 		}
 	});

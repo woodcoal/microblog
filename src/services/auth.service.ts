@@ -10,6 +10,7 @@ import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
 import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '@/lib/config';
 import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
+import { issueEmailVerificationToken } from '@/lib/email-verification';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,7 +30,7 @@ export async function getUserApiTokenCount(input: {
 	email: string;
 }): Promise<{ userId: string; tokenCount: number } | null> {
 	const user = await findUserByEmail(input.email);
-	if (!user) {
+	if (!user || !user.emailVerifiedAt) {
 		return null;
 	}
 
@@ -52,7 +53,7 @@ export interface RegisterUserResult {
 	displayName: string;
 	avatarUrl: string | null;
 	role: string;
-	email: string;
+	verificationPending: true;
 }
 
 export interface LoginUserInput {
@@ -76,7 +77,7 @@ export interface LoginUserResult {
  * 注册用户
  *
  * 校验注册开关、邮箱格式、用户名格式、保留词、密码长度、唯一性，
- * 哈希密码后创建用户。返回创建的用户信息（不含密码哈希）。
+ * 哈希密码后创建待验证用户并发起一次性验证邮件。返回信息不含密码哈希与邮箱。
  */
 export async function registerUser(input: RegisterUserInput): Promise<RegisterUserResult> {
 	const { displayName, email, password } = input;
@@ -116,13 +117,14 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 				email,
 				passwordHash
 			});
+			await issueEmailVerificationToken(user);
 			return {
 				id: user.id,
 				username: user.username,
 				displayName: user.displayName,
 				avatarUrl: user.avatarUrl,
 				role: user.role,
-				email: user.email
+				verificationPending: true
 			};
 		} catch (error) {
 			if (!isUniqueConstraintError(error)) throw error;
@@ -160,6 +162,9 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 	// 检查用户是否被禁用
 	if (user.isDisabled) {
 		throw new ServiceError('FORBIDDEN', DISABLED_USER_MESSAGE);
+	}
+	if (!user.emailVerifiedAt) {
+		throw new ServiceError('FORBIDDEN', '请先完成邮箱验证');
 	}
 
 	return {

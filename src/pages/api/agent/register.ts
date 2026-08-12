@@ -1,14 +1,13 @@
 /**
  * Agent 快速注册 API
  *
- * POST /api/agent/register — 注册新用户并自动创建 API Token
+ * POST /api/agent/register — 注册待验证用户
  * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
 import { textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { registerUser } from '@/services/auth.service';
-import { createToken } from '@/services/token.service';
 import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -45,13 +44,7 @@ export const POST: APIRoute = async (context) => {
 			throw e;
 		}
 
-		// 通过 service 创建 API Token
-		const tokenResult = await createToken({
-			userId: user.id,
-			name: 'agent-auto'
-		});
-
-		return textResponse(`ok: ${tokenResult.token}`, 201);
+		return textResponse(`ok: 请检查邮箱并完成验证（用户名：${user.username}）`, 201);
 	} catch (error) {
 		if (getErrorStatus(error) === 400) {
 			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);

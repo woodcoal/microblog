@@ -75,26 +75,30 @@ pnpm run dev
 
 复制 `.env.example` 为 `.env` 进行配置：
 
-| 变量                                                   | 说明                                    | 示例/默认值                                                    |
-| ------------------------------------------------------ | --------------------------------------- | -------------------------------------------------------------- |
-| `DATABASE_PROVIDER`                                    | 数据库类型：`sqlite` 或 `mysql`         | `sqlite`                                                       |
-| `DATABASE_URL`                                         | 当前数据库连接                          | `.env.example` 使用 `file:./prisma/dev.db`，实际以 `.env` 为准 |
-| `TEST_DATABASE_URL`                                    | 验收测试专用连接，必须独立于开发/生产库 | `file:./prisma/test.db`                                        |
-| `JWT_SECRET`                                           | JWT 签名密钥，生产环境务必更换          | 开发用占位值                                                   |
-| `JWT_EXPIRES_DAYS`                                     | JWT 有效期（天）                        | `7`                                                            |
-| `UPLOAD_DIR`                                           | 文件上传目录                            | `./uploads`                                                    |
-| `SITE_URL`                                             | 站点 URL，用于生成绝对链接              | `http://localhost:4321`                                        |
-| `SITE_TITLE` / `SITE_DESCRIPTION`                      | 站点标题和描述                          | `睦谈` / 默认文案                                              |
-| `SITE_MODES`                                           | 启用模式，逗号分隔                      | `weibo,forum,blog`                                             |
-| `ALLOW_REGISTRATION`                                   | 是否允许注册                            | `true`                                                         |
-| `API_V1_ENABLED` / `API_AGENT_ENABLED`                 | 是否启用两组外部 API                    | `true` / `true`                                                |
-| `API_CORS_ORIGINS`                                     | API CORS 来源白名单                     | `self`                                                         |
-| `API_RATE_LIMIT_*`                                     | API 限流窗口与读/写/上传上限            | 见 `.env.example`                                              |
-| `API_BODY_LIMIT_BYTES` / `API_UPLOAD_BODY_LIMIT_BYTES` | 普通请求体/上传请求体上限               | 见 `.env.example`                                              |
-| `TRENDING_FORMULA`                                     | 热门分数公式 JSON                       | 见 `.env.example`                                              |
-| `WEIBO_MEDIA_MAX_WIDTH_PX`                             | 微博媒体区域最大宽度                    | `640`                                                          |
+| 变量                                                                                  | 说明                                    | 示例/默认值                                                    |
+| ------------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------- |
+| `DATABASE_PROVIDER`                                                                   | 数据库类型：`sqlite` 或 `mysql`         | `sqlite`                                                       |
+| `DATABASE_URL`                                                                        | 当前数据库连接                          | `.env.example` 使用 `file:./prisma/dev.db`，实际以 `.env` 为准 |
+| `TEST_DATABASE_URL`                                                                   | 验收测试专用连接，必须独立于开发/生产库 | `file:./prisma/test.db`                                        |
+| `JWT_SECRET`                                                                          | JWT 签名密钥，生产环境务必更换          | 开发用占位值                                                   |
+| `JWT_EXPIRES_DAYS`                                                                    | JWT 有效期（天）                        | `7`                                                            |
+| `UPLOAD_DIR`                                                                          | 文件上传目录                            | `./uploads`                                                    |
+| `SITE_URL`                                                                            | 站点 URL，用于生成绝对链接              | `http://localhost:4321`                                        |
+| `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES` / `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS` | 验证链接有效期 / 重发冷却               | `30` / `60`                                                    |
+| `MAIL_DELIVERY_MODE`                                                                  | 邮件投递模式；默认不投递                | `disabled`；生产可选 `webhook`                                 |
+| `SITE_TITLE` / `SITE_DESCRIPTION`                                                     | 站点标题和描述                          | `睦谈` / 默认文案                                              |
+| `SITE_MODES`                                                                          | 启用模式，逗号分隔                      | `weibo,forum,blog`                                             |
+| `ALLOW_REGISTRATION`                                                                  | 是否允许注册                            | `true`                                                         |
+| `API_V1_ENABLED` / `API_AGENT_ENABLED`                                                | 是否启用两组外部 API                    | `true` / `true`                                                |
+| `API_CORS_ORIGINS`                                                                    | API CORS 来源白名单                     | `self`                                                         |
+| `API_RATE_LIMIT_*`                                                                    | API 限流窗口与读/写/上传上限            | 见 `.env.example`                                              |
+| `API_BODY_LIMIT_BYTES` / `API_UPLOAD_BODY_LIMIT_BYTES`                                | 普通请求体/上传请求体上限               | 见 `.env.example`                                              |
+| `TRENDING_FORMULA`                                                                    | 热门分数公式 JSON                       | 见 `.env.example`                                              |
+| `WEIBO_MEDIA_MAX_WIDTH_PX`                                                            | 微博媒体区域最大宽度                    | `640`                                                          |
 
 `SITE_LOGO_URL`、`SITE_FAVICON_URL`、密码保护、置顶上限、保留用户名和模式别名等高级变量见 `.env.example`。不要提交 `.env` 或生产凭证。
+
+邮箱验证邮件默认不投递，确保本地开发与测试不会误发真实邮件。生产环境可配置受信任的邮件 webhook；其 URL 和 Authorization 仅从运行期机密配置读取，原始验证令牌只进入一次性链接，不写入数据库、日志或仓库。
 
 ## 项目结构
 

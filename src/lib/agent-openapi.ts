@@ -59,7 +59,7 @@ export function createAgentOpenApiSpec() {
 			'/register': {
 				post: {
 					tags: ['认证'],
-					summary: '注册并创建 API Token',
+					summary: '注册待验证账号',
 					security: [],
 					requestBody: {
 						required: true,
@@ -82,9 +82,60 @@ export function createAgentOpenApiSpec() {
 						}
 					},
 					responses: {
-						201: plainText('注册成功，Token 仅此一次返回', 'ok: mt_xxx'),
+						201: plainText(
+							'注册成功，需先验证邮箱',
+							'ok: 请检查邮箱并完成验证（用户名：u_xxxx）'
+						),
 						400: errors[400],
 						403: plainText('注册已关闭', 'error: 注册已关闭'),
+						500: errors[500]
+					}
+				}
+			},
+			'/verify-email': {
+				post: {
+					tags: ['认证'],
+					summary: '消费一次性邮箱验证令牌',
+					security: [],
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: { token: { type: 'string', writeOnly: true } },
+									required: ['token']
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('验证成功', 'ok: 邮箱验证成功'),
+						400: errors[400],
+						500: errors[500]
+					}
+				}
+			},
+			'/resend-verification': {
+				post: {
+					tags: ['认证'],
+					summary: '请求重发验证邮件',
+					security: [],
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: { email: { type: 'string', format: 'email' } },
+									required: ['email']
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('请求已接受', 'ok: 若邮箱可用，验证邮件已发送'),
+						400: errors[400],
 						500: errors[500]
 					}
 				}

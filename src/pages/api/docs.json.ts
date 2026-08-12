@@ -471,6 +471,54 @@ const spec = {
 				}
 			}
 		},
+		'/auth/verify-email': {
+			post: {
+				tags: ['认证'],
+				summary: '消费一次性邮箱验证令牌',
+				security: [],
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: { token: { type: 'string', writeOnly: true } },
+								required: ['token']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('验证成功'),
+					400: commonResponses[400],
+					500: commonResponses[500]
+				}
+			}
+		},
+		'/auth/resend-verification': {
+			post: {
+				tags: ['认证'],
+				summary: '请求重发验证邮件',
+				security: [],
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: { email: { type: 'string', format: 'email' } },
+								required: ['email']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('请求已接受'),
+					400: commonResponses[400],
+					500: commonResponses[500]
+				}
+			}
+		},
 		'/posts': {
 			get: {
 				tags: ['帖子'],

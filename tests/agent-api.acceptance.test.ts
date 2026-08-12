@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { prisma } from '../src/lib/db';
+import { createToken } from '../src/services/token.service';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -101,8 +102,10 @@ async function register(username: string) {
 	});
 	assert.equal(response.status, 201, await response.clone().text());
 	const body = await plainText(response);
-	assert.match(body, /^ok: mt_[A-Za-z0-9_-]+$/);
-	return body.slice(4);
+	assert.match(body, /^ok: 请检查邮箱并完成验证/);
+	const user = await prisma.user.findUniqueOrThrow({ where: { username }, select: { id: true } });
+	await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
+	return (await createToken({ userId: user.id, name: 'agent acceptance token' })).token;
 }
 
 before(async () => {

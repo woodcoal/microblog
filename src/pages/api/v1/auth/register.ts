@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
 import { handleApiError, jsonResponse, parseJsonObject, stringValue } from '@/lib/api-v1';
 import { registerUser } from '@/services/auth.service';
-import { getUser } from '@/services/api-v1.service';
 export const POST: APIRoute = async ({ request }) => {
 	try {
 		const body = await parseJsonObject(request);
@@ -11,10 +10,7 @@ export const POST: APIRoute = async ({ request }) => {
 			email: stringValue(body.email, 'email')!,
 			password: stringValue(body.password, 'password')!
 		});
-		return jsonResponse(
-			{ ...(await getUser(user.username)), email: user.email, role: user.role },
-			201
-		);
+		return jsonResponse({ ...user, message: '若邮箱可用，验证邮件已发送' }, 201);
 	} catch (error) {
 		return handleApiError(error);
 	}

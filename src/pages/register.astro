@@ -339,12 +339,10 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 					return;
 				}
 
-				// 注册成功：服务端已通过 setTokenCookie 设置 HttpOnly cookie
-				// 仅将 token 写入 localStorage 供客户端逻辑使用
-				if (result.data) {
-					localStorage.setItem('token', result.data.token);
-				}
-				window.location.href = '/';
+				// 注册不会建立会话；邮箱验证完成后才能登录并使用完整能力。
+				errorEl.textContent = '注册成功，请检查邮箱并完成验证后登录。';
+				errorEl.classList.add('form-hint-ok');
+				form.reset();
 			} catch (e) {
 				// ActionError 通过 e.message 获取错误信息
 				errorEl.textContent = e instanceof Error ? e.message : '注册失败，请重试';
