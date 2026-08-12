@@ -1,0 +1,111 @@
+---
+/** 邮箱换绑确认落地页。令牌的有效性、消费与凭据撤销均由服务端 Action 决定。 */
+import BaseLayout from '@/layouts/Base.astro';
+
+const token = Astro.url.searchParams.get('token') ?? '';
+---
+
+<BaseLayout title="确认换绑邮箱" narrow noindex>
+	<section
+		class="auth-page email-change-page"
+		data-email-change-token={token}
+		aria-labelledby="change-email-title"
+	>
+		<h1 id="change-email-title" class="auth-title">确认换绑邮箱</h1>
+		<div id="email-change-pending" class="email-change-state" aria-live="polite" hidden>
+			<p>正在确认你的新邮箱，请稍候…</p>
+		</div>
+		<section id="email-change-action" class="email-change-state" hidden tabindex="-1">
+			<h2>需要确认链接</h2>
+			<p>请从新邮箱收到的确认邮件中打开完整链接。旧邮箱在完成确认前保持有效。</p>
+			<a href="/settings?tab=security" class="btn btn-outline">返回账号安全</a>
+		</section>
+		<section
+			id="email-change-success"
+			class="email-change-state email-change-success"
+			role="status"
+			hidden
+			tabindex="-1"
+		>
+			<h2>邮箱已换绑</h2>
+			<p>
+				请使用新邮箱重新登录。为保护账户，其他设备上的登录状态和旧的 API Token、Webhook
+				凭据已失效。
+			</p>
+			<a href="/login" class="btn btn-primary">前往登录</a>
+		</section>
+		<section
+			id="email-change-invalid"
+			class="email-change-state email-change-error"
+			role="alert"
+			hidden
+			tabindex="-1"
+		>
+			<h2>确认链接无效或已失效</h2>
+			<p>链接可能已过期、已使用、已被重发链接撤销或不完整。请从账号安全页重新发起换绑。</p>
+			<a href="/settings?tab=security" class="btn btn-outline">返回账号安全</a>
+		</section>
+	</section>
+</BaseLayout>
+
+<style>
+	.email-change-state {
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
+	}
+
+	.email-change-state h2,
+	.email-change-state p {
+		margin: 0;
+	}
+
+	.email-change-state p + .btn,
+	.email-change-state .btn {
+		display: inline-flex;
+		margin-top: var(--spacing-4);
+	}
+
+	.email-change-success {
+		border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+	}
+
+	.email-change-error {
+		border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+	}
+</style>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	const page = document.querySelector('.email-change-page') as HTMLElement;
+	const token = page.dataset.emailChangeToken ?? '';
+	const pending = document.getElementById('email-change-pending') as HTMLElement;
+	const action = document.getElementById('email-change-action') as HTMLElement;
+	const success = document.getElementById('email-change-success') as HTMLElement;
+	const invalid = document.getElementById('email-change-invalid') as HTMLElement;
+
+	function showState(state: HTMLElement) {
+		[pending, action, success, invalid].forEach(
+			(element) => (element.hidden = element !== state)
+		);
+		if (state !== pending) state.focus();
+	}
+
+	async function confirm() {
+		if (!token) {
+			showState(action);
+			return;
+		}
+		showState(pending);
+		try {
+			const result = await actions.confirmEmailChangeAction({ token });
+			showState(result.error ? invalid : success);
+		} catch {
+			showState(invalid);
+		}
+	}
+
+	void confirm();
+</script>
