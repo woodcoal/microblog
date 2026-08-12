@@ -12,7 +12,9 @@ import { hashEmailChangeToken } from '../src/lib/email-change';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
-const RUN_ID = `${Date.now()}${Math.floor(Math.random() * 10_000)}`;
+// 用户名最长 20 个字符；长前缀会截断 RUN_ID，因此随机值必须置于开头，避免共享
+// MySQL 验收库的连续运行复用同一个用户名。
+const RUN_ID = `${crypto.randomUUID().replaceAll('-', '')}${Date.now()}`;
 const alice = `ag_alice_${RUN_ID}`.slice(0, 20);
 const bob = `ag_bob_${RUN_ID}`.slice(0, 20);
 const password = 'agent-acceptance-password';
