@@ -5,6 +5,7 @@ import ForumDetailView from '@/views/post-detail/ForumDetailView.astro';
 import WeiboDetailView from '@/views/post-detail/WeiboDetailView.astro';
 import {
 	loadPostDetail,
+	PostDetailGoneError,
 	UnknownPostDetailModeError,
 	type PostDetailModel
 } from '@/lib/post-detail';
@@ -13,6 +14,9 @@ let model: PostDetailModel | null;
 try {
 	model = await loadPostDetail(Astro);
 } catch (error) {
+	if (error instanceof PostDetailGoneError) {
+		return error.response;
+	}
 	if (error instanceof UnknownPostDetailModeError) {
 		console.error(
 			JSON.stringify({
