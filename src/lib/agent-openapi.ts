@@ -191,6 +191,60 @@ export function createAgentOpenApiSpec() {
 					}
 				}
 			},
+			'/change-email': {
+				post: {
+					tags: ['认证'],
+					summary: '发起安全邮箱换绑',
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: {
+										currentPassword: { type: 'string', writeOnly: true },
+										targetEmail: { type: 'string', format: 'email' }
+									},
+									required: ['currentPassword', 'targetEmail']
+								}
+							}
+						}
+					},
+					responses: {
+						202: plainText(
+							'请求已受理；确认前旧邮箱仍可登录',
+							'ok: 若新邮箱可用，确认邮件已发送'
+						),
+						400: errors[400],
+						401: errors[401],
+						500: errors[500]
+					}
+				}
+			},
+			'/confirm-email-change': {
+				post: {
+					tags: ['认证'],
+					summary: '确认邮箱换绑并撤销旧凭据',
+					security: [],
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: { token: { type: 'string', writeOnly: true } },
+									required: ['token']
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('换绑成功', 'ok: 邮箱已换绑，请使用新邮箱重新登录'),
+						400: errors[400],
+						500: errors[500]
+					}
+				}
+			},
 			'/login': {
 				post: {
 					tags: ['认证'],

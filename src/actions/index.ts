@@ -37,6 +37,8 @@ import {
 	resendVerification,
 	forgotPassword,
 	confirmPasswordReset,
+	requestEmailChangeAction,
+	confirmEmailChangeAction,
 	logout
 } from './auth';
 
@@ -122,6 +124,8 @@ export const server = {
 	resendVerification,
 	forgotPassword,
 	confirmPasswordReset,
+	requestEmailChangeAction,
+	confirmEmailChangeAction,
 	logout,
 	// 设置
 	getSettings,

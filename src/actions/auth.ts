@@ -6,14 +6,16 @@
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
-import { generateToken, setTokenCookie, clearTokenCookie } from '@/lib/auth';
+import { generateToken, getUserFromRequest, setTokenCookie, clearTokenCookie } from '@/lib/auth';
 import { consumeEmailVerificationToken, resendEmailVerification } from '@/lib/email-verification';
 import { ServiceError } from '@/lib/errors';
 import {
 	registerUser as registerUserService,
 	loginUser as loginUserService,
 	requestPasswordResetForEmail,
-	resetPassword
+	resetPassword,
+	requestEmailChange,
+	confirmEmailChange
 } from '@/services/auth.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -127,6 +129,36 @@ const confirmPasswordReset = defineAction({
 	}
 });
 
+/** 发起换绑需同时持有当前会话和当前密码；确认前不改变旧登录邮箱。 */
+const requestEmailChangeAction = defineAction({
+	input: z.object({
+		currentPassword: z.string().min(1, '当前密码不能为空'),
+		targetEmail: z.string().min(1, '新邮箱不能为空')
+	}),
+	handler: async (input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		try {
+			await requestEmailChange({ userId: currentUser.userId, ...input });
+			return { accepted: true, message: '若新邮箱可用，确认邮件已发送' };
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+/** 无效、过期、重放、撤销和竞争均使用相同错误，避免目标邮箱状态泄漏。 */
+const confirmEmailChangeAction = defineAction({
+	input: z.object({ token: z.string().min(1, '确认令牌不能为空') }),
+	handler: async ({ token }, context) => {
+		if (!(await confirmEmailChange(token))) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '确认链接无效或已失效' });
+		}
+		clearTokenCookie(context);
+		return { changed: true };
+	}
+});
+
 /**
  * 用户登出 Action
  */
@@ -145,5 +177,7 @@ export {
 	resendVerification,
 	forgotPassword,
 	confirmPasswordReset,
+	requestEmailChangeAction,
+	confirmEmailChangeAction,
 	logout
 };

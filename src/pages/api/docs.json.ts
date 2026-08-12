@@ -570,6 +570,58 @@ const spec = {
 				}
 			}
 		},
+		'/auth/change-email': {
+			post: {
+				tags: ['认证'],
+				summary: '发起安全邮箱换绑',
+				security: bearerSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									currentPassword: { type: 'string', writeOnly: true },
+									targetEmail: { type: 'string', format: 'email' }
+								},
+								required: ['currentPassword', 'targetEmail']
+							}
+						}
+					}
+				},
+				responses: {
+					202: successResponse('请求已受理；确认前旧邮箱仍为登录身份'),
+					400: commonResponses[400],
+					401: commonResponses[401],
+					500: commonResponses[500]
+				}
+			}
+		},
+		'/auth/confirm-email-change': {
+			post: {
+				tags: ['认证'],
+				summary: '消费一次性换绑确认令牌并撤销旧凭据',
+				security: [],
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: { token: { type: 'string', writeOnly: true } },
+								required: ['token']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('换绑成功；客户端须使用新邮箱重新登录'),
+					400: commonResponses[400],
+					500: commonResponses[500]
+				}
+			}
+		},
 		'/posts': {
 			get: {
 				tags: ['帖子'],

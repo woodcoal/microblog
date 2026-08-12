@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { prisma } from '../src/lib/db';
 import { hashEmailVerificationToken } from '../src/lib/email-verification';
 import { hashPasswordResetToken } from '../src/lib/password-reset';
+import { hashEmailChangeToken } from '../src/lib/email-change';
 
 const PORT = 4329;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -189,6 +190,8 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 		['/auth/login', 'post'],
 		['/auth/verify-email', 'post'],
 		['/auth/resend-verification', 'post'],
+		['/auth/change-email', 'post'],
+		['/auth/confirm-email-change', 'post'],
 		['/posts', 'get'],
 		['/posts', 'post'],
 		['/posts/{id}', 'get'],
@@ -418,6 +421,109 @@ test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async 
 	assert.equal(cookieOnly.status, 401);
 	assert.equal((await json<ErrorResponse>(cookieOnly)).error.code, 'UNAUTHORIZED');
 });
+
+test(
+	'v1 换绑确认前保留旧邮箱，确认后原子撤销旧 JWT 与 API Token',
+	{ concurrency: false },
+	async () => {
+		const username = `v1_change_${RUN_ID}`.slice(0, 20);
+		const oldEmail = `${username}@example.test`;
+		const targetEmail = `v1_changed_${RUN_ID}@example.test`;
+		const registered = await request('/api/v1/auth/register', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ username, email: oldEmail, password })
+		});
+		assert.equal(registered.status, 202);
+		const changingUser = await prisma.user.findUniqueOrThrow({ where: { email: oldEmail } });
+		await prisma.user.update({
+			where: { id: changingUser.id },
+			data: { emailVerifiedAt: new Date() }
+		});
+		const oldJwt = (
+			await json<{ token: string }>(
+				await request('/api/v1/auth/login', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ email: oldEmail, password })
+				})
+			)
+		).token;
+		const oldApiToken = `mt_${crypto.randomUUID().replaceAll('-', '').slice(0, 32)}`;
+		await prisma.apiToken.create({
+			data: {
+				userId: changingUser.id,
+				name: 'email change acceptance',
+				tokenHash: createHash('sha256').update(oldApiToken).digest('hex')
+			}
+		});
+		const start = await request('/api/v1/auth/change-email', {
+			method: 'POST',
+			headers: { authorization: `Bearer ${oldJwt}`, 'content-type': 'application/json' },
+			body: JSON.stringify({ currentPassword: password, targetEmail })
+		});
+		assert.equal(start.status, 202);
+		assert.deepEqual(await json(start), {
+			accepted: true,
+			message: '若新邮箱可用，确认邮件已发送'
+		});
+		assert.equal(
+			(await prisma.user.findUniqueOrThrow({ where: { id: changingUser.id } })).email,
+			oldEmail
+		);
+
+		const rawToken = crypto.randomUUID();
+		await prisma.emailChangeToken.create({
+			data: {
+				userId: changingUser.id,
+				targetEmail,
+				tokenHash: hashEmailChangeToken(rawToken),
+				expiresAt: new Date(Date.now() + 60_000)
+			}
+		});
+		const confirmed = await request('/api/v1/auth/confirm-email-change', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ token: rawToken })
+		});
+		assert.equal(confirmed.status, 200);
+		assert.deepEqual(await json(confirmed), { changed: true });
+		assert.equal(
+			(await prisma.user.findUniqueOrThrow({ where: { id: changingUser.id } })).email,
+			targetEmail
+		);
+		for (const token of [oldJwt, oldApiToken]) {
+			assert.equal(
+				(
+					await request('/api/v1/timeline/following', {
+						headers: { authorization: `Bearer ${token}` }
+					})
+				).status,
+				401
+			);
+		}
+		assert.equal(
+			(
+				await request('/api/v1/auth/login', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ email: oldEmail, password })
+				})
+			).status,
+			401
+		);
+		assert.equal(
+			(
+				await request('/api/v1/auth/login', {
+					method: 'POST',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ email: targetEmail, password })
+				})
+			).status,
+			200
+		);
+	}
+);
 
 test('JWT Bearer 覆盖发帖、读取、点赞、评论、删除与重复删除语义', async () => {
 	const auth = { authorization: `Bearer ${aliceToken}`, 'content-type': 'application/json' };

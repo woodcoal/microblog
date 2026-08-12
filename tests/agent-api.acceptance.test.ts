@@ -5,8 +5,10 @@ import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { prisma } from '../src/lib/db';
+import { hashPassword } from '../src/lib/auth';
 import { createToken } from '../src/services/token.service';
 import { hashPasswordResetToken } from '../src/lib/password-reset';
+import { hashEmailChangeToken } from '../src/lib/email-change';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -344,6 +346,59 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 		assert.equal(response.status, 400, path);
 		assert.match(await plainText(response), /^error: /);
 	}
+});
+
+test('Agent 换绑确认前保持旧邮箱，确认后旧 API Token 立即失效', async () => {
+	const username = `agent_change_${RUN_ID}`.slice(0, 20);
+	const oldEmail = `${username}@example.test`;
+	const targetEmail = `agent_changed_${RUN_ID}@example.test`;
+	const changingUser = await prisma.user.create({
+		data: {
+			username,
+			displayName: username,
+			email: oldEmail,
+			passwordHash: await hashPassword('agent-change-password'),
+			emailVerifiedAt: new Date()
+		}
+	});
+	const currentToken = (
+		await createToken({ userId: changingUser.id, name: 'agent email change token' })
+	).token;
+	const start = await request('/api/agent/change-email', {
+		method: 'POST',
+		headers: bearer(currentToken, true),
+		body: JSON.stringify({ currentPassword: 'agent-change-password', targetEmail })
+	});
+	assert.equal(start.status, 202);
+	assert.equal(await plainText(start), 'ok: 若新邮箱可用，确认邮件已发送');
+	assert.equal(
+		(await prisma.user.findUniqueOrThrow({ where: { id: changingUser.id } })).email,
+		oldEmail
+	);
+
+	const rawToken = crypto.randomUUID();
+	await prisma.emailChangeToken.create({
+		data: {
+			userId: changingUser.id,
+			targetEmail,
+			tokenHash: hashEmailChangeToken(rawToken),
+			expiresAt: new Date(Date.now() + 60_000)
+		}
+	});
+	const confirmed = await request('/api/agent/confirm-email-change', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: rawToken })
+	});
+	assert.equal(confirmed.status, 200);
+	assert.equal(await plainText(confirmed), 'ok: 邮箱已换绑，请使用新邮箱重新登录');
+	assert.equal((await request('/api/agent/note', { headers: bearer(currentToken) })).status, 401);
+	const login = await request('/api/agent/login', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ email: targetEmail, password: 'agent-change-password' })
+	});
+	assert.equal(login.status, 404);
 });
 
 test('评论、点赞和关注的显式 action 保持幂等', async () => {

@@ -99,6 +99,16 @@ export const PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS = Math.max(
 	Math.floor(envNumber('PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS', 60))
 );
 
+/** 邮箱换绑令牌有效期与重发冷却时间。 */
+export const EMAIL_CHANGE_TOKEN_TTL_MINUTES = Math.max(
+	1,
+	Math.floor(envNumber('EMAIL_CHANGE_TOKEN_TTL_MINUTES', 30))
+);
+export const EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS = Math.max(
+	1,
+	Math.floor(envNumber('EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS', 60))
+);
+
 /**
  * 邮件投递边界。默认 disabled，开发/测试只记录安全摘要，不发送真实邮件。
  * webhook 模式仅允许运行期机密配置提供 URL 与授权头。
