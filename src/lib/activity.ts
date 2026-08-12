@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db';
 
 /** 操作类型：帖子相关 */
 const POST_CREATE = 'post.create';
+const PASSWORD_RESET = 'auth.password_reset';
 const POST_UPDATE = 'post.update';
 const POST_DELETE = 'post.delete';
 
@@ -80,5 +81,6 @@ export {
 	FOLLOW_CREATE,
 	FOLLOW_REMOVE,
 	BOOKMARK_CREATE,
-	BOOKMARK_REMOVE
+	BOOKMARK_REMOVE,
+	PASSWORD_RESET
 };

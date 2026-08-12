@@ -140,6 +140,57 @@ export function createAgentOpenApiSpec() {
 					}
 				}
 			},
+			'/forgot-password': {
+				post: {
+					tags: ['认证'],
+					summary: '请求密码重置邮件（抗枚举）',
+					security: [],
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: { email: { type: 'string', format: 'email' } },
+									required: ['email']
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('请求已接受', 'ok: 若邮箱可用，重置邮件已发送'),
+						400: errors[400],
+						500: errors[500]
+					}
+				}
+			},
+			'/reset-password': {
+				post: {
+					tags: ['认证'],
+					summary: '消费一次性密码重置令牌并撤销旧凭据',
+					security: [],
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: {
+										token: { type: 'string', writeOnly: true },
+										password: { type: 'string', minLength: 8, writeOnly: true }
+									},
+									required: ['token', 'password']
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('重置成功', 'ok: 密码已重置，请使用新密码重新登录'),
+						400: errors[400],
+						500: errors[500]
+					}
+				}
+			},
 			'/login': {
 				post: {
 					tags: ['认证'],

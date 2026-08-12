@@ -22,6 +22,7 @@ model User {
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
   emailVerifiedAt DateTime?
+  credentialVersion Int @default(0) // 密码重置后递增，使此前签发的 JWT 立即失效
   hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -51,6 +52,23 @@ model User {
   usernameRenameTargets UsernameRenameAudit[] @relation("UsernameRenameTarget")
   usernameRenameActors  UsernameRenameAudit[] @relation("UsernameRenameActor")
   emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+}
+
+/// 密码重置令牌与邮箱验证令牌物理隔离；仅保存 SHA-256 摘要。
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt, revokedAt])
 }
 
 /// 邮箱所有权验证令牌。仅保存不可逆摘要，原始令牌只出现在一次性邮件链接中。

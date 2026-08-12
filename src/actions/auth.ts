@@ -11,7 +11,9 @@ import { consumeEmailVerificationToken, resendEmailVerification } from '@/lib/em
 import { ServiceError } from '@/lib/errors';
 import {
 	registerUser as registerUserService,
-	loginUser as loginUserService
+	loginUser as loginUserService,
+	requestPasswordResetForEmail,
+	resetPassword
 } from '@/services/auth.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -37,7 +39,8 @@ const login = defineAction({
 			const token = await generateToken({
 				userId: user.id,
 				username: user.username,
-				role: user.role
+				role: user.role,
+				credentialVersion: user.credentialVersion
 			});
 			setTokenCookie(context, token);
 			return {
@@ -100,6 +103,30 @@ const resendVerification = defineAction({
 	}
 });
 
+/** 总是接受请求，避免通过浏览器 Action 枚举邮箱或账号状态。 */
+const forgotPassword = defineAction({
+	input: z.object({ email: z.string().min(1, '邮箱不能为空') }),
+	handler: async ({ email }) => {
+		await requestPasswordResetForEmail(email.trim());
+		return { accepted: true, message: '若邮箱可用，重置邮件已发送' };
+	}
+});
+
+/** 无效、过期、重放与撤销令牌共用同一错误。 */
+const confirmPasswordReset = defineAction({
+	input: z.object({ token: z.string().min(1, '重置令牌不能为空'), password: z.string().min(1) }),
+	handler: async ({ token, password }) => {
+		try {
+			if (!(await resetPassword({ token, password }))) {
+				throw new ActionError({ code: 'BAD_REQUEST', message: '重置链接无效或已失效' });
+			}
+			return { reset: true };
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
 /**
  * 用户登出 Action
  */
@@ -111,4 +138,12 @@ const logout = defineAction({
 	}
 });
 
-export { login, register, verifyEmail, resendVerification, logout };
+export {
+	login,
+	register,
+	verifyEmail,
+	resendVerification,
+	forgotPassword,
+	confirmPasswordReset,
+	logout
+};
