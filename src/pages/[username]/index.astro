@@ -18,6 +18,7 @@ import { getPopularTagItems } from '@/lib/discovery';
 import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
 import { isTombstonedUsername, resolveUsername } from '@/lib/user';
 import { goneResponse } from '@/lib/public-route';
+import { createNoindexNotFoundResponse } from '@/lib/seo';
 
 // 路由参数
 const { username } = Astro.params;
@@ -27,6 +28,15 @@ if (username && (await isTombstonedUsername(username))) {
 }
 
 const resolvedUsername = username ? await resolveUsername(username) : null;
+const accountStatus = resolvedUsername
+	? await prisma.user.findUnique({
+			where: { id: resolvedUsername.id },
+			select: { isDisabled: true }
+		})
+	: null;
+if (accountStatus?.isDisabled) {
+	return createNoindexNotFoundResponse();
+}
 if (resolvedUsername?.isLegacy) {
 	const target = new URL(`/${resolvedUsername.username}`, Astro.url);
 	target.search = Astro.url.search;
