@@ -363,7 +363,6 @@ const tabs = [
 						</section>
 
 						<hr class="settings-divider" />
-
 						<section
 							class="security-subsection account-deletion-section"
 							aria-labelledby="account-deletion-title"
@@ -372,7 +371,7 @@ const tabs = [
 								永久注销账号
 							</h3>
 							<p class="section-desc">
-								此操作不可恢复。账号、用户名和登录邮箱将永久不能再用；你的主页和帖子会隐藏，历史评论会显示为“已注销用户”。
+								此操作不可恢复。账号、用户名和登录邮箱将永久不能再次使用；主页和帖子会隐藏，历史评论会保留楼层与内容并显示为“已注销用户”。
 							</p>
 							<form
 								id="account-deletion-form"
@@ -393,8 +392,23 @@ const tabs = [
 										required
 									/>
 								</div>
+								<label
+									class="account-deletion-confirmation"
+									for="account-deletion-confirmation"
+								>
+									<input
+										type="checkbox"
+										id="account-deletion-confirmation"
+										name="confirmed"
+										required
+									/>
+									<span>
+										我已理解注销不可恢复，且账号、用户名和登录邮箱不能再次使用。
+									</span>
+								</label>
 								<p id="account-deletion-note" class="form-hint">
-									确认后会立即退出所有设备，并撤销现有登录凭据与 API Token。
+									成功后，本设备和其他设备会立即退出登录，所有 API Token 与
+									Webhook 凭据也会失效。
 								</p>
 								<div class="form-actions">
 									<button
@@ -701,48 +715,65 @@ const tabs = [
 	});
 
 	// ===== 永久注销 =====
-	const accountDeletionForm = document.getElementById('account-deletion-form') as HTMLFormElement;
-	const accountDeletionMsg = document.getElementById('account-deletion-msg') as HTMLElement;
+	const accountDeletionForm = document.getElementById(
+		'account-deletion-form'
+	) as HTMLFormElement | null;
+	const accountDeletionMsg = document.getElementById(
+		'account-deletion-msg'
+	) as HTMLElement | null;
 	const accountDeletionSubmit = document.getElementById(
 		'account-deletion-submit'
-	) as HTMLButtonElement;
+	) as HTMLButtonElement | null;
+
+	function clearLocalIdentity() {
+		localStorage.removeItem('token');
+		sessionStorage.clear();
+		// 服务端 Action 同时清除 HttpOnly cookie；此处仅清理由旧版本遗留的可访问 cookie。
+		document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+	}
 
 	accountDeletionForm?.addEventListener('submit', async (event) => {
 		event.preventDefault();
-		const currentPassword = String(
-			new FormData(accountDeletionForm).get('currentPassword') ?? ''
-		);
-		if (!currentPassword) {
-			showMsg(accountDeletionMsg, '请输入当前密码。', true);
+		const formData = new FormData(accountDeletionForm);
+		const currentPassword = String(formData.get('currentPassword') ?? '');
+		const confirmed = formData.get('confirmed') === 'on';
+
+		if (!currentPassword || !confirmed) {
+			showMsg(accountDeletionMsg!, '请输入当前密码并确认已理解注销后果。', true);
 			return;
 		}
 
-		const confirmed = await MutanDialog.confirm(
-			'账号、用户名和登录邮箱将永久不能再用；主页和帖子会隐藏，历史评论会显示为“已注销用户”。此操作不可恢复。',
-			{ title: '确认永久注销？', danger: true }
+		const accepted = await MutanDialog.confirm(
+			'注销后无法恢复，账号、用户名和邮箱不能再次使用。确定永久注销吗？',
+			{ title: '确认永久注销', danger: true }
 		);
-		if (!confirmed) return;
+		if (!accepted) return;
 
-		accountDeletionSubmit.disabled = true;
-		accountDeletionSubmit.textContent = '正在注销…';
+		accountDeletionSubmit!.disabled = true;
+		accountDeletionSubmit!.textContent = '正在注销…';
 		try {
 			const result = await actions.deleteAccountAction({ currentPassword });
 			if (result.error) {
+				if (result.error.code === 'UNAUTHORIZED') {
+					clearLocalIdentity();
+					window.location.assign('/login?reason=session-expired');
+					return;
+				}
 				showMsg(
-					accountDeletionMsg,
-					result.error.message ?? '暂时无法注销，请稍后再试。',
+					accountDeletionMsg!,
+					result.error.message ?? '暂时无法注销，请稍后重试。',
 					true
 				);
 				return;
 			}
-			localStorage.removeItem('token');
-			document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+
+			clearLocalIdentity();
 			window.location.assign('/?account-deleted=1');
 		} catch {
-			showMsg(accountDeletionMsg, '网络连接异常，请检查后重试。', true);
+			showMsg(accountDeletionMsg!, '网络连接异常，账号尚未注销，请检查后重试。', true);
 		} finally {
-			accountDeletionSubmit.disabled = false;
-			accountDeletionSubmit.textContent = '永久注销账号';
+			accountDeletionSubmit!.disabled = false;
+			accountDeletionSubmit!.textContent = '永久注销账号';
 		}
 	});
 
@@ -926,8 +957,24 @@ const tabs = [
 		font-size: 1rem;
 	}
 
-	.account-deletion-section .section-desc {
-		color: var(--color-danger);
+	.account-deletion-section {
+		margin-top: var(--spacing-5);
+		padding-top: var(--spacing-5);
+		border-top: 1px solid color-mix(in srgb, var(--color-danger) 40%, var(--color-border));
+	}
+
+	.account-deletion-confirmation {
+		display: flex;
+		align-items: flex-start;
+		gap: var(--spacing-2);
+		font-size: 0.875rem;
+		line-height: 1.5;
+		cursor: pointer;
+	}
+
+	.account-deletion-confirmation input {
+		margin-top: 0.25rem;
+		accent-color: var(--color-danger);
 	}
 
 	/* 区块内分割线 */

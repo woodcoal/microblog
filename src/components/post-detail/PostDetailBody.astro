@@ -407,21 +407,37 @@ const {
 					)}
 					{likeUsers.length > 0 && (
 						<div class="like-users" id="like-users-list">
-							{likeUsers.slice(0, 10).map((u) => (
-								<a
-									href={`/${u.username}`}
-									class="like-user-avatar"
-									title={u.displayName}
-								>
-									{u.avatarUrl ? (
-										<img src={u.avatarUrl} alt={u.displayName} loading="lazy" />
-									) : (
-										<span class="like-avatar-placeholder">
-											{u.displayName.charAt(0).toUpperCase()}
+							{likeUsers.slice(0, 10).map((u) =>
+								u.deletedAt ? (
+									<span
+										class="like-user-avatar like-user-avatar-anonymous"
+										aria-label="已注销用户"
+										title="已注销用户"
+									>
+										<span class="like-avatar-placeholder" aria-hidden="true">
+											已
 										</span>
-									)}
-								</a>
-							))}
+									</span>
+								) : (
+									<a
+										href={`/${u.username}`}
+										class="like-user-avatar"
+										title={u.displayName}
+									>
+										{u.avatarUrl ? (
+											<img
+												src={u.avatarUrl}
+												alt={u.displayName}
+												loading="lazy"
+											/>
+										) : (
+											<span class="like-avatar-placeholder">
+												{u.displayName.charAt(0).toUpperCase()}
+											</span>
+										)}
+									</a>
+								)
+							)}
 							{likeUsers.length > 10 && (
 								<span
 									class="like-users-more"
