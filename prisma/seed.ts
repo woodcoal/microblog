@@ -25,7 +25,7 @@ async function main() {
 
 	if (!existingAdmin) {
 		const passwordHash = await bcrypt.hash('admin123', 10);
-		await prisma.user.create({
+		const admin = await prisma.user.create({
 			data: {
 				username: 'mutan',
 				displayName: '管理员',
@@ -34,6 +34,7 @@ async function main() {
 				role: 'admin'
 			}
 		});
+		await prisma.usernameClaim.create({ data: { username: admin.username, userId: admin.id } });
 		console.log('已创建管理员账号：admin@mutan.vip / admin123');
 	} else {
 		console.log('管理员账号已存在，跳过创建');

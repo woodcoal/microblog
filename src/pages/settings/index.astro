@@ -37,6 +37,8 @@ const [settings, user, tokens, webhooks] = await Promise.all([
 	prisma.user.findUnique({
 		where: { id: currentUser.userId },
 		select: {
+			username: true,
+			hasSelfRenamed: true,
 			displayName: true,
 			bio: true,
 			avatarUrl: true,
@@ -68,6 +70,8 @@ const notificationsEnabled = settings?.notificationsEnabled ?? true;
 
 // 用户基本信息
 const displayName = user?.displayName ?? '';
+const username = user?.username ?? currentUser.username;
+const hasSelfRenamed = user?.hasSelfRenamed ?? false;
 const bio = user?.bio ?? '';
 const avatarUrl = user?.avatarUrl ?? '';
 const note = user?.note ?? '';
@@ -100,11 +104,7 @@ const tabs = [
 ];
 ---
 
-<AccountLayout
-	title="设置"
-	user={{ username: currentUser.username, displayName, avatarUrl }}
-	activeSettings={tab}
->
+<AccountLayout title="设置" user={{ username, displayName, avatarUrl }} activeSettings={tab}>
 	<section class="settings-page ux-settings-page" aria-labelledby="settings-page-title">
 		<header class="ux-page-heading">
 			<h1 class="page-title" id="settings-page-title">
@@ -119,6 +119,40 @@ const tabs = [
 					<section class="settings-section">
 						<h2 class="section-title">个人资料</h2>
 						<p class="section-desc">管理你的公开个人信息</p>
+						<form id="username-form" class="settings-form">
+							<div class="form-group">
+								<label for="username" class="form-label">
+									用户名
+								</label>
+								<input
+									type="text"
+									id="username"
+									name="username"
+									class="form-input"
+									value={username}
+									disabled={hasSelfRenamed}
+									maxlength="20"
+								/>
+								<span class="form-hint">
+									{hasSelfRenamed
+										? '已使用一次自助改名机会'
+										: '可修改一次；旧用户名将永久保留'}
+								</span>
+							</div>
+							{!hasSelfRenamed && (
+								<div class="form-actions">
+									<button type="submit" class="btn btn-outline">
+										修改用户名
+									</button>
+									<span
+										id="username-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							)}
+						</form>
 						<form id="profile-form" class="settings-form">
 							<div class="form-group">
 								<label for="displayName" class="form-label">
@@ -462,6 +496,19 @@ const tabs = [
 	// ===== 个人资料表单 =====
 	const profileForm = document.getElementById('profile-form') as HTMLFormElement;
 	const profileMsg = document.getElementById('profile-msg') as HTMLElement;
+	const usernameForm = document.getElementById('username-form') as HTMLFormElement;
+	const usernameMsg = document.getElementById('username-msg') as HTMLElement;
+	usernameForm?.addEventListener('submit', async (e) => {
+		e.preventDefault();
+		const username = (new FormData(usernameForm).get('username') as string) || '';
+		const result = await actions.renameUsername({ username });
+		if (result.error) {
+			showMsg(usernameMsg, result.error.message ?? '修改失败', true);
+			return;
+		}
+		showMsg(usernameMsg, '用户名已修改，正在跳转到新地址', false);
+		window.setTimeout(() => window.location.assign('/settings?tab=profile'), 400);
+	});
 
 	profileForm?.addEventListener('submit', async (e) => {
 		e.preventDefault();

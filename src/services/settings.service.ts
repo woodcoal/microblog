@@ -11,6 +11,7 @@ import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
 import { uploadFile as uploadFileService } from '@/services/media.service';
 import { findFileStorageByFilePath, deleteFileRef } from '@/lib/upload';
+import { renameUsername } from '@/services/username.service';
 
 /** 评论排序合法值 */
 const VALID_SORT_ORDERS = ['asc', 'desc'];
@@ -57,6 +58,11 @@ export interface UpdateProfileResult {
 	displayName: string;
 	bio: string;
 	avatarUrl: string;
+}
+
+/** 自助改名只允许本人调用；额度消耗由 username service 的事务保证。 */
+export async function renameOwnUsername(input: { userId: string; username: string }) {
+	return renameUsername({ ...input, actorId: input.userId });
 }
 
 export interface GetSettingsInput {

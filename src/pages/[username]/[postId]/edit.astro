@@ -15,9 +15,17 @@ import BlogEditor from '@/components/BlogEditor';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { resolveUsername } from '@/lib/user';
 
 // 路由参数
 const { username, postId } = Astro.params;
+const resolvedUsername = username ? await resolveUsername(username) : null;
+if (resolvedUsername?.isLegacy) {
+	return new Response(null, {
+		status: 308,
+		headers: { Location: `/${resolvedUsername.username}/${postId}/edit` }
+	});
+}
 
 // 查询帖子
 const post = await prisma.post.findUnique({
@@ -49,7 +57,7 @@ const post = await prisma.post.findUnique({
 });
 
 // 帖子不存在或用户名不匹配则 404
-if (!post || post.user.username !== username) {
+if (!post || post.user.username !== resolvedUsername?.username) {
 	return Astro.redirect('/404');
 }
 

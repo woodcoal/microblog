@@ -37,6 +37,7 @@ import {
 	getSettings,
 	updateSettings,
 	updateProfile,
+	renameUsername,
 	changePassword,
 	uploadAvatar,
 	updateCommentSort
@@ -68,6 +69,7 @@ import {
 import {
 	batchUsers,
 	createUser,
+	renameUser,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,
@@ -113,6 +115,7 @@ export const server = {
 	getSettings,
 	updateSettings,
 	updateProfile,
+	renameUsername,
 	changePassword,
 	uploadAvatar,
 	updateCommentSort,
@@ -136,6 +139,7 @@ export const server = {
 	// 管理后台
 	batchUsers,
 	createUser,
+	renameUser,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,

@@ -1,9 +1,11 @@
 /** 管理后台 Service：管理员处置、不可变审计、审计查询和既有管理能力。 */
-import { createUser as createUserRecord, findUserByEmail, findUserByUsername } from '@/lib/user';
+import { createUserWithUsernameClaim, findUserByEmail } from '@/lib/user';
 import { hashPassword } from '@/lib/auth';
 import { findTagById, updateTagVisibility } from '@/lib/tag';
 import { ServiceError } from '@/lib/errors';
-import { PASSWORD_MIN_LENGTH, RESERVED_USERNAMES, USERNAME_PATTERN } from '@/lib/config';
+import { PASSWORD_MIN_LENGTH } from '@/lib/config';
+import { assertValidUsername } from '@/lib/username';
+import { renameUsername } from '@/services/username.service';
 import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
 import type { AdminAuditLogDto } from '@/types/dto';
@@ -103,6 +105,20 @@ export interface CreateUserResult {
 	avatarUrl: string | null;
 	role: string;
 	email: string;
+}
+
+/** 管理员改名不消耗用户的一次自助额度，且写入独立不可变审计。 */
+export async function renameUserByAdmin(input: {
+	operatorId: string;
+	userId: string;
+	username: string;
+}) {
+	return renameUsername({
+		userId: input.userId,
+		actorId: input.operatorId,
+		username: input.username,
+		isAdmin: true
+	});
 }
 
 type AuditedMutationInput = {
@@ -390,23 +406,16 @@ export async function queryAdminAuditLogs(input: QueryAdminAuditLogsInput): Prom
 }
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
-	const { username, displayName, email, password, role = 'user' } = input;
+	const { displayName, email, password, role = 'user' } = input;
+	const username = assertValidUsername(input.username);
 	if (!EMAIL_PATTERN.test(email)) throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
-	if (!USERNAME_PATTERN.test(username))
-		throw new ServiceError('BAD_REQUEST', '用户名只能包含字母、数字和下划线，长度 3-20 个字符');
-	if (RESERVED_USERNAMES.includes(username.toLowerCase()))
-		throw new ServiceError('BAD_REQUEST', '该用户名为系统保留，无法使用');
 	if (password.length < PASSWORD_MIN_LENGTH)
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
-	const [existingEmail, existingUsername] = await Promise.all([
-		findUserByEmail(email),
-		findUserByUsername(username)
-	]);
-	if (existingEmail || existingUsername)
+	if (await findUserByEmail(email))
 		throw new ServiceError('BAD_REQUEST', '用户名或邮箱已被使用，请更换后重试');
 	const passwordHash = await hashPassword(password);
 	try {
-		const user = await createUserRecord({
+		const user = await createUserWithUsernameClaim({
 			username,
 			displayName: displayName || username,
 			email,

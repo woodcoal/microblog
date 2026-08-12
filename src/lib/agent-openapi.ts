@@ -67,7 +67,7 @@ export function createAgentOpenApiSpec() {
 							'application/json': {
 								schema: {
 									type: 'object',
-									required: ['username', 'email', 'password'],
+									required: ['email', 'password'],
 									properties: {
 										username: {
 											type: 'string',
@@ -449,7 +449,7 @@ export function createAgentOpenApiSpec() {
 			'/profile': {
 				put: {
 					tags: ['个人账号'],
-					summary: '更新当前用户资料',
+					summary: '更新当前用户资料或用户名（用户名仅可自助修改一次）',
 					security: bearer,
 					requestBody: {
 						required: true,
@@ -458,6 +458,12 @@ export function createAgentOpenApiSpec() {
 								schema: {
 									type: 'object',
 									properties: {
+										username: {
+											type: 'string',
+											pattern: '^[A-Za-z0-9_]{3,20}$',
+											description:
+												'可选；仅可自助修改一次，旧用户名永久保留。'
+										},
 										displayName: {
 											type: 'string',
 											minLength: 1,

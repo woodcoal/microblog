@@ -7,6 +7,7 @@
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse, formatUserDetail } from '@/lib/agent';
 import { getUserDetail } from '@/services/user.service';
+import { resolveUsername } from '@/lib/user';
 
 /**
  * 获取用户详情
@@ -27,7 +28,13 @@ export const GET: APIRoute = async (context) => {
 		}
 
 		// 通过 service 查询用户
-		const user = await getUserDetail({ username });
+		const resolved = await resolveUsername(username);
+		if (resolved?.isLegacy)
+			return new Response(`redirect: /api/agent/users/${resolved.username}`, {
+				status: 308,
+				headers: { Location: `/api/agent/users/${encodeURIComponent(resolved.username)}` }
+			});
+		const user = await getUserDetail({ username: resolved?.username ?? username });
 
 		if (!user) {
 			return textErrorResponse('用户不存在', 404);

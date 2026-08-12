@@ -21,6 +21,7 @@ model User {
   note         String   @default("") @db.VarChar(2000) // 个人备注，仅自己可见
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
+  hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -45,6 +46,38 @@ model User {
   siteCopyVersions      SiteCopyVersion[]      @relation("SiteCopyVersionUpdatedBy")
   adminAuditLogs        AdminAuditLog[]
   uploadReservations    UploadReservation[]
+  usernameClaims        UsernameClaim[]
+  usernameRenameTargets UsernameRenameAudit[] @relation("UsernameRenameTarget")
+  usernameRenameActors  UsernameRenameAudit[] @relation("UsernameRenameActor")
+}
+
+/// 永久用户名占用记录；当前名和历史名都保留，禁止再次分配。
+model UsernameClaim {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+/// 用户名变更的不可变审计记录。
+model UsernameRenameAudit {
+  id               String   @id @default(cuid())
+  userId           String
+  actorId          String
+  previousUsername String
+  nextUsername     String
+  isAdmin          Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  user  User @relation("UsernameRenameTarget", fields: [userId], references: [id], onDelete: Restrict)
+  actor User @relation("UsernameRenameActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 /// 帖子表

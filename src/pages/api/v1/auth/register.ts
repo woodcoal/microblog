@@ -6,7 +6,7 @@ export const POST: APIRoute = async ({ request }) => {
 	try {
 		const body = await parseJsonObject(request);
 		const user = await registerUser({
-			username: stringValue(body.username, 'username')!,
+			username: stringValue(body.username, 'username', false),
 			displayName: stringValue(body.displayName, 'displayName', false),
 			email: stringValue(body.email, 'email')!,
 			password: stringValue(body.password, 'password')!
