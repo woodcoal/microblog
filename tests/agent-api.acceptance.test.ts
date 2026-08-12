@@ -5,7 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { prisma } from '../src/lib/db';
-import { hashPassword } from '../src/lib/auth';
+import { generateToken, hashPassword } from '../src/lib/auth';
 import { createToken } from '../src/services/token.service';
 import { hashPasswordResetToken } from '../src/lib/password-reset';
 import { hashEmailChangeToken } from '../src/lib/email-change';
@@ -450,4 +450,45 @@ test('通知文本契约及 page/limit 偏移分页有效', async () => {
 		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	assert.notEqual(await plainText(page1), await plainText(page2));
+});
+
+test('Agent 注销端点要求认证和当前密码，并立即拒绝旧 JWT 与 API Token', async () => {
+	const activeApiToken = aliceReplacementToken || aliceToken;
+	const user = await prisma.user.findUniqueOrThrow({ where: { id: aliceId } });
+	const oldJwt = await generateToken({
+		userId: user.id,
+		username: user.username,
+		role: user.role,
+		credentialVersion: user.credentialVersion
+	});
+
+	const unauthenticated = await request('/api/agent/delete-account', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ currentPassword: password })
+	});
+	assert.equal(unauthenticated.status, 401);
+	assert.equal(await plainText(unauthenticated), 'error: 请先登录');
+
+	const wrongPassword = await request('/api/agent/delete-account', {
+		method: 'POST',
+		headers: bearer(oldJwt, true),
+		body: JSON.stringify({ currentPassword: 'incorrect-password' })
+	});
+	assert.equal(wrongPassword.status, 401);
+	assert.equal(await plainText(wrongPassword), 'error: 当前密码错误');
+
+	const deleted = await request('/api/agent/delete-account', {
+		method: 'POST',
+		headers: bearer(activeApiToken, true),
+		body: JSON.stringify({ currentPassword: 'agent-reset-new-password' })
+	});
+	assert.equal(deleted.status, 200);
+	assert.equal(await plainText(deleted), 'ok: 账号已永久注销');
+
+	for (const token of [oldJwt, activeApiToken]) {
+		const rejected = await request('/api/agent/note', { headers: bearer(token) });
+		assert.equal(rejected.status, 401);
+		assert.equal(await plainText(rejected), 'error: 请先登录');
+	}
 });
