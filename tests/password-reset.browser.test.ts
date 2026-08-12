@@ -29,6 +29,10 @@ test(
 				await page.$eval('body', (body) => body.innerText),
 				/请从重置邮件中打开完整链接/
 			);
+			assert.equal(
+				await page.evaluate(() => document.activeElement?.id),
+				'reset-password-action'
+			);
 
 			await page.goto(`${baseUrl}/reset-password?token=browser-test-token`, {
 				waitUntil: 'networkidle0'

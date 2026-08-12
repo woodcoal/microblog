@@ -27,5 +27,6 @@ test('重置页将令牌判定交给服务端，并提供安全失败和重新�
 	assert.match(reset, /其他设备上的登录状态和旧的 API Token、Webhook\s*凭据已失效/);
 	assert.match(reset, /autocomplete="new-password"/);
 	assert.match(reset, /role="alert"/);
+	assert.match(reset, /id="reset-password-action"[\s\S]*?role="status"[\s\S]*?tabindex="-1"/);
 	assert.doesNotMatch(reset, /PASSWORD_RESET_TOKEN_TTL_MINUTES/);
 });
