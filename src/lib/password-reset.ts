@@ -89,7 +89,14 @@ export async function requestPasswordReset(email: string): Promise<void> {
 	try {
 		await deliverPasswordResetEmail(user.email, token);
 	} catch (error) {
-		throw error instanceof Error ? error : new Error('邮件投递失败');
+		// 投递是非关键副作用。不得让网关状态成为账号存在性的外部信号；
+		// 日志不包含邮箱、令牌或投递 URL，供运行环境的日志告警规则捕获。
+		console.error(
+			JSON.stringify({
+				event: 'auth.password_reset_delivery_failed',
+				errorType: error instanceof Error ? error.name : 'unknown'
+			})
+		);
 	}
 }
 
