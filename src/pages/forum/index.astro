@@ -83,7 +83,7 @@ const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 		: [{ createdAt: 'desc' }];
 const forumPostWhere = {
 	isDeleted: false,
-	user: { deletedAt: null },
+	user: { deletedAt: null, isDisabled: false },
 	mode: 'forum',
 	...visibilityFilter
 };

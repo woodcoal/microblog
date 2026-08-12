@@ -388,14 +388,14 @@ export async function loadPostDetail(context: PostDetailContext) {
 							mode: 'weibo',
 							isDeleted: false,
 							visibility: 'public',
-							user: { deletedAt: null }
+							user: { deletedAt: null, isDisabled: false }
 						}
 					: {
 							id: { not: post.id },
 							mode: 'blog',
 							isDeleted: false,
 							visibility: 'public',
-							user: { deletedAt: null },
+							user: { deletedAt: null, isDisabled: false },
 							...(post.categoryId ? { categoryId: post.categoryId } : {})
 						},
 				orderBy: { createdAt: 'desc' },
@@ -429,7 +429,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 						mode: 'blog',
 						isDeleted: false,
 						visibility: 'public',
-						user: { deletedAt: null },
+						user: { deletedAt: null, isDisabled: false },
 						OR: [
 							{ createdAt: { lt: post.createdAt } },
 							{ createdAt: post.createdAt, id: { lt: post.id } }
@@ -444,7 +444,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 						mode: 'blog',
 						isDeleted: false,
 						visibility: 'public',
-						user: { deletedAt: null },
+						user: { deletedAt: null, isDisabled: false },
 						OR: [
 							{ createdAt: { gt: post.createdAt } },
 							{ createdAt: post.createdAt, id: { gt: post.id } }

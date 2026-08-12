@@ -48,3 +48,19 @@ test('非公开、已删除和已注销入口都有明确的 noindex 或 410 收
 	assert.match(sitemap, /user: \{ deletedAt: null, isDisabled: false \}/);
 	assert.match(sitemap, /getCanonicalUrl\(`\/\$\{post\.user\.username\}\/\$\{post\.id\}`\)/);
 });
+
+test('公开内容入口同时排除已注销与禁用账号', async () => {
+	const [post, recommend, search, weibo, latest, forum, blog, tag] = await Promise.all([
+		read('src/lib/post.ts'),
+		read('src/services/recommend.service.ts'),
+		read('src/pages/search.astro'),
+		read('src/pages/weibo.astro'),
+		read('src/pages/latest.astro'),
+		read('src/pages/forum/index.astro'),
+		read('src/pages/blog/index.astro'),
+		read('src/pages/tags/[tag].astro')
+	]);
+	for (const source of [post, recommend, search, weibo, latest, forum, blog, tag]) {
+		assert.match(source, /user: \{ deletedAt: null, isDisabled: false \}/);
+	}
+});

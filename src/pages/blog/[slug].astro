@@ -41,7 +41,7 @@ const visibilityFilter = getVisibilityFilter(currentUser ? { userId: currentUser
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 const where = {
 	isDeleted: false,
-	user: { deletedAt: null },
+	user: { deletedAt: null, isDisabled: false },
 	mode: 'blog' as const,
 	categoryId: category.id,
 	...visibilityFilter

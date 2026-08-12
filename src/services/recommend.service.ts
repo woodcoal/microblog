@@ -236,7 +236,11 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 	// in-memory filter on the same fixed chronological candidate window.
 	const candidates = await prisma.post.findMany({
 		// Pins are deliberately excluded before the fixed 200-post window.
-		where: { isDeleted: false, isGlobalPinned: false, user: { deletedAt: null } },
+		where: {
+			isDeleted: false,
+			isGlobalPinned: false,
+			user: { deletedAt: null, isDisabled: false }
+		},
 		orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
 		take: CANDIDATE_LIMIT,
 		include: POST_CARD_INCLUDE
@@ -342,7 +346,7 @@ export async function getTrendingFeed(input: TrendingFeedInput): Promise<Trendin
 		const pins = await prisma.post.findMany({
 			where: {
 				isDeleted: false,
-				user: { deletedAt: null },
+				user: { deletedAt: null, isDisabled: false },
 				isGlobalPinned: true,
 				...(input.mode ? { mode: input.mode } : {})
 			},

@@ -18,6 +18,7 @@ export function findRecommendationCandidates(
 	return prisma.post.findMany({
 		where: {
 			isDeleted: false,
+			user: { deletedAt: null, isDisabled: false },
 			AND: [visibilityFilter, where],
 			reads: { none: { userId, createdAt: { gte: readAfter } } }
 		},
@@ -116,6 +117,7 @@ function recommendUserCandidatesQuery(userId: string, publicPostSince: Date, lim
 		FROM \`User\` AS candidate
 		WHERE candidate.\`id\` <> ${userId}
 			AND candidate.\`isDisabled\` = false
+			AND candidate.\`deletedAt\` IS NULL
 			AND EXISTS (
 				SELECT 1
 				FROM \`Post\` AS publicPost

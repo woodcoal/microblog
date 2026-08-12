@@ -161,3 +161,27 @@ test('禁用账号不可索引且 sitemap 只收录活跃账号及其公开帖�
 	assert.doesNotMatch(sitemapBody, new RegExp(disabledUsername));
 	assert.doesNotMatch(sitemapBody, new RegExp(disabledPostId));
 });
+
+test('禁用但未注销账号的帖子不会出现在公开 SSR 列表或搜索中', async () => {
+	const hiddenMarkers = [disabledUsername, disabledDisplayName, disabledPostId];
+	const routes = [
+		'/',
+		'/weibo',
+		'/latest',
+		`/search?q=${encodeURIComponent('SEO disabled public post')}&tab=posts`
+	];
+
+	for (const route of routes) {
+		const response = await request(route);
+		assert.equal(response.status, 200, `${route} 应保持可访问`);
+		const body = await response.text();
+		for (const marker of hiddenMarkers) {
+			assert.doesNotMatch(body, new RegExp(marker), `${route} 不得泄露禁用账号内容`);
+		}
+		assert.doesNotMatch(
+			body,
+			new RegExp(`/${disabledUsername}/${disabledPostId}`),
+			`${route} 不得生成禁用账号帖子的公开链接`
+		);
+	}
+});

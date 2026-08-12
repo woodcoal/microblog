@@ -51,7 +51,7 @@ const followerIds = followerRecords.map((f) => f.followerId);
 const bookmarks = await prisma.bookmark.findMany({
 	where: {
 		userId: currentUser.userId,
-		post: { isDeleted: false, user: { deletedAt: null }, mode: activeMode }
+		post: { isDeleted: false, user: { deletedAt: null, isDisabled: false }, mode: activeMode }
 	},
 	orderBy: { createdAt: 'desc' },
 	take: PAGE_SIZE + 1,
