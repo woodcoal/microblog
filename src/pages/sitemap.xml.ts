@@ -25,7 +25,7 @@ import { SITE_URL } from '@/lib/config';
 export const GET: APIRoute = async () => {
 	// 查询所有公开且未删除的帖子，用于生成帖子详情页 URL
 	const posts = await prisma.post.findMany({
-		where: { visibility: 'public', isDeleted: false },
+		where: { visibility: 'public', isDeleted: false, user: { deletedAt: null } },
 		select: {
 			id: true,
 			userId: true,
@@ -36,7 +36,7 @@ export const GET: APIRoute = async () => {
 
 	// 查询所有未禁用的用户，排除 admin 用户，用于生成用户主页 URL
 	const users = await prisma.user.findMany({
-		where: { isDisabled: false, username: { not: 'admin' } },
+		where: { isDisabled: false, deletedAt: null, username: { not: 'admin' } },
 		select: { username: true, updatedAt: true }
 	});
 

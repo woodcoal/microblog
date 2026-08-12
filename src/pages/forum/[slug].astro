@@ -95,6 +95,7 @@ const totalPosts =
 	(await prisma.post.count({
 		where: {
 			isDeleted: false,
+			user: { deletedAt: null },
 			mode: 'forum',
 			categoryId: category.id,
 			...visibilityFilter
@@ -112,6 +113,7 @@ const posts =
 	(await prisma.post.findMany({
 		where: {
 			isDeleted: false,
+			user: { deletedAt: null },
 			mode: 'forum',
 			categoryId: category.id,
 			...visibilityFilter

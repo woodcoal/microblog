@@ -142,7 +142,7 @@ export function countPosts(where: Prisma.PostWhereInput) {
  */
 export function searchPosts<T extends Prisma.PostSelect>(query: string, take: number, select?: T) {
 	return prisma.post.findMany({
-		where: { content: { contains: query } },
+		where: { content: { contains: query }, user: { deletedAt: null } },
 		take,
 		...(select ? { select } : {})
 	});
@@ -167,6 +167,7 @@ export function searchPostsSuggest<T extends Prisma.PostSelect>(
 	return prisma.post.findMany({
 		where: {
 			isDeleted: false,
+			user: { deletedAt: null },
 			OR: [{ title: { contains: query } }, { content: { contains: query } }]
 		},
 		orderBy: { createdAt: 'desc' },
@@ -284,8 +285,8 @@ export function findAgentPosts(
 
 /** 查询 Agent 帖子详情及其作者和附件。 */
 export function findAgentPostDetail(postId: string) {
-	return prisma.post.findUnique({
-		where: { id: postId },
+	return prisma.post.findFirst({
+		where: { id: postId, user: { deletedAt: null } },
 		include: {
 			user: { select: { username: true, displayName: true } },
 			media: {
@@ -317,7 +318,10 @@ export function findApiPosts(
 
 /** 按 ID 查询 v1 API 帖子。 */
 export function findApiPost(postId: string, viewerId?: string) {
-	return prisma.post.findUnique({ where: { id: postId }, include: apiPostInclude(viewerId) });
+	return prisma.post.findFirst({
+		where: { id: postId, user: { deletedAt: null } },
+		include: apiPostInclude(viewerId)
+	});
 }
 
 function apiPostInclude(viewerId?: string) {

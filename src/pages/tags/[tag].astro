@@ -75,6 +75,7 @@ if (sort === 'popular') {
 
 const tagPostWhere = {
 	isDeleted: false,
+	user: { deletedAt: null },
 	mode: 'weibo',
 	tags: { some: { tagId: tagRecord.id } },
 	...visibilityFilter

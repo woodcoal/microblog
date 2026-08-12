@@ -74,6 +74,7 @@ const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '
 // 构建查询条件
 const whereCondition: Record<string, unknown> = {
 	isDeleted: false,
+	user: { deletedAt: null },
 	mode: 'blog',
 	...visibilityFilter
 };

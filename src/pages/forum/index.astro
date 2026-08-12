@@ -81,7 +81,12 @@ const forumPostOrder: Prisma.PostOrderByWithRelationInput[] =
 	forumSort === 'featured'
 		? [{ isPinned: 'desc' }, { comments: { _count: 'desc' } }, { createdAt: 'desc' }]
 		: [{ createdAt: 'desc' }];
-const forumPostWhere = { isDeleted: false, mode: 'forum', ...visibilityFilter };
+const forumPostWhere = {
+	isDeleted: false,
+	user: { deletedAt: null },
+	mode: 'forum',
+	...visibilityFilter
+};
 const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '1', 10));
 const hotResult =
 	forumSort === 'hot'

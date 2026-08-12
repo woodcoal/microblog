@@ -43,7 +43,7 @@ export async function findUserByUsername<T extends Prisma.UserSelect>(
 	select?: T
 ) {
 	return prisma.user.findUnique({
-		where: { username },
+		where: { username, deletedAt: null },
 		...(select ? { select } : {})
 	});
 }
@@ -74,8 +74,8 @@ export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) 
 
 /** 用户主页详情所需的公开字段与统计信息。 */
 export function findUserDetailByUsername(username: string) {
-	return prisma.user.findUnique({
-		where: { username },
+	return prisma.user.findFirst({
+		where: { username, deletedAt: null },
 		select: {
 			id: true,
 			username: true,
@@ -84,6 +84,7 @@ export function findUserDetailByUsername(username: string) {
 			avatarUrl: true,
 			createdAt: true,
 			isDisabled: true,
+			deletedAt: true,
 			emailVerifiedAt: true,
 			_count: {
 				select: { posts: { where: { isDeleted: false } }, following: true, followers: true }
@@ -170,6 +171,7 @@ export async function searchUsersByUsernames<T extends Prisma.UserSelect>(
 		where: {
 			username: { in: usernames },
 			isDisabled: false,
+			deletedAt: null,
 			emailVerifiedAt: { not: null }
 		},
 		...(select ? { select } : {})
@@ -194,6 +196,7 @@ export async function searchUsers<T extends Prisma.UserSelect>(
 	return prisma.user.findMany({
 		where: {
 			isDisabled: false,
+			deletedAt: null,
 			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 		},
 		orderBy: { followers: { _count: 'desc' } },
@@ -205,7 +208,7 @@ export async function searchUsers<T extends Prisma.UserSelect>(
 /** 查询提及的有效用户 ID，排除当前用户。 */
 export function findMentionedUserIds(usernames: string[], currentUserId: string) {
 	return prisma.user.findMany({
-		where: { username: { in: usernames }, id: { not: currentUserId } },
+		where: { username: { in: usernames }, id: { not: currentUserId }, deletedAt: null },
 		select: { id: true }
 	});
 }
@@ -221,7 +224,11 @@ export function findAgentUsers(input: {
 	currentUserId?: string;
 	sort?: string;
 }) {
-	const where: Prisma.UserWhereInput = { isDisabled: false, emailVerifiedAt: { not: null } };
+	const where: Prisma.UserWhereInput = {
+		isDisabled: false,
+		deletedAt: null,
+		emailVerifiedAt: { not: null }
+	};
 	if (input.keyword) {
 		where.OR = [
 			{ username: { contains: input.keyword } },
@@ -255,7 +262,7 @@ export function findAgentUsers(input: {
 export function findApiUser(username: string, viewerId?: string) {
 	const viewerFilter = viewerId ? { followerId: viewerId } : { followerId: '' };
 	return prisma.user.findFirst({
-		where: { username, isDisabled: false, emailVerifiedAt: { not: null } },
+		where: { username, isDisabled: false, deletedAt: null, emailVerifiedAt: { not: null } },
 		select: apiUserSelect(viewerFilter)
 	});
 }
@@ -265,6 +272,7 @@ export function findApiUsers(query: string, skip: number, take: number, viewerId
 	return prisma.user.findMany({
 		where: {
 			isDisabled: false,
+			deletedAt: null,
 			emailVerifiedAt: { not: null },
 			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 		},
@@ -279,6 +287,7 @@ export function countApiUsers(query: string) {
 	return prisma.user.count({
 		where: {
 			isDisabled: false,
+			deletedAt: null,
 			emailVerifiedAt: { not: null },
 			OR: [{ username: { contains: query } }, { displayName: { contains: query } }]
 		}

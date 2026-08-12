@@ -90,6 +90,7 @@ if (q) {
 		const where = {
 			visibility: 'public',
 			isDeleted: false,
+			user: { deletedAt: null },
 			mode: modeFilter === 'all' ? { in: SITE_MODES } : modeFilter,
 			content: { contains: q },
 			// 游标分页：只取创建时间早于游标的帖子
@@ -175,6 +176,7 @@ if (q) {
 		// 查询用户搜索结果
 		const where = {
 			isDisabled: false,
+			deletedAt: null,
 			OR: [{ username: { contains: q } }, { displayName: { contains: q } }],
 			// 游标分页：只取创建时间早于游标的用户
 			...(cursor ? { createdAt: { lt: new Date(cursor) } } : {})

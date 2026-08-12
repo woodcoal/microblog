@@ -38,6 +38,7 @@ database.db
 prisma/dev.db
 prisma/dev.db-journal
 prisma/*-test.db
+prisma/test-account-deletion.db
 prisma/*-acceptance.db
 generated/
 

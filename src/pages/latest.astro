@@ -51,6 +51,7 @@ const currentPage = Math.max(1, parseInt(Astro.url.searchParams.get('page') || '
 const totalPosts = await prisma.post.count({
 	where: {
 		isDeleted: false,
+		user: { deletedAt: null },
 		isGlobalPinned: false,
 		mode: 'weibo',
 		...visibilityFilter
@@ -70,6 +71,7 @@ const skip = (safePage - 1) * PAGE_SIZE;
 const posts = await prisma.post.findMany({
 	where: {
 		isDeleted: false,
+		user: { deletedAt: null },
 		isGlobalPinned: false,
 		mode: 'weibo',
 		...visibilityFilter

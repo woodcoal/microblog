@@ -39,6 +39,7 @@ import {
 	confirmPasswordReset,
 	requestEmailChangeAction,
 	confirmEmailChangeAction,
+	deleteAccountAction,
 	logout
 } from './auth';
 
@@ -126,6 +127,7 @@ export const server = {
 	confirmPasswordReset,
 	requestEmailChangeAction,
 	confirmEmailChangeAction,
+	deleteAccountAction,
 	logout,
 	// 设置
 	getSettings,

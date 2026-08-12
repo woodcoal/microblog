@@ -127,12 +127,26 @@ async function toListPostDto(post: ApiPost, viewerId?: string): Promise<PostDto>
 }
 
 function toCommentDto(comment: ApiComment): CommentDto {
+	const deletedAuthor = Boolean(comment.user.deletedAt);
 	return {
 		id: comment.id,
 		postId: comment.postId,
 		parentId: comment.parentId,
 		content: comment.content,
-		author: toUserDto(comment.user),
+		author: deletedAuthor
+			? {
+					id: 'deleted-user',
+					username: 'deleted-user',
+					displayName: '已注销用户',
+					avatarUrl: null,
+					bio: null,
+					postCount: 0,
+					followerCount: 0,
+					followingCount: 0,
+					following: false,
+					createdAt: comment.createdAt.toISOString()
+				}
+			: toUserDto(comment.user),
 		likeCount: comment._count.likes,
 		liked: comment.likes.length > 0,
 		createdAt: comment.createdAt.toISOString(),

@@ -33,7 +33,7 @@ export async function getUserApiTokenCount(input: {
 	email: string;
 }): Promise<{ userId: string; tokenCount: number } | null> {
 	const user = await findUserByEmail(input.email);
-	if (!user || !user.emailVerifiedAt) {
+	if (!user || user.isDisabled || user.deletedAt || !user.emailVerifiedAt) {
 		return null;
 	}
 
@@ -108,9 +108,10 @@ export async function requestEmailChange(input: {
 		email: true,
 		passwordHash: true,
 		isDisabled: true,
+		deletedAt: true,
 		emailVerifiedAt: true
 	});
-	if (!user || user.isDisabled || !user.emailVerifiedAt) {
+	if (!user || user.isDisabled || user.deletedAt || !user.emailVerifiedAt) {
 		throw new ServiceError('UNAUTHORIZED', '请先登录');
 	}
 	if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
@@ -230,7 +231,7 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 	}
 
 	// 检查用户是否被禁用
-	if (user.isDisabled) {
+	if (user.isDisabled || user.deletedAt) {
 		throw new ServiceError('FORBIDDEN', DISABLED_USER_MESSAGE);
 	}
 	if (!user.emailVerifiedAt) {

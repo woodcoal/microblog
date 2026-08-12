@@ -37,11 +37,13 @@ export function findAgentPostComments(postId: string, take?: number) {
 		orderBy: { createdAt: 'desc' },
 		...(take ? { take } : {}),
 		include: {
-			user: { select: { username: true, displayName: true } },
+			user: { select: { username: true, displayName: true, deletedAt: true } },
 			replies: {
 				where: { isDeleted: false },
 				orderBy: { createdAt: 'desc' },
-				include: { user: { select: { username: true, displayName: true } } }
+				include: {
+					user: { select: { username: true, displayName: true, deletedAt: true } }
+				}
 			}
 		}
 	});
@@ -65,6 +67,7 @@ export function findApiComments(postId: string, skip: number, take: number, view
 					avatarUrl: true,
 					bio: true,
 					createdAt: true,
+					deletedAt: true,
 					_count: {
 						select: {
 							posts: { where: { isDeleted: false } },
