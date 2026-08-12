@@ -285,7 +285,12 @@ test(
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ email, password })
 		});
-		const pending = await json<{ id: string; username: string }>(registered);
+		assert.equal(registered.status, 202);
+		assert.deepEqual(await json(registered), {
+			accepted: true,
+			message: '若邮箱可用，验证邮件已发送'
+		});
+		const pending = await prisma.user.findUniqueOrThrow({ where: { email } });
 		await prisma.user.update({
 			where: { id: pending.id },
 			data: { emailVerifiedAt: new Date() }
