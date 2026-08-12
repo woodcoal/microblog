@@ -90,7 +90,7 @@ if (q) {
 		const where = {
 			visibility: 'public',
 			isDeleted: false,
-			user: { deletedAt: null },
+			user: { deletedAt: null, isDisabled: false },
 			mode: modeFilter === 'all' ? { in: SITE_MODES } : modeFilter,
 			content: { contains: q },
 			// 游标分页：只取创建时间早于游标的帖子

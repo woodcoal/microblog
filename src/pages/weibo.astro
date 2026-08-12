@@ -73,7 +73,7 @@ const pinnedPosts = unifiedTrending
 	: await prisma.post.findMany({
 			where: {
 				isDeleted: false,
-				user: { deletedAt: null },
+				user: { deletedAt: null, isDisabled: false },
 				isGlobalPinned: true,
 				mode: 'weibo',
 				...visibilityFilter
@@ -93,7 +93,7 @@ const totalPosts =
 	(await prisma.post.count({
 		where: {
 			isDeleted: false,
-			user: { deletedAt: null },
+			user: { deletedAt: null, isDisabled: false },
 			isGlobalPinned: false,
 			mode: 'weibo',
 			...visibilityFilter
@@ -111,7 +111,7 @@ const legacyPosts = unifiedTrending
 	: await prisma.post.findMany({
 			where: {
 				isDeleted: false,
-				user: { deletedAt: null },
+				user: { deletedAt: null, isDisabled: false },
 				isGlobalPinned: false,
 				mode: 'weibo',
 				...visibilityFilter

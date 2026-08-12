@@ -56,12 +56,15 @@ test('robots 与 sitemap 只暴露当前公开可索引的 canonical 路径', as
 			new RegExp(`Disallow: ${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
 		);
 	}
-	assert.match(sitemap, /visibility: 'public', isDeleted: false, user: \{ deletedAt: null \}/);
+	assert.match(
+		sitemap,
+		/visibility: 'public',[\s\S]*isDeleted: false,[\s\S]*user: \{ deletedAt: null, isDisabled: false \}/
+	);
 	assert.match(sitemap, /isDisabled: false, deletedAt: null/);
 	assert.match(sitemap, /isHidden: false/);
 	assert.match(sitemap, /escapeXml\(u\.loc\)/);
 	assert.match(
 		search,
-		/visibility: 'public',[\s\S]*isDeleted: false,[\s\S]*user: \{ deletedAt: null \}/
+		/visibility: 'public',[\s\S]*isDeleted: false,[\s\S]*user: \{ deletedAt: null, isDisabled: false \}/
 	);
 });
