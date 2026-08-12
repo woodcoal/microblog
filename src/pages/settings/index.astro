@@ -246,7 +246,7 @@ const tabs = [
 				tab === 'security' && (
 					<section class="settings-section">
 						<h2 class="section-title">账号安全</h2>
-						<p class="section-desc">修改你的登录密码</p>
+						<p class="section-desc">修改你的登录密码或换绑登录邮箱</p>
 						<form id="password-form" class="settings-form">
 							<div class="form-group">
 								<label for="oldPassword" class="form-label">
@@ -300,6 +300,67 @@ const tabs = [
 								/>
 							</div>
 						</form>
+
+						<section class="security-subsection" aria-labelledby="email-change-title">
+							<h3 id="email-change-title" class="section-title">
+								换绑登录邮箱
+							</h3>
+							<p class="section-desc">
+								提交后，旧邮箱仍可正常登录；请在新邮箱中打开一次性确认链接，确认完成后才会换绑。
+							</p>
+							<form
+								id="email-change-form"
+								class="settings-form"
+								aria-describedby="email-change-note email-change-msg"
+							>
+								<div class="form-group">
+									<label for="email-change-password" class="form-label">
+										当前密码
+									</label>
+									<input
+										type="password"
+										id="email-change-password"
+										name="currentPassword"
+										class="form-input"
+										placeholder="输入当前密码"
+										autocomplete="current-password"
+										required
+									/>
+								</div>
+								<div class="form-group">
+									<label for="target-email" class="form-label">
+										新邮箱
+									</label>
+									<input
+										type="email"
+										id="target-email"
+										name="targetEmail"
+										class="form-input"
+										placeholder="your@email.com"
+										autocomplete="email"
+										required
+									/>
+								</div>
+								<p id="email-change-note" class="form-hint">
+									确认邮件仅在新邮箱可用时发送。服务端会保护重发频率，且不会显示该邮箱是否被其他账号使用。
+								</p>
+								<div class="form-actions">
+									<button
+										type="submit"
+										id="email-change-submit"
+										class="btn btn-outline"
+									>
+										发送确认邮件
+									</button>
+									<span
+										id="email-change-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							</form>
+						</section>
 					</section>
 				)
 			}
@@ -547,6 +608,43 @@ const tabs = [
 		} else {
 			showMsg(passwordMsg, '密码修改成功', false);
 			passwordForm.reset();
+		}
+	});
+
+	// ===== 邮箱换绑表单 =====
+	const emailChangeForm = document.getElementById('email-change-form') as HTMLFormElement;
+	const emailChangeMsg = document.getElementById('email-change-msg') as HTMLElement;
+	const emailChangeSubmit = document.getElementById('email-change-submit') as HTMLButtonElement;
+
+	emailChangeForm?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const formData = new FormData(emailChangeForm);
+		const currentPassword = String(formData.get('currentPassword') ?? '');
+		const targetEmail = String(formData.get('targetEmail') ?? '').trim();
+		if (!currentPassword || !targetEmail) {
+			showMsg(emailChangeMsg, '请输入当前密码和新邮箱。', true);
+			return;
+		}
+
+		emailChangeSubmit.disabled = true;
+		emailChangeSubmit.textContent = '提交中…';
+		try {
+			const result = await actions.requestEmailChangeAction({ currentPassword, targetEmail });
+			if (result.error) {
+				showMsg(emailChangeMsg, result.error.message ?? '暂时无法提交，请稍后再试。', true);
+				return;
+			}
+			showMsg(
+				emailChangeMsg,
+				'若新邮箱可用，确认邮件已发送。旧邮箱在确认前保持有效。',
+				false
+			);
+			emailChangeForm.reset();
+		} catch {
+			showMsg(emailChangeMsg, '网络连接异常，请检查后重试。', true);
+		} finally {
+			emailChangeSubmit.disabled = false;
+			emailChangeSubmit.textContent = '发送确认邮件';
 		}
 	});
 
