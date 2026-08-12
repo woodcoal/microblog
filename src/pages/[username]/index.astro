@@ -17,7 +17,7 @@ import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
 import { SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
 import { resolveUsername } from '@/lib/user';
-import { createGoneResponse, getCanonicalUrl } from '@/lib/seo';
+import { createGoneResponse, createNoindexNotFoundResponse, getCanonicalUrl } from '@/lib/seo';
 
 // 路由参数
 const { username } = Astro.params;
@@ -26,11 +26,14 @@ const resolvedUsername = username ? await resolveUsername(username) : null;
 const accountStatus = resolvedUsername
 	? await prisma.user.findUnique({
 			where: { id: resolvedUsername.id },
-			select: { deletedAt: true }
+			select: { deletedAt: true, isDisabled: true }
 		})
 	: null;
 if (accountStatus?.deletedAt) {
 	return createGoneResponse();
+}
+if (accountStatus?.isDisabled) {
+	return createNoindexNotFoundResponse();
 }
 if (resolvedUsername?.isLegacy) {
 	const target = new URL(`/${resolvedUsername.username}`, Astro.url);
@@ -41,7 +44,7 @@ if (resolvedUsername?.isLegacy) {
 // 查询用户信息
 const user = resolvedUsername
 	? await prisma.user.findFirst({
-			where: { username: resolvedUsername.username, deletedAt: null },
+			where: { username: resolvedUsername.username, deletedAt: null, isDisabled: false },
 			select: {
 				id: true,
 				username: true,

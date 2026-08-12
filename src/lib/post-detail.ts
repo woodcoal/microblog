@@ -7,7 +7,7 @@ import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { checkPostVisibility } from '@/lib/visibility';
 import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS, getModeLabel } from '@/lib/config';
 import { resolveUsername } from '@/lib/user';
-import { createGoneResponse, getCanonicalUrl } from '@/lib/seo';
+import { createGoneResponse, createNoindexNotFoundResponse, getCanonicalUrl } from '@/lib/seo';
 
 export const POST_DETAIL_MODES = ['weibo', 'forum', 'blog'] as const;
 export type PostDetailMode = (typeof POST_DETAIL_MODES)[number];
@@ -34,6 +34,16 @@ export class PostDetailGoneError extends Error {
 	}
 }
 
+/** 禁用账号的内容不再作为公开入口提供，且不暴露作者身份。 */
+export class PostDetailNoindexNotFoundError extends Error {
+	readonly response = createNoindexNotFoundResponse();
+
+	constructor() {
+		super('Post detail author is disabled');
+		this.name = 'PostDetailNoindexNotFoundError';
+	}
+}
+
 export const getAsideExcerpt = (content: string, length: number) =>
 	content.replace(/[#*`>\-[\]()!]/g, '').slice(0, length);
 
@@ -56,6 +66,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 					avatarUrl: true,
 					bio: true,
 					deletedAt: true,
+					isDisabled: true,
 					_count: {
 						select: {
 							posts: { where: { isDeleted: false } },
@@ -117,6 +128,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 		return null;
 	}
 	if (post.user.deletedAt || post.isDeleted) throw new PostDetailGoneError();
+	if (post.user.isDisabled) throw new PostDetailNoindexNotFoundError();
 
 	// 获取当前登录用户
 	const currentUser = await getUserFromRequest(context);
