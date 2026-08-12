@@ -60,7 +60,7 @@ const user = resolvedUsername
 
 // 用户不存在则 404
 if (!user) {
-	return Astro.redirect('/404');
+	return createNoindexNotFoundResponse();
 }
 
 // 获取当前登录用户
