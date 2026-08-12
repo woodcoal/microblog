@@ -161,8 +161,8 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 	);
 
 	// 5. 异步通知和活动日志
-	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => { });
-	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => { });
+	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
+	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => {});
 
 	return {
 		id: comment.id,
@@ -208,7 +208,7 @@ export async function deleteComment(input: DeleteCommentInput): Promise<{ id: st
 
 	// 记录删除评论活动（异步，不阻塞主流程）
 	logActivity(COMMENT_DELETE, userId, 'comment', commentId, comment.userId, comment.postId).catch(
-		() => { }
+		() => {}
 	);
 
 	return { id: commentId };
@@ -465,11 +465,11 @@ export async function createPost(input: CreatePostInput) {
 	if (mentionUsernames.length > 0) {
 		const mentionedUsers = await findMentionedUserIds(mentionUsernames, userId);
 		for (const u of mentionedUsers) {
-			createNotification('mention', userId, u.id, id).catch(() => { });
+			createNotification('mention', userId, u.id, id).catch(() => {});
 		}
 	}
 
-	logActivity(POST_CREATE, userId, 'post', id, userId, id).catch(() => { });
+	logActivity(POST_CREATE, userId, 'post', id, userId, id).catch(() => {});
 
 	return sanitizePost(fullPost!);
 }
@@ -706,7 +706,7 @@ export async function updatePost(input: UpdatePostInput) {
 	);
 
 	// 13. 记录编辑帖子活动（异步，不阻塞主流程）
-	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => { });
+	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => {});
 
 	return sanitizePost(updated);
 }
@@ -748,7 +748,7 @@ export async function deletePost(input: DeletePostInput) {
 	await softDeletePost(postId);
 
 	// 5. 记录删除帖子活动（异步，不阻塞主流程）
-	logActivity(POST_DELETE, userId, 'post', postId, post.userId, postId).catch(() => { });
+	logActivity(POST_DELETE, userId, 'post', postId, post.userId, postId).catch(() => {});
 
 	return { id: postId };
 }
