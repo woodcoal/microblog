@@ -135,8 +135,8 @@ const tabs = [
 								/>
 								<span class="form-hint">
 									{hasSelfRenamed
-										? '已使用一次自助改名机会'
-										: '可修改一次；旧用户名将永久保留'}
+										? '自助改名剩余：0 次。旧用户名会继续跳转至当前主页。'
+										: '自助改名剩余：1 次。成功后旧用户名会永久保留并跳转至当前主页。'}
 								</span>
 							</div>
 							{!hasSelfRenamed && (
@@ -506,7 +506,7 @@ const tabs = [
 			showMsg(usernameMsg, result.error.message ?? '修改失败', true);
 			return;
 		}
-		showMsg(usernameMsg, '用户名已修改，正在跳转到新地址', false);
+		showMsg(usernameMsg, '用户名已修改，正在刷新账号导航', false);
 		window.setTimeout(() => window.location.assign('/settings?tab=profile'), 400);
 	});
 
