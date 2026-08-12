@@ -26,109 +26,151 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 
 			{
 				allowRegistration ? (
-					<form id="register-form" class="auth-form">
-						<div class="form-group">
-							<label for="username" class="form-label">
-								用户名
-							</label>
-							<input
-								type="text"
-								id="username"
-								name="username"
-								class="form-input"
-								placeholder="3-20 位字母、数字、下划线"
-								minlength="3"
-								maxlength="20"
-								pattern="[a-zA-Z0-9_]{3,20}"
-								autocomplete="off"
-								aria-describedby="username-error username-hint"
-							/>
-							<div id="username-error" class="form-error" role="alert" />
-							<div id="username-hint" class="form-hint" aria-live="polite">
-								留空将由系统自动生成唯一用户名（如 u_xxxx）。
+					<>
+						<form id="register-form" class="auth-form">
+							<div class="form-group">
+								<label for="username" class="form-label">
+									用户名
+								</label>
+								<input
+									type="text"
+									id="username"
+									name="username"
+									class="form-input"
+									placeholder="3-20 位字母、数字、下划线"
+									minlength="3"
+									maxlength="20"
+									pattern="[a-zA-Z0-9_]{3,20}"
+									autocomplete="off"
+									aria-describedby="username-error username-hint"
+								/>
+								<div id="username-error" class="form-error" role="alert" />
+								<div id="username-hint" class="form-hint" aria-live="polite">
+									留空将由系统自动生成唯一用户名（如 u_xxxx）。
+								</div>
 							</div>
-						</div>
 
-						<div class="form-group">
-							<label for="displayName" class="form-label">
-								显示名称
-							</label>
-							<input
-								type="text"
-								id="displayName"
-								name="displayName"
-								class="form-input"
-								placeholder="你的昵称"
-								required
-								maxlength="50"
-								autocomplete="off"
+							<div class="form-group">
+								<label for="displayName" class="form-label">
+									显示名称
+								</label>
+								<input
+									type="text"
+									id="displayName"
+									name="displayName"
+									class="form-input"
+									placeholder="你的昵称"
+									required
+									maxlength="50"
+									autocomplete="off"
+								/>
+							</div>
+
+							<div class="form-group">
+								<label for="email" class="form-label">
+									邮箱
+								</label>
+								<input
+									type="email"
+									id="email"
+									name="email"
+									class="form-input"
+									placeholder="your@email.com"
+									required
+									autocomplete="email"
+									aria-describedby="email-error"
+								/>
+								<div id="email-error" class="form-error" role="alert" />
+							</div>
+
+							<div class="form-group">
+								<label for="password" class="form-label">
+									密码
+								</label>
+								<input
+									type="password"
+									id="password"
+									name="password"
+									class="form-input"
+									placeholder={`至少 ${PASSWORD_MIN_LENGTH} 位`}
+									required
+									minlength={PASSWORD_MIN_LENGTH}
+									autocomplete="new-password"
+									aria-describedby="password-hint"
+								/>
+								<div id="password-hint" class="form-hint" aria-live="polite" />
+							</div>
+
+							<div class="form-group">
+								<label for="confirmPassword" class="form-label">
+									确认密码
+								</label>
+								<input
+									type="password"
+									id="confirmPassword"
+									name="confirmPassword"
+									class="form-input"
+									placeholder="再次输入密码"
+									required
+									autocomplete="new-password"
+									aria-describedby="confirm-error confirm-hint"
+								/>
+								<div id="confirm-error" class="form-error" role="alert" />
+								<div id="confirm-hint" class="form-hint" aria-live="polite" />
+							</div>
+
+							<div
+								id="form-error"
+								class="form-error"
+								role="alert"
+								aria-live="assertive"
 							/>
-						</div>
 
-						<div class="form-group">
-							<label for="email" class="form-label">
-								邮箱
-							</label>
-							<input
-								type="email"
-								id="email"
-								name="email"
-								class="form-input"
-								placeholder="your@email.com"
-								required
-								autocomplete="email"
-								aria-describedby="email-error"
-							/>
-							<div id="email-error" class="form-error" role="alert" />
-						</div>
+							<button
+								type="submit"
+								id="submit-btn"
+								class="btn btn-primary auth-submit"
+							>
+								注册
+							</button>
+						</form>
 
-						<div class="form-group">
-							<label for="password" class="form-label">
-								密码
-							</label>
-							<input
-								type="password"
-								id="password"
-								name="password"
-								class="form-input"
-								placeholder={`至少 ${PASSWORD_MIN_LENGTH} 位`}
-								required
-								minlength={PASSWORD_MIN_LENGTH}
-								autocomplete="new-password"
-								aria-describedby="password-hint"
-							/>
-							<div id="password-hint" class="form-hint" aria-live="polite" />
-						</div>
-
-						<div class="form-group">
-							<label for="confirmPassword" class="form-label">
-								确认密码
-							</label>
-							<input
-								type="password"
-								id="confirmPassword"
-								name="confirmPassword"
-								class="form-input"
-								placeholder="再次输入密码"
-								required
-								autocomplete="new-password"
-								aria-describedby="confirm-error confirm-hint"
-							/>
-							<div id="confirm-error" class="form-error" role="alert" />
-							<div id="confirm-hint" class="form-hint" aria-live="polite" />
-						</div>
-
-						<div
-							id="form-error"
-							class="form-error"
-							role="alert"
-							aria-live="assertive"
-						/>
-
-						<button type="submit" id="submit-btn" class="btn btn-primary auth-submit">
-							注册
-						</button>
-					</form>
+						<section
+							id="registration-success"
+							class="verification-panel"
+							tabindex="-1"
+							hidden
+							aria-labelledby="registration-success-title"
+						>
+							<h3 id="registration-success-title">请验证你的邮箱</h3>
+							<p>
+								验证邮件已发送。账号在完成邮箱验证前无法登录或使用完整功能，请前往邮箱打开验证链接。
+							</p>
+							<form id="registration-resend-form" class="verification-resend-form">
+								<label for="registration-resend-email" class="form-label">
+									未收到邮件？
+								</label>
+								<div class="verification-resend-controls">
+									<input
+										type="email"
+										id="registration-resend-email"
+										class="form-input"
+										autocomplete="email"
+										required
+									/>
+									<button type="submit" class="btn btn-outline">
+										重新发送
+									</button>
+								</div>
+								<p
+									id="registration-resend-status"
+									class="form-hint"
+									role="status"
+									aria-live="polite"
+								/>
+							</form>
+						</section>
+					</>
 				) : (
 					<div class="registration-closed">
 						<p class="registration-closed-title">注册已关闭</p>
@@ -187,6 +229,44 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 		font-weight: 400;
 		margin-bottom: var(--spacing-6);
 	}
+
+	.verification-panel {
+		margin-top: var(--spacing-5);
+		padding: var(--spacing-4);
+		border: 1px solid color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+		border-radius: var(--radius-md);
+		background: color-mix(in srgb, var(--color-success) 7%, var(--color-card-bg));
+	}
+
+	.verification-panel h3 {
+		margin: 0 0 var(--spacing-2);
+		font-size: 1rem;
+	}
+
+	.verification-panel p {
+		margin: 0;
+		color: var(--color-muted);
+	}
+
+	.verification-resend-form {
+		margin-top: var(--spacing-4);
+	}
+
+	.verification-resend-controls {
+		display: flex;
+		gap: var(--spacing-2);
+		margin-top: var(--spacing-1);
+	}
+
+	.verification-resend-controls .form-input {
+		min-width: 0;
+	}
+
+	@media (max-width: 480px) {
+		.verification-resend-controls {
+			flex-direction: column;
+		}
+	}
 </style>
 
 <script>
@@ -208,6 +288,12 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 	const usernameHint = document.getElementById('username-hint')!;
 	const passwordHint = document.getElementById('password-hint')!;
 	const confirmHint = document.getElementById('confirm-hint')!;
+	const successPanel = document.getElementById('registration-success') as HTMLElement;
+	const resendForm = document.getElementById('registration-resend-form') as HTMLFormElement;
+	const resendEmailInput = document.getElementById(
+		'registration-resend-email'
+	) as HTMLInputElement;
+	const resendStatus = document.getElementById('registration-resend-status')!;
 
 	/**
 	 * 清除指定字段的错误提示
@@ -340,15 +426,43 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 				}
 
 				// 注册不会建立会话；邮箱验证完成后才能登录并使用完整能力。
-				errorEl.textContent = '注册成功，请检查邮箱并完成验证后登录。';
-				errorEl.classList.add('form-hint-ok');
+				successPanel.hidden = false;
+				resendEmailInput.value = email;
 				form.reset();
+				successPanel.focus();
 			} catch (e) {
 				// ActionError 通过 e.message 获取错误信息
 				errorEl.textContent = e instanceof Error ? e.message : '注册失败，请重试';
 			} finally {
 				submitBtn.disabled = false;
 				submitBtn.textContent = '注册';
+			}
+		});
+	}
+
+	if (resendForm) {
+		resendForm.addEventListener('submit', async (event) => {
+			event.preventDefault();
+			const email = resendEmailInput.value.trim();
+			const button = resendForm.querySelector('button') as HTMLButtonElement;
+			resendStatus.textContent = '';
+			if (!email) {
+				resendStatus.textContent = '请输入邮箱地址。';
+				resendEmailInput.focus();
+				return;
+			}
+			button.disabled = true;
+			button.textContent = '发送中...';
+			try {
+				const result = await actions.resendVerification({ email });
+				resendStatus.textContent = result.error
+					? result.error.message || '暂时无法发送，请稍后再试。'
+					: result.data?.message || '若邮箱可用，验证邮件已发送。';
+			} catch {
+				resendStatus.textContent = '网络连接异常，请检查后重试。';
+			} finally {
+				button.disabled = false;
+				button.textContent = '重新发送';
 			}
 		});
 	}

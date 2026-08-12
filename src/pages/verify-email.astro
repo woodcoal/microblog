@@ -1,0 +1,180 @@
+---
+/** 邮箱验证链接的浏览器落地页。令牌有效性只由服务端 Action 决定。 */
+import BaseLayout from '@/layouts/Base.astro';
+
+const token = Astro.url.searchParams.get('token') ?? '';
+---
+
+<BaseLayout title="验证邮箱" narrow>
+	<section
+		class="auth-page verification-page"
+		data-verification-token={token}
+		aria-labelledby="verify-email-title"
+	>
+		<h1 id="verify-email-title" class="auth-title">验证邮箱</h1>
+		<div id="verification-pending" class="verification-state" aria-live="polite" hidden>
+			<p>正在验证你的邮箱，请稍候…</p>
+		</div>
+		<div
+			id="verification-success"
+			class="verification-state verification-state-success"
+			role="status"
+			hidden
+		>
+			<h2>邮箱验证完成</h2>
+			<p>你的账号现已可用，可以登录并使用完整功能。</p>
+			<a href="/login" class="btn btn-primary">前往登录</a>
+		</div>
+		<div id="verification-action" class="verification-state" hidden>
+			<h2>需要验证链接</h2>
+			<p>请从验证邮件中打开链接；如果邮件未送达，可以安全地请求重新发送。</p>
+		</div>
+		<div
+			id="verification-failure"
+			class="verification-state verification-state-error"
+			role="alert"
+			hidden
+		>
+			<h2>验证链接无效或已失效</h2>
+			<p>链接可能已过期、已使用或不完整。请请求一封新的验证邮件后再试。</p>
+		</div>
+
+		<form id="resend-form" class="verification-resend-form" aria-describedby="resend-note">
+			<label for="email" class="form-label">邮箱</label>
+			<div class="verification-resend-controls">
+				<input
+					type="email"
+					id="email"
+					name="email"
+					class="form-input"
+					autocomplete="email"
+					placeholder="your@email.com"
+					required
+				/>
+				<button type="submit" class="btn btn-outline">重新发送</button>
+			</div>
+			<p id="resend-note" class="form-hint">重发频率由服务端保护；请勿频繁重复操作。</p>
+			<p id="resend-status" class="form-hint" role="status" aria-live="polite"></p>
+		</form>
+
+		<p class="auth-footer"><a href="/login">返回登录</a> · <a href="/register">创建账号</a></p>
+	</section>
+</BaseLayout>
+
+<style>
+	.verification-page {
+		max-width: 34rem;
+	}
+
+	.verification-state,
+	.verification-resend-form {
+		padding: var(--spacing-4);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
+	}
+
+	.verification-state h2 {
+		margin: 0 0 var(--spacing-2);
+		font-size: 1.125rem;
+	}
+
+	.verification-state p {
+		margin: 0;
+		color: var(--color-muted);
+	}
+
+	.verification-state .btn {
+		display: inline-flex;
+		margin-top: var(--spacing-4);
+	}
+
+	.verification-state-success {
+		border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+	}
+
+	.verification-state-error {
+		border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+	}
+
+	.verification-resend-form {
+		margin-top: var(--spacing-4);
+	}
+
+	.verification-resend-controls {
+		display: flex;
+		gap: var(--spacing-2);
+		margin-top: var(--spacing-1);
+	}
+
+	.verification-resend-controls .form-input {
+		min-width: 0;
+	}
+
+	@media (max-width: 480px) {
+		.verification-resend-controls {
+			flex-direction: column;
+		}
+	}
+</style>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	const page = document.querySelector('.verification-page') as HTMLElement;
+	const token = page.dataset.verificationToken ?? '';
+	const pending = document.getElementById('verification-pending') as HTMLElement;
+	const success = document.getElementById('verification-success') as HTMLElement;
+	const action = document.getElementById('verification-action') as HTMLElement;
+	const failure = document.getElementById('verification-failure') as HTMLElement;
+	const resendForm = document.getElementById('resend-form') as HTMLFormElement;
+	const emailInput = document.getElementById('email') as HTMLInputElement;
+	const resendStatus = document.getElementById('resend-status')!;
+
+	function showState(state: HTMLElement) {
+		[pending, success, action, failure].forEach(
+			(element) => (element.hidden = element !== state)
+		);
+	}
+
+	async function verify() {
+		if (!token) {
+			showState(action);
+			return;
+		}
+		showState(pending);
+		try {
+			const result = await actions.verifyEmail({ token });
+			showState(result.error ? failure : success);
+		} catch {
+			showState(failure);
+		}
+	}
+
+	resendForm.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const email = emailInput.value.trim();
+		const button = resendForm.querySelector('button') as HTMLButtonElement;
+		resendStatus.textContent = '';
+		if (!email) {
+			resendStatus.textContent = '请输入邮箱地址。';
+			emailInput.focus();
+			return;
+		}
+		button.disabled = true;
+		button.textContent = '发送中...';
+		try {
+			const result = await actions.resendVerification({ email });
+			resendStatus.textContent = result.error
+				? result.error.message || '暂时无法发送，请稍后再试。'
+				: result.data?.message || '若邮箱可用，验证邮件已发送。';
+		} catch {
+			resendStatus.textContent = '网络连接异常，请检查后重试。';
+		} finally {
+			button.disabled = false;
+			button.textContent = '重新发送';
+		}
+	});
+
+	void verify();
+</script>
