@@ -71,12 +71,9 @@ export async function issueEmailVerificationToken(user: {
 		});
 	});
 
-	try {
-		await deliverVerificationEmail(user.email, token);
-	} catch (error) {
-		// 令牌仍可在安全修复投递配置后重新发送；不记录邮件地址、令牌或凭据。
-		throw error instanceof Error ? error : new Error('邮件投递失败');
-	}
+	// 邮件投递是非关键副作用，不能影响注册端点的统一外部语义。
+	// 失败时令牌仍可由重发流程安全轮换；不记录邮箱、令牌或凭据。
+	void deliverVerificationEmail(user.email, token).catch(() => {});
 }
 
 /** 可重复调用但不会暴露邮箱或令牌是否有效；仅命中待验证用户才实际重发。 */

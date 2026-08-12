@@ -100,9 +100,9 @@ async function register(username: string) {
 			password
 		})
 	});
-	assert.equal(response.status, 201, await response.clone().text());
+	assert.equal(response.status, 202, await response.clone().text());
 	const body = await plainText(response);
-	assert.match(body, /^ok: 请检查邮箱并完成验证/);
+	assert.equal(body, 'ok: 若邮箱可用，验证邮件已发送');
 	const user = await prisma.user.findUniqueOrThrow({ where: { username }, select: { id: true } });
 	await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
 	return (await createToken({ userId: user.id, name: 'agent acceptance token' })).token;
@@ -171,6 +171,24 @@ test('注册、登录、Bearer-only 认证及 v1 Token 互通', async () => {
 	});
 	assert.equal(cookieOnly.status, 401);
 	assert.equal(await plainText(cookieOnly), 'error: 请先登录');
+});
+
+test('注册对已存在与不存在邮箱返回完全一致的受理语义', async () => {
+	const username = `enum_${RUN_ID}`.slice(0, 20);
+	const payload = { username, email: `${username}@example.test`, password };
+	const first = await request('/api/agent/register', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload)
+	});
+	const second = await request('/api/agent/register', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload)
+	});
+	assert.equal(first.status, 202);
+	assert.equal(second.status, first.status);
+	assert.equal(await plainText(second), await plainText(first));
 });
 
 test('资料与私有 note 可写可读', async () => {

@@ -14,12 +14,14 @@ const password = 'email-verification-password';
 after(async () => prisma.$disconnect());
 
 test('注册只创建待验证账号和安全摘要；单次消费后才允许登录', async () => {
-	const user = await registerUser({
+	const registered = await registerUser({
 		username: unique('mailuser'),
 		email: `${unique('mail')}@example.test`,
 		password
 	});
-	assert.equal(user.verificationPending, true);
+	assert.equal(registered.accepted, true);
+	assert.ok(registered.user);
+	const user = registered.user;
 	const persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
 	assert.equal(persisted.emailVerifiedAt, null);
 	const issued = await prisma.emailVerificationToken.findFirstOrThrow({
@@ -43,11 +45,13 @@ test('注册只创建待验证账号和安全摘要；单次消费后才允许�
 });
 
 test('过期或已撤销令牌不会激活账号', async () => {
-	const user = await registerUser({
+	const registered = await registerUser({
 		username: unique('expired'),
 		email: `${unique('mail')}@example.test`,
 		password
 	});
+	assert.ok(registered.user);
+	const user = registered.user;
 	for (const data of [
 		{ expiresAt: new Date(Date.now() - 1), revokedAt: null },
 		{ expiresAt: new Date(Date.now() + 60_000), revokedAt: new Date() }
@@ -65,11 +69,13 @@ test('过期或已撤销令牌不会激活账号', async () => {
 });
 
 test('并发消费同一个有效令牌只允许一个请求激活账号', async () => {
-	const user = await registerUser({
+	const registered = await registerUser({
 		username: unique('concurrent'),
 		email: `${unique('mail')}@example.test`,
 		password
 	});
+	assert.ok(registered.user);
+	const user = registered.user;
 	const rawToken = crypto.randomUUID();
 	await prisma.emailVerificationToken.create({
 		data: {

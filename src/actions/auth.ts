@@ -68,17 +68,11 @@ const register = defineAction({
 	}),
 	handler: async (input) => {
 		try {
-			const user = await registerUserService(input);
+			await registerUserService(input);
 
 			return {
-				verificationPending: true,
-				user: {
-					id: user.id,
-					username: user.username,
-					displayName: user.displayName,
-					avatarUrl: user.avatarUrl,
-					role: user.role
-				}
+				accepted: true,
+				message: '若邮箱可用，验证邮件已发送'
 			};
 		} catch (e) {
 			handleServiceError(e);

@@ -34,9 +34,8 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 调用 service 注册用户
-		let user;
 		try {
-			user = await registerUser({ username, displayName, email, password });
+			await registerUser({ username, displayName, email, password });
 		} catch (e) {
 			if (e instanceof ServiceError) {
 				return textErrorResponse(e.message, statusCodeMap[e.code] || 400);
@@ -44,7 +43,7 @@ export const POST: APIRoute = async (context) => {
 			throw e;
 		}
 
-		return textResponse(`ok: 请检查邮箱并完成验证（用户名：${user.username}）`, 201);
+		return textResponse('ok: 若邮箱可用，验证邮件已发送', 202);
 	} catch (error) {
 		if (getErrorStatus(error) === 400) {
 			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);
