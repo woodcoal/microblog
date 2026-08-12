@@ -17,6 +17,7 @@ import {
 	requestEmailChange,
 	confirmEmailChange
 } from '@/services/auth.service';
+import { deleteAccount } from '@/services/account-deletion.service';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -170,6 +171,22 @@ const logout = defineAction({
 	}
 });
 
+/** 仅已认证用户持有当前密码时可执行；成功后清除当前浏览器会话。 */
+const deleteAccountAction = defineAction({
+	input: z.object({ currentPassword: z.string().min(1, '当前密码不能为空') }),
+	handler: async ({ currentPassword }, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		try {
+			await deleteAccount({ userId: currentUser.userId, currentPassword });
+			clearTokenCookie(context);
+			return { deleted: true };
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
 export {
 	login,
 	register,
@@ -179,5 +196,6 @@ export {
 	confirmPasswordReset,
 	requestEmailChangeAction,
 	confirmEmailChangeAction,
+	deleteAccountAction,
 	logout
 };

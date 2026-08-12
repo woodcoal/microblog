@@ -185,7 +185,7 @@ export function formatPostDetail(
 		id: string;
 		content: string;
 		createdAt: Date;
-		user: { username: string; displayName: string };
+		user: { username: string; displayName: string; deletedAt?: Date | null };
 		media?: Array<{ fileStorage: { filePath: string; fileType: string } }>;
 	},
 	comments?: Array<{
@@ -193,14 +193,14 @@ export function formatPostDetail(
 		content: string;
 		createdAt: Date;
 		isDeleted: boolean;
-		user: { username: string; displayName: string };
+		user: { username: string; displayName: string; deletedAt?: Date | null };
 		replies?: Array<{
 			id: string;
 			content: string;
 			parentId: string;
 			createdAt: Date;
 			isDeleted: boolean;
-			user: { username: string; displayName: string };
+			user: { username: string; displayName: string; deletedAt?: Date | null };
 		}>;
 	}>
 ): string {
@@ -219,18 +219,22 @@ export function formatPostDetail(
 		lines.push('');
 		lines.push('#COMMENTS');
 		for (const comment of comments) {
-			const cDisplayName = comment.user.displayName || comment.user.username;
+			const cDisplayName = comment.user.deletedAt
+				? '已注销用户'
+				: comment.user.displayName || comment.user.username;
 			const cContent = comment.isDeleted ? '该内容已删除' : comment.content;
 			lines.push(
-				`- ${comment.id}: ${comment.createdAt.toISOString()} @${comment.user.username} [${cDisplayName}] ${cContent}`
+				`- ${comment.id}: ${comment.createdAt.toISOString()} ${comment.user.deletedAt ? '[已注销用户]' : `@${comment.user.username} [${cDisplayName}]`} ${cContent}`
 			);
 			// 嵌套回复
 			if (comment.replies && comment.replies.length > 0) {
 				for (const reply of comment.replies) {
-					const rDisplayName = reply.user.displayName || reply.user.username;
+					const rDisplayName = reply.user.deletedAt
+						? '已注销用户'
+						: reply.user.displayName || reply.user.username;
 					const rContent = reply.isDeleted ? '该内容已删除' : reply.content;
 					lines.push(
-						`  - ${reply.id} / ${reply.parentId}: ${reply.createdAt.toISOString()} @${reply.user.username} [${rDisplayName}] ${rContent}`
+						`  - ${reply.id} / ${reply.parentId}: ${reply.createdAt.toISOString()} ${reply.user.deletedAt ? '[已注销用户]' : `@${reply.user.username} [${rDisplayName}]`} ${rContent}`
 					);
 				}
 			}

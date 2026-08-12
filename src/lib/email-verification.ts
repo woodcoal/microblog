@@ -80,9 +80,9 @@ export async function issueEmailVerificationToken(user: {
 export async function resendEmailVerification(email: string): Promise<void> {
 	const user = await prisma.user.findUnique({
 		where: { email },
-		select: { id: true, email: true, emailVerifiedAt: true }
+		select: { id: true, email: true, deletedAt: true, emailVerifiedAt: true }
 	});
-	if (!user || user.emailVerifiedAt) return;
+	if (!user || user.deletedAt || user.emailVerifiedAt) return;
 
 	const latest = await prisma.emailVerificationToken.findFirst({
 		where: { userId: user.id, purpose: PURPOSE },

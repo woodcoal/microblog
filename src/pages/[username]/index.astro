@@ -30,8 +30,8 @@ if (resolvedUsername?.isLegacy) {
 
 // 查询用户信息
 const user = resolvedUsername
-	? await prisma.user.findUnique({
-			where: { username: resolvedUsername.username },
+	? await prisma.user.findFirst({
+			where: { username: resolvedUsername.username, deletedAt: null },
 			select: {
 				id: true,
 				username: true,

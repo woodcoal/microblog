@@ -92,11 +92,17 @@ async function isUserUnavailable(userId: string, credentialVersion?: number): Pr
 		const { prisma } = await import('./db');
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { isDisabled: true, emailVerifiedAt: true, credentialVersion: true }
+			select: {
+				isDisabled: true,
+				deletedAt: true,
+				emailVerifiedAt: true,
+				credentialVersion: true
+			}
 		});
 		// 用户不存在时视为禁用（JWT 中的 userId 对应的用户已被删除）
 		return (
 			user?.isDisabled ||
+			Boolean(user?.deletedAt) ||
 			!user?.emailVerifiedAt ||
 			credentialVersion === undefined ||
 			user.credentialVersion !== credentialVersion
@@ -212,13 +218,19 @@ async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | nu
 						username: true,
 						role: true,
 						isDisabled: true,
+						deletedAt: true,
 						emailVerifiedAt: true
 					}
 				}
 			}
 		});
 
-		if (!apiToken || apiToken.user.isDisabled || !apiToken.user.emailVerifiedAt) {
+		if (
+			!apiToken ||
+			apiToken.user.isDisabled ||
+			apiToken.user.deletedAt ||
+			!apiToken.user.emailVerifiedAt
+		) {
 			return null;
 		}
 

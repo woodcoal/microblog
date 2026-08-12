@@ -622,6 +622,34 @@ const spec = {
 				}
 			}
 		},
+		'/auth/delete-account': {
+			post: {
+				tags: ['认证'],
+				summary: '永久注销当前账号',
+				description:
+					'原子撤销凭据、永久保留用户名与邮箱，并下线该账号的公开帖子；此操作不可恢复。',
+				security: bearerSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									currentPassword: { type: 'string', writeOnly: true }
+								},
+								required: ['currentPassword']
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse('账号已永久注销'),
+					401: commonResponses[401],
+					500: commonResponses[500]
+				}
+			}
+		},
 		'/posts': {
 			get: {
 				tags: ['帖子'],

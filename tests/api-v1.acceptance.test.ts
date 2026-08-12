@@ -813,3 +813,36 @@ test('7 种可见性按 Bearer 身份读取，password 支持详情密码传递'
 		200
 	);
 });
+
+test('v1 注销端点要求认证和当前密码，并立即拒绝旧 JWT 与 API Token', async () => {
+	const unauthenticated = await request('/api/v1/auth/delete-account', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ currentPassword: password })
+	});
+	assert.equal(unauthenticated.status, 401);
+	assert.equal((await json<ErrorResponse>(unauthenticated)).error.code, 'UNAUTHORIZED');
+
+	const wrongPassword = await request('/api/v1/auth/delete-account', {
+		method: 'POST',
+		headers: { authorization: `Bearer ${aliceToken}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ currentPassword: 'incorrect-password' })
+	});
+	assert.equal(wrongPassword.status, 401);
+	assert.equal((await json<ErrorResponse>(wrongPassword)).error.code, 'UNAUTHORIZED');
+
+	const deleted = await request('/api/v1/auth/delete-account', {
+		method: 'POST',
+		headers: { authorization: `Bearer ${aliceToken}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ currentPassword: password })
+	});
+	assert.equal(deleted.status, 200);
+	assert.deepEqual(await json(deleted), { deleted: true });
+
+	for (const token of [aliceToken, apiToken]) {
+		const rejected = await request('/api/v1/timeline/following', {
+			headers: { authorization: `Bearer ${token}` }
+		});
+		assert.equal(rejected.status, 401);
+	}
+});

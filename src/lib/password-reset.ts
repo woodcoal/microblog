@@ -55,9 +55,9 @@ async function deliverPasswordResetEmail(email: string, token: string): Promise<
 export async function requestPasswordReset(email: string): Promise<void> {
 	const user = await prisma.user.findUnique({
 		where: { email },
-		select: { id: true, email: true, isDisabled: true, emailVerifiedAt: true }
+		select: { id: true, email: true, isDisabled: true, deletedAt: true, emailVerifiedAt: true }
 	});
-	if (!user || user.isDisabled || !user.emailVerifiedAt) return;
+	if (!user || user.isDisabled || user.deletedAt || !user.emailVerifiedAt) return;
 
 	const latest = await prisma.passwordResetToken.findFirst({
 		where: { userId: user.id },

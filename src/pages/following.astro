@@ -62,6 +62,7 @@ const hotPosts = hasFollowing
 			where: {
 				userId: { in: followingIds },
 				isDeleted: false,
+				user: { deletedAt: null },
 				mode: 'weibo',
 				createdAt: { gte: sevenDaysAgo },
 				...visibilityFilter

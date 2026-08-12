@@ -34,8 +34,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 	if (!resolvedUsername) return null;
 
 	// 查询帖子
-	const post = await prisma.post.findUnique({
-		where: { id: postId },
+	const post = await prisma.post.findFirst({
+		where: { id: postId, user: { deletedAt: null } },
 		include: {
 			user: {
 				select: {
@@ -194,7 +194,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 					id: true,
 					username: true,
 					displayName: true,
-					avatarUrl: true
+					avatarUrl: true,
+					deletedAt: true
 				}
 			}
 		},
@@ -251,7 +252,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 					id: true,
 					username: true,
 					displayName: true,
-					avatarUrl: true
+					avatarUrl: true,
+					deletedAt: true
 				}
 			},
 			replies: {
@@ -262,7 +264,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 							id: true,
 							username: true,
 							displayName: true,
-							avatarUrl: true
+							avatarUrl: true,
+							deletedAt: true
 						}
 					},
 					likes: true
@@ -291,7 +294,14 @@ export async function loadPostDetail(context: PostDetailContext) {
 			isDeleted: reply.isDeleted,
 			createdAt: reply.createdAt.toISOString(),
 			updatedAt: reply.updatedAt.toISOString(),
-			user: reply.user,
+			user: reply.user.deletedAt
+				? {
+						id: 'deleted-user',
+						username: 'deleted-user',
+						displayName: '已注销用户',
+						avatarUrl: ''
+					}
+				: reply.user,
 			likeCount: reply.likes.length,
 			liked: currentUserId ? reply.likes.some((l) => l.userId === currentUserId) : false
 		}));
@@ -305,7 +315,14 @@ export async function loadPostDetail(context: PostDetailContext) {
 			isDeleted: comment.isDeleted,
 			createdAt: comment.createdAt.toISOString(),
 			updatedAt: comment.updatedAt.toISOString(),
-			user: comment.user,
+			user: comment.user.deletedAt
+				? {
+						id: 'deleted-user',
+						username: 'deleted-user',
+						displayName: '已注销用户',
+						avatarUrl: ''
+					}
+				: comment.user,
 			likeCount,
 			liked: commentLiked,
 			replies

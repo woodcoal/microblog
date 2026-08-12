@@ -49,7 +49,10 @@ const followerIds = followerRecords.map((f) => f.followerId);
 
 // 查询当前频道内当前用户收藏的帖子（通过 Bookmark 关联）
 const bookmarks = await prisma.bookmark.findMany({
-	where: { userId: currentUser.userId, post: { isDeleted: false, mode: activeMode } },
+	where: {
+		userId: currentUser.userId,
+		post: { isDeleted: false, user: { deletedAt: null }, mode: activeMode }
+	},
 	orderBy: { createdAt: 'desc' },
 	take: PAGE_SIZE + 1,
 	...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

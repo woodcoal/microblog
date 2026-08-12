@@ -19,6 +19,8 @@ model User {
   note         String   @default("") // 个人备注，仅自己可见
   role         String   @default("user") // user, admin — 预留扩展
   isDisabled   Boolean  @default(false)
+  /// 永久注销墓碑。保留记录及其用户名/邮箱，避免身份重新分配或审计引用断裂。
+  deletedAt    DateTime?
   emailVerifiedAt DateTime?
   credentialVersion Int @default(0) // 密码重置后递增，使此前签发的 JWT 立即失效
   hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
@@ -52,6 +54,8 @@ model User {
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
   emailChangeTokens       EmailChangeToken[]
+
+  @@index([deletedAt])
 }
 
 /// 邮箱换绑确认令牌。targetEmail 在确认前不修改 User.email。
