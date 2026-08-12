@@ -12,8 +12,20 @@
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
-import { SITE_MODES } from '@/lib/config';
-import { getCanonicalUrl } from '@/lib/seo';
+import { SITE_MODES, SITE_URL } from '@/lib/config';
+
+function escapeXml(value: string): string {
+	return value.replace(/[<>&'"]/g, (character) => {
+		const entities: Record<string, string> = {
+			'<': '&lt;',
+			'>': '&gt;',
+			'&': '&amp;',
+			"'": '&apos;',
+			'"': '&quot;'
+		};
+		return entities[character];
+	});
+}
 
 /**
  * GET 请求处理函数
@@ -40,36 +52,49 @@ export const GET: APIRoute = async () => {
 	});
 
 	// 查询所有未禁用的用户，排除 admin 用户，用于生成用户主页 URL
-	const users = await prisma.user.findMany({
-		where: { isDisabled: false, deletedAt: null, username: { not: 'admin' } },
-		select: { username: true, updatedAt: true }
-	});
+	const [users, tags, categories] = await Promise.all([
+		prisma.user.findMany({
+			where: { isDisabled: false, deletedAt: null, username: { not: 'admin' } },
+			select: { username: true, updatedAt: true }
+		}),
+		prisma.tag.findMany({
+			where: {
+				isHidden: false,
+				posts: {
+					some: {
+						post: { visibility: 'public', isDeleted: false, user: { deletedAt: null } }
+					}
+				}
+			},
+			select: { name: true }
+		}),
+		prisma.category.findMany({
+			where: { mode: { in: SITE_MODES } },
+			select: { slug: true, mode: true, updatedAt: true }
+		})
+	]);
 
-	const urls: Array<{
-		loc: string;
-		changefreq: 'always' | 'daily' | 'weekly' | 'monthly';
-		priority: string;
-		lastmod?: string;
-	}> = [];
+	// 收集所有 URL 条目
+	const urls = [];
 
 	// 首页 - 最高优先级，每日更新
-	urls.push({ loc: getCanonicalUrl('/'), changefreq: 'daily', priority: '1.0' });
+	urls.push({ loc: SITE_URL, changefreq: 'daily', priority: '1.0' });
 
 	// 最新页 - 持续更新，较高优先级
 	urls.push({
-		loc: getCanonicalUrl('/latest'),
+		loc: `${SITE_URL}/latest`,
 		changefreq: 'always',
 		priority: '0.8'
 	});
 
 	for (const mode of SITE_MODES) {
-		urls.push({ loc: getCanonicalUrl(`/${mode}`), changefreq: 'daily', priority: '0.8' });
+		urls.push({ loc: `${SITE_URL}/${mode}`, changefreq: 'daily', priority: '0.8' });
 	}
 
 	// 用户主页 - 每日更新
 	for (const user of users) {
 		urls.push({
-			loc: getCanonicalUrl(`/${user.username}`),
+			loc: `${SITE_URL}/${user.username}`,
 			changefreq: 'daily',
 			priority: '0.7',
 			lastmod: user.updatedAt.toISOString().split('T')[0]
@@ -79,10 +104,27 @@ export const GET: APIRoute = async () => {
 	// 帖子详情页 - 每周更新
 	for (const post of posts) {
 		urls.push({
-			loc: getCanonicalUrl(`/${post.user.username}/${post.id}`),
+			loc: `${SITE_URL}/${post.user.username}/${post.id}`,
 			changefreq: 'weekly',
 			priority: '0.6',
 			lastmod: post.updatedAt.toISOString().split('T')[0]
+		});
+	}
+
+	for (const tag of tags) {
+		urls.push({
+			loc: `${SITE_URL}/tags/${encodeURIComponent(tag.name)}`,
+			changefreq: 'daily',
+			priority: '0.5'
+		});
+	}
+
+	for (const category of categories) {
+		urls.push({
+			loc: `${SITE_URL}/${category.mode}/${encodeURIComponent(category.slug)}`,
+			changefreq: 'weekly',
+			priority: '0.5',
+			lastmod: category.updatedAt.toISOString().split('T')[0]
 		});
 	}
 
@@ -92,7 +134,7 @@ export const GET: APIRoute = async () => {
 ${urls
 	.map(
 		(u) => `  <url>
-    <loc>${u.loc}</loc>
+    <loc>${escapeXml(u.loc)}</loc>
     ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>

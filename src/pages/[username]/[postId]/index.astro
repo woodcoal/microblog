@@ -10,6 +10,12 @@ import {
 	UnknownPostDetailModeError,
 	type PostDetailModel
 } from '@/lib/post-detail';
+import { isTombstonedUsername } from '@/lib/user';
+import { goneResponse } from '@/lib/public-route';
+
+if (Astro.params.username && (await isTombstonedUsername(Astro.params.username))) {
+	return goneResponse();
+}
 
 let model: PostDetailModel | null;
 try {
@@ -34,7 +40,9 @@ try {
 	throw error;
 }
 
+// 已软删除的帖子已从公开站点永久下线。不要将其降级成带身份元数据的 404 页面。
 if (!model) return Astro.redirect('/404');
+if (model.isDeleted) return goneResponse();
 if (model.redirectUsername) {
 	const target = new URL(`/${model.redirectUsername}/${Astro.params.postId}`, Astro.url);
 	target.search = Astro.url.search;

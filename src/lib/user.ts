@@ -63,6 +63,28 @@ export async function resolveUsername(username: string) {
 	return claim ? { ...claim.user, isLegacy: true } : null;
 }
 
+/**
+ * 检查一个当前或历史用户名是否指向已永久注销的墓碑账号。
+ *
+ * 这是公开路由的下线判断，不返回任何用户资料，避免在 410 响应中泄露身份信息。
+ */
+export async function isTombstonedUsername(username: string): Promise<boolean> {
+	const normalizedUsername = username.trim().toLowerCase();
+	if (!normalizedUsername) return false;
+
+	const current = await prisma.user.findUnique({
+		where: { username: normalizedUsername },
+		select: { deletedAt: true }
+	});
+	if (current) return current.deletedAt !== null;
+
+	const claim = await prisma.usernameClaim.findUnique({
+		where: { username: normalizedUsername },
+		select: { user: { select: { deletedAt: true } } }
+	});
+	return claim?.user.deletedAt !== null;
+}
+
 /** 创建用户并在同一事务中占用用户名，避免并发注册留下无 claim 的用户。 */
 export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) {
 	return prisma.$transaction(async (tx) => {

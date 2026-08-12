@@ -15,23 +15,25 @@ import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
-import { SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
-import { resolveUsername } from '@/lib/user';
-import { createGoneResponse, createNoindexNotFoundResponse, getCanonicalUrl } from '@/lib/seo';
+import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
+import { isTombstonedUsername, resolveUsername } from '@/lib/user';
+import { goneResponse } from '@/lib/public-route';
+import { createNoindexNotFoundResponse } from '@/lib/seo';
 
 // 路由参数
 const { username } = Astro.params;
+
+if (username && (await isTombstonedUsername(username))) {
+	return goneResponse();
+}
 
 const resolvedUsername = username ? await resolveUsername(username) : null;
 const accountStatus = resolvedUsername
 	? await prisma.user.findUnique({
 			where: { id: resolvedUsername.id },
-			select: { deletedAt: true, isDisabled: true }
+			select: { isDisabled: true }
 		})
 	: null;
-if (accountStatus?.deletedAt) {
-	return createGoneResponse();
-}
 if (accountStatus?.isDisabled) {
 	return createNoindexNotFoundResponse();
 }
@@ -248,13 +250,13 @@ const [recentFollows, recommendedTags] = await Promise.all([
 	ogTitle={`${user.displayName} (@${user.username}) - ${SITE_TITLE}`}
 	ogDescription={user.bio || `${user.displayName} 的${getModeLabel('weibo')}主页`}
 	ogImage={user.avatarUrl || undefined}
-	canonicalUrl={getCanonicalUrl(`/${user.username}`)}
+	canonicalUrl={`${SITE_URL}/${user.username}`}
 	jsonLd={{
 		'@context': 'https://schema.org',
 		'@type': 'ProfilePage',
 		name: user.displayName,
 		alternateName: user.username,
-		url: getCanonicalUrl(`/${user.username}`),
+		url: `${SITE_URL}/${user.username}`,
 		image: user.avatarUrl,
 		description: user.bio
 	}}

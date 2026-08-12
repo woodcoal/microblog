@@ -16,6 +16,7 @@ import { getUnreadCount } from '@/lib/notification';
 import {
 	SITE_TITLE,
 	SITE_DESCRIPTION,
+	SITE_URL,
 	SITE_LOGO_URL,
 	SITE_FAVICON_URL,
 	SITE_MODES,
@@ -23,7 +24,6 @@ import {
 	isSingleMode,
 	getModeLabel
 } from '@/lib/config';
-import { getCanonicalUrl, shouldNoindexPage } from '@/lib/seo';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
@@ -71,6 +71,30 @@ const {
 	jsonLd
 } = Astro.props;
 
+const currentPath = Astro.url.pathname;
+/** These paths are account, operational, or query-result surfaces and must never become search entries. */
+const isPrivateSurface = [
+	'/admin',
+	'/api',
+	'/settings',
+	'/bookmarks',
+	'/followers',
+	'/following',
+	'/notifications',
+	'/search',
+	'/login',
+	'/register',
+	'/forgot-password',
+	'/reset-password',
+	'/verify-email',
+	'/change-email'
+].some((path) => currentPath === path || currentPath.startsWith(`${path}/`));
+const isTaskSurface = currentPath === '/blog/write' || /\/(?:edit|revisions)$/.test(currentPath);
+const shouldNoindex = Boolean(noindex) || isPrivateSurface || isTaskSurface || !!Astro.url.search;
+const resolvedCanonicalUrl = shouldNoindex
+	? undefined
+	: (canonicalUrl ?? new URL(currentPath, SITE_URL).toString());
+
 // 由全局 middleware 首次生成，SSR 页面将 token 注入 HTML，供 Actions 和表单回传。
 const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
 
@@ -113,7 +137,6 @@ if (currentUser) {
 const hasUnread = unreadCount > 0;
 
 // 当前路径，用于侧栏高亮
-const currentPath = Astro.url.pathname;
 const globalSearchMode = currentPath.startsWith('/forum')
 	? 'forum'
 	: currentPath.startsWith('/blog')
@@ -161,26 +184,31 @@ const enabledModes = SITE_MODES.map((m) => ({ ...modeConfig[m], key: m }));
 
 // 从环境变量读取站点设置
 const siteTitle = SITE_TITLE;
-const siteDesc = description || SITE_DESCRIPTION;
+// Noindex surfaces must not expose private post text or profile attributes through document/OG data.
+const siteDesc = shouldNoindex ? SITE_DESCRIPTION : description || SITE_DESCRIPTION;
 const siteLogoUrl = SITE_LOGO_URL;
-const pageTitle = title ? (title === siteTitle ? title : `${title} - ${siteTitle}`) : siteTitle;
+const pageTitle = shouldNoindex
+	? siteTitle
+	: title
+		? title === siteTitle
+			? title
+			: `${title} - ${siteTitle}`
+		: siteTitle;
 
 // Open Graph 元数据：未单独设置时回退到页面标题和描述
-const resolvedOgTitle = ogTitle || pageTitle;
-const resolvedOgDescription = ogDescription || siteDesc;
+const resolvedOgTitle = shouldNoindex ? siteTitle : ogTitle || pageTitle;
+const resolvedOgDescription = shouldNoindex ? SITE_DESCRIPTION : ogDescription || siteDesc;
 const resolvedOgType = ogType || 'website';
-const resolvedCanonicalUrl = canonicalUrl || getCanonicalUrl(Astro.url.pathname);
-const resolvedNoindex =
-	Boolean(noindex) || shouldNoindexPage(Astro.url.pathname, !!Astro.url.search);
-const resolvedJsonLd = resolvedNoindex
+const resolvedJsonLd = shouldNoindex
 	? undefined
-	: jsonLd || {
+	: (jsonLd ?? {
 			'@context': 'https://schema.org',
 			'@type': 'WebPage',
 			name: pageTitle,
 			description: siteDesc,
-			url: resolvedCanonicalUrl
-		};
+			url: resolvedCanonicalUrl,
+			isPartOf: { '@type': 'WebSite', name: siteTitle, url: SITE_URL }
+		});
 ---
 
 <!doctype html>
@@ -251,9 +279,9 @@ const resolvedJsonLd = resolvedNoindex
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
 		<!-- canonical 规范链接，避免重复内容问题 -->
-		<link rel="canonical" href={resolvedCanonicalUrl} />
+		{resolvedCanonicalUrl && <link rel="canonical" href={resolvedCanonicalUrl} />}
 		<!-- 禁止搜索引擎索引（用于非公开页面） -->
-		{resolvedNoindex && <meta name="robots" content="noindex, nofollow" />}
+		{shouldNoindex && <meta name="robots" content="noindex, nofollow, noarchive" />}
 		<!-- JSON-LD 结构化数据 -->
 		{
 			resolvedJsonLd && (
@@ -264,8 +292,8 @@ const resolvedJsonLd = resolvedNoindex
 		<meta property="og:title" content={resolvedOgTitle} />
 		<meta property="og:description" content={resolvedOgDescription} />
 		<meta property="og:type" content={resolvedOgType} />
-		<meta property="og:url" content={resolvedCanonicalUrl} />
-		{ogImage && <meta property="og:image" content={ogImage} />}
+		{resolvedCanonicalUrl && <meta property="og:url" content={resolvedCanonicalUrl} />}
+		{!shouldNoindex && ogImage && <meta property="og:image" content={ogImage} />}
 		<!-- 主题初始化脚本：在渲染前设置 data-theme 和 data-accent，防止闪烁（FOUC） -->
 		<script is:inline>
 			(function () {

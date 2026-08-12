@@ -53,7 +53,7 @@ async function stopServer() {
 function assertNoindexHead(html: string, route: string) {
 	assert.match(
 		html,
-		/<meta name="robots" content="noindex, nofollow">/,
+		/<meta name="robots" content="noindex, nofollow(?:, noarchive)?">/,
 		`${route} 必须输出 noindex, nofollow`
 	);
 	assert.doesNotMatch(
