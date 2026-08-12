@@ -65,7 +65,11 @@ export const GET: APIRoute = async () => {
 				isHidden: false,
 				posts: {
 					some: {
-						post: { visibility: 'public', isDeleted: false, user: { deletedAt: null } }
+						post: {
+							visibility: 'public',
+							isDeleted: false,
+							user: { deletedAt: null, isDisabled: false }
+						}
 					}
 				}
 			},

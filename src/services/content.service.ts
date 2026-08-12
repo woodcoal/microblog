@@ -784,7 +784,7 @@ export async function getPosts(input: GetPostsInput) {
 	// 构建 where 条件
 	const where: Prisma.PostWhereInput = {
 		isDeleted: false,
-		user: { deletedAt: null },
+		user: { deletedAt: null, isDisabled: false },
 		...visibilityFilter
 	};
 	let tagPostIds: string[] | undefined;

@@ -12,6 +12,7 @@ const activeUsername = `seo_active_${RUN_ID}`.slice(0, 20);
 const disabledUsername = `seo_disabled_${RUN_ID}`.slice(0, 20);
 const activeDisplayName = 'SEO 活跃验收用户';
 const disabledDisplayName = 'SEO 禁用验收用户';
+const disabledPublicContent = `SEO_DISABLED_PUBLIC_${RUN_ID}`;
 let activeToken = '';
 let activePostId = '';
 let disabledPostId = '';
@@ -107,7 +108,7 @@ before(async () => {
 			{
 				id: disabledPostId,
 				userId: disabled.id,
-				content: 'SEO disabled public post',
+				content: disabledPublicContent,
 				visibility: 'public'
 			}
 		]
@@ -160,4 +161,30 @@ test('禁用账号不可索引且 sitemap 只收录活跃账号及其公开帖�
 	assert.match(sitemapBody, new RegExp(`/${activeUsername}/${activePostId}<`));
 	assert.doesNotMatch(sitemapBody, new RegExp(disabledUsername));
 	assert.doesNotMatch(sitemapBody, new RegExp(disabledPostId));
+});
+
+test('禁用账号的公开内容不会进入微博、最新或搜索入口', async () => {
+	for (const path of [
+		'/weibo',
+		'/latest',
+		`/search?q=${encodeURIComponent(disabledPublicContent)}`
+	]) {
+		const response = await request(path);
+		assert.equal(response.status, 200, `${path} 应可访问`);
+		const body = await response.text();
+		assert.doesNotMatch(body, new RegExp(disabledUsername), `${path} 不得输出禁用用户名`);
+		assert.doesNotMatch(body, new RegExp(disabledDisplayName), `${path} 不得输出禁用显示名`);
+		assert.doesNotMatch(
+			body,
+			new RegExp(`href="/${disabledUsername}/${disabledPostId}"`),
+			`${path} 不得输出禁用账号帖子链接`
+		);
+		if (path !== `/search?q=${encodeURIComponent(disabledPublicContent)}`) {
+			assert.doesNotMatch(
+				body,
+				new RegExp(disabledPublicContent),
+				`${path} 不得输出禁用账号帖子`
+			);
+		}
+	}
 });
