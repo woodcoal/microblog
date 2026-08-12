@@ -35,6 +35,7 @@ if (isSingleMode && singleMode) {
 
 // 获取当前登录用户
 const currentUser = await getUserFromRequest(Astro);
+const accountDeleted = Astro.url.searchParams.get('account-deleted') === '1';
 // Hero 仅展示三条：服务层会将可见的全局置顶内容置于热门内容之前。
 const heroTrendingFeed = await getTrendingFeed({
 	viewerId: currentUser?.userId,
@@ -70,6 +71,13 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 ---
 
 <HomeLayout title="首页">
+	{
+		accountDeleted && (
+			<p class="account-deletion-complete" role="status" aria-live="polite">
+				账号已永久注销，你已安全退出。
+			</p>
+		)
+	}
 	<section class="home-hero">
 		<div class="home-hero-copy">
 			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->
@@ -343,6 +351,18 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		)
 	}
 </HomeLayout>
+
+<style>
+	.account-deletion-complete {
+		max-width: 1160px;
+		margin: var(--spacing-4) auto 0;
+		padding: var(--spacing-3) var(--spacing-4);
+		border: 1px solid color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+		border-radius: var(--radius-md);
+		background: var(--color-card-bg);
+		color: var(--color-success);
+	}
+</style>
 
 <style>
 	.home-hero {

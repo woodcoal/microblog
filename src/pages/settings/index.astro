@@ -361,6 +361,58 @@ const tabs = [
 								</div>
 							</form>
 						</section>
+
+						<hr class="settings-divider" />
+
+						<section
+							class="security-subsection account-deletion-section"
+							aria-labelledby="account-deletion-title"
+						>
+							<h3 id="account-deletion-title" class="section-title">
+								永久注销账号
+							</h3>
+							<p class="section-desc">
+								此操作不可恢复。账号、用户名和登录邮箱将永久不能再用；你的主页和帖子会隐藏，历史评论会显示为“已注销用户”。
+							</p>
+							<form
+								id="account-deletion-form"
+								class="settings-form"
+								aria-describedby="account-deletion-note account-deletion-msg"
+							>
+								<div class="form-group">
+									<label for="account-deletion-password" class="form-label">
+										当前密码
+									</label>
+									<input
+										type="password"
+										id="account-deletion-password"
+										name="currentPassword"
+										class="form-input"
+										placeholder="输入当前密码以继续"
+										autocomplete="current-password"
+										required
+									/>
+								</div>
+								<p id="account-deletion-note" class="form-hint">
+									确认后会立即退出所有设备，并撤销现有登录凭据与 API Token。
+								</p>
+								<div class="form-actions">
+									<button
+										type="submit"
+										id="account-deletion-submit"
+										class="btn btn-danger"
+									>
+										永久注销账号
+									</button>
+									<span
+										id="account-deletion-msg"
+										class="form-msg"
+										role="status"
+										aria-live="polite"
+									/>
+								</div>
+							</form>
+						</section>
 					</section>
 				)
 			}
@@ -648,6 +700,52 @@ const tabs = [
 		}
 	});
 
+	// ===== 永久注销 =====
+	const accountDeletionForm = document.getElementById('account-deletion-form') as HTMLFormElement;
+	const accountDeletionMsg = document.getElementById('account-deletion-msg') as HTMLElement;
+	const accountDeletionSubmit = document.getElementById(
+		'account-deletion-submit'
+	) as HTMLButtonElement;
+
+	accountDeletionForm?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const currentPassword = String(
+			new FormData(accountDeletionForm).get('currentPassword') ?? ''
+		);
+		if (!currentPassword) {
+			showMsg(accountDeletionMsg, '请输入当前密码。', true);
+			return;
+		}
+
+		const confirmed = await MutanDialog.confirm(
+			'账号、用户名和登录邮箱将永久不能再用；主页和帖子会隐藏，历史评论会显示为“已注销用户”。此操作不可恢复。',
+			{ title: '确认永久注销？', danger: true }
+		);
+		if (!confirmed) return;
+
+		accountDeletionSubmit.disabled = true;
+		accountDeletionSubmit.textContent = '正在注销…';
+		try {
+			const result = await actions.deleteAccountAction({ currentPassword });
+			if (result.error) {
+				showMsg(
+					accountDeletionMsg,
+					result.error.message ?? '暂时无法注销，请稍后再试。',
+					true
+				);
+				return;
+			}
+			localStorage.removeItem('token');
+			document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+			window.location.assign('/?account-deleted=1');
+		} catch {
+			showMsg(accountDeletionMsg, '网络连接异常，请检查后重试。', true);
+		} finally {
+			accountDeletionSubmit.disabled = false;
+			accountDeletionSubmit.textContent = '永久注销账号';
+		}
+	});
+
 	// ===== 外观偏好 =====
 	let selectedTheme: string | null = null;
 	const themeButtons = document.querySelectorAll('.theme-btn');
@@ -826,6 +924,10 @@ const tabs = [
 
 	.settings-section .settings-section .section-title {
 		font-size: 1rem;
+	}
+
+	.account-deletion-section .section-desc {
+		color: var(--color-danger);
 	}
 
 	/* 区块内分割线 */
