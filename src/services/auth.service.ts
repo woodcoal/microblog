@@ -11,6 +11,7 @@ import { ServiceError } from '@/lib/errors';
 import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '@/lib/config';
 import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
 import { issueEmailVerificationToken } from '@/lib/email-verification';
+import { consumePasswordResetToken, requestPasswordReset } from '@/lib/password-reset';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -73,6 +74,20 @@ export interface LoginUserResult {
 	role: string;
 	email: string;
 	isDisabled: boolean;
+	credentialVersion: number;
+}
+
+export async function requestPasswordResetForEmail(email: string): Promise<void> {
+	// 即使格式不合法也保持对外成功语义；避免将请求端校验变成探测辅助信息。
+	if (!EMAIL_PATTERN.test(email)) return;
+	await requestPasswordReset(email);
+}
+
+export async function resetPassword(input: { token: string; password: string }): Promise<boolean> {
+	if (input.password.length < PASSWORD_MIN_LENGTH) {
+		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
+	}
+	return consumePasswordResetToken(input.token, await hashPassword(input.password));
 }
 
 // ── 业务函数 ──
@@ -193,6 +208,7 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 		avatarUrl: user.avatarUrl,
 		role: user.role,
 		email: user.email,
-		isDisabled: user.isDisabled
+		isDisabled: user.isDisabled,
+		credentialVersion: user.credentialVersion
 	};
 }

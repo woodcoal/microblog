@@ -6,6 +6,7 @@ import { unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { prisma } from '../src/lib/db';
 import { createToken } from '../src/services/token.service';
+import { hashPasswordResetToken } from '../src/lib/password-reset';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -16,6 +17,7 @@ const password = 'agent-acceptance-password';
 
 let serverOutput = '';
 let aliceToken = '';
+let aliceReplacementToken = '';
 let bobToken = '';
 let aliceId = '';
 let bobId = '';
@@ -191,17 +193,67 @@ test('注册对已存在与不存在邮箱返回完全一致的受理语义', as
 	assert.equal(await plainText(second), await plainText(first));
 });
 
+test('密码重置 Agent 契约抗枚举，并在成功后拒绝旧 API Token', async () => {
+	const known = await request('/api/agent/forgot-password', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ email: `${alice}@example.test` })
+	});
+	const unknown = await request('/api/agent/forgot-password', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ email: `missing_${RUN_ID}@example.test` })
+	});
+	assert.equal(known.status, unknown.status);
+	assert.equal(await plainText(known), await plainText(unknown));
+
+	const rawToken = crypto.randomUUID();
+	await prisma.passwordResetToken.create({
+		data: {
+			userId: aliceId,
+			tokenHash: hashPasswordResetToken(rawToken),
+			expiresAt: new Date(Date.now() + 60_000)
+		}
+	});
+	const reset = await request('/api/agent/reset-password', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: rawToken, password: 'agent-reset-new-password' })
+	});
+	assert.equal(reset.status, 200);
+	assert.match(await plainText(reset), /^ok:/);
+	const replay = await request('/api/agent/reset-password', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: rawToken, password: 'agent-reset-new-password' })
+	});
+	assert.equal(replay.status, 400);
+	assert.equal((await request('/api/agent/note', { headers: bearer(aliceToken) })).status, 401);
+	aliceReplacementToken = (
+		await createToken({ userId: aliceId, name: 'agent password reset replacement token' })
+	).token;
+	const login = await request('/api/agent/login', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			email: `${alice}@example.test`,
+			password: 'agent-reset-new-password'
+		})
+	});
+	assert.equal(login.status, 200);
+});
+
 test('资料与私有 note 可写可读', async () => {
 	const profile = await request('/api/agent/profile', {
 		method: 'PUT',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({ displayName: 'Agent Alice', bio: 'agent acceptance' })
 	});
 	assert.equal(profile.status, 200);
 	assert.equal(await plainText(profile), 'ok');
 	const clearAvatar = await request('/api/agent/profile', {
 		method: 'PUT',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({ avatarUrl: null })
 	});
 	assert.equal(clearAvatar.status, 200);
@@ -210,11 +262,13 @@ test('资料与私有 note 可写可读', async () => {
 	const noteValue = `private-note-${RUN_ID}`;
 	const updateNote = await request('/api/agent/note', {
 		method: 'PUT',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({ note: noteValue })
 	});
 	assert.equal(updateNote.status, 200);
-	const note = await request('/api/agent/note', { headers: bearer(aliceToken) });
+	const note = await request('/api/agent/note', {
+		headers: bearer(aliceReplacementToken || aliceToken)
+	});
 	assert.equal(await plainText(note), noteValue);
 });
 
@@ -228,7 +282,7 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 	form.set('file', new File([png], 'pixel.png', { type: 'image/png' }));
 	const upload = await request('/api/agent/upload', {
 		method: 'POST',
-		headers: bearer(aliceToken),
+		headers: bearer(aliceReplacementToken || aliceToken),
 		body: form
 	});
 	assert.equal(upload.status, 201, await upload.clone().text());
@@ -236,7 +290,7 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 
 	const create = await request('/api/agent/posts', {
 		method: 'POST',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({
 			content: `agent acceptance ${RUN_ID} #agentqa#`,
 			imageUrls: [uploadedUrl],
@@ -249,17 +303,17 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 
 	const list = await request(
 		`/api/agent/posts?keyword=${RUN_ID}&tag=agentqa&user=${alice}&sort=latest&limit=10`,
-		{ headers: bearer(aliceToken) }
+		{ headers: bearer(aliceReplacementToken || aliceToken) }
 	);
 	assert.match(await plainText(list), new RegExp(postId));
 	const detail = await request(`/api/agent/posts/${postId}?comments=-1`, {
-		headers: bearer(aliceToken)
+		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	assert.match(await plainText(detail), /#MEDIA/);
 
 	const alias = await request('/api/agent/posts', {
 		method: 'POST',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({ content: 'mutual alias', visibility: 'mutual', images: [] })
 	});
 	assert.equal(alias.status, 201);
@@ -271,7 +325,7 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 
 	const tooLong = await request('/api/agent/posts', {
 		method: 'POST',
-		headers: bearer(aliceToken, true),
+		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({ content: 'x'.repeat(1001) })
 	});
 	assert.equal(tooLong.status, 400);
@@ -284,7 +338,9 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 		'/api/agent/notifications?sort=popular',
 		`/api/agent/posts/${postId}?comments=-2`
 	]) {
-		const response = await request(path, { headers: bearer(aliceToken) });
+		const response = await request(path, {
+			headers: bearer(aliceReplacementToken || aliceToken)
+		});
 		assert.equal(response.status, 400, path);
 		assert.match(await plainText(response), /^error: /);
 	}
@@ -328,15 +384,15 @@ test('通知文本契约及 page/limit 偏移分页有效', async () => {
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
 	const all = await request('/api/agent/notifications?limit=20', {
-		headers: bearer(aliceToken)
+		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	assert.match(await plainText(all), /: (comment|like|follow) @/);
 
 	const page1 = await request('/api/agent/notifications?page=1&limit=1', {
-		headers: bearer(aliceToken)
+		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	const page2 = await request('/api/agent/notifications?page=2&limit=1', {
-		headers: bearer(aliceToken)
+		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	assert.notEqual(await plainText(page1), await plainText(page2));
 });

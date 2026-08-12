@@ -14,7 +14,8 @@ export const POST: APIRoute = async ({ request }) => {
 		const token = await generateToken({
 			userId: user.id,
 			username: user.username,
-			role: user.role
+			role: user.role,
+			credentialVersion: user.credentialVersion
 		});
 		return jsonResponse({
 			token,
