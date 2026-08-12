@@ -6,7 +6,7 @@
  */
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
-import { getUserFromRequest } from '@/lib/auth';
+import { generateToken, getUserFromRequest, setTokenCookie } from '@/lib/auth';
 import { ServiceError } from '@/lib/errors';
 import {
 	getSettings as getSettingsService,
@@ -114,10 +114,20 @@ const renameUsername = defineAction({
 		const currentUser = await getUserFromRequest(context);
 		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		try {
-			return await renameOwnUsernameService({
+			const result = await renameOwnUsernameService({
 				userId: currentUser.userId,
 				username: input.username
 			});
+			// 用户名存在于 JWT 载荷中。改名后立即换发 cookie，避免导航和资料链接继续使用旧名。
+			setTokenCookie(
+				context,
+				await generateToken({
+					userId: currentUser.userId,
+					username: result.username,
+					role: currentUser.role
+				})
+			);
+			return result;
 		} catch (e) {
 			handleServiceError(e);
 		}

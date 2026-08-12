@@ -129,6 +129,34 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	</form>
 </dialog>
 
+<!-- 管理员用户名编辑：独立于用户自助额度。 -->
+<dialog id="rename-user-dialog" class="admin-modal" aria-labelledby="rename-user-title">
+	<form id="rename-user-form" novalidate>
+		<h2 class="admin-modal-title" id="rename-user-title">修改用户名</h2>
+		<p class="form-hint">管理员修改不消耗该用户的一次自助改名机会；旧用户名会保留并跳转。</p>
+		<input type="hidden" id="rename-user-id" name="userId" />
+		<div class="form-group">
+			<label class="form-label" for="rename-user-username">新用户名</label>
+			<input
+				id="rename-user-username"
+				class="form-input"
+				name="username"
+				type="text"
+				required
+				maxlength="20"
+				autocomplete="off"
+				aria-describedby="rename-user-message"
+			/>
+		</div>
+		<p id="rename-user-message" class="form-msg" role="alert" aria-live="assertive"></p>
+		<div class="admin-modal-actions">
+			<button type="button" class="btn btn-outline" id="rename-user-cancel">取消</button>
+			<button type="submit" class="btn btn-primary" id="rename-user-submit">保存用户名</button
+			>
+		</div>
+	</form>
+</dialog>
+
 <!-- 批量操作栏 -->
 <div class="admin-batch-bar" id="batch-bar" style="display: none;">
 	<span class="admin-batch-count">已选择 <strong id="batch-count">0</strong> 项</span>
@@ -217,6 +245,14 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 									>
 										{actionLabel}
 									</button>
+									<button
+										type="button"
+										class="admin-btn-sm admin-btn-sm-primary"
+										data-rename-user-id={user.id}
+										data-rename-username={user.username}
+									>
+										改用户名
+									</button>
 								</div>
 							</td>
 						</tr>
@@ -283,6 +319,12 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 	const createUserOpen = document.getElementById('create-user-open');
 	const createUserCancel = document.getElementById('create-user-cancel');
 	const createUserSubmit = document.getElementById('create-user-submit') as HTMLButtonElement;
+	const renameUserDialog = document.getElementById('rename-user-dialog') as HTMLDialogElement;
+	const renameUserForm = document.getElementById('rename-user-form') as HTMLFormElement;
+	const renameUserId = document.getElementById('rename-user-id') as HTMLInputElement;
+	const renameUserUsername = document.getElementById('rename-user-username') as HTMLInputElement;
+	const renameUserMessage = document.getElementById('rename-user-message') as HTMLElement;
+	const renameUserSubmit = document.getElementById('rename-user-submit') as HTMLButtonElement;
 
 	createUserOpen?.addEventListener('click', () => {
 		createUserForm.reset();
@@ -349,6 +391,51 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 		} finally {
 			createUserSubmit.disabled = false;
 			createUserSubmit.removeAttribute('aria-busy');
+		}
+	});
+
+	document.querySelectorAll('[data-rename-user-id]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const target = button as HTMLElement;
+			renameUserId.value = target.dataset.renameUserId ?? '';
+			renameUserUsername.value = target.dataset.renameUsername ?? '';
+			renameUserMessage.textContent = '';
+			renameUserDialog.showModal();
+			renameUserUsername.focus();
+			renameUserUsername.select();
+		});
+	});
+
+	document.getElementById('rename-user-cancel')?.addEventListener('click', () => {
+		renameUserDialog.close();
+	});
+
+	renameUserDialog?.addEventListener('click', (event) => {
+		if (event.target === renameUserDialog) renameUserDialog.close();
+	});
+
+	renameUserForm?.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		renameUserMessage.textContent = '';
+		renameUserSubmit.disabled = true;
+		renameUserSubmit.setAttribute('aria-busy', 'true');
+		try {
+			const result = await actions.renameUser({
+				userId: renameUserId.value,
+				username: renameUserUsername.value
+			});
+			if (result.error) {
+				renameUserMessage.textContent = result.error.message || '用户名修改失败';
+				return;
+			}
+			renameUserDialog.close();
+			window.location.reload();
+		} catch (error) {
+			renameUserMessage.textContent =
+				error instanceof Error ? error.message : '用户名修改失败，请稍后重试';
+		} finally {
+			renameUserSubmit.disabled = false;
+			renameUserSubmit.removeAttribute('aria-busy');
 		}
 	});
 
