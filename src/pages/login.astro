@@ -11,7 +11,7 @@ import { getPublicSiteCopy } from '@/services/site-copy.service';
 const introCopy = await getPublicSiteCopy('auth.login.intro');
 ---
 
-<BaseLayout title="登录" narrow>
+<BaseLayout title="登录" narrow noindex>
 	<div class="auth-page-shell">
 		<section class="auth-page-intro">
 			<!-- html 仅来自服务端受限 Markdown 渲染器，浏览器不解析原始 Markdown。 -->

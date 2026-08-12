@@ -12,7 +12,8 @@
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
-import { SITE_URL } from '@/lib/config';
+import { SITE_MODES, SITE_URL } from '@/lib/config';
+import { escapeXml } from '@/lib/site-seo';
 
 /**
  * GET 请求处理函数
@@ -41,7 +42,12 @@ export const GET: APIRoute = async () => {
 	});
 
 	// 收集所有 URL 条目
-	const urls = [];
+	const urls: Array<{
+		loc: string;
+		changefreq: 'always' | 'daily' | 'weekly';
+		priority: string;
+		lastmod?: string;
+	}> = [];
 
 	// 首页 - 最高优先级，每日更新
 	urls.push({ loc: SITE_URL, changefreq: 'daily', priority: '1.0' });
@@ -52,6 +58,15 @@ export const GET: APIRoute = async () => {
 		changefreq: 'always',
 		priority: '0.8'
 	});
+
+	// 仅加入无查询参数、可公开访问的频道入口；私有入口和搜索不会进入 sitemap。
+	for (const mode of SITE_MODES) {
+		urls.push({
+			loc: `${SITE_URL}/${mode}`,
+			changefreq: 'daily',
+			priority: '0.8'
+		});
+	}
 
 	// 用户主页 - 每日更新
 	for (const user of users) {
@@ -79,7 +94,7 @@ export const GET: APIRoute = async () => {
 ${urls
 	.map(
 		(u) => `  <url>
-    <loc>${u.loc}</loc>
+    <loc>${escapeXml(u.loc)}</loc>
     ${u.lastmod ? `<lastmod>${u.lastmod}</lastmod>` : ''}
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>

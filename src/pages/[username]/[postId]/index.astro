@@ -8,6 +8,15 @@ import {
 	UnknownPostDetailModeError,
 	type PostDetailModel
 } from '@/lib/post-detail';
+import { resolveUsernameRoute } from '@/lib/user';
+import { goneResponse } from '@/lib/site-seo';
+
+const usernameRoute = Astro.params.username
+	? await resolveUsernameRoute(Astro.params.username)
+	: null;
+if (usernameRoute?.isDeleted) {
+	return goneResponse();
+}
 
 let model: PostDetailModel | null;
 try {
@@ -27,6 +36,9 @@ try {
 }
 
 if (!model) return Astro.redirect('/404');
+if (model.isDeleted) {
+	return goneResponse();
+}
 if (model.redirectUsername) {
 	const target = new URL(`/${model.redirectUsername}/${Astro.params.postId}`, Astro.url);
 	target.search = Astro.url.search;

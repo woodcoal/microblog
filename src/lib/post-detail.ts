@@ -481,7 +481,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 	const canonicalUrl = `${SITE_URL}/${post.user.username}/${post.id}`;
 
 	// 是否为非公开帖子（需要 noindex）
-	const isNotPublic = post.visibility !== 'public';
+	const isNotPublic = post.visibility !== 'public' || isDeleted;
 
 	// OG 图片：取帖子第一张图片，无图片时不设置
 	const ogImageUrl = hasImages
@@ -543,6 +543,7 @@ export type PostDetailModel = NonNullable<Awaited<ReturnType<typeof loadPostDeta
 
 /** Keep canonical article metadata identical across the three internal views. */
 export function getPostDetailJsonLd(model: PostDetailModel) {
+	if (model.isNotPublic) return undefined;
 	return {
 		'@context': 'https://schema.org',
 		'@type': 'Article',

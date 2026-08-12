@@ -16,12 +16,16 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
 import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
-import { resolveUsername } from '@/lib/user';
+import { resolveUsernameRoute } from '@/lib/user';
+import { goneResponse } from '@/lib/site-seo';
 
 // 路由参数
 const { username } = Astro.params;
 
-const resolvedUsername = username ? await resolveUsername(username) : null;
+const resolvedUsername = username ? await resolveUsernameRoute(username) : null;
+if (resolvedUsername?.isDeleted) {
+	return goneResponse();
+}
 if (resolvedUsername?.isLegacy) {
 	const target = new URL(`/${resolvedUsername.username}`, Astro.url);
 	target.search = Astro.url.search;

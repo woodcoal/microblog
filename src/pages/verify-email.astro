@@ -5,7 +5,7 @@ import BaseLayout from '@/layouts/Base.astro';
 const token = Astro.url.searchParams.get('token') ?? '';
 ---
 
-<BaseLayout title="验证邮箱" narrow>
+<BaseLayout title="验证邮箱" narrow noindex>
 	<section
 		class="auth-page verification-page"
 		data-verification-token={token}

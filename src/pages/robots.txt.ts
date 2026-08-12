@@ -27,6 +27,11 @@ Disallow: /settings/
 Disallow: /following
 Disallow: /followers
 Disallow: /notifications
+Disallow: /bookmarks
+Disallow: /search
+Disallow: /blog/write
+Disallow: /*/edit$
+Disallow: /*/revisions$
 
 Sitemap: ${siteUrl}/sitemap.xml`;
 

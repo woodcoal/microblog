@@ -36,7 +36,7 @@ const settingItems = [
 const settingHref = (id: string) => (id === 'profile' ? '/settings' : `/settings?tab=${id}`);
 ---
 
-<UserLayout title={title} wide>
+<UserLayout title={title} wide noindex>
 	<div class="account-layout">
 		<aside class="account-sidebar" aria-label="账户导航">
 			<a href={`/${user.username}`} class="account-user-summary">

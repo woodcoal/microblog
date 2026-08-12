@@ -63,6 +63,27 @@ export async function resolveUsername(username: string) {
 	return claim ? { ...claim.user, isLegacy: true } : null;
 }
 
+/**
+ * Resolve a browser route without allowing a deleted account's identity to reach a template.
+ * Historical username claims are included so both old and current paths can return the same
+ * permanent-removal HTTP semantics.
+ */
+export async function resolveUsernameRoute(username: string) {
+	const normalizedUsername = username.trim().toLowerCase();
+	const current = await prisma.user.findUnique({
+		where: { username: normalizedUsername },
+		select: { id: true, username: true, deletedAt: true }
+	});
+	if (current) return { ...current, isLegacy: false, isDeleted: Boolean(current.deletedAt) };
+	const claim = await prisma.usernameClaim.findUnique({
+		where: { username: normalizedUsername },
+		select: { user: { select: { id: true, username: true, deletedAt: true } } }
+	});
+	return claim
+		? { ...claim.user, isLegacy: true, isDeleted: Boolean(claim.user.deletedAt) }
+		: null;
+}
+
 /** 创建用户并在同一事务中占用用户名，避免并发注册留下无 claim 的用户。 */
 export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) {
 	return prisma.$transaction(async (tx) => {

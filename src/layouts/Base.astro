@@ -16,6 +16,7 @@ import { getUnreadCount } from '@/lib/notification';
 import {
 	SITE_TITLE,
 	SITE_DESCRIPTION,
+	SITE_URL,
 	SITE_LOGO_URL,
 	SITE_FAVICON_URL,
 	SITE_MODES,
@@ -26,6 +27,7 @@ import {
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
+import { getStaticCanonicalUrl, isNonIndexablePath } from '@/lib/site-seo';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 import SearchSuggest from '@/components/SearchSuggest.astro';
@@ -168,6 +170,22 @@ const pageTitle = title ? (title === siteTitle ? title : `${title} - ${siteTitle
 const resolvedOgTitle = ogTitle || pageTitle;
 const resolvedOgDescription = ogDescription || siteDesc;
 const resolvedOgType = ogType || 'website';
+const pathNoindex = isNonIndexablePath(currentPath);
+const resolvedNoindex = Boolean(noindex || pathNoindex);
+const resolvedCanonicalUrl =
+	canonicalUrl ?? getStaticCanonicalUrl(currentPath, Astro.url.search.length > 0);
+const resolvedJsonLd =
+	jsonLd ??
+	(!resolvedNoindex && resolvedCanonicalUrl
+		? {
+				'@context': 'https://schema.org',
+				'@type': 'WebPage',
+				name: pageTitle,
+				description: siteDesc,
+				url: resolvedCanonicalUrl,
+				isPartOf: { '@type': 'WebSite', name: siteTitle, url: SITE_URL }
+			}
+		: undefined);
 ---
 
 <!doctype html>
@@ -238,16 +256,20 @@ const resolvedOgType = ogType || 'website';
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
 		<!-- canonical 规范链接，避免重复内容问题 -->
-		{canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+		{resolvedCanonicalUrl && <link rel="canonical" href={resolvedCanonicalUrl} />}
 		<!-- 禁止搜索引擎索引（用于非公开页面） -->
-		{noindex && <meta name="robots" content="noindex" />}
+		{resolvedNoindex && <meta name="robots" content="noindex, nofollow, noarchive" />}
 		<!-- JSON-LD 结构化数据 -->
-		{jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+		{
+			resolvedJsonLd && (
+				<script type="application/ld+json" set:html={JSON.stringify(resolvedJsonLd)} />
+			)
+		}
 		<!-- Open Graph 元标签，用于社交平台分享预览 -->
 		<meta property="og:title" content={resolvedOgTitle} />
 		<meta property="og:description" content={resolvedOgDescription} />
 		<meta property="og:type" content={resolvedOgType} />
-		{canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+		{resolvedCanonicalUrl && <meta property="og:url" content={resolvedCanonicalUrl} />}
 		{ogImage && <meta property="og:image" content={ogImage} />}
 		<!-- 主题初始化脚本：在渲染前设置 data-theme 和 data-accent，防止闪烁（FOUC） -->
 		<script is:inline>
