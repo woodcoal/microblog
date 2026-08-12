@@ -30,7 +30,7 @@ import { createToken, revokeToken } from './token';
 import { createCategory, updateCategory, deleteCategory, reorderCategories } from './category';
 
 // 认证模块
-import { login, register, logout } from './auth';
+import { login, register, verifyEmail, resendVerification, logout } from './auth';
 
 // 设置模块
 import {
@@ -110,6 +110,8 @@ export const server = {
 	// 认证
 	login,
 	register,
+	verifyEmail,
+	resendVerification,
 	logout,
 	// 设置
 	getSettings,

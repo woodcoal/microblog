@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { prisma } from '../src/lib/db';
+import { hashEmailVerificationToken } from '../src/lib/email-verification';
 
 const PORT = 4329;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -120,10 +121,13 @@ before(async () => {
 			})
 		});
 		assert.equal(response.status, 201);
-		const body = await json<{ username: string; email: unknown; id: string }>(response);
+		const body = await json<{ username: string; verificationPending: boolean; id: string }>(
+			response
+		);
 		assert.equal(body.username, username);
-		assert.equal(typeof body.email, 'string');
+		assert.equal(body.verificationPending, true);
 		if (username === alice) aliceId = body.id;
+		await prisma.user.update({ where: { id: body.id }, data: { emailVerifiedAt: new Date() } });
 	}
 
 	apiToken = `mt_${RUN_ID.padEnd(32, '0').slice(0, 32)}`;
@@ -182,6 +186,8 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 	for (const [path, method] of [
 		['/auth/register', 'post'],
 		['/auth/login', 'post'],
+		['/auth/verify-email', 'post'],
+		['/auth/resend-verification', 'post'],
 		['/posts', 'get'],
 		['/posts', 'post'],
 		['/posts/{id}', 'get'],
@@ -212,6 +218,42 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 		'password',
 		'users'
 	]);
+});
+
+test('邮箱验证 API 统一拒绝无效令牌，并在有效令牌被消费后激活账号', async () => {
+	const email = `verify_${RUN_ID}@example.test`;
+	const registered = await request('/api/v1/auth/register', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ email, password })
+	});
+	assert.equal(registered.status, 201);
+	const pending = await json<{ id: string; verificationPending: boolean; email?: unknown }>(
+		registered
+	);
+	assert.equal(pending.verificationPending, true);
+	assert.equal(pending.email, undefined);
+	const invalid = await request('/api/v1/auth/verify-email', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: 'invalid' })
+	});
+	assert.equal(invalid.status, 400);
+	const rawToken = crypto.randomUUID();
+	await prisma.emailVerificationToken.create({
+		data: {
+			userId: pending.id,
+			tokenHash: hashEmailVerificationToken(rawToken),
+			expiresAt: new Date(Date.now() + 60_000)
+		}
+	});
+	const verified = await request('/api/v1/auth/verify-email', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ token: rawToken })
+	});
+	assert.equal(verified.status, 200);
+	assert.equal((await json<{ verified: boolean }>(verified)).verified, true);
 });
 
 test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => {

@@ -7,6 +7,7 @@
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { generateToken, setTokenCookie, clearTokenCookie } from '@/lib/auth';
+import { consumeEmailVerificationToken, resendEmailVerification } from '@/lib/email-verification';
 import { ServiceError } from '@/lib/errors';
 import {
 	registerUser as registerUserService,
@@ -33,16 +34,12 @@ const login = defineAction({
 		try {
 			const user = await loginUserService(input);
 
-			// 生成 JWT
 			const token = await generateToken({
 				userId: user.id,
 				username: user.username,
 				role: user.role
 			});
-
-			// 设置 HttpOnly cookie
 			setTokenCookie(context, token);
-
 			return {
 				token,
 				user: {
@@ -69,22 +66,12 @@ const register = defineAction({
 		email: z.string().min(1, '邮箱不能为空'),
 		password: z.string().min(1, '密码不能为空')
 	}),
-	handler: async (input, context) => {
+	handler: async (input) => {
 		try {
 			const user = await registerUserService(input);
 
-			// 生成 JWT
-			const token = await generateToken({
-				userId: user.id,
-				username: user.username,
-				role: user.role
-			});
-
-			// 设置 HttpOnly cookie
-			setTokenCookie(context, token);
-
 			return {
-				token,
+				verificationPending: true,
 				user: {
 					id: user.id,
 					username: user.username,
@@ -99,6 +86,26 @@ const register = defineAction({
 	}
 });
 
+/** 消费一次性邮箱验证令牌；无效、过期和重放使用同一错误。 */
+const verifyEmail = defineAction({
+	input: z.object({ token: z.string().min(1, '验证令牌不能为空') }),
+	handler: async ({ token }) => {
+		if (!(await consumeEmailVerificationToken(token))) {
+			throw new ActionError({ code: 'BAD_REQUEST', message: '验证链接无效或已失效' });
+		}
+		return { verified: true };
+	}
+});
+
+/** 始终接受重发请求，避免通过 Action 响应枚举邮箱和账号状态。 */
+const resendVerification = defineAction({
+	input: z.object({ email: z.string().min(1, '邮箱不能为空') }),
+	handler: async ({ email }) => {
+		await resendEmailVerification(email);
+		return { accepted: true, message: '若邮箱可用，验证邮件已发送' };
+	}
+});
+
 /**
  * 用户登出 Action
  */
@@ -110,4 +117,4 @@ const logout = defineAction({
 	}
 });
 
-export { login, register, logout };
+export { login, register, verifyEmail, resendVerification, logout };

@@ -77,7 +77,7 @@ async function verifyToken(token: string): Promise<JwtPayload | null> {
 }
 
 /**
- * 检查用户是否已被禁用
+ * 检查用户是否被禁用或尚未完成邮箱验证
  *
  * 通过动态导入 prisma 查询用户 isDisabled 状态，
  * 避免在模块顶层导入导致循环依赖。
@@ -85,18 +85,18 @@ async function verifyToken(token: string): Promise<JwtPayload | null> {
  * @param userId - 用户 ID
  * @returns 用户已被禁用返回 true，否则返回 false
  */
-async function isUserDisabled(userId: string): Promise<boolean> {
+async function isUserUnavailable(userId: string): Promise<boolean> {
 	try {
 		const { prisma } = await import('./db');
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
-			select: { isDisabled: true }
+			select: { isDisabled: true, emailVerifiedAt: true }
 		});
 		// 用户不存在时视为禁用（JWT 中的 userId 对应的用户已被删除）
-		return user?.isDisabled ?? true;
+		return user?.isDisabled || !user?.emailVerifiedAt;
 	} catch {
 		// 查询失败时采用 fail-closed 策略，拒绝访问
-		console.error('检查用户禁用状态失败，默认拒绝访问');
+		console.error('检查用户状态失败，默认拒绝访问');
 		return true;
 	}
 }
@@ -154,7 +154,7 @@ export async function getUserFromBearerRequest(request: Request): Promise<JwtPay
 	if (token.startsWith('mt_')) return verifyApiTokenFromRequest(token);
 
 	const payload = await verifyToken(token);
-	if (payload && (await isUserDisabled(payload.userId))) return null;
+	if (payload && (await isUserUnavailable(payload.userId))) return null;
 	return payload;
 }
 
@@ -168,7 +168,7 @@ export async function getUserFromRequest(context: AuthContext): Promise<JwtPaylo
 	const cookieToken = context.cookies.get('token')?.value;
 	if (cookieToken) {
 		const payload = await verifyToken(cookieToken);
-		if (payload && (await isUserDisabled(payload.userId))) {
+		if (payload && (await isUserUnavailable(payload.userId))) {
 			return null;
 		}
 		return payload;
@@ -203,13 +203,14 @@ async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | nu
 						id: true,
 						username: true,
 						role: true,
-						isDisabled: true
+						isDisabled: true,
+						emailVerifiedAt: true
 					}
 				}
 			}
 		});
 
-		if (!apiToken || apiToken.user.isDisabled) {
+		if (!apiToken || apiToken.user.isDisabled || !apiToken.user.emailVerifiedAt) {
 			return null;
 		}
 

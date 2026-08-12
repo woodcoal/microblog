@@ -79,6 +79,24 @@ export const UPLOAD_DIR = getEnv('UPLOAD_DIR') ?? './uploads';
 /** 站点 URL，用于生成绝对链接 */
 export const SITE_URL = getEnv('SITE_URL') ?? 'http://localhost:4321';
 
+/** 邮箱验证有效期与重发冷却时间。 */
+export const EMAIL_VERIFICATION_TOKEN_TTL_MINUTES = Math.max(
+	1,
+	Math.floor(envNumber('EMAIL_VERIFICATION_TOKEN_TTL_MINUTES', 30))
+);
+export const EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = Math.max(
+	1,
+	Math.floor(envNumber('EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS', 60))
+);
+
+/**
+ * 邮件投递边界。默认 disabled，开发/测试只记录安全摘要，不发送真实邮件。
+ * webhook 模式仅允许运行期机密配置提供 URL 与授权头。
+ */
+export const MAIL_DELIVERY_MODE = (getEnv('MAIL_DELIVERY_MODE') ?? 'disabled').toLowerCase();
+export const MAIL_DELIVERY_WEBHOOK_URL = getEnv('MAIL_DELIVERY_WEBHOOK_URL');
+export const MAIL_DELIVERY_WEBHOOK_AUTHORIZATION = getEnv('MAIL_DELIVERY_WEBHOOK_AUTHORIZATION');
+
 /** API CORS 白名单；self 表示当前请求的同源地址。 */
 export const API_CORS_ORIGINS = (getEnv('API_CORS_ORIGINS') || 'self')
 	.split(',')
