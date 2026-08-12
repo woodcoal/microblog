@@ -299,7 +299,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 						id: 'deleted-user',
 						username: 'deleted-user',
 						displayName: '已注销用户',
-						avatarUrl: ''
+						avatarUrl: '',
+						isDeleted: true
 					}
 				: reply.user,
 			likeCount: reply.likes.length,
@@ -320,7 +321,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 						id: 'deleted-user',
 						username: 'deleted-user',
 						displayName: '已注销用户',
-						avatarUrl: ''
+						avatarUrl: '',
+						isDeleted: true
 					}
 				: comment.user,
 			likeCount,

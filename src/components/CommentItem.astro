@@ -17,6 +17,7 @@ interface CommentUser {
 	username: string;
 	displayName: string;
 	avatarUrl: string;
+	isDeleted?: boolean;
 }
 
 /** 子评论数据（无嵌套 replies） */
@@ -75,6 +76,7 @@ const { comment, postId, currentUser, floorNumber, presentation = 'weibo' } = As
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasAvatar = !!comment.user.avatarUrl;
+const isDeletedAccount = Boolean(comment.user.isDeleted);
 const isAuthor = currentUser?.userId === comment.userId;
 const isDeleted = comment.isDeleted;
 const isTopLevel = !comment.parentId;
@@ -89,25 +91,39 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 
 <div class="comment-item" id={`comment-${comment.id}`} data-comment-id={comment.id}>
 	<div class="comment-item-header">
-		<a href={`/${comment.user.username}`} class="comment-item-author">
-			{
-				hasAvatar ? (
-					<img
-						src={comment.user.avatarUrl}
-						alt={comment.user.displayName}
-						class="comment-item-avatar"
-					/>
-				) : (
-					<div class="comment-item-avatar comment-item-avatar-placeholder">
-						{comment.user.displayName.charAt(0).toUpperCase()}
+		{
+			isDeletedAccount ? (
+				<div class="comment-item-author" aria-label="已注销用户">
+					<div
+						class="comment-item-avatar comment-item-avatar-placeholder"
+						aria-hidden="true"
+					>
+						已
 					</div>
-				)
-			}
-			<div class="comment-item-author-info">
-				<span class="comment-item-name">{comment.user.displayName}</span>
-				<span class="comment-item-username">@{comment.user.username}</span>
-			</div>
-		</a>
+					<div class="comment-item-author-info">
+						<span class="comment-item-name">已注销用户</span>
+					</div>
+				</div>
+			) : (
+				<a href={`/${comment.user.username}`} class="comment-item-author">
+					{hasAvatar ? (
+						<img
+							src={comment.user.avatarUrl}
+							alt={comment.user.displayName}
+							class="comment-item-avatar"
+						/>
+					) : (
+						<div class="comment-item-avatar comment-item-avatar-placeholder">
+							{comment.user.displayName.charAt(0).toUpperCase()}
+						</div>
+					)}
+					<div class="comment-item-author-info">
+						<span class="comment-item-name">{comment.user.displayName}</span>
+						<span class="comment-item-username">@{comment.user.username}</span>
+					</div>
+				</a>
+			)
+		}
 		<div class="comment-item-meta">
 			{floorNumber && <span class="comment-item-floor">#{floorNumber} 楼</span>}
 			<time class="comment-item-time" datetime={comment.createdAt}>{relativeTime}</time>
@@ -178,6 +194,7 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 				{comment.replies!.map((reply) => {
 					// 在模板表达式中提取变量，避免比较运算符
 					const replyHasAvatar = !!reply.user.avatarUrl;
+					const replyIsDeletedAccount = Boolean(reply.user.isDeleted);
 					const replyIsAuthor = currentUser?.userId === reply.userId;
 					const replyIsDeleted = reply.isDeleted;
 					const replyRelativeTime = formatRelativeTime(new Date(reply.createdAt));
@@ -190,27 +207,41 @@ const commentHtml = isDeleted ? '' : renderMarkdown(comment.content);
 							data-comment-id={reply.id}
 						>
 							<div class="comment-item-header">
-								<a href={`/${reply.user.username}`} class="comment-item-author">
-									{replyHasAvatar ? (
-										<img
-											src={reply.user.avatarUrl}
-											alt={reply.user.displayName}
-											class="comment-item-avatar"
-										/>
-									) : (
-										<div class="comment-item-avatar comment-item-avatar-placeholder">
-											{reply.user.displayName.charAt(0).toUpperCase()}
+								{replyIsDeletedAccount ? (
+									<div class="comment-item-author" aria-label="已注销用户">
+										<div
+											class="comment-item-avatar comment-item-avatar-placeholder"
+											aria-hidden="true"
+										>
+											已
 										</div>
-									)}
-									<div class="comment-item-author-info">
-										<span class="comment-item-name">
-											{reply.user.displayName}
-										</span>
-										<span class="comment-item-username">
-											@{reply.user.username}
-										</span>
+										<div class="comment-item-author-info">
+											<span class="comment-item-name">已注销用户</span>
+										</div>
 									</div>
-								</a>
+								) : (
+									<a href={`/${reply.user.username}`} class="comment-item-author">
+										{replyHasAvatar ? (
+											<img
+												src={reply.user.avatarUrl}
+												alt={reply.user.displayName}
+												class="comment-item-avatar"
+											/>
+										) : (
+											<div class="comment-item-avatar comment-item-avatar-placeholder">
+												{reply.user.displayName.charAt(0).toUpperCase()}
+											</div>
+										)}
+										<div class="comment-item-author-info">
+											<span class="comment-item-name">
+												{reply.user.displayName}
+											</span>
+											<span class="comment-item-username">
+												@{reply.user.username}
+											</span>
+										</div>
+									</a>
+								)}
 								<time class="comment-item-time" datetime={reply.createdAt}>
 									{replyRelativeTime}
 								</time>
