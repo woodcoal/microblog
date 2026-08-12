@@ -43,7 +43,7 @@ export async function findUserByUsername<T extends Prisma.UserSelect>(
 	select?: T
 ) {
 	return prisma.user.findUnique({
-		where: { username, deletedAt: null },
+		where: { username, deletedAt: null, isDisabled: false },
 		...(select ? { select } : {})
 	});
 }
@@ -75,7 +75,7 @@ export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) 
 /** 用户主页详情所需的公开字段与统计信息。 */
 export function findUserDetailByUsername(username: string) {
 	return prisma.user.findFirst({
-		where: { username, deletedAt: null },
+		where: { username, deletedAt: null, isDisabled: false },
 		select: {
 			id: true,
 			username: true,
