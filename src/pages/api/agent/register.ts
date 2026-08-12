@@ -30,8 +30,8 @@ export const POST: APIRoute = async (context) => {
 		};
 
 		// 校验必填字段
-		if (!username || !email || !password) {
-			return textErrorResponse('用户名、邮箱和密码不能为空');
+		if (!email || !password) {
+			return textErrorResponse('邮箱和密码不能为空');
 		}
 
 		// 调用 service 注册用户

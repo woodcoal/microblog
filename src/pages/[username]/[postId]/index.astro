@@ -27,6 +27,11 @@ try {
 }
 
 if (!model) return Astro.redirect('/404');
+if (model.redirectUsername) {
+	const target = new URL(`/${model.redirectUsername}/${Astro.params.postId}`, Astro.url);
+	target.search = Astro.url.search;
+	return new Response(null, { status: 308, headers: { Location: target.toString() } });
+}
 
 const DetailView =
 	model.postMode === 'weibo'

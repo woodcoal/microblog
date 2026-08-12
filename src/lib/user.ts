@@ -48,6 +48,30 @@ export async function findUserByUsername<T extends Prisma.UserSelect>(
 	});
 }
 
+/** 当前用户名优先；历史用户名仅用于 URL/API 的兼容重定向，绝不用于新提及。 */
+export async function resolveUsername(username: string) {
+	const normalizedUsername = username.trim().toLowerCase();
+	const current = await prisma.user.findUnique({
+		where: { username: normalizedUsername },
+		select: { id: true, username: true }
+	});
+	if (current) return { ...current, isLegacy: false };
+	const claim = await prisma.usernameClaim.findUnique({
+		where: { username: normalizedUsername },
+		select: { user: { select: { id: true, username: true } } }
+	});
+	return claim ? { ...claim.user, isLegacy: true } : null;
+}
+
+/** 创建用户并在同一事务中占用用户名，避免并发注册留下无 claim 的用户。 */
+export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) {
+	return prisma.$transaction(async (tx) => {
+		const user = await tx.user.create({ data });
+		await tx.usernameClaim.create({ data: { username: user.username, userId: user.id } });
+		return user;
+	});
+}
+
 /** 用户主页详情所需的公开字段与统计信息。 */
 export function findUserDetailByUsername(username: string) {
 	return prisma.user.findUnique({

@@ -406,12 +406,16 @@ const spec = {
 							schema: {
 								type: 'object',
 								properties: {
-									username: { type: 'string', pattern: '^[A-Za-z0-9_]{3,20}$' },
+									username: {
+										type: 'string',
+										pattern: '^[A-Za-z0-9_]{3,20}$',
+										description: '可选；缺省时服务端分配唯一 u_xxxx 用户名。'
+									},
 									displayName: { type: 'string' },
 									email: { type: 'string', format: 'email' },
 									password: { type: 'string', minLength: 8, writeOnly: true }
 								},
-								required: ['username', 'email', 'password']
+								required: ['email', 'password']
 							}
 						}
 					}

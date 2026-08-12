@@ -64,7 +64,7 @@ const login = defineAction({
  */
 const register = defineAction({
 	input: z.object({
-		username: z.string().min(1, '用户名不能为空'),
+		username: z.string().optional(),
 		displayName: z.string().optional(),
 		email: z.string().min(1, '邮箱不能为空'),
 		password: z.string().min(1, '密码不能为空')

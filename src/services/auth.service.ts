@@ -4,17 +4,12 @@
  * 编排用户注册、登录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findUserByEmail, findUserByUsername, createUser } from '@/lib/user';
+import { findUserByEmail, createUserWithUsernameClaim } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
-import {
-	ALLOW_REGISTRATION,
-	USERNAME_PATTERN,
-	PASSWORD_MIN_LENGTH,
-	RESERVED_USERNAMES,
-	DISABLED_USER_MESSAGE
-} from '@/lib/config';
+import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '@/lib/config';
+import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,7 +40,7 @@ export async function getUserApiTokenCount(input: {
 // ── 类型定义 ──
 
 export interface RegisterUserInput {
-	username: string;
+	username?: string;
 	displayName?: string;
 	email: string;
 	password: string;
@@ -84,7 +79,7 @@ export interface LoginUserResult {
  * 哈希密码后创建用户。返回创建的用户信息（不含密码哈希）。
  */
 export async function registerUser(input: RegisterUserInput): Promise<RegisterUserResult> {
-	const { username, displayName, email, password } = input;
+	const { displayName, email, password } = input;
 
 	// 检查站点是否开放注册
 	if (!ALLOW_REGISTRATION) {
@@ -96,51 +91,50 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 		throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
 	}
 
-	// 校验用户名格式
-	if (!USERNAME_PATTERN.test(username)) {
-		throw new ServiceError('BAD_REQUEST', '用户名只能包含字母、数字和下划线，长度 3-20 个字符');
-	}
-
-	// 校验保留用户名
-	if (
-		RESERVED_USERNAMES.includes(username.toLowerCase() as (typeof RESERVED_USERNAMES)[number])
-	) {
-		throw new ServiceError('BAD_REQUEST', '该用户名为系统保留，无法使用');
-	}
-
 	// 校验密码长度
 	if (password.length < PASSWORD_MIN_LENGTH) {
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
 	}
 
-	// 检查邮箱和用户名是否已存在（合并提示，防止枚举攻击）
-	const [existingEmail, existingUsername] = await Promise.all([
-		findUserByEmail(email),
-		findUserByUsername(username)
-	]);
-	if (existingEmail || existingUsername) {
+	// 预检邮箱，用户名最终由唯一索引的 claim 原子裁决。
+	if (await findUserByEmail(email)) {
 		throw new ServiceError('BAD_REQUEST', '注册信息已存在，请更换邮箱或用户名');
 	}
 
 	// 哈希密码
 	const passwordHash = await hashPassword(password);
 
-	// 创建用户
-	const user = await createUser({
-		username,
-		displayName: displayName || username,
-		email,
-		passwordHash
-	});
+	const requestedUsername = input.username?.trim();
+	const candidates = requestedUsername ? [assertValidUsername(requestedUsername)] : [];
+	// 未指定时在小空间冲突下安全重试；四位无歧义随机后缀的冲突率极低。
+	for (let attempt = 0; attempt < 8; attempt++) {
+		const username = candidates[attempt] ?? generateUsernameCandidate();
+		try {
+			const user = await createUserWithUsernameClaim({
+				username,
+				displayName: displayName || username,
+				email,
+				passwordHash
+			});
+			return {
+				id: user.id,
+				username: user.username,
+				displayName: user.displayName,
+				avatarUrl: user.avatarUrl,
+				role: user.role,
+				email: user.email
+			};
+		} catch (error) {
+			if (!isUniqueConstraintError(error)) throw error;
+			if (requestedUsername || attempt === 7)
+				throw new ServiceError('BAD_REQUEST', '注册信息已存在，请更换邮箱或用户名');
+		}
+	}
+	throw new ServiceError('BAD_REQUEST', '无法分配用户名，请重试');
+}
 
-	return {
-		id: user.id,
-		username: user.username,
-		displayName: user.displayName,
-		avatarUrl: user.avatarUrl,
-		role: user.role,
-		email: user.email
-	};
+function isUniqueConstraintError(error: unknown): error is { code: string } {
+	return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }
 
 /**

@@ -9,6 +9,7 @@ import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { toggleFollow, checkFollowStatus } from '@/services/social.service';
 import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
+import { resolveUsername } from '@/lib/user';
 
 /** ServiceError code → HTTP 状态码映射 */
 const statusCodeMap: Record<string, number> = {
@@ -43,11 +44,19 @@ export const POST: APIRoute = async (context) => {
 		if (action !== 'follow' && action !== 'unfollow') {
 			return textErrorResponse('action 必须为 follow 或 unfollow');
 		}
+		const resolved = await resolveUsername(username.trim());
+		if (resolved?.isLegacy) {
+			return new Response(`redirect: /api/agent/users/${resolved.username}`, {
+				status: 308,
+				headers: { Location: `/api/agent/users/${encodeURIComponent(resolved.username)}` }
+			});
+		}
+		const targetUsername = resolved?.username ?? username.trim();
 
 		// 查询当前关注状态，仅在状态不匹配时才 toggle
 		const followStatus = await checkFollowStatus({
 			userId: currentUser.userId,
-			username: username.trim()
+			username: targetUsername
 		});
 		if (!followStatus) {
 			return textErrorResponse('用户不存在', 404);
@@ -65,7 +74,7 @@ export const POST: APIRoute = async (context) => {
 		try {
 			await toggleFollow({
 				userId: currentUser.userId,
-				username: username.trim()
+				username: targetUsername
 			});
 		} catch (e) {
 			if (e instanceof ServiceError) {

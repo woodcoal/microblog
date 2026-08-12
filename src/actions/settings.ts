@@ -14,7 +14,8 @@ import {
 	updateProfile as updateProfileService,
 	changePassword as changePasswordService,
 	uploadAvatar as uploadAvatarService,
-	updateCommentSort as updateCommentSortService
+	updateCommentSort as updateCommentSortService,
+	renameOwnUsername as renameOwnUsernameService
 } from '@/services/settings.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -100,6 +101,22 @@ const updateProfile = defineAction({
 			return await updateProfileService({
 				userId: currentUser.userId,
 				...input
+			});
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+const renameUsername = defineAction({
+	input: z.object({ username: z.string().min(1, '用户名不能为空') }),
+	handler: async (input, context) => {
+		const currentUser = await getUserFromRequest(context);
+		if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+		try {
+			return await renameOwnUsernameService({
+				userId: currentUser.userId,
+				username: input.username
 			});
 		} catch (e) {
 			handleServiceError(e);
@@ -222,6 +239,7 @@ export {
 	getSettings,
 	updateSettings,
 	updateProfile,
+	renameUsername,
 	changePassword,
 	uploadAvatar,
 	updateCommentSort

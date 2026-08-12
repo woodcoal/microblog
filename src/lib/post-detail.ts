@@ -6,6 +6,7 @@ import { getUserFromRequest } from '@/lib/auth';
 import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { checkPostVisibility } from '@/lib/visibility';
 import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS, getModeLabel } from '@/lib/config';
+import { resolveUsername } from '@/lib/user';
 
 export const POST_DETAIL_MODES = ['weibo', 'forum', 'blog'] as const;
 export type PostDetailMode = (typeof POST_DETAIL_MODES)[number];
@@ -29,6 +30,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 	// 路由参数
 	const { username, postId } = context.params;
 	if (!username || !postId) return null;
+	const resolvedUsername = await resolveUsername(username);
+	if (!resolvedUsername) return null;
 
 	// 查询帖子
 	const post = await prisma.post.findUnique({
@@ -98,7 +101,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 	});
 
 	// 帖子不存在或用户名不匹配则 404
-	if (!post || post.user.username !== username) {
+	if (!post || post.user.username !== resolvedUsername.username) {
 		return null;
 	}
 
@@ -334,75 +337,75 @@ export async function loadPostDetail(context: PostDetailContext) {
 	const relatedPosts = isForum
 		? []
 		: await prisma.post.findMany({
-			where: isWeibo
-				? {
-					id: { not: post.id },
-					userId: post.userId,
-					mode: 'weibo',
-					isDeleted: false,
-					visibility: 'public'
+				where: isWeibo
+					? {
+							id: { not: post.id },
+							userId: post.userId,
+							mode: 'weibo',
+							isDeleted: false,
+							visibility: 'public'
+						}
+					: {
+							id: { not: post.id },
+							mode: 'blog',
+							isDeleted: false,
+							visibility: 'public',
+							...(post.categoryId ? { categoryId: post.categoryId } : {})
+						},
+				orderBy: { createdAt: 'desc' },
+				take: 5,
+				select: {
+					id: true,
+					title: true,
+					content: true,
+					createdAt: true,
+					user: { select: { username: true, displayName: true } }
 				}
-				: {
-					id: { not: post.id },
-					mode: 'blog',
-					isDeleted: false,
-					visibility: 'public',
-					...(post.categoryId ? { categoryId: post.categoryId } : {})
-				},
-			orderBy: { createdAt: 'desc' },
-			take: 5,
-			select: {
-				id: true,
-				title: true,
-				content: true,
-				createdAt: true,
-				user: { select: { username: true, displayName: true } }
-			}
-		});
+			});
 	const relatedForums = isForum
 		? await prisma.category.findMany({
-			where: {
-				mode: 'forum',
-				...(post.categoryId ? { id: { not: post.categoryId } } : {})
-			},
-			orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-			take: 5,
-			select: { name: true, slug: true, description: true, icon: true }
-		})
+				where: {
+					mode: 'forum',
+					...(post.categoryId ? { id: { not: post.categoryId } } : {})
+				},
+				orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+				take: 5,
+				select: { name: true, slug: true, description: true, icon: true }
+			})
 		: [];
 
 	// 博客文章导航只链接作者公开、未删除的其他博客，避免在公开详情中暴露不可访问文章。
 	const [previousBlog, nextBlog] = isBlog
 		? await Promise.all([
-			prisma.post.findFirst({
-				where: {
-					userId: post.userId,
-					mode: 'blog',
-					isDeleted: false,
-					visibility: 'public',
-					OR: [
-						{ createdAt: { lt: post.createdAt } },
-						{ createdAt: post.createdAt, id: { lt: post.id } }
-					]
-				},
-				orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-				select: { id: true, title: true, content: true }
-			}),
-			prisma.post.findFirst({
-				where: {
-					userId: post.userId,
-					mode: 'blog',
-					isDeleted: false,
-					visibility: 'public',
-					OR: [
-						{ createdAt: { gt: post.createdAt } },
-						{ createdAt: post.createdAt, id: { gt: post.id } }
-					]
-				},
-				orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-				select: { id: true, title: true, content: true }
-			})
-		])
+				prisma.post.findFirst({
+					where: {
+						userId: post.userId,
+						mode: 'blog',
+						isDeleted: false,
+						visibility: 'public',
+						OR: [
+							{ createdAt: { lt: post.createdAt } },
+							{ createdAt: post.createdAt, id: { lt: post.id } }
+						]
+					},
+					orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+					select: { id: true, title: true, content: true }
+				}),
+				prisma.post.findFirst({
+					where: {
+						userId: post.userId,
+						mode: 'blog',
+						isDeleted: false,
+						visibility: 'public',
+						OR: [
+							{ createdAt: { gt: post.createdAt } },
+							{ createdAt: post.createdAt, id: { gt: post.id } }
+						]
+					},
+					orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+					select: { id: true, title: true, content: true }
+				})
+			])
 		: [null, null];
 	const blogCategoryLabel = post.customCategory ?? post.category?.name ?? getModeLabel('blog');
 
@@ -417,16 +420,16 @@ export async function loadPostDetail(context: PostDetailContext) {
 	let blogHeadingIndex = 0;
 	const detailHtmlContent = isBlog
 		? htmlContent.replace(
-			/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g,
-			(_match, level, attributes, content) => {
-				const id = `article-section-${blogHeadingIndex + 1}`;
-				blogHeadingIndex += 1;
-				const text = content.replace(/<[^>]+>/g, '').trim();
-				if (text) blogHeadings.push({ id, text, level: Number(level) });
-				const attributesWithoutId = attributes.replace(/\s+id=("[^"]*"|'[^']*')/i, '');
-				return `<h${level}${attributesWithoutId} id="${id}">${content}</h${level}>`;
-			}
-		)
+				/<h([2-3])([^>]*)>([\s\S]*?)<\/h\1>/g,
+				(_match, level, attributes, content) => {
+					const id = `article-section-${blogHeadingIndex + 1}`;
+					blogHeadingIndex += 1;
+					const text = content.replace(/<[^>]+>/g, '').trim();
+					if (text) blogHeadings.push({ id, text, level: Number(level) });
+					const attributesWithoutId = attributes.replace(/\s+id=("[^"]*"|'[^']*')/i, '');
+					return `<h${level}${attributesWithoutId} id="${id}">${content}</h${level}>`;
+				}
+			)
 		: htmlContent;
 	const hasBlogHeadings = blogHeadings.length > 0;
 	const visibilityLabel =
@@ -467,6 +470,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 		: undefined;
 
 	return {
+		redirectUsername: resolvedUsername.isLegacy ? post.user.username : null,
 		post,
 		currentUser,
 		isAuthor,

@@ -12,7 +12,14 @@
 import HomeLayout from '@/layouts/HomeLayout.astro';
 import { prisma } from '@/lib/db';
 import { getUserFromRequest } from '@/lib/auth';
-import { isSingleMode, singleMode, getModeLabel, isModeEnabled, SITE_TITLE } from '@/lib/config';
+import {
+	isSingleMode,
+	singleMode,
+	getModeLabel,
+	isModeEnabled,
+	MODE_LABELS,
+	SITE_TITLE
+} from '@/lib/config';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
 import { getRecommendationProfile, getTrendingFeed } from '@/services/recommend.service';
 
@@ -282,7 +289,11 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 								<span />
 							</>
 						</div>
-						<div class="recommend-preview-list" id="recommend-posts-list">
+						<div
+							class="recommend-preview-list"
+							id="recommend-posts-list"
+							data-mode-labels={JSON.stringify(MODE_LABELS)}
+						>
 							{Array.from({ length: 4 }).map(() => (
 								<div
 									class="recommend-skeleton recommend-post-skeleton"
@@ -1401,6 +1412,11 @@ const shouldShowInterestOnboarding = recommendationProfile?.onboardingCompletedA
 		const usersTitle = document.getElementById('recommend-users-title') as HTMLElement | null;
 		if (!postsPanel || !postsList || !postsStatus || !usersPanel || !usersList || !usersStatus)
 			return;
+		const modeLabels = JSON.parse(postsList.dataset.modeLabels ?? '{}') as Record<
+			string,
+			string
+		>;
+		const getModeLabel = (mode: string) => modeLabels[mode] ?? mode;
 		const postsPanelElement: HTMLElement = postsPanel;
 		const postsListElement: HTMLElement = postsList;
 		const postsStatusElement: HTMLElement = postsStatus;

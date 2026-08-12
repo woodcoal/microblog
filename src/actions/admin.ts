@@ -14,7 +14,8 @@ import {
 	batchComments as batchCommentsService,
 	queryAdminAuditLogs as queryAdminAuditLogsService,
 	toggleTagVisibility as toggleTagVisibilityService,
-	createUser as createUserService
+	createUser as createUserService,
+	renameUserByAdmin as renameUserByAdminService
 } from '@/services/admin.service';
 import { PASSWORD_MIN_LENGTH, USERNAME_PATTERN } from '@/lib/config';
 
@@ -93,6 +94,18 @@ const createUser = defineAction({
 
 		try {
 			return await createUserService(input);
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+const renameUser = defineAction({
+	input: z.object({ userId: z.string().min(1), username: z.string().min(1) }),
+	handler: async (input, context) => {
+		const currentUser = await requireAdmin(context);
+		try {
+			return await renameUserByAdminService({ ...input, operatorId: currentUser.userId });
 		} catch (e) {
 			handleServiceError(e);
 		}
@@ -249,6 +262,7 @@ const queryAdminAuditLogs = defineAction({
 export {
 	batchUsers,
 	createUser,
+	renameUser,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,

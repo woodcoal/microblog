@@ -15,13 +15,14 @@ Authorization: Bearer <token>
 Content-Type: application/json
 
 {
+  "username": "<可选；3-20字符，字母数字下划线；仅可自助改名一次>",
   "displayName": "<1-50字符，可选>",
   "bio": "<最多160字符，可选>",
   "avatarUrl": "<URL或null清除，可选>"
 }
 ```
 
-只更新传入的字段，未传入的保持不变。`avatarUrl: null` 会清除头像（服务端保存为空字符串）。
+只更新传入的字段，未传入的保持不变。`username` 只能自助修改一次，旧用户名永久保留并仅用于兼容跳转；`avatarUrl: null` 会清除头像（服务端保存为空字符串）。
 
 ### 读取个人记录
 

@@ -16,22 +16,32 @@ import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
 import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
+import { resolveUsername } from '@/lib/user';
 
 // 路由参数
 const { username } = Astro.params;
 
+const resolvedUsername = username ? await resolveUsername(username) : null;
+if (resolvedUsername?.isLegacy) {
+	const target = new URL(`/${resolvedUsername.username}`, Astro.url);
+	target.search = Astro.url.search;
+	return new Response(null, { status: 308, headers: { Location: target.toString() } });
+}
+
 // 查询用户信息
-const user = await prisma.user.findUnique({
-	where: { username },
-	select: {
-		id: true,
-		username: true,
-		displayName: true,
-		avatarUrl: true,
-		bio: true,
-		createdAt: true
-	}
-});
+const user = resolvedUsername
+	? await prisma.user.findUnique({
+			where: { username: resolvedUsername.username },
+			select: {
+				id: true,
+				username: true,
+				displayName: true,
+				avatarUrl: true,
+				bio: true,
+				createdAt: true
+			}
+		})
+	: null;
 
 // 用户不存在则 404
 if (!user) {

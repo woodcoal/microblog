@@ -1,7 +1,7 @@
 /** 列表右栏可消费的真实发现入口。 */
+import { getModeLabel } from '@/lib/config';
 import { prisma } from '@/lib/db';
 import { getTrendingFeed } from '@/services/recommend.service';
-import { getModeLabel } from '@/lib/config';
 
 export interface DiscoveryItem {
 	title: string;
@@ -29,7 +29,7 @@ export async function getPopularTagItems(
 	return tags.map((tag) => ({
 		title: `#${tag.name}`,
 		href: `/tags/${encodeURIComponent(tag.name)}`,
-		meta: `${tag._count.posts} ${getModeLabel(tag.mode)}`
+		meta: `${tag._count.posts} 条内容`
 	}));
 }
 

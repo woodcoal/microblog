@@ -7,7 +7,7 @@
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { updateProfile } from '@/services/settings.service';
+import { renameOwnUsername, updateProfile } from '@/services/settings.service';
 import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 /** ServiceError code → HTTP 状态码映射 */
@@ -25,13 +25,17 @@ export const PUT: APIRoute = async (context) => {
 		const currentUser = authResult;
 
 		const body = await parseJsonBody(context.request);
-		const { displayName, bio, avatarUrl } = body as {
+		const { username, displayName, bio, avatarUrl } = body as {
+			username?: string;
 			displayName?: string;
 			bio?: string;
 			avatarUrl?: string | null;
 		};
 
 		try {
+			if (username !== undefined) {
+				await renameOwnUsername({ userId: currentUser.userId, username });
+			}
 			await updateProfile({
 				userId: currentUser.userId,
 				displayName,

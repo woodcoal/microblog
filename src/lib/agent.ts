@@ -6,6 +6,7 @@
  */
 import type { APIContext } from 'astro';
 import { getUserFromBearerRequest, type JwtPayload } from '@/lib/auth';
+import { getModeLabel } from '@/lib/config';
 import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 
