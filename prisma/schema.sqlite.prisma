@@ -51,6 +51,24 @@ model User {
   usernameRenameActors  UsernameRenameAudit[] @relation("UsernameRenameActor")
   emailVerificationTokens EmailVerificationToken[]
   passwordResetTokens     PasswordResetToken[]
+  emailChangeTokens       EmailChangeToken[]
+}
+
+/// 邮箱换绑确认令牌。targetEmail 在确认前不修改 User.email。
+model EmailChangeToken {
+  id          String   @id @default(cuid())
+  userId      String
+  targetEmail String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt, revokedAt])
 }
 
 /// 密码重置令牌与邮箱验证令牌物理隔离；仅保存 SHA-256 摘要。

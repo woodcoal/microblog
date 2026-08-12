@@ -4,7 +4,7 @@
  * 编排用户注册、登录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findUserByEmail, createUserWithUsernameClaim } from '@/lib/user';
+import { findUserByEmail, findUserById, createUserWithUsernameClaim } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
@@ -12,6 +12,7 @@ import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '
 import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
 import { issueEmailVerificationToken } from '@/lib/email-verification';
 import { consumePasswordResetToken, requestPasswordReset } from '@/lib/password-reset';
+import { consumeEmailChangeToken, issueEmailChangeToken } from '@/lib/email-change';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -88,6 +89,41 @@ export async function resetPassword(input: { token: string; password: string }):
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
 	}
 	return consumePasswordResetToken(input.token, await hashPassword(input.password));
+}
+
+/**
+ * 验证当前密码后发起邮箱换绑。确认前不会改动登录邮箱；对于目标邮箱是否存在，
+ * 唯一索引会在确认事务中裁决，受理阶段不作可观测的预检。
+ */
+export async function requestEmailChange(input: {
+	userId: string;
+	currentPassword: string;
+	targetEmail: string;
+}): Promise<void> {
+	if (!EMAIL_PATTERN.test(input.targetEmail)) {
+		throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
+	}
+	const user = await findUserById(input.userId, {
+		id: true,
+		email: true,
+		passwordHash: true,
+		isDisabled: true,
+		emailVerifiedAt: true
+	});
+	if (!user || user.isDisabled || !user.emailVerifiedAt) {
+		throw new ServiceError('UNAUTHORIZED', '请先登录');
+	}
+	if (!(await verifyPassword(input.currentPassword, user.passwordHash))) {
+		throw new ServiceError('UNAUTHORIZED', '当前密码错误');
+	}
+	// 当前邮箱无需换绑，维持同一受理结果且不生成可被误用的新链接。
+	if (user.email === input.targetEmail) return;
+	await issueEmailChangeToken({ userId: user.id, targetEmail: input.targetEmail });
+}
+
+/** 无效、过期、重放、撤销及唯一性竞争都收敛为 false。 */
+export function confirmEmailChange(token: string): Promise<boolean> {
+	return consumeEmailChangeToken(token);
 }
 
 // ── 业务函数 ──
