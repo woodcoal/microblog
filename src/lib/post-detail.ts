@@ -7,6 +7,7 @@ import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { checkPostVisibility } from '@/lib/visibility';
 import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS, getModeLabel } from '@/lib/config';
 import { resolveUsername } from '@/lib/user';
+import { createGoneResponse, getCanonicalUrl } from '@/lib/seo';
 
 export const POST_DETAIL_MODES = ['weibo', 'forum', 'blog'] as const;
 export type PostDetailMode = (typeof POST_DETAIL_MODES)[number];
@@ -23,6 +24,16 @@ export class UnknownPostDetailModeError extends Error {
 	}
 }
 
+/** 详情路由将已删除内容转换为无身份信息的 410 响应。 */
+export class PostDetailGoneError extends Error {
+	readonly response = createGoneResponse();
+
+	constructor() {
+		super('Post detail is permanently unavailable');
+		this.name = 'PostDetailGoneError';
+	}
+}
+
 export const getAsideExcerpt = (content: string, length: number) =>
 	content.replace(/[#*`>\-[\]()!]/g, '').slice(0, length);
 
@@ -34,8 +45,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 	if (!resolvedUsername) return null;
 
 	// 查询帖子
-	const post = await prisma.post.findFirst({
-		where: { id: postId, user: { deletedAt: null } },
+	const post = await prisma.post.findUnique({
+		where: { id: postId },
 		include: {
 			user: {
 				select: {
@@ -44,6 +55,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 					displayName: true,
 					avatarUrl: true,
 					bio: true,
+					deletedAt: true,
 					_count: {
 						select: {
 							posts: { where: { isDeleted: false } },
@@ -104,6 +116,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 	if (!post || post.user.username !== resolvedUsername.username) {
 		return null;
 	}
+	if (post.user.deletedAt || post.isDeleted) throw new PostDetailGoneError();
 
 	// 获取当前登录用户
 	const currentUser = await getUserFromRequest(context);
@@ -362,13 +375,15 @@ export async function loadPostDetail(context: PostDetailContext) {
 							userId: post.userId,
 							mode: 'weibo',
 							isDeleted: false,
-							visibility: 'public'
+							visibility: 'public',
+							user: { deletedAt: null }
 						}
 					: {
 							id: { not: post.id },
 							mode: 'blog',
 							isDeleted: false,
 							visibility: 'public',
+							user: { deletedAt: null },
 							...(post.categoryId ? { categoryId: post.categoryId } : {})
 						},
 				orderBy: { createdAt: 'desc' },
@@ -402,6 +417,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 						mode: 'blog',
 						isDeleted: false,
 						visibility: 'public',
+						user: { deletedAt: null },
 						OR: [
 							{ createdAt: { lt: post.createdAt } },
 							{ createdAt: post.createdAt, id: { lt: post.id } }
@@ -416,6 +432,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 						mode: 'blog',
 						isDeleted: false,
 						visibility: 'public',
+						user: { deletedAt: null },
 						OR: [
 							{ createdAt: { gt: post.createdAt } },
 							{ createdAt: post.createdAt, id: { gt: post.id } }
@@ -466,27 +483,26 @@ export async function loadPostDetail(context: PostDetailContext) {
 	const hasTitle = !!post.title;
 
 	// 页面标题：根据模式不同显示不同格式
-	const seoTitle = isDeleted
-		? '该内容已删除'
+	const isNotPublic = post.visibility !== 'public' || isDeleted;
+	const seoTitle = isNotPublic
+		? '非公开内容'
 		: isForum || isBlog
 			? post.title || `${post.user.displayName}的帖子`
 			: `${post.user.displayName}的${getModeLabel('weibo')}`;
 
 	// 页面描述：帖子内容前 100 字符，去除 Markdown 标记
-	const seoDescription = isDeleted
-		? '该内容已删除'
+	const seoDescription = isNotPublic
+		? '此内容仅限授权访问。'
 		: post.content.replace(/[#*`>\-[\]()!]/g, '').slice(0, 100);
 
 	// 规范链接
-	const canonicalUrl = `${SITE_URL}/${post.user.username}/${post.id}`;
-
-	// 是否为非公开帖子（需要 noindex）
-	const isNotPublic = post.visibility !== 'public';
+	const canonicalUrl = getCanonicalUrl(`/${post.user.username}/${post.id}`);
 
 	// OG 图片：取帖子第一张图片，无图片时不设置
-	const ogImageUrl = hasImages
-		? `${SITE_URL}/uploads/${images[0].fileStorage.filePath}`
-		: undefined;
+	const ogImageUrl =
+		!isNotPublic && hasImages
+			? `${SITE_URL}/uploads/${images[0].fileStorage.filePath}`
+			: undefined;
 
 	return {
 		redirectUsername: resolvedUsername.isLegacy ? post.user.username : null,
@@ -542,7 +558,9 @@ export async function loadPostDetail(context: PostDetailContext) {
 export type PostDetailModel = NonNullable<Awaited<ReturnType<typeof loadPostDetail>>>;
 
 /** Keep canonical article metadata identical across the three internal views. */
-export function getPostDetailJsonLd(model: PostDetailModel) {
+
+export function getPostDetailJsonLd(model: PostDetailModel): Record<string, unknown> | undefined {
+	if (model.isNotPublic) return undefined;
 	return {
 		'@context': 'https://schema.org',
 		'@type': 'Article',

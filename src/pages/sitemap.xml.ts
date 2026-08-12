@@ -12,7 +12,8 @@
  */
 import type { APIRoute } from 'astro';
 import { prisma } from '@/lib/db';
-import { SITE_URL } from '@/lib/config';
+import { SITE_MODES } from '@/lib/config';
+import { getCanonicalUrl } from '@/lib/seo';
 
 /**
  * GET 请求处理函数
@@ -25,7 +26,11 @@ import { SITE_URL } from '@/lib/config';
 export const GET: APIRoute = async () => {
 	// 查询所有公开且未删除的帖子，用于生成帖子详情页 URL
 	const posts = await prisma.post.findMany({
-		where: { visibility: 'public', isDeleted: false, user: { deletedAt: null } },
+		where: {
+			visibility: 'public',
+			isDeleted: false,
+			user: { deletedAt: null, isDisabled: false }
+		},
 		select: {
 			id: true,
 			userId: true,
@@ -40,23 +45,31 @@ export const GET: APIRoute = async () => {
 		select: { username: true, updatedAt: true }
 	});
 
-	// 收集所有 URL 条目
-	const urls = [];
+	const urls: Array<{
+		loc: string;
+		changefreq: 'always' | 'daily' | 'weekly' | 'monthly';
+		priority: string;
+		lastmod?: string;
+	}> = [];
 
 	// 首页 - 最高优先级，每日更新
-	urls.push({ loc: SITE_URL, changefreq: 'daily', priority: '1.0' });
+	urls.push({ loc: getCanonicalUrl('/'), changefreq: 'daily', priority: '1.0' });
 
 	// 最新页 - 持续更新，较高优先级
 	urls.push({
-		loc: `${SITE_URL}/latest`,
+		loc: getCanonicalUrl('/latest'),
 		changefreq: 'always',
 		priority: '0.8'
 	});
 
+	for (const mode of SITE_MODES) {
+		urls.push({ loc: getCanonicalUrl(`/${mode}`), changefreq: 'daily', priority: '0.8' });
+	}
+
 	// 用户主页 - 每日更新
 	for (const user of users) {
 		urls.push({
-			loc: `${SITE_URL}/${user.username}`,
+			loc: getCanonicalUrl(`/${user.username}`),
 			changefreq: 'daily',
 			priority: '0.7',
 			lastmod: user.updatedAt.toISOString().split('T')[0]
@@ -66,7 +79,7 @@ export const GET: APIRoute = async () => {
 	// 帖子详情页 - 每周更新
 	for (const post of posts) {
 		urls.push({
-			loc: `${SITE_URL}/${post.user.username}/${post.id}`,
+			loc: getCanonicalUrl(`/${post.user.username}/${post.id}`),
 			changefreq: 'weekly',
 			priority: '0.6',
 			lastmod: post.updatedAt.toISOString().split('T')[0]
