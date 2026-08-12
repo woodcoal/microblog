@@ -421,7 +421,7 @@ const spec = {
 					}
 				},
 				responses: {
-					201: successResponse('注册成功', '#/components/schemas/AuthUser'),
+					202: successResponse('注册请求已受理；不会披露邮箱是否已注册'),
 					400: commonResponses[400],
 					403: commonResponses[403],
 					500: commonResponses[500]

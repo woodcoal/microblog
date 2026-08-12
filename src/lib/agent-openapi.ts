@@ -82,9 +82,9 @@ export function createAgentOpenApiSpec() {
 						}
 					},
 					responses: {
-						201: plainText(
-							'注册成功，需先验证邮箱',
-							'ok: 请检查邮箱并完成验证（用户名：u_xxxx）'
+						202: plainText(
+							'注册请求已受理；不会披露邮箱是否已注册',
+							'ok: 若邮箱可用，验证邮件已发送'
 						),
 						400: errors[400],
 						403: plainText('注册已关闭', 'error: 注册已关闭'),

@@ -12,15 +12,22 @@ const password = 'username-lifecycle-password';
 after(async () => prisma.$disconnect());
 
 test('缺省用户名生成唯一 u_xxxx，并将显式用户名归一化后永久占用', async () => {
-	const generated = await registerUser({ email: `${unique('mail')}@example.test`, password });
+	const generatedResult = await registerUser({
+		email: `${unique('mail')}@example.test`,
+		password
+	});
+	assert.ok(generatedResult.user);
+	const generated = generatedResult.user;
 	assert.match(generated.username, /^u_[abcdefghjkmnpqrstuvwxyz23456789]{4}$/);
 
 	const requested = unique('mixed').toUpperCase();
-	const registered = await registerUser({
+	const registeredResult = await registerUser({
 		username: requested,
 		email: `${unique('mail')}@example.test`,
 		password
 	});
+	assert.ok(registeredResult.user);
+	const registered = registeredResult.user;
 	assert.equal(registered.username, requested.toLowerCase());
 	assert.equal(
 		await prisma.usernameClaim.count({
@@ -31,16 +38,20 @@ test('缺省用户名生成唯一 u_xxxx，并将显式用户名归一化后永�
 });
 
 test('自助改名只能一次；管理员改名不消耗额度；旧名保持占用且只解析为兼容路由', async () => {
-	const user = await registerUser({
+	const userResult = await registerUser({
 		username: unique('user'),
 		email: `${unique('mail')}@example.test`,
 		password
 	});
-	const admin = await registerUser({
+	const adminResult = await registerUser({
 		username: unique('admin'),
 		email: `${unique('mail')}@example.test`,
 		password
 	});
+	assert.ok(userResult.user);
+	assert.ok(adminResult.user);
+	const user = userResult.user;
+	const admin = adminResult.user;
 	await prisma.user.update({ where: { id: admin.id }, data: { role: 'admin' } });
 
 	const firstName = unique('first');
@@ -69,13 +80,11 @@ test('自助改名只能一次；管理员改名不消耗额度；旧名保持�
 		isLegacy: false
 	});
 	assert.equal((await findMentionedUserIds([user.username], admin.id)).length, 0);
-	await assert.rejects(
-		registerUser({
-			username: user.username,
-			email: `${unique('mail')}@example.test`,
-			password
-		}),
-		/注册信息已存在/
-	);
+	const collision = await registerUser({
+		username: user.username,
+		email: `${unique('mail')}@example.test`,
+		password
+	});
+	assert.deepEqual(collision, { accepted: true, user: null });
 	assert.equal(await prisma.usernameRenameAudit.count({ where: { userId: user.id } }), 2);
 });

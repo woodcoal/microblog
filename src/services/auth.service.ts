@@ -14,6 +14,7 @@ import { issueEmailVerificationToken } from '@/lib/email-verification';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const REGISTER_RESPONSE_MINIMUM_MS = 250;
 
 // ── Agent API 专用查询函数 ──
 
@@ -48,12 +49,15 @@ export interface RegisterUserInput {
 }
 
 export interface RegisterUserResult {
-	id: string;
-	username: string;
-	displayName: string;
-	avatarUrl: string | null;
-	role: string;
-	verificationPending: true;
+	accepted: true;
+	/** 仅供服务层内部测试和后续编排使用，HTTP/Astro Action 不得序列化此字段。 */
+	user: {
+		id: string;
+		username: string;
+		displayName: string;
+		avatarUrl: string | null;
+		role: string;
+	} | null;
 }
 
 export interface LoginUserInput {
@@ -76,11 +80,12 @@ export interface LoginUserResult {
 /**
  * 注册用户
  *
- * 校验注册开关、邮箱格式、用户名格式、保留词、密码长度、唯一性，
- * 哈希密码后创建待验证用户并发起一次性验证邮件。返回信息不含密码哈希与邮箱。
+ * 校验注册开关、邮箱格式、用户名格式、保留词和密码长度。无论邮箱是否已存在，
+ * 均执行相同的密码哈希和写入尝试；外层入口只能返回统一的已受理语义，避免枚举。
  */
 export async function registerUser(input: RegisterUserInput): Promise<RegisterUserResult> {
 	const { displayName, email, password } = input;
+	const startedAt = performance.now();
 
 	// 检查站点是否开放注册
 	if (!ALLOW_REGISTRATION) {
@@ -97,12 +102,8 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
 	}
 
-	// 预检邮箱，用户名最终由唯一索引的 claim 原子裁决。
-	if (await findUserByEmail(email)) {
-		throw new ServiceError('BAD_REQUEST', '注册信息已存在，请更换邮箱或用户名');
-	}
-
-	// 哈希密码
+	// 不预检邮箱。预检会让已存在邮箱少走哈希/事务路径，制造可测量的枚举侧信道。
+	// 唯一索引是最终裁决者，任何冲突都映射为同一个已受理结果。
 	const passwordHash = await hashPassword(password);
 
 	const requestedUsername = input.username?.trim();
@@ -118,25 +119,43 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 				passwordHash
 			});
 			await issueEmailVerificationToken(user);
-			return {
-				id: user.id,
-				username: user.username,
-				displayName: user.displayName,
-				avatarUrl: user.avatarUrl,
-				role: user.role,
-				verificationPending: true
-			};
+			return await completeRegistration(startedAt, {
+				accepted: true,
+				user: {
+					id: user.id,
+					username: user.username,
+					displayName: user.displayName,
+					avatarUrl: user.avatarUrl,
+					role: user.role
+				}
+			});
 		} catch (error) {
 			if (!isUniqueConstraintError(error)) throw error;
-			if (requestedUsername || attempt === 7)
-				throw new ServiceError('BAD_REQUEST', '注册信息已存在，请更换邮箱或用户名');
+			if (requestedUsername || isEmailUniqueConstraintError(error) || attempt === 7)
+				return completeRegistration(startedAt, { accepted: true, user: null });
 		}
 	}
-	throw new ServiceError('BAD_REQUEST', '无法分配用户名，请重试');
+	return completeRegistration(startedAt, { accepted: true, user: null });
+}
+
+/** 将常见注册路径收敛到同一最小时长，降低唯一约束分支的可观测差异。 */
+async function completeRegistration(
+	startedAt: number,
+	result: RegisterUserResult
+): Promise<RegisterUserResult> {
+	const remaining = REGISTER_RESPONSE_MINIMUM_MS - (performance.now() - startedAt);
+	if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+	return result;
 }
 
 function isUniqueConstraintError(error: unknown): error is { code: string } {
 	return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
+}
+
+function isEmailUniqueConstraintError(error: unknown): boolean {
+	if (typeof error !== 'object' || error === null || !('meta' in error)) return false;
+	const target = (error as { meta?: { target?: unknown } }).meta?.target;
+	return Array.isArray(target) && target.some((field) => field === 'email');
 }
 
 /**

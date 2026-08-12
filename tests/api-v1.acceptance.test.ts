@@ -120,14 +120,14 @@ before(async () => {
 				password
 			})
 		});
-		assert.equal(response.status, 201);
-		const body = await json<{ username: string; verificationPending: boolean; id: string }>(
-			response
-		);
-		assert.equal(body.username, username);
-		assert.equal(body.verificationPending, true);
-		if (username === alice) aliceId = body.id;
-		await prisma.user.update({ where: { id: body.id }, data: { emailVerifiedAt: new Date() } });
+		assert.equal(response.status, 202);
+		assert.deepEqual(await json(response), {
+			accepted: true,
+			message: '若邮箱可用，验证邮件已发送'
+		});
+		const user = await prisma.user.findUniqueOrThrow({ where: { username } });
+		if (username === alice) aliceId = user.id;
+		await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
 	}
 
 	apiToken = `mt_${RUN_ID.padEnd(32, '0').slice(0, 32)}`;
@@ -220,6 +220,24 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 	]);
 });
 
+test('注册对已存在与不存在邮箱返回完全一致的受理语义', async () => {
+	const email = `registration-enum-${RUN_ID}@example.test`;
+	const payload = { email, password };
+	const first = await request('/api/v1/auth/register', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload)
+	});
+	const second = await request('/api/v1/auth/register', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify(payload)
+	});
+	assert.equal(first.status, 202);
+	assert.equal(second.status, first.status);
+	assert.deepEqual(await json(second), await json(first));
+});
+
 test('邮箱验证 API 统一拒绝无效令牌，并在有效令牌被消费后激活账号', async () => {
 	const email = `verify_${RUN_ID}@example.test`;
 	const registered = await request('/api/v1/auth/register', {
@@ -227,12 +245,12 @@ test('邮箱验证 API 统一拒绝无效令牌，并在有效令牌被消费后
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ email, password })
 	});
-	assert.equal(registered.status, 201);
-	const pending = await json<{ id: string; verificationPending: boolean; email?: unknown }>(
-		registered
-	);
-	assert.equal(pending.verificationPending, true);
-	assert.equal(pending.email, undefined);
+	assert.equal(registered.status, 202);
+	assert.deepEqual(await json(registered), {
+		accepted: true,
+		message: '若邮箱可用，验证邮件已发送'
+	});
+	const pending = await prisma.user.findUniqueOrThrow({ where: { email } });
 	const invalid = await request('/api/v1/auth/verify-email', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
