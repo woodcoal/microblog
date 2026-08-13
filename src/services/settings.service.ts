@@ -7,6 +7,7 @@
 import { findUserSettings, upsertUserSettings } from '@/lib/settings';
 import { findUserById, updateUser } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
+import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
 import { uploadFile as uploadFileService } from '@/services/media.service';
@@ -265,9 +266,38 @@ export async function changePassword(input: ChangePasswordInput): Promise<{ mess
 		throw new ServiceError('BAD_REQUEST', '旧密码不正确');
 	}
 
-	// 生成新密码哈希并更新
+	// 生成新密码哈希
 	const newPasswordHash = await hashPassword(newPassword);
-	await updateUser(userId, { passwordHash: newPasswordHash });
+
+	// 在同一事务中更新密码、递增 credentialVersion 使旧 JWT 立即失效，
+	// 并撤销 API Token 和 Webhook，与密码重置/邮箱换绑路径保持一致。
+	const now = new Date();
+	await prisma.$transaction(async (tx) => {
+		await tx.user.update({
+			where: { id: userId },
+			data: { passwordHash: newPasswordHash, credentialVersion: { increment: 1 } }
+		});
+		await tx.apiToken.deleteMany({ where: { userId } });
+		await tx.webhook.deleteMany({ where: { userId } });
+		// 撤销尚未消费的密码重置和邮箱换绑令牌，防止旧令牌在密码变更后被利用
+		await tx.passwordResetToken.updateMany({
+			where: { userId, consumedAt: null, revokedAt: null },
+			data: { revokedAt: now }
+		});
+		await tx.emailChangeToken.updateMany({
+			where: { userId, consumedAt: null, revokedAt: null },
+			data: { revokedAt: now }
+		});
+		await tx.activityLog.create({
+			data: {
+				action: 'auth.password_change',
+				actorId: userId,
+				targetType: 'user',
+				targetId: userId,
+				targetUserId: userId
+			}
+		});
+	});
 
 	return { message: '密码修改成功' };
 }

@@ -1,0 +1,17 @@
+# 强制文本文件使用 LF 换行，与 Prettier endOfLine: lf 保持一致
+# Windows 开发者无需修改 core.autocrlf 即可通过 format:check
+* text=auto eol=lf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
