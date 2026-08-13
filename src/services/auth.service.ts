@@ -4,7 +4,7 @@
  * 编排用户注册、登录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findUserByEmail, findUserById, createUserWithUsernameClaim } from '@/lib/user';
+import { findUserByEmail, findUserById, createFirstAdminOrUser } from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
@@ -13,6 +13,10 @@ import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
 import { issueEmailVerificationToken } from '@/lib/email-verification';
 import { consumePasswordResetToken, requestPasswordReset } from '@/lib/password-reset';
 import { consumeEmailChangeToken, issueEmailChangeToken } from '@/lib/email-change';
+import {
+	assertEmailOwnershipEnabled,
+	assertUserMayAuthenticate
+} from '@/services/email-policy.service';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -79,12 +83,14 @@ export interface LoginUserResult {
 }
 
 export async function requestPasswordResetForEmail(email: string): Promise<void> {
+	await assertEmailOwnershipEnabled('reset');
 	// 即使格式不合法也保持对外成功语义；避免将请求端校验变成探测辅助信息。
 	if (!EMAIL_PATTERN.test(email)) return;
 	await requestPasswordReset(email);
 }
 
 export async function resetPassword(input: { token: string; password: string }): Promise<boolean> {
+	await assertEmailOwnershipEnabled('reset');
 	if (input.password.length < PASSWORD_MIN_LENGTH) {
 		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
 	}
@@ -100,6 +106,7 @@ export async function requestEmailChange(input: {
 	currentPassword: string;
 	targetEmail: string;
 }): Promise<void> {
+	await assertEmailOwnershipEnabled();
 	if (!EMAIL_PATTERN.test(input.targetEmail)) {
 		throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
 	}
@@ -124,7 +131,7 @@ export async function requestEmailChange(input: {
 
 /** 无效、过期、重放、撤销及唯一性竞争都收敛为 false。 */
 export function confirmEmailChange(token: string): Promise<boolean> {
-	return consumeEmailChangeToken(token);
+	return assertEmailOwnershipEnabled().then(() => consumeEmailChangeToken(token));
 }
 
 // ── 业务函数 ──
@@ -164,13 +171,13 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 	for (let attempt = 0; attempt < 8; attempt++) {
 		const username = candidates[attempt] ?? generateUsernameCandidate();
 		try {
-			const user = await createUserWithUsernameClaim({
+			const user = await createFirstAdminOrUser({
 				username,
 				displayName: displayName || username,
 				email,
 				passwordHash
 			});
-			await issueEmailVerificationToken(user);
+			if (user.emailVerificationRequired) await issueEmailVerificationToken(user);
 			return await completeRegistration(startedAt, {
 				accepted: true,
 				user: {
@@ -183,6 +190,8 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 			});
 		} catch (error) {
 			if (!isUniqueConstraintError(error)) throw error;
+			// 首位管理员竞争失败时先前事务已完整回滚；下轮安全作为普通注册重试。
+			if (attempt === 0) continue;
 			if (requestedUsername || isEmailUniqueConstraintError(error) || attempt === 7)
 				return completeRegistration(startedAt, { accepted: true, user: null });
 		}
@@ -234,9 +243,7 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 	if (user.isDisabled || user.deletedAt) {
 		throw new ServiceError('FORBIDDEN', DISABLED_USER_MESSAGE);
 	}
-	if (!user.emailVerifiedAt) {
-		throw new ServiceError('FORBIDDEN', '请先完成邮箱验证');
-	}
+	await assertUserMayAuthenticate(user);
 
 	return {
 		id: user.id,

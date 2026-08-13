@@ -7,7 +7,9 @@ const statusByCode = {
 	BAD_REQUEST: 400,
 	UNAUTHORIZED: 401,
 	FORBIDDEN: 403,
-	NOT_FOUND: 404
+	NOT_FOUND: 404,
+	EMAIL_OWNERSHIP_DISABLED: 403,
+	SMTP_CONFIGURATION_INVALID: 400
 } as const;
 type ErrorCode = keyof typeof statusByCode | 'INTERNAL_ERROR';
 

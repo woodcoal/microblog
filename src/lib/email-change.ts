@@ -7,11 +7,10 @@ import { prisma } from '@/lib/db';
 import {
 	EMAIL_CHANGE_RESEND_COOLDOWN_SECONDS,
 	EMAIL_CHANGE_TOKEN_TTL_MINUTES,
-	MAIL_DELIVERY_MODE,
-	MAIL_DELIVERY_WEBHOOK_AUTHORIZATION,
-	MAIL_DELIVERY_WEBHOOK_URL,
 	SITE_URL
 } from '@/lib/config';
+import { assertEmailOwnershipEnabled } from '@/services/email-policy.service';
+import { deliverMail } from '@/services/mail-delivery.service';
 
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
@@ -27,31 +26,6 @@ function emailChangeUrl(token: string): string {
 	return new URL(`/change-email?token=${encodeURIComponent(token)}`, SITE_URL).toString();
 }
 
-/** 使用与既有验证邮件相同的受信任 webhook 投递边界。 */
-async function deliverEmailChangeEmail(email: string, token: string): Promise<void> {
-	if (MAIL_DELIVERY_MODE === 'disabled' || MAIL_DELIVERY_MODE === 'test') return;
-	if (MAIL_DELIVERY_MODE !== 'webhook' || !MAIL_DELIVERY_WEBHOOK_URL) {
-		throw new Error('邮件投递未配置');
-	}
-
-	const response = await fetch(MAIL_DELIVERY_WEBHOOK_URL, {
-		method: 'POST',
-		headers: {
-			'content-type': 'application/json',
-			...(MAIL_DELIVERY_WEBHOOK_AUTHORIZATION
-				? { authorization: MAIL_DELIVERY_WEBHOOK_AUTHORIZATION }
-				: {})
-		},
-		body: JSON.stringify({
-			to: email,
-			template: 'change-email',
-			confirmationUrl: emailChangeUrl(token)
-		}),
-		signal: AbortSignal.timeout(10_000)
-	});
-	if (!response.ok) throw new Error('邮件投递失败');
-}
-
 /**
  * 轮换当前用户尚未消费的换绑令牌。重发冷却按用户而不是邮箱计数，避免
  * 攻击者借由不同目标邮箱绕过频率限制；目标邮箱是否已经归属他人不会影响受理语义。
@@ -60,6 +34,7 @@ export async function issueEmailChangeToken(input: {
 	userId: string;
 	targetEmail: string;
 }): Promise<void> {
+	await assertEmailOwnershipEnabled();
 	const latest = await prisma.emailChangeToken.findFirst({
 		where: { userId: input.userId },
 		orderBy: { createdAt: 'desc' },
@@ -89,7 +64,11 @@ export async function issueEmailChangeToken(input: {
 	});
 
 	// 投递不改变端点受理语义，也不得泄漏目标邮箱或令牌到日志。
-	void deliverEmailChangeEmail(input.targetEmail, token).catch(() => {});
+	void deliverMail({
+		to: input.targetEmail,
+		template: 'change-email',
+		confirmationUrl: emailChangeUrl(token)
+	}).catch(() => {});
 }
 
 function isEmailUniqueConstraintError(error: unknown): boolean {
@@ -102,6 +81,7 @@ function isEmailUniqueConstraintError(error: unknown): boolean {
  * 无效、过期、重放、撤销与确认时邮箱竞争，防止通过确认入口枚举目标邮箱状态。
  */
 export async function consumeEmailChangeToken(token: string): Promise<boolean> {
+	await assertEmailOwnershipEnabled();
 	const tokenHash = hashEmailChangeToken(token);
 	if (!SHA256_HEX.test(tokenHash)) return false;
 

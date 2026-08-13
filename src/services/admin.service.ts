@@ -407,6 +407,8 @@ export async function queryAdminAuditLogs(input: QueryAdminAuditLogsInput): Prom
 
 export async function createUser(input: CreateUserInput): Promise<CreateUserResult> {
 	const { displayName, email, password, role = 'user' } = input;
+	if (role !== 'user')
+		throw new ServiceError('FORBIDDEN', '管理员资格仅可由首位有效注册用户获得');
 	const username = assertValidUsername(input.username);
 	if (!EMAIL_PATTERN.test(email)) throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
 	if (password.length < PASSWORD_MIN_LENGTH)
