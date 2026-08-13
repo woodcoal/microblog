@@ -148,6 +148,97 @@ const mailDeliveryMode = configuration.mailDeliveryMode;
 				</div>
 			</fieldset>
 
+			<hr class="admin-form-divider" />
+
+			<fieldset class="admin-fieldset">
+				<legend>邮件模板</legend>
+				<p class="admin-fieldset-desc">
+					自定义三种令牌邮件的主题和正文。留空使用内置默认值。正文支持占位符 <code
+						>&#123;&#123;url&#125;&#125;</code
+					>（链接）和 <code>&#123;&#123;subject&#125;&#125;</code>（主题）。
+				</p>
+
+				<div class="admin-form-grid">
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="tpl-verify-subject"
+							>验证邮箱 · 主题</label
+						>
+						<input
+							id="tpl-verify-subject"
+							type="text"
+							class="admin-form-input"
+							placeholder="验证邮箱"
+							value={configuration.mailTemplates.verifyEmail.subject}
+						/>
+						<label class="admin-form-label admin-form-label-mt" for="tpl-verify-body"
+							>验证邮箱 · 正文</label
+						>
+						<textarea
+							id="tpl-verify-body"
+							class="admin-form-input admin-form-textarea"
+							rows="4"
+							placeholder="验证邮箱链接：
+{{url}}
+
+如非本人操作，请忽略此邮件。"
+							>{configuration.mailTemplates.verifyEmail.body}</textarea
+						>
+					</div>
+
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="tpl-reset-subject"
+							>重置密码 · 主题</label
+						>
+						<input
+							id="tpl-reset-subject"
+							type="text"
+							class="admin-form-input"
+							placeholder="重置密码"
+							value={configuration.mailTemplates.passwordReset.subject}
+						/>
+						<label class="admin-form-label admin-form-label-mt" for="tpl-reset-body"
+							>重置密码 · 正文</label
+						>
+						<textarea
+							id="tpl-reset-body"
+							class="admin-form-input admin-form-textarea"
+							rows="4"
+							placeholder="重置密码链接：
+{{url}}
+
+如非本人操作，请忽略此邮件。"
+							>{configuration.mailTemplates.passwordReset.body}</textarea
+						>
+					</div>
+
+					<div class="admin-form-group">
+						<label class="admin-form-label" for="tpl-change-subject"
+							>换绑邮箱 · 主题</label
+						>
+						<input
+							id="tpl-change-subject"
+							type="text"
+							class="admin-form-input"
+							placeholder="确认邮箱换绑"
+							value={configuration.mailTemplates.changeEmail.subject}
+						/>
+						<label class="admin-form-label admin-form-label-mt" for="tpl-change-body"
+							>换绑邮箱 · 正文</label
+						>
+						<textarea
+							id="tpl-change-body"
+							class="admin-form-input admin-form-textarea"
+							rows="4"
+							placeholder="确认邮箱换绑链接：
+{{url}}
+
+如非本人操作，请忽略此邮件。"
+							>{configuration.mailTemplates.changeEmail.body}</textarea
+						>
+					</div>
+				</div>
+			</fieldset>
+
 			<div class="admin-form-actions">
 				<button id="smtp-test" type="button" class="admin-btn">测试连接</button>
 				<button id="email-settings-save" type="submit" class="admin-btn admin-btn-primary"
@@ -194,6 +285,26 @@ const mailDeliveryMode = configuration.mailDeliveryMode;
 				clearPassword: data.get('clearPassword') === 'on',
 				fromName: String(data.get('fromName') ?? '').trim(),
 				fromAddress: String(data.get('fromAddress') ?? '').trim()
+			},
+			mailTemplates: {
+				verifyEmail: {
+					subject: (
+						document.getElementById('tpl-verify-subject') as HTMLInputElement
+					).value.trim(),
+					body: (document.getElementById('tpl-verify-body') as HTMLTextAreaElement).value
+				},
+				passwordReset: {
+					subject: (
+						document.getElementById('tpl-reset-subject') as HTMLInputElement
+					).value.trim(),
+					body: (document.getElementById('tpl-reset-body') as HTMLTextAreaElement).value
+				},
+				changeEmail: {
+					subject: (
+						document.getElementById('tpl-change-subject') as HTMLInputElement
+					).value.trim(),
+					body: (document.getElementById('tpl-change-body') as HTMLTextAreaElement).value
+				}
 			}
 		};
 	}

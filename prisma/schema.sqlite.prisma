@@ -64,6 +64,13 @@ model User {
 model SystemConfig {
   id                       String  @id
   emailOwnershipEnabled    Boolean @default(true)
+  // 邮件模板主题；留空使用内置默认值。
+  mailSubjectVerifyEmail   String  @default("")
+  mailBodyVerifyEmail      String  @default("")
+  mailSubjectPasswordReset String  @default("")
+  mailBodyPasswordReset    String  @default("")
+  mailSubjectChangeEmail   String  @default("")
+  mailBodyChangeEmail      String  @default("")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }

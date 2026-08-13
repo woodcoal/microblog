@@ -15,6 +15,70 @@ import { ServiceError } from '@/lib/errors';
 
 const GLOBAL_ID = 'global';
 const SMTP_TIMEOUT = 10_000;
+
+/** 三种令牌邮件类型。 */
+export type MailTemplateKey = 'verify_email' | 'password_reset' | 'change_email';
+
+/** 邮件模板：主题 + 正文。正文支持占位符 {{url}} 和 {{subject}}。 */
+export interface MailTemplate {
+	subject: string;
+	body: string;
+}
+
+/** 内置默认模板；管理员未自定义时使用。 */
+const DEFAULT_TEMPLATES: Record<MailTemplateKey, MailTemplate> = {
+	verify_email: {
+		subject: '验证邮箱',
+		body: '验证邮箱链接：\n{{url}}\n\n如非本人操作，请忽略此邮件。'
+	},
+	password_reset: {
+		subject: '重置密码',
+		body: '重置密码链接：\n{{url}}\n\n如非本人操作，请忽略此邮件。'
+	},
+	change_email: {
+		subject: '确认邮箱换绑',
+		body: '确认邮箱换绑链接：\n{{url}}\n\n如非本人操作，请忽略此邮件。'
+	}
+};
+
+/** 将模板字符串中的占位符替换为实际值。 */
+function renderTemplate(text: string, vars: { url: string; subject: string }): string {
+	return text.replaceAll('{{url}}', vars.url).replaceAll('{{subject}}', vars.subject);
+}
+
+/** 从数据库读取自定义模板，空值回退到默认。 */
+async function loadMailTemplates(): Promise<Record<MailTemplateKey, MailTemplate>> {
+	const config = await prisma.systemConfig.findUnique({
+		where: { id: GLOBAL_ID },
+		select: {
+			mailSubjectVerifyEmail: true,
+			mailBodyVerifyEmail: true,
+			mailSubjectPasswordReset: true,
+			mailBodyPasswordReset: true,
+			mailSubjectChangeEmail: true,
+			mailBodyChangeEmail: true
+		}
+	});
+	const pick = (custom: string | null | undefined, fallback: string): string =>
+		custom && custom.trim() ? custom : fallback;
+	return {
+		verify_email: {
+			subject: pick(config?.mailSubjectVerifyEmail, DEFAULT_TEMPLATES.verify_email.subject),
+			body: pick(config?.mailBodyVerifyEmail, DEFAULT_TEMPLATES.verify_email.body)
+		},
+		password_reset: {
+			subject: pick(
+				config?.mailSubjectPasswordReset,
+				DEFAULT_TEMPLATES.password_reset.subject
+			),
+			body: pick(config?.mailBodyPasswordReset, DEFAULT_TEMPLATES.password_reset.body)
+		},
+		change_email: {
+			subject: pick(config?.mailSubjectChangeEmail, DEFAULT_TEMPLATES.change_email.subject),
+			body: pick(config?.mailBodyChangeEmail, DEFAULT_TEMPLATES.change_email.body)
+		}
+	};
+}
 type SmtpConfigurationClient = Pick<typeof prisma, 'smtpConfiguration'>;
 export type SmtpSecurity = 'tls' | 'starttls';
 export type SmtpInput = {
@@ -377,18 +441,18 @@ export async function deliverMail(input: {
 		const config = await storedConfig();
 		const url = input.verificationUrl ?? input.resetUrl ?? input.confirmationUrl;
 		if (!url) throw new ServiceError('SMTP_CONFIGURATION_INVALID', 'SMTP 配置无效');
-		const subject =
+		// 模板 key 映射：输入用连字符，数据库字段用下划线
+		const templateKey: MailTemplateKey =
 			input.template === 'password-reset'
-				? '重置密码'
+				? 'password_reset'
 				: input.template === 'change-email'
-					? '确认邮箱换绑'
-					: '验证邮箱';
-		await smtpSend(
-			config,
-			input.to,
-			subject,
-			`${subject}链接：\n${url}\n\n如非本人操作，请忽略此邮件。`
-		);
+					? 'change_email'
+					: 'verify_email';
+		const templates = await loadMailTemplates();
+		const tpl = templates[templateKey];
+		const subject = renderTemplate(tpl.subject, { url, subject: tpl.subject });
+		const body = renderTemplate(tpl.body, { url, subject: tpl.subject });
+		await smtpSend(config, input.to, subject, body);
 		return;
 	}
 	if (MAIL_DELIVERY_MODE === 'disabled' || MAIL_DELIVERY_MODE === 'test') return;

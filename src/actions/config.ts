@@ -91,7 +91,29 @@ export const getSystemConfiguration = defineAction({
 export const updateSystemConfigurationAction = defineAction({
 	input: z.object({
 		emailOwnershipEnabled: z.boolean().optional(),
-		smtp: smtpInput.optional()
+		smtp: smtpInput.optional(),
+		mailTemplates: z
+			.object({
+				verifyEmail: z
+					.object({
+						subject: z.string().trim(),
+						body: z.string()
+					})
+					.optional(),
+				passwordReset: z
+					.object({
+						subject: z.string().trim(),
+						body: z.string()
+					})
+					.optional(),
+				changeEmail: z
+					.object({
+						subject: z.string().trim(),
+						body: z.string()
+					})
+					.optional()
+			})
+			.optional()
 	}),
 	handler: async (input, context) => {
 		const currentUser = await requireCurrentUser(context);

@@ -1018,6 +1018,10 @@ dialog.admin-modal::backdrop {
 	color: var(--color-text);
 }
 
+.admin-form-label-mt {
+	margin-top: 0.5rem;
+}
+
 .admin-form-input,
 .admin-form-select,
 .admin-form-textarea {
