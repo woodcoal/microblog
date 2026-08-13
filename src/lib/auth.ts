@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { JWT_SECRET, JWT_EXPIRES_DAYS } from './config';
 import type { APIContext } from 'astro';
+import { assertUserMayAuthenticate } from '@/services/email-policy.service';
 
 /** Context fields used by authentication helpers in API routes, pages, and Actions. */
 type AuthContext = Pick<APIContext, 'request' | 'cookies'>;
@@ -96,17 +97,24 @@ async function isUserUnavailable(userId: string, credentialVersion?: number): Pr
 				isDisabled: true,
 				deletedAt: true,
 				emailVerifiedAt: true,
+				emailVerificationRequired: true,
 				credentialVersion: true
 			}
 		});
 		// 用户不存在时视为禁用（JWT 中的 userId 对应的用户已被删除）
-		return (
+		const unavailable =
 			user?.isDisabled ||
 			Boolean(user?.deletedAt) ||
-			!user?.emailVerifiedAt ||
+			!user ||
 			credentialVersion === undefined ||
-			user.credentialVersion !== credentialVersion
-		);
+			user.credentialVersion !== credentialVersion;
+		if (unavailable) return true;
+		try {
+			await assertUserMayAuthenticate(user);
+			return false;
+		} catch {
+			return true;
+		}
 	} catch {
 		// 查询失败时采用 fail-closed 策略，拒绝访问
 		console.error('检查用户状态失败，默认拒绝访问');
@@ -219,18 +227,19 @@ async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | nu
 						role: true,
 						isDisabled: true,
 						deletedAt: true,
-						emailVerifiedAt: true
+						emailVerifiedAt: true,
+						emailVerificationRequired: true
 					}
 				}
 			}
 		});
 
-		if (
-			!apiToken ||
-			apiToken.user.isDisabled ||
-			apiToken.user.deletedAt ||
-			!apiToken.user.emailVerifiedAt
-		) {
+		if (!apiToken || apiToken.user.isDisabled || apiToken.user.deletedAt) {
+			return null;
+		}
+		try {
+			await assertUserMayAuthenticate(apiToken.user);
+		} catch {
 			return null;
 		}
 

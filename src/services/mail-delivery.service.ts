@@ -15,6 +15,7 @@ import { ServiceError } from '@/lib/errors';
 
 const GLOBAL_ID = 'global';
 const SMTP_TIMEOUT = 10_000;
+type SmtpConfigurationClient = Pick<typeof prisma, 'smtpConfiguration'>;
 export type SmtpSecurity = 'tls' | 'starttls';
 export type SmtpInput = {
 	host: string;
@@ -67,7 +68,7 @@ function decrypt(value: string): string {
 	}
 }
 
-function blockedAddress(address: string): boolean {
+export function isSmtpAddressBlocked(address: string): boolean {
 	if (isIP(address) === 4) {
 		const [a, b] = address.split('.').map(Number);
 		return (
@@ -82,12 +83,18 @@ function blockedAddress(address: string): boolean {
 		);
 	}
 	const normalized = address.toLowerCase();
+	const mappedIpv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+	if (mappedIpv4) return isSmtpAddressBlocked(mappedIpv4[1]);
 	return (
 		normalized === '::1' ||
-		normalized.startsWith('fe80:') ||
+		normalized.startsWith('::') ||
+		/^fe[89ab][0-9a-f]:/.test(normalized) ||
 		normalized.startsWith('fc') ||
 		normalized.startsWith('fd') ||
-		normalized === '::'
+		normalized.startsWith('ff') ||
+		normalized.startsWith('2001:db8:') ||
+		normalized.startsWith('2001:10:') ||
+		normalized.startsWith('2001:2:')
 	);
 }
 
@@ -97,7 +104,7 @@ async function safeAddress(host: string): Promise<string> {
 	const answers = isIP(host)
 		? [{ address: host }]
 		: await lookup(host, { all: true, verbatim: true }).catch(() => []);
-	if (answers.length === 0 || answers.some((entry) => blockedAddress(entry.address)))
+	if (answers.length === 0 || answers.some((entry) => isSmtpAddressBlocked(entry.address)))
 		throw new ServiceError('SMTP_CONFIGURATION_INVALID', 'SMTP 配置无效');
 	return answers[0].address;
 }
@@ -150,8 +157,8 @@ async function storedConfig(): Promise<StoredSmtp> {
 	};
 }
 
-export async function getSmtpConfiguration() {
-	const row = await prisma.smtpConfiguration.findUnique({ where: { id: GLOBAL_ID } });
+export async function getSmtpConfiguration(client: SmtpConfigurationClient = prisma) {
+	const row = await client.smtpConfiguration.findUnique({ where: { id: GLOBAL_ID } });
 	return {
 		host: row?.host ?? '',
 		port: row?.port ?? null,
@@ -165,10 +172,11 @@ export async function getSmtpConfiguration() {
 }
 
 export async function saveSmtpConfiguration(
-	input: SmtpInput
+	input: SmtpInput,
+	client: SmtpConfigurationClient = prisma
 ): Promise<ReturnType<typeof getSmtpConfiguration>> {
 	validInput(input);
-	const prior = await prisma.smtpConfiguration.findUnique({
+	const prior = await client.smtpConfiguration.findUnique({
 		where: { id: GLOBAL_ID },
 		select: { passwordEncrypted: true }
 	});
@@ -177,7 +185,7 @@ export async function saveSmtpConfiguration(
 		: input.password
 			? encrypt(input.password)
 			: (prior?.passwordEncrypted ?? null);
-	await prisma.smtpConfiguration.upsert({
+	await client.smtpConfiguration.upsert({
 		where: { id: GLOBAL_ID },
 		create: {
 			id: GLOBAL_ID,
@@ -201,7 +209,7 @@ export async function saveSmtpConfiguration(
 			smtpEverConfigured: true
 		}
 	});
-	return getSmtpConfiguration();
+	return getSmtpConfiguration(client);
 }
 
 function readResponse(socket: net.Socket): Promise<string> {
