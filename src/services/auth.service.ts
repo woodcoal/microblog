@@ -10,7 +10,10 @@ import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
 import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '@/lib/config';
 import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
-import { issueEmailVerificationToken } from '@/lib/email-verification';
+import {
+	createEmailVerificationTokenDraft,
+	scheduleEmailVerificationDelivery
+} from '@/lib/email-verification';
 import { consumePasswordResetToken, requestPasswordReset } from '@/lib/password-reset';
 import { consumeEmailChangeToken, issueEmailChangeToken } from '@/lib/email-change';
 import {
@@ -178,26 +181,23 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 	// 未指定时在小空间冲突下安全重试；四位无歧义随机后缀的冲突率极低。
 	for (let attempt = 0; attempt < 8; attempt++) {
 		const username = candidates[attempt] ?? generateUsernameCandidate();
+		const verificationToken = createEmailVerificationTokenDraft();
 		try {
-			const user = await createFirstAdminOrUser({
-				username,
-				displayName: displayName || username,
-				email,
-				passwordHash
-			});
-			// 全局关闭后普通用户不需证明邮箱所有权，不能在写入用户后再把
-			// EMAIL_OWNERSHIP_DISABLED 泄漏为注册失败。令牌服务仍在其入口处
-			// 兜底阻断，避免其他调用方绕过策略。
-			if (user.emailVerificationRequired && (await isEmailOwnershipEnabled())) {
-				await issueEmailVerificationToken(user);
-			}
-			const emailOwnershipEnabled = await isEmailOwnershipEnabled();
+			const registration = await createFirstAdminOrUserWithRetry(
+				{
+					username,
+					displayName: displayName || username,
+					email,
+					passwordHash
+				},
+				verificationToken
+			);
+			const { user, emailVerificationTokenIssued } = registration;
+			if (emailVerificationTokenIssued)
+				scheduleEmailVerificationDelivery(user, verificationToken);
 			return await completeRegistration(startedAt, {
 				accepted: true,
-				nextAction:
-					user.emailVerificationRequired && emailOwnershipEnabled
-						? 'verify_email'
-						: 'login',
+				nextAction: emailVerificationTokenIssued ? 'verify_email' : 'login',
 				user: {
 					id: user.id,
 					username: user.username,
@@ -225,6 +225,24 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 	});
 }
 
+const TRANSACTION_RETRY_LIMIT = 5;
+
+/** MySQL 可报告写冲突或死锁；每次重试都是完整注册事务，不会留下部分记录。 */
+async function createFirstAdminOrUserWithRetry(
+	data: Parameters<typeof createFirstAdminOrUser>[0],
+	verificationToken: Parameters<typeof createFirstAdminOrUser>[1]
+) {
+	for (let retry = 0; ; retry++) {
+		try {
+			return await createFirstAdminOrUser(data, verificationToken);
+		} catch (error) {
+			if (!isRetryableTransactionError(error) || retry >= TRANSACTION_RETRY_LIMIT)
+				throw error;
+			await new Promise((resolve) => setTimeout(resolve, 10 * (retry + 1)));
+		}
+	}
+}
+
 /** 将常见注册路径收敛到同一最小时长，降低唯一约束分支的可观测差异。 */
 async function completeRegistration(
 	startedAt: number,
@@ -243,6 +261,17 @@ function isEmailUniqueConstraintError(error: unknown): boolean {
 	if (typeof error !== 'object' || error === null || !('meta' in error)) return false;
 	const target = (error as { meta?: { target?: unknown } }).meta?.target;
 	return Array.isArray(target) && target.some((field) => field === 'email');
+}
+
+function isRetryableTransactionError(error: unknown): boolean {
+	if (typeof error !== 'object' || error === null) return false;
+	const code = 'code' in error ? error.code : undefined;
+	const message = error instanceof Error ? error.message : '';
+	return (
+		code === 'P2034' ||
+		message.includes('write conflict or deadlock') ||
+		message.toLowerCase().includes('deadlock found')
+	);
 }
 
 /**

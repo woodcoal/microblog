@@ -6,6 +6,7 @@
  */
 import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
+import type { EmailVerificationTokenDraft } from '@/lib/email-verification';
 
 /**
  * 按 ID 查询用户
@@ -98,7 +99,10 @@ export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) 
  * 注册专用的原子创建。管理员资格由永久 bootstrap 记录裁决，而非用户数量。
  * 竞争失败时整个事务回滚，调用方可安全退回普通用户路径重试。
  */
-export async function createFirstAdminOrUser(data: Prisma.UserCreateInput) {
+export async function createFirstAdminOrUser(
+	data: Prisma.UserCreateInput,
+	verificationToken: EmailVerificationTokenDraft
+) {
 	return prisma.$transaction(async (tx) => {
 		const bootstrap = await tx.adminBootstrap.findUnique({ where: { id: 'global' } });
 		const isFirst = !bootstrap;
@@ -115,7 +119,19 @@ export async function createFirstAdminOrUser(data: Prisma.UserCreateInput) {
 		});
 		await tx.usernameClaim.create({ data: { username: user.username, userId: user.id } });
 		if (isFirst) await tx.adminBootstrap.create({ data: { id: 'global', userId: user.id } });
-		return user;
+		const emailVerificationTokenIssued = user.emailVerificationRequired;
+		if (emailVerificationTokenIssued) {
+			// 新注册用户不可能已有令牌，不做 updateMany，避免 MySQL 范围锁竞争。
+			await tx.emailVerificationToken.create({
+				data: {
+					userId: user.id,
+					tokenHash: verificationToken.tokenHash,
+					purpose: 'verify_email',
+					expiresAt: verificationToken.expiresAt
+				}
+			});
+		}
+		return { user, emailVerificationTokenIssued };
 	});
 }
 

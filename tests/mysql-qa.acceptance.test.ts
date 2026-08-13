@@ -42,11 +42,15 @@ test('20 路并发首注册只产生一个管理员且不留下半事务数据',
 		select: { id: true, username: true, role: true, emailVerificationRequired: true }
 	});
 	const claims = await prisma.usernameClaim.count({ where: { username: { in: usernames } } });
+	const verificationTokens = await prisma.emailVerificationToken.count({
+		where: { userId: { in: users.map((user) => user.id) }, consumedAt: null, revokedAt: null }
+	});
 	const bootstrap = await prisma.adminBootstrap.findUnique({ where: { id: 'global' } });
 
 	assert.equal(users.length, registrationCount);
 	assert.equal(claims, registrationCount);
 	assert.equal(users.filter((user) => user.role === 'admin').length, 1);
+	assert.equal(verificationTokens, registrationCount - 1);
 	assert.equal(bootstrap?.userId, users.find((user) => user.role === 'admin')?.id);
 	assert.equal(
 		users.filter((user) => user.emailVerificationRequired).length,
