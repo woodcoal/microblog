@@ -102,11 +102,15 @@ export async function createFirstAdminOrUser(data: Prisma.UserCreateInput) {
 	return prisma.$transaction(async (tx) => {
 		const bootstrap = await tx.adminBootstrap.findUnique({ where: { id: 'global' } });
 		const isFirst = !bootstrap;
+		const config = await tx.systemConfig.findUnique({
+			where: { id: 'global' },
+			select: { emailOwnershipEnabled: true }
+		});
 		const user = await tx.user.create({
 			data: {
 				...data,
 				role: isFirst ? 'admin' : 'user',
-				emailVerificationRequired: !isFirst
+				emailVerificationRequired: !isFirst && (config?.emailOwnershipEnabled ?? true)
 			}
 		});
 		await tx.usernameClaim.create({ data: { username: user.username, userId: user.id } });

@@ -38,7 +38,12 @@ export async function getUserApiTokenCount(input: {
 	email: string;
 }): Promise<{ userId: string; tokenCount: number } | null> {
 	const user = await findUserByEmail(input.email);
-	if (!user || user.isDisabled || user.deletedAt || !user.emailVerifiedAt) {
+	if (!user || user.isDisabled || user.deletedAt) {
+		return null;
+	}
+	try {
+		await assertUserMayAuthenticate(user);
+	} catch {
 		return null;
 	}
 

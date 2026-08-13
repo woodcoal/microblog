@@ -3,6 +3,10 @@ import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 
 const GLOBAL_ID = 'global';
+type EmailPolicyClient = Pick<
+	typeof prisma,
+	'systemConfig' | 'emailVerificationToken' | 'passwordResetToken' | 'emailChangeToken'
+>;
 
 export async function isEmailOwnershipEnabled(): Promise<boolean> {
 	const config = await prisma.systemConfig.findUnique({
@@ -33,31 +37,36 @@ export async function assertUserMayAuthenticate(user: {
 }
 
 /** 关闭时在同一事务撤销所有尚未消费的邮箱所有权令牌。 */
-export async function setEmailOwnershipEnabled(enabled: boolean): Promise<void> {
+export async function setEmailOwnershipEnabledInTransaction(
+	tx: EmailPolicyClient,
+	enabled: boolean
+): Promise<void> {
 	const now = new Date();
-	await prisma.$transaction(async (tx) => {
-		await tx.systemConfig.upsert({
-			where: { id: GLOBAL_ID },
-			create: { id: GLOBAL_ID, emailOwnershipEnabled: enabled },
-			update: { emailOwnershipEnabled: enabled }
-		});
-		if (!enabled) {
-			await Promise.all([
-				tx.emailVerificationToken.updateMany({
-					where: { consumedAt: null, revokedAt: null },
-					data: { revokedAt: now }
-				}),
-				tx.passwordResetToken.updateMany({
-					where: { consumedAt: null, revokedAt: null },
-					data: { revokedAt: now }
-				}),
-				tx.emailChangeToken.updateMany({
-					where: { consumedAt: null, revokedAt: null },
-					data: { revokedAt: now }
-				})
-			]);
-		}
+	await tx.systemConfig.upsert({
+		where: { id: GLOBAL_ID },
+		create: { id: GLOBAL_ID, emailOwnershipEnabled: enabled },
+		update: { emailOwnershipEnabled: enabled }
 	});
+	if (!enabled) {
+		await Promise.all([
+			tx.emailVerificationToken.updateMany({
+				where: { consumedAt: null, revokedAt: null },
+				data: { revokedAt: now }
+			}),
+			tx.passwordResetToken.updateMany({
+				where: { consumedAt: null, revokedAt: null },
+				data: { revokedAt: now }
+			}),
+			tx.emailChangeToken.updateMany({
+				where: { consumedAt: null, revokedAt: null },
+				data: { revokedAt: now }
+			})
+		]);
+	}
+}
+
+export async function setEmailOwnershipEnabled(enabled: boolean): Promise<void> {
+	await prisma.$transaction((tx) => setEmailOwnershipEnabledInTransaction(tx, enabled));
 }
 
 export const EMAIL_POLICY_GLOBAL_ID = GLOBAL_ID;
