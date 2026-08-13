@@ -231,6 +231,101 @@ echo "  PM2：  ./start.sh --pm2"
 `
 );
 
+
+// README.md — 部署说明
+writeFileSync(
+	join(output, 'README.md'),
+	`# 睦谈部署包 v${pkg.version}
+
+## 目录结构
+
+\`\`\`
+.output/
+├── dist/                  # Astro 构建产物（服务端入口 + 客户端静态资源）
+│   ├── server/entry.mjs   # Node standalone 服务端入口
+│   └── client/            # 静态资源（JS/CSS/图片/logo/favicon）
+├── generated/prisma/      # Prisma Client 生成输出
+├── prisma/                # 数据库 schema 和迁移
+│   ├── schema.sqlite.prisma
+│   ├── schema.mysql.prisma
+│   ├── migrations/
+│   └── seed.ts
+├── uploads/               # 上传目录（空，运行时写入）
+├── logs/                  # 日志目录（空，PM2 写入）
+├── package.json           # 生产依赖声明（仅运行时依赖）
+├── pnpm-workspace.yaml    # pnpm 工作区配置
+├── prisma.config.ts       # Prisma 多 provider 配置
+├── ecosystem.config.js    # PM2 进程配置
+├── .env.example           # 环境变量模板
+├── deploy.sh              # 首次部署脚本（安装依赖 + 迁移）
+├── start.sh               # Linux/macOS 启动脚本
+└── start.bat              # Windows 启动脚本
+\`\`\`
+
+## 前置条件
+
+- **Node.js >= 22.12.0**
+- **pnpm**（推荐）或 npm
+- **PM2**（可选，进程托管）：\`npm install -g pm2\`
+
+## 快速部署
+
+### Linux / macOS
+
+\`\`\`bash
+cd .output
+./deploy.sh               # 安装依赖 + 生成 Client + 迁移数据库
+# 编辑 .env 填写生产配置（JWT_SECRET、SITE_URL 等）
+./deploy.sh               # 再次执行应用迁移
+./start.sh                # 前台启动
+./start.sh --pm2          # PM2 托管
+\`\`\`
+
+### Windows
+
+\`\`\`bat
+cd .output
+copy .env.example .env
+:: 编辑 .env 填写生产配置
+pnpm install --prod
+npx prisma generate
+npx prisma migrate deploy
+start.bat
+\`\`\`
+
+## 关键环境变量
+
+| 变量 | 说明 | 默认值 |
+|---|---|---|
+| \`DATABASE_PROVIDER\` | sqlite 或 mysql | sqlite |
+| \`DATABASE_URL\` | SQLite \`file:\` 或 MySQL \`mysql://\` | \`file:./prisma/dev.db\` |
+| \`JWT_SECRET\` | JWT 签名密钥，生产必填 | 开发占位值（生产阻止启动） |
+| \`SITE_URL\` | 站点对外 URL | \`http://localhost:4321\` |
+| \`PORT\` | 监听端口 | 4321 |
+| \`HOST\` | 监听地址 | 0.0.0.0 |
+| \`CONFIG_ENCRYPTION_KEY\` | SMTP 密码加密密钥 | 未设置（不配 SMTP 密码时无需） |
+| \`MAIL_DELIVERY_MODE\` | 邮件投递模式 disabled/webhook | disabled |
+| \`SITE_MODES\` | 启用的频道 | weibo,forum,blog |
+| \`API_V1_ENABLED\` | 是否启用 v1 JSON API | true |
+| \`API_AGENT_ENABLED\` | 是否启用 Agent API | true |
+
+## 数据库切换
+
+切换 provider 后必须重新运行 \`npx prisma generate && npx prisma migrate deploy\`。
+两个 provider 使用各自的 \`0_init\` 基线，不是相互转换迁移。
+
+## 常用命令
+
+\`\`\`bash
+npx prisma generate           # 重新生成 Client
+npx prisma migrate deploy     # 应用迁移
+npx prisma studio             # 数据库管理界面
+npx tsx prisma/seed.ts        # 执行种子数据
+pm2 logs mutan                # 查看日志
+pm2 restart mutan             # 重启
+\`\`\`
+`
+);
 ok('部署辅助文件已生成');
 
 // ── 5. 启动验证 ──────────────────────────────────────

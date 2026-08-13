@@ -1,40 +1,76 @@
 allowBuilds:
-    '@prisma/engines': true
-    esbuild: true
-    prisma: true
-    puppeteer: true
-    sharp: true
-    vue-demi: true
+  '@prisma/engines': true
+  esbuild: true
+  prisma: true
+  puppeteer: true
+  sharp: true
+  vue-demi: true
 minimumReleaseAgeExclude:
-    - '@puppeteer/browsers@3.1.0'
-    - marked@18.0.9
-    - puppeteer-core@25.5.0
-    - puppeteer@25.5.0
-    - tsx@4.23.6 || 4.23.7 || 4.23.11
-    - '@scalar/agent-chat@0.12.24'
-    - '@scalar/api-client@3.15.0'
-    - '@scalar/api-reference@1.64.1'
-    - '@scalar/asyncapi-upgrader@0.1.5'
-    - '@scalar/blocks@0.1.10'
-    - '@scalar/components@0.27.11'
-    - '@scalar/helpers@0.10.0'
-    - '@scalar/json-magic@0.12.20'
-    - '@scalar/oas-utils@0.19.10'
-    - '@scalar/openapi-upgrader@0.2.13'
-    - '@scalar/schemas@0.8.1'
-    - '@scalar/sidebar@0.9.35'
-    - '@scalar/snippetz@0.9.25'
-    - '@scalar/types@0.17.1'
-    - '@scalar/workspace-store@0.56.1'
-    - eslint@10.8.1
-    - '@typescript-eslint/eslint-plugin@8.67.0'
-    - '@typescript-eslint/parser@8.67.0'
-    - '@typescript-eslint/project-service@8.67.0'
-    - '@typescript-eslint/scope-manager@8.67.0'
-    - '@typescript-eslint/tsconfig-utils@8.67.0'
-    - '@typescript-eslint/type-utils@8.67.0'
-    - '@typescript-eslint/types@8.67.0'
-    - '@typescript-eslint/typescript-estree@8.67.0'
-    - '@typescript-eslint/utils@8.67.0'
-    - '@typescript-eslint/visitor-keys@8.67.0'
-    - typescript-eslint@8.67.0
+  - '@puppeteer/browsers@3.1.0'
+  - marked@18.0.9
+  - puppeteer-core@25.5.0 || 25.7.0
+  - puppeteer@25.5.0 || 25.7.0
+  - tsx@4.23.6 || 4.23.7 || 4.23.11
+  - '@scalar/agent-chat@0.12.24 || 0.12.25'
+  - '@scalar/api-client@3.15.0 || 3.16.0'
+  - '@scalar/api-reference@1.64.1 || 1.65.0'
+  - '@scalar/asyncapi-upgrader@0.1.5'
+  - '@scalar/blocks@0.1.10 || 0.1.11'
+  - '@scalar/components@0.27.11'
+  - '@scalar/helpers@0.10.0'
+  - '@scalar/json-magic@0.12.20'
+  - '@scalar/oas-utils@0.19.10 || 0.19.11'
+  - '@scalar/openapi-upgrader@0.2.13'
+  - '@scalar/schemas@0.8.1'
+  - '@scalar/sidebar@0.9.35 || 0.9.36'
+  - '@scalar/snippetz@0.9.25 || 0.9.26'
+  - '@scalar/types@0.17.1 || 0.18.0'
+  - '@scalar/workspace-store@0.56.1 || 0.57.0'
+  - eslint@10.8.1
+  - '@typescript-eslint/eslint-plugin@8.67.0'
+  - '@typescript-eslint/parser@8.67.0'
+  - '@typescript-eslint/project-service@8.67.0'
+  - '@typescript-eslint/scope-manager@8.67.0'
+  - '@typescript-eslint/tsconfig-utils@8.67.0'
+  - '@typescript-eslint/type-utils@8.67.0'
+  - '@typescript-eslint/types@8.67.0'
+  - '@typescript-eslint/typescript-estree@8.67.0'
+  - '@typescript-eslint/utils@8.67.0'
+  - '@typescript-eslint/visitor-keys@8.67.0'
+  - typescript-eslint@8.67.0
+  - '@astrojs/node@11.1.2'
+  - '@tiptap/core@3.30.1'
+  - '@tiptap/extension-blockquote@3.30.1'
+  - '@tiptap/extension-bold@3.30.1'
+  - '@tiptap/extension-bubble-menu@3.30.1'
+  - '@tiptap/extension-bullet-list@3.30.1'
+  - '@tiptap/extension-code-block-lowlight@3.30.1'
+  - '@tiptap/extension-code-block@3.30.1'
+  - '@tiptap/extension-code@3.30.1'
+  - '@tiptap/extension-document@3.30.1'
+  - '@tiptap/extension-dropcursor@3.30.1'
+  - '@tiptap/extension-floating-menu@3.30.1'
+  - '@tiptap/extension-gapcursor@3.30.1'
+  - '@tiptap/extension-hard-break@3.30.1'
+  - '@tiptap/extension-heading@3.30.1'
+  - '@tiptap/extension-horizontal-rule@3.30.1'
+  - '@tiptap/extension-image@3.30.1'
+  - '@tiptap/extension-italic@3.30.1'
+  - '@tiptap/extension-link@3.30.1'
+  - '@tiptap/extension-list-item@3.30.1'
+  - '@tiptap/extension-list-keymap@3.30.1'
+  - '@tiptap/extension-list@3.30.1'
+  - '@tiptap/extension-ordered-list@3.30.1'
+  - '@tiptap/extension-paragraph@3.30.1'
+  - '@tiptap/extension-placeholder@3.30.1'
+  - '@tiptap/extension-strike@3.30.1'
+  - '@tiptap/extension-task-item@3.30.1'
+  - '@tiptap/extension-task-list@3.30.1'
+  - '@tiptap/extension-text@3.30.1'
+  - '@tiptap/extension-underline@3.30.1'
+  - '@tiptap/extensions@3.30.1'
+  - '@tiptap/pm@3.30.1'
+  - '@tiptap/react@3.30.1'
+  - '@tiptap/starter-kit@3.30.1'
+  - '@tiptap/suggestion@3.30.1'
+  - astro@7.2.2

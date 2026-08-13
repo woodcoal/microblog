@@ -53,3 +53,5 @@ pnpm-lock.yaml
 app.db
 prisma/password-reset-*.db
 .*.db
+
+.output/

@@ -55,6 +55,7 @@ pnpm run typecheck
 pnpm run lint
 pnpm run format:check
 pnpm run format
+pnpm run pub              # 构建并打包部署包到 .output/（不含 node_modules）
 ```
 
 数据库命令：
@@ -98,8 +99,9 @@ pnpm run pm2
 - `src/pages/index.astro`：推荐/发现首页；单模式时负责重定向。
 - `src/pages/[username]/[postId]/index.astro`：统一帖子详情入口。
 - `ecosystem.config.js`：PM2 生产进程配置，入口为 `dist/server/entry.mjs`，进程名为 `mutan`。
+- `scripts/pack-output.mjs`：`pnpm pub` 打包脚本，构建并组装 `.output/` 部署包（不含 node_modules）。
+- `.gitattributes`：强制 LF 换行，解决 Windows 上 Prettier `endOfLine: lf` 冲突。
 - `.env.example`：环境变量模板；不要提交 `.env` 或真实凭证。
-- `skills/SKILL.md`：Agent API 认证、端点、响应格式和参数约定。
 
 ## 运行时与工具偏好
 
@@ -108,7 +110,7 @@ pnpm run pm2
 - 生产构建输出为 `dist/server/entry.mjs`，直接启动使用 `node -r dotenv/config`，PM2 使用 `ecosystem.config.js`。
 - 默认数据库是 SQLite/libSQL，也支持 MySQL 8+ 的 MariaDB adapter；连接字符串必须分别以 `file:` 或 `mysql://` 开头。
 - `DATABASE_URL` 的默认值以当前 `.env`/`.env.example` 为准，不要把本地数据库文件路径硬编码进业务逻辑；生产环境显式设置所有关键变量。
-- 关键安全变量包括 `JWT_SECRET`、`API_CORS_ORIGINS`、API 限流/请求体上限和 `UPLOAD_DIR`；生产环境必须更换开发 JWT 密钥。
+- 关键安全变量包括 `JWT_SECRET`、`CONFIG_ENCRYPTION_KEY`、`API_CORS_ORIGINS`、API 限流/请求体上限和 `UPLOAD_DIR`；生产环境必须更换开发 JWT 密钥，SMTP 密码加密需要 `CONFIG_ENCRYPTION_KEY`。
 
 ## 测试与 QA
 
@@ -133,5 +135,5 @@ pnpm exec tsx --test tests/trending.test.ts
 - Service 测试会清空并写入 `DATABASE_URL` 指向的数据库，必须使用专用测试库，禁止对开发库或生产库运行。
 - API 验收测试需要独立 `TEST_DATABASE_URL`、已应用迁移、空闲端口和 Astro 服务；真实 API/认证/数据库改动优先使用验收测试验证。
 - 浏览器测试需要 `MUTAN_E2E_BASE_URL` 指向运行中的站点，并准备 `tests/fixtures/` 中要求的 QA 数据。
-- `package.json` 中部分 `test:*` 脚本引用根目录 `scripts/run-*.mjs`，但当前仓库没有对应 `scripts/` 目录；这些命令不可视为已验证通过。先检查 runner 是否已恢复，再执行。
+- 以下 4 个 `test:*` 脚本引用了不存在的 runner 文件，执行会报 `Cannot find module`：`test:admin-audit`、`test:blog-assets`、`test:post-detail-browser`、`test:recommend-users`。`scripts/` 目录当前只有 `run-api-test.mjs`、`run-mysql-qa.mjs` 和 `pack-output.mjs`。
 - 改动页面、API 或数据库时，至少运行相关类型检查、格式检查和针对性测试；不要只依赖 mock 结果证明真实链路可用。
