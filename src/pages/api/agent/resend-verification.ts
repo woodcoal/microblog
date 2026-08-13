@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { resendEmailVerification } from '@/lib/email-verification';
-import { textErrorResponse, textResponse } from '@/lib/agent';
+import { handleAgentError, textErrorResponse, textResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 
 /** 始终使用同一成功文本，避免邮箱枚举。 */
@@ -11,7 +11,7 @@ export const POST: APIRoute = async ({ request }) => {
 			return textErrorResponse('email 不能为空');
 		await resendEmailVerification(body.email.trim());
 		return textResponse('ok: 若邮箱可用，验证邮件已发送');
-	} catch {
-		return textErrorResponse('请求参数错误');
+	} catch (error) {
+		return handleAgentError(error, '重发邮箱验证');
 	}
 };
