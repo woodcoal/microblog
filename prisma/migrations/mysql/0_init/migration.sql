@@ -1,4 +1,4 @@
--- MySQL 基线迁移；由 DATABASE_PROVIDER=mysql 选择。
+-- MySQL 合并基线迁移；由 DATABASE_PROVIDER=mysql 选择。
 
 -- CreateTable
 CREATE TABLE `User` (
@@ -12,6 +12,11 @@ CREATE TABLE `User` (
     `note` VARCHAR(2000) NOT NULL DEFAULT '',
     `role` VARCHAR(191) NOT NULL DEFAULT 'user',
     `isDisabled` BOOLEAN NOT NULL DEFAULT false,
+    `deletedAt` DATETIME(3) NULL,
+    `emailVerifiedAt` DATETIME(3) NULL,
+    `emailVerificationRequired` BOOLEAN NOT NULL DEFAULT true,
+    `credentialVersion` INTEGER NOT NULL DEFAULT 0,
+    `hasSelfRenamed` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -351,6 +356,121 @@ CREATE TABLE `UploadReservation` (
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- CreateTable
+CREATE TABLE `UsernameClaim` (
+    `id` VARCHAR(191) NOT NULL,
+    `username` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `UsernameClaim_username_key`(`username`),
+    INDEX `UsernameClaim_userId_createdAt_idx`(`userId`, `createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `UsernameRenameAudit` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `actorId` VARCHAR(191) NOT NULL,
+    `previousUsername` VARCHAR(191) NOT NULL,
+    `nextUsername` VARCHAR(191) NOT NULL,
+    `isAdmin` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    INDEX `UsernameRenameAudit_userId_createdAt_idx`(`userId`, `createdAt`),
+    INDEX `UsernameRenameAudit_actorId_createdAt_idx`(`actorId`, `createdAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EmailVerificationToken` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `tokenHash` VARCHAR(191) NOT NULL,
+    `purpose` VARCHAR(191) NOT NULL DEFAULT 'verify_email',
+    `expiresAt` DATETIME(3) NOT NULL,
+    `consumedAt` DATETIME(3) NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `EmailVerificationToken_tokenHash_key`(`tokenHash`),
+    INDEX `EmailVerificationToken_userId_purpose_createdAt_idx`(`userId`, `purpose`, `createdAt`),
+    INDEX `EmailVerificationToken_expiresAt_consumedAt_revokedAt_idx`(`expiresAt`, `consumedAt`, `revokedAt`),
+    PRIMARY KEY (`id`),
+    CONSTRAINT `EmailVerificationToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `PasswordResetToken` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `tokenHash` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `consumedAt` DATETIME(3) NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `PasswordResetToken_tokenHash_key`(`tokenHash`),
+    INDEX `PasswordResetToken_userId_createdAt_idx`(`userId`, `createdAt`),
+    INDEX `PasswordResetToken_expiresAt_consumedAt_revokedAt_idx`(`expiresAt`, `consumedAt`, `revokedAt`),
+    PRIMARY KEY (`id`),
+    CONSTRAINT `PasswordResetToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `EmailChangeToken` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `targetEmail` VARCHAR(191) NOT NULL,
+    `tokenHash` VARCHAR(191) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `consumedAt` DATETIME(3) NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `EmailChangeToken_tokenHash_key`(`tokenHash`),
+    INDEX `EmailChangeToken_userId_createdAt_idx`(`userId`, `createdAt`),
+    INDEX `EmailChangeToken_expiresAt_consumedAt_revokedAt_idx`(`expiresAt`, `consumedAt`, `revokedAt`),
+    PRIMARY KEY (`id`),
+    CONSTRAINT `EmailChangeToken_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `SystemConfig` (
+    `id` VARCHAR(191) NOT NULL,
+    `emailOwnershipEnabled` BOOLEAN NOT NULL DEFAULT true,
+    `mailSubjectVerifyEmail` TEXT NOT NULL DEFAULT '',
+    `mailBodyVerifyEmail` TEXT NOT NULL DEFAULT '',
+    `mailSubjectPasswordReset` TEXT NOT NULL DEFAULT '',
+    `mailBodyPasswordReset` TEXT NOT NULL DEFAULT '',
+    `mailSubjectChangeEmail` TEXT NOT NULL DEFAULT '',
+    `mailBodyChangeEmail` TEXT NOT NULL DEFAULT '',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `AdminBootstrap` (
+    `id` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `claimedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    UNIQUE INDEX `AdminBootstrap_userId_key`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `SmtpConfiguration` (
+    `id` VARCHAR(191) NOT NULL,
+    `host` VARCHAR(255) NULL,
+    `port` INTEGER NULL,
+    `security` VARCHAR(16) NULL,
+    `username` VARCHAR(255) NULL,
+    `passwordEncrypted` TEXT NULL,
+    `fromName` VARCHAR(255) NULL,
+    `fromAddress` VARCHAR(320) NULL,
+    `smtpEverConfigured` BOOLEAN NOT NULL DEFAULT false,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- CreateIndex
 CREATE INDEX `Post_isDeleted_visibility_createdAt_idx` ON `Post`(`isDeleted`, `visibility`, `createdAt`);
 
@@ -395,6 +515,9 @@ CREATE UNIQUE INDEX `AdminAuditTarget_auditLogId_targetId_key` ON `AdminAuditTar
 
 -- CreateIndex
 CREATE INDEX `AdminAuditTarget_targetId_auditLogId_idx` ON `AdminAuditTarget`(`targetId`, `auditLogId`);
+
+-- CreateIndex
+CREATE INDEX `User_deletedAt_idx` ON `User`(`deletedAt`);
 
 -- AddForeignKey
 ALTER TABLE `Post` ADD CONSTRAINT `Post_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -505,6 +628,62 @@ ALTER TABLE `AdminAuditTarget` ADD CONSTRAINT `AdminAuditTarget_auditLogId_fkey`
 ALTER TABLE `UploadReservation` ADD CONSTRAINT `UploadReservation_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE `UploadReservation` ADD CONSTRAINT `UploadReservation_fileStorageId_fkey` FOREIGN KEY (`fileStorageId`) REFERENCES `FileStorage` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE `UsernameClaim` ADD CONSTRAINT `UsernameClaim_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `UsernameRenameAudit` ADD CONSTRAINT `UsernameRenameAudit_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE `UsernameRenameAudit` ADD CONSTRAINT `UsernameRenameAudit_actorId_fkey` FOREIGN KEY (`actorId`) REFERENCES `User`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- 初始化数据
+-- MySQL 基线使用大小写不敏感排序；仍显式规范化已有值，保证 SQLite/MySQL 同一契约。
+UPDATE `User` SET `username` = LOWER(`username`) WHERE BINARY `username` <> BINARY LOWER(`username`);
+
+INSERT INTO `UsernameClaim` (`id`, `username`, `userId`, `createdAt`)
+SELECT UUID(), `username`, `id`, CURRENT_TIMESTAMP(3) FROM `User`;
+
+-- 升级已有站点时永久关闭"首位用户"通道，绝不因历史管理员注销而重新开放。
+INSERT INTO `AdminBootstrap` (`id`, `userId`)
+SELECT 'global', `id` FROM `User` LIMIT 1;
+
+UPDATE `User` SET `emailVerificationRequired` = false WHERE `role` = 'admin';
+
+-- 已升级实例修复：仅有效管理员可占用 bootstrap；无有效管理员时提升最早有效用户。
+UPDATE `User`
+SET `role` = 'admin', `emailVerificationRequired` = false
+WHERE `id` = (
+    SELECT `id` FROM (
+        SELECT `id` FROM `User`
+        WHERE `isDisabled` = false AND `deletedAt` IS NULL
+        ORDER BY `createdAt`, `id`
+        LIMIT 1
+    ) AS `eligible_user`
+)
+AND NOT EXISTS (
+    -- LIMIT 阻止 MySQL 合并派生表，避免更新 User 时触发 1093 自引用限制。
+    SELECT 1 FROM (
+        SELECT `id` FROM `User`
+        WHERE `role` = 'admin' AND `isDisabled` = false AND `deletedAt` IS NULL
+        LIMIT 1
+    ) AS `valid_admin`
+);
+
+UPDATE `AdminBootstrap`
+SET `userId` = (
+    SELECT `id` FROM (
+        SELECT `id` FROM `User`
+        WHERE `role` = 'admin' AND `isDisabled` = false AND `deletedAt` IS NULL
+        ORDER BY `createdAt`, `id`
+        LIMIT 1
+    ) AS `valid_admin`
+)
+WHERE `id` = 'global'
+  AND EXISTS (
+    SELECT 1 FROM `User` AS `valid_admin`
+    WHERE `valid_admin`.`role` = 'admin'
+      AND `valid_admin`.`isDisabled` = false
+      AND `valid_admin`.`deletedAt` IS NULL
+  );
+
+-- Triggers
 CREATE TRIGGER `AdminAuditLog_no_update` BEFORE UPDATE ON `AdminAuditLog`
 FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'AdminAuditLog is immutable';
 CREATE TRIGGER `AdminAuditLog_no_delete` BEFORE DELETE ON `AdminAuditLog`

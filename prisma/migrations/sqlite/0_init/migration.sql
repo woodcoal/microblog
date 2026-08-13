@@ -1,4 +1,4 @@
--- SQLite 基线迁移；由 DATABASE_PROVIDER=sqlite 选择。
+-- SQLite 合并基线迁移；由 DATABASE_PROVIDER=sqlite 选择。
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -13,7 +13,12 @@ CREATE TABLE "User" (
     "role" TEXT NOT NULL DEFAULT 'user',
     "isDisabled" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "updatedAt" DATETIME NOT NULL,
+    "hasSelfRenamed" BOOLEAN NOT NULL DEFAULT false,
+    "emailVerifiedAt" DATETIME,
+    "credentialVersion" INTEGER NOT NULL DEFAULT 0,
+    "deletedAt" DATETIME,
+    "emailVerificationRequired" BOOLEAN NOT NULL DEFAULT true
 );
 
 -- CreateTable
@@ -324,6 +329,102 @@ CREATE TABLE "UploadReservation" (
     CONSTRAINT "UploadReservation_fileStorageId_fkey" FOREIGN KEY ("fileStorageId") REFERENCES "FileStorage" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable: 用户名生命周期 — 永久用户名占用记录；当前名和历史名都保留，禁止再次分配。
+CREATE TABLE "UsernameClaim" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "username" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UsernameClaim_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable: 用户名变更的不可变审计记录。
+CREATE TABLE "UsernameRenameAudit" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "previousUsername" TEXT NOT NULL,
+    "nextUsername" TEXT NOT NULL,
+    "isAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UsernameRenameAudit_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "UsernameRenameAudit_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+);
+
+-- CreateTable: 邮箱所有权验证令牌。仅保存不可逆摘要，原始令牌只出现在一次性邮件链接中。
+CREATE TABLE "EmailVerificationToken" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL DEFAULT 'verify_email',
+    "expiresAt" DATETIME NOT NULL,
+    "consumedAt" DATETIME,
+    "revokedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailVerificationToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable: 密码重置令牌与邮箱验证令牌物理隔离；仅保存 SHA-256 摘要。
+CREATE TABLE "PasswordResetToken" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "consumedAt" DATETIME,
+    "revokedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable: 安全邮箱换绑：确认前只保存目标邮箱和令牌摘要，不修改 User.email。
+CREATE TABLE "EmailChangeToken" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "targetEmail" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "consumedAt" DATETIME,
+    "revokedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailChangeToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable: 唯一全局配置记录，固定使用 id=global。
+CREATE TABLE "SystemConfig" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "emailOwnershipEnabled" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "mailSubjectVerifyEmail" TEXT NOT NULL DEFAULT '',
+    "mailBodyVerifyEmail" TEXT NOT NULL DEFAULT '',
+    "mailSubjectPasswordReset" TEXT NOT NULL DEFAULT '',
+    "mailBodyPasswordReset" TEXT NOT NULL DEFAULT '',
+    "mailSubjectChangeEmail" TEXT NOT NULL DEFAULT '',
+    "mailBodyChangeEmail" TEXT NOT NULL DEFAULT ''
+);
+
+-- CreateTable: 管理员 bootstrap 记录。
+CREATE TABLE "AdminBootstrap" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "claimedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CreateTable: SMTP 配置存储。
+CREATE TABLE "SmtpConfiguration" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "host" TEXT,
+    "port" INTEGER,
+    "security" TEXT,
+    "username" TEXT,
+    "passwordEncrypted" TEXT,
+    "fromName" TEXT,
+    "fromAddress" TEXT,
+    "smtpEverConfigured" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
@@ -432,6 +533,73 @@ CREATE INDEX "UploadReservation_owner_file_active_idx" ON "UploadReservation"("u
 -- CreateIndex
 CREATE INDEX "UploadReservation_expiry_active_idx" ON "UploadReservation"("expiresAt", "consumedAt", "cancelledAt");
 
+-- CreateIndex: 用户名生命周期
+CREATE UNIQUE INDEX "UsernameClaim_username_key" ON "UsernameClaim"("username");
+CREATE INDEX "UsernameClaim_userId_createdAt_idx" ON "UsernameClaim"("userId", "createdAt");
+CREATE INDEX "UsernameRenameAudit_userId_createdAt_idx" ON "UsernameRenameAudit"("userId", "createdAt");
+CREATE INDEX "UsernameRenameAudit_actorId_createdAt_idx" ON "UsernameRenameAudit"("actorId", "createdAt");
+
+-- CreateIndex: 邮箱验证令牌
+CREATE UNIQUE INDEX "EmailVerificationToken_tokenHash_key" ON "EmailVerificationToken"("tokenHash");
+CREATE INDEX "EmailVerificationToken_userId_purpose_createdAt_idx" ON "EmailVerificationToken"("userId", "purpose", "createdAt");
+CREATE INDEX "EmailVerificationToken_expiresAt_consumedAt_revokedAt_idx" ON "EmailVerificationToken"("expiresAt", "consumedAt", "revokedAt");
+
+-- CreateIndex: 密码重置令牌
+CREATE UNIQUE INDEX "PasswordResetToken_tokenHash_key" ON "PasswordResetToken"("tokenHash");
+CREATE INDEX "PasswordResetToken_userId_createdAt_idx" ON "PasswordResetToken"("userId", "createdAt");
+CREATE INDEX "PasswordResetToken_expiresAt_consumedAt_revokedAt_idx" ON "PasswordResetToken"("expiresAt", "consumedAt", "revokedAt");
+
+-- CreateIndex: 邮箱换绑令牌
+CREATE UNIQUE INDEX "EmailChangeToken_tokenHash_key" ON "EmailChangeToken"("tokenHash");
+CREATE INDEX "EmailChangeToken_userId_createdAt_idx" ON "EmailChangeToken"("userId", "createdAt");
+CREATE INDEX "EmailChangeToken_expiresAt_consumedAt_revokedAt_idx" ON "EmailChangeToken"("expiresAt", "consumedAt", "revokedAt");
+
+-- CreateIndex: 管理员 bootstrap
+CREATE UNIQUE INDEX "AdminBootstrap_userId_key" ON "AdminBootstrap"("userId");
+
+-- CreateIndex: 永久注销墓碑
+CREATE INDEX "User_deletedAt_idx" ON "User"("deletedAt");
+
+-- 初始化数据
+-- 统一采用小写规范名；若旧库存在仅大小写不同的用户名，迁移应停止以避免静默合并身份。
+UPDATE "User" SET "username" = lower("username") WHERE "username" <> lower("username");
+
+INSERT INTO "UsernameClaim" ("id", "username", "userId", "createdAt")
+SELECT lower(hex(randomblob(16))), "username", "id", CURRENT_TIMESTAMP FROM "User";
+
+-- 升级已有站点时永久关闭"首位用户"通道，绝不因历史管理员注销而重新开放。
+INSERT INTO "AdminBootstrap" ("id", "userId")
+SELECT 'global', "id" FROM "User" LIMIT 1;
+
+-- 管理员跳过邮箱验证
+UPDATE "User" SET "emailVerificationRequired" = false WHERE "role" = 'admin';
+
+-- 已升级实例修复：仅有效管理员可占用 bootstrap；无有效管理员时提升最早有效用户。
+UPDATE "User"
+SET "role" = 'admin', "emailVerificationRequired" = false
+WHERE "id" = (
+    SELECT "id" FROM "User"
+    WHERE "isDisabled" = false AND "deletedAt" IS NULL
+    ORDER BY "createdAt", "id"
+    LIMIT 1
+)
+AND NOT EXISTS (
+    SELECT 1 FROM "User" WHERE "role" = 'admin' AND "isDisabled" = false AND "deletedAt" IS NULL
+);
+
+UPDATE "AdminBootstrap"
+SET "userId" = (
+    SELECT "id" FROM "User"
+    WHERE "role" = 'admin' AND "isDisabled" = false AND "deletedAt" IS NULL
+    ORDER BY "createdAt", "id"
+    LIMIT 1
+)
+WHERE "id" = 'global'
+  AND EXISTS (
+    SELECT 1 FROM "User" WHERE "role" = 'admin' AND "isDisabled" = false AND "deletedAt" IS NULL
+  );
+
+-- Triggers
 CREATE TRIGGER "AdminAuditLog_no_update" BEFORE UPDATE ON "AdminAuditLog"
 BEGIN
     SELECT RAISE(ABORT, 'AdminAuditLog is immutable');
