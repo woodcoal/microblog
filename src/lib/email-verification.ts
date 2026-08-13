@@ -40,7 +40,7 @@ export function createEmailVerificationTokenDraft(): EmailVerificationTokenDraft
 	};
 }
 
-/** 邮件属于提交后的非关键副作用，不能改变已提交注册的结果。 */
+/** 邮件属于提交后的非关键副作用，不能改变已提交注册的结果，但投递失败会记录到 stderr 供运维排查。 */
 export function scheduleEmailVerificationDelivery(
 	user: { email: string },
 	token: EmailVerificationTokenDraft
@@ -49,7 +49,9 @@ export function scheduleEmailVerificationDelivery(
 		to: user.email,
 		template: 'verify-email',
 		verificationUrl: verificationUrl(token.token)
-	}).catch(() => {});
+	}).catch((error) => {
+		console.error('[邮件投递失败] verify-email →', user.email, error);
+	});
 }
 
 export async function issueEmailVerificationToken(user: {

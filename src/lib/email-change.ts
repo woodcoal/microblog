@@ -68,7 +68,9 @@ export async function issueEmailChangeToken(input: {
 		to: input.targetEmail,
 		template: 'change-email',
 		confirmationUrl: emailChangeUrl(token)
-	}).catch(() => {});
+	}).catch((error) => {
+		console.error('[邮件投递失败] change-email →', error);
+	});
 }
 
 function isEmailUniqueConstraintError(error: unknown): boolean {

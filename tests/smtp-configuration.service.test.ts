@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { prisma } from '../src/lib/db';

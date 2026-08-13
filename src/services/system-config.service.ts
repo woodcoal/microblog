@@ -1,6 +1,7 @@
 /** 管理员系统配置服务。每个读取、写入和连通性测试都实时核验数据库角色。 */
 import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
+import { MAIL_DELIVERY_MODE } from '@/lib/config';
 import {
 	isEmailOwnershipEnabled,
 	setEmailOwnershipEnabledInTransaction
@@ -45,7 +46,8 @@ export async function readSystemConfiguration(userId: string) {
 	await assertLiveAdmin(userId);
 	return {
 		emailOwnershipEnabled: await isEmailOwnershipEnabled(),
-		smtp: await getSmtpConfiguration()
+		smtp: await getSmtpConfiguration(),
+		mailDeliveryMode: MAIL_DELIVERY_MODE
 	};
 }
 export async function updateSystemConfiguration(input: {

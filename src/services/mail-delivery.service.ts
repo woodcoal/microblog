@@ -30,11 +30,19 @@ export type SmtpInput = {
 
 function configKey(): Buffer {
 	const key = getEnv('CONFIG_ENCRYPTION_KEY');
-	if (!key) throw new ServiceError('SMTP_CONFIGURATION_INVALID', 'SMTP 配置无效');
+	if (!key)
+		throw new ServiceError(
+			'SMTP_CONFIGURATION_INVALID',
+			'SMTP 加密密钥未配置，请在环境变量 CONFIG_ENCRYPTION_KEY 中设置 32 字节的 base64 或 64 位 hex 密钥'
+		);
 	const bytes = /^[0-9a-f]{64}$/i.test(key)
 		? Buffer.from(key, 'hex')
 		: Buffer.from(key, 'base64');
-	if (bytes.length !== 32) throw new ServiceError('SMTP_CONFIGURATION_INVALID', 'SMTP 配置无效');
+	if (bytes.length !== 32)
+		throw new ServiceError(
+			'SMTP_CONFIGURATION_INVALID',
+			'SMTP 加密密钥格式无效：必须是 32 字节的 base64 或 64 位 hex'
+		);
 	return bytes;
 }
 

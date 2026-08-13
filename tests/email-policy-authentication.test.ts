@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/db';
@@ -132,7 +134,7 @@ test('系统配置、SMTP 和审计事务同时提交，并撤销旧邮箱令牌
 				fromAddress: 'no-reply@example.test'
 			}
 		}),
-		/SMTP 配置无效/
+		/SMTP 加密密钥未配置/
 	);
 	if (encryptionKey === undefined) delete process.env.CONFIG_ENCRYPTION_KEY;
 	else process.env.CONFIG_ENCRYPTION_KEY = encryptionKey;

@@ -361,3 +361,39 @@ export const isSingleMode = SITE_MODES.length === 1;
 
 /** 单模式时的模式值 */
 export const singleMode = isSingleMode ? SITE_MODES[0] : null;
+
+/**
+ * 启动时必需环境变量校验。
+ *
+ * 生产环境（NODE_ENV=production）下，JWT_SECRET 不得使用开发占位值，
+ * 否则立即终止启动并给出明确提示。CONFIG_ENCRYPTION_KEY 缺失时不阻止启动
+ *（未配置 SMTP 时不需要），但输出警告提醒管理员在配置邮件前先设置密钥。
+ */
+const DEV_JWT_SECRET = 'mutan-dev-secret-change-in-production';
+const isProduction = process.env.NODE_ENV === 'production';
+const configErrors: string[] = [];
+const configWarnings: string[] = [];
+
+if (isProduction && JWT_SECRET === DEV_JWT_SECRET) {
+	configErrors.push('JWT_SECRET 仍为开发占位值。生产环境必须设置为随机且足够长的私密值。');
+}
+
+if (isProduction && !getEnv('CONFIG_ENCRYPTION_KEY')) {
+	configWarnings.push(
+		'CONFIG_ENCRYPTION_KEY 未设置。配置 SMTP 密码前必须先设置 32 字节的 base64 或 64 位 hex 加密密钥。'
+	);
+}
+
+if (SITE_MODES.length === 0) {
+	configErrors.push('SITE_MODES 未包含任何有效模式（weibo/forum/blog），至少需要配置一个。');
+}
+
+if (configWarnings.length > 0) {
+	for (const w of configWarnings) console.warn(`[配置警告] ${w}`);
+}
+
+if (configErrors.length > 0) {
+	for (const e of configErrors) console.error(`[配置错误] ${e}`);
+	console.error('\n启动中止：必需环境变量校验未通过。请检查 .env 配置后重新启动。\n');
+	throw new Error(`环境变量校验失败：${configErrors.join('；')}`);
+}
