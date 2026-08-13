@@ -325,16 +325,25 @@ async function smtpSend(
 	}
 }
 
-export async function testSmtpConfiguration(input?: SmtpInput): Promise<void> {
+/**
+ * 测试指定草稿或已保存的 SMTP 配置。未传入草稿时，使用库内密文恢复配置；
+ * probe 参数仅供单元测试替换网络握手，生产路径始终执行 smtpNoop。
+ */
+export async function testSmtpConfiguration(
+	input?: SmtpInput,
+	probe: (config: StoredSmtp) => Promise<void> = smtpNoop
+): Promise<void> {
 	const config = input
-		? (() => {
+		? await (async (): Promise<StoredSmtp> => {
 				validInput(input);
-				if (!input.password)
+				// 清除密码后的草稿不能测试；留空则仅在服务端读取已有密文补全密码。
+				if (input.clearPassword)
 					throw new ServiceError('SMTP_CONFIGURATION_INVALID', 'SMTP 配置无效');
-				return { ...input, password: input.password };
+				const password = input.password || (await storedConfig()).password;
+				return { ...input, password };
 			})()
 		: await storedConfig();
-	await smtpNoop(config);
+	await probe(config);
 }
 
 export async function deliverMail(input: {

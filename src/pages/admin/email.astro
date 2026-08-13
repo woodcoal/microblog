@@ -1,0 +1,229 @@
+---
+/** 管理员邮件策略与 SMTP 设置。敏感密码仅由服务端保存，页面不读取其值。 */
+import AdminLayout from '@/layouts/Admin.astro';
+import { getUserFromRequest } from '@/lib/auth';
+import { readSystemConfiguration } from '@/services/system-config.service';
+
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) return Astro.redirect('/login');
+if (currentUser.role !== 'admin')
+	return new Response('Forbidden: 无权访问管理后台', { status: 403 });
+const configuration = await readSystemConfiguration(currentUser.userId);
+const smtp = configuration.smtp;
+---
+
+<AdminLayout title="邮件设置">
+	<section class="admin-page-workspace" aria-labelledby="email-settings-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">站点设置</p>
+			<h1 class="admin-page-title" id="email-settings-title">邮件设置</h1>
+			<p>统一管理邮箱验证策略与 SMTP 投递。密码不会显示或回传到浏览器。</p>
+		</header>
+
+		<form
+			id="email-settings-form"
+			class="settings-form"
+			aria-describedby="email-settings-status"
+		>
+			<fieldset>
+				<legend class="section-title">邮箱所有权验证</legend>
+				<p class="section-desc">
+					关闭后，普通注册用户可直接登录；找回密码、换绑和邮箱验证操作仍由服务端拒绝。
+				</p>
+				<label class="toggle-label" for="email-ownership-enabled">
+					<input
+						type="checkbox"
+						id="email-ownership-enabled"
+						name="emailOwnershipEnabled"
+						checked={configuration.emailOwnershipEnabled}
+					/>
+					<span>要求普通注册用户验证邮箱</span>
+				</label>
+			</fieldset>
+
+			<hr class="settings-divider" />
+			<fieldset>
+				<legend class="section-title">SMTP 投递</legend>
+				<p class="section-desc">
+					保存前请确认主机与证书可信。连接测试只执行认证与 NOOP，不发送邮件。
+				</p>
+				<div class="form-group">
+					<label for="smtp-host" class="form-label">SMTP 主机</label>
+					<input
+						id="smtp-host"
+						name="host"
+						class="form-input"
+						value={smtp.host}
+						required
+						autocomplete="off"
+					/>
+				</div>
+				<div class="form-group">
+					<label for="smtp-port" class="form-label">端口</label>
+					<input
+						id="smtp-port"
+						name="port"
+						class="form-input"
+						type="number"
+						min="1"
+						max="65535"
+						value={smtp.port ?? 465}
+						required
+					/>
+				</div>
+				<div class="form-group">
+					<label for="smtp-security" class="form-label">加密方式</label>
+					<select id="smtp-security" name="security" class="form-input form-select">
+						<option value="tls" selected={smtp.security === 'tls'}>TLS</option>
+						<option value="starttls" selected={smtp.security === 'starttls'}
+							>STARTTLS</option
+						>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="smtp-username" class="form-label">SMTP 账号</label>
+					<input
+						id="smtp-username"
+						name="username"
+						class="form-input"
+						value={smtp.username}
+						required
+						autocomplete="username"
+					/>
+				</div>
+				<div class="form-group">
+					<label for="smtp-password" class="form-label">SMTP 密码</label>
+					<input
+						id="smtp-password"
+						name="password"
+						class="form-input"
+						type="password"
+						placeholder={smtp.passwordConfigured
+							? '已配置：输入新密码才会替换'
+							: '未配置'}
+						autocomplete="new-password"
+						aria-describedby="smtp-password-status"
+					/>
+					<p id="smtp-password-status" class="form-hint">
+						{smtp.passwordConfigured ? '已配置（********）' : '未配置'}
+					</p>
+					<label class="toggle-label" for="smtp-clear-password">
+						<input type="checkbox" id="smtp-clear-password" name="clearPassword" />
+						<span>明确清除已保存的 SMTP 密码</span>
+					</label>
+				</div>
+				<div class="form-group">
+					<label for="smtp-from-name" class="form-label">发件人名称</label>
+					<input
+						id="smtp-from-name"
+						name="fromName"
+						class="form-input"
+						value={smtp.fromName}
+						required
+					/>
+				</div>
+				<div class="form-group">
+					<label for="smtp-from-address" class="form-label">发件人邮箱</label>
+					<input
+						id="smtp-from-address"
+						name="fromAddress"
+						class="form-input"
+						type="email"
+						value={smtp.fromAddress}
+						required
+						autocomplete="email"
+					/>
+				</div>
+			</fieldset>
+
+			<div class="form-actions">
+				<button id="smtp-test" type="button" class="btn btn-outline">测试连接</button>
+				<button id="email-settings-save" type="submit" class="btn btn-primary"
+					>保存设置</button
+				>
+				<p id="email-settings-status" class="form-msg" role="status" aria-live="polite"></p>
+			</div>
+		</form>
+	</section>
+</AdminLayout>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	const form = document.getElementById('email-settings-form') as HTMLFormElement;
+	const save = document.getElementById('email-settings-save') as HTMLButtonElement;
+	const test = document.getElementById('smtp-test') as HTMLButtonElement;
+	const status = document.getElementById('email-settings-status') as HTMLElement;
+
+	function setStatus(message: string, isError = false) {
+		status.textContent = message;
+		status.className = isError ? 'form-msg msg-error' : 'form-msg msg-success';
+	}
+
+	function readInput() {
+		const data = new FormData(form);
+		const port = Number(data.get('port'));
+		return {
+			emailOwnershipEnabled: data.get('emailOwnershipEnabled') === 'on',
+			smtp: {
+				host: String(data.get('host') ?? '').trim(),
+				port,
+				security: String(data.get('security') ?? '') as 'tls' | 'starttls',
+				username: String(data.get('username') ?? '').trim(),
+				password: String(data.get('password') ?? ''),
+				clearPassword: data.get('clearPassword') === 'on',
+				fromName: String(data.get('fromName') ?? '').trim(),
+				fromAddress: String(data.get('fromAddress') ?? '').trim()
+			}
+		};
+	}
+
+	function checkInput(input: ReturnType<typeof readInput>): boolean {
+		if (!Number.isInteger(input.smtp.port) || input.smtp.port < 1 || input.smtp.port > 65535) {
+			setStatus('SMTP 端口必须是 1 到 65535 的整数。', true);
+			return false;
+		}
+		return true;
+	}
+
+	form.addEventListener('submit', async (event) => {
+		event.preventDefault();
+		const input = readInput();
+		if (!checkInput(input)) return;
+		save.disabled = true;
+		save.textContent = '保存中…';
+		try {
+			const result = await actions.updateSystemConfigurationAction(input);
+			if (result.error) setStatus(result.error.message ?? '保存失败。', true);
+			else {
+				(document.getElementById('smtp-password') as HTMLInputElement).value = '';
+				setStatus('邮件设置已保存。');
+			}
+		} catch {
+			setStatus('网络连接异常，请检查后重试。', true);
+		} finally {
+			save.disabled = false;
+			save.textContent = '保存设置';
+		}
+	});
+
+	test.addEventListener('click', async () => {
+		const input = readInput();
+		if (!checkInput(input)) return;
+		test.disabled = true;
+		test.textContent = '测试中…';
+		try {
+			// 密码留空的草稿由服务端与已保存密文合并；浏览器从不读取旧密码。
+			const result = await actions.testSystemSmtpAction({ smtp: input.smtp });
+			setStatus(
+				result.error ? (result.error.message ?? '连接测试失败。') : 'SMTP 连接测试通过。',
+				Boolean(result.error)
+			);
+		} catch {
+			setStatus('网络连接异常，请检查后重试。', true);
+		} finally {
+			test.disabled = false;
+			test.textContent = '测试连接';
+		}
+	});
+</script>

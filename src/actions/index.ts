@@ -18,7 +18,12 @@ import { cancelUpload, uploadMedia } from './media';
 import { searchUsers, searchSuggest } from './search';
 
 // 用户配置模块
-import { updateTheme } from './config';
+import {
+	getSystemConfiguration,
+	testSystemSmtpAction,
+	updateSystemConfigurationAction,
+	updateTheme
+} from './config';
 
 // Webhook 管理模块
 import { createWebhook, updateWebhook, deleteWebhook, revealWebhookSecret } from './webhook';
@@ -107,6 +112,9 @@ export const server = {
 	cancelUpload,
 	searchUsers,
 	updateTheme,
+	getSystemConfiguration,
+	updateSystemConfigurationAction,
+	testSystemSmtpAction,
 	searchSuggest,
 	createWebhook,
 	updateWebhook,

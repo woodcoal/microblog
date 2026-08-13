@@ -421,7 +421,25 @@ const spec = {
 					}
 				},
 				responses: {
-					202: successResponse('注册请求已受理；不会披露邮箱是否已注册'),
+					202: {
+						description: '注册请求已受理；不会披露邮箱是否已注册或首位管理员身份',
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: {
+										accepted: { type: 'boolean' },
+										nextAction: {
+											type: 'string',
+											enum: ['verify_email', 'login']
+										},
+										message: { type: 'string' }
+									},
+									required: ['accepted', 'nextAction', 'message']
+								}
+							}
+						}
+					},
 					400: commonResponses[400],
 					403: commonResponses[403],
 					500: commonResponses[500]
