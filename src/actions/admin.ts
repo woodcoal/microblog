@@ -7,7 +7,7 @@
 import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
-import { ServiceError } from '@/lib/errors';
+import { actionErrorCode, ServiceError } from '@/lib/errors';
 import {
 	batchUsers as batchUsersService,
 	batchPosts as batchPostsService,
@@ -36,7 +36,7 @@ async function requireAdmin(context: Parameters<typeof getUserFromRequest>[0]) {
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
 	if (e instanceof ServiceError) {
-		throw new ActionError({ code: e.code, message: e.message });
+		throw new ActionError({ code: actionErrorCode(e.code), message: e.message });
 	}
 	throw e;
 }

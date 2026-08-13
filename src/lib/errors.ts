@@ -4,7 +4,13 @@
  * Service 函数抛出此错误，由 Action/API 层转换为各自的错误格式。
  */
 
-export type ServiceErrorCode = 'NOT_FOUND' | 'BAD_REQUEST' | 'FORBIDDEN' | 'UNAUTHORIZED';
+export type ServiceErrorCode =
+	| 'NOT_FOUND'
+	| 'BAD_REQUEST'
+	| 'FORBIDDEN'
+	| 'UNAUTHORIZED'
+	| 'EMAIL_OWNERSHIP_DISABLED'
+	| 'SMTP_CONFIGURATION_INVALID';
 
 export class ServiceError extends Error {
 	constructor(
@@ -14,6 +20,17 @@ export class ServiceError extends Error {
 		super(message);
 		this.name = 'ServiceError';
 	}
+}
+
+/** Astro Actions 只接受 HTTP 语义错误码；扩展机器码仍由 JSON/Agent API 保留。 */
+export function actionErrorCode(
+	code: ServiceErrorCode
+): 'NOT_FOUND' | 'BAD_REQUEST' | 'FORBIDDEN' | 'UNAUTHORIZED' {
+	return code === 'EMAIL_OWNERSHIP_DISABLED'
+		? 'FORBIDDEN'
+		: code === 'SMTP_CONFIGURATION_INVALID'
+			? 'BAD_REQUEST'
+			: code;
 }
 
 /** 从未知错误中安全读取 HTTP 状态码。 */

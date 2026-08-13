@@ -3,7 +3,7 @@ import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import type { APIContext } from 'astro';
 import { getUserFromRequest } from '@/lib/auth';
-import { ServiceError } from '@/lib/errors';
+import { actionErrorCode, ServiceError } from '@/lib/errors';
 import { SITE_COPY_KEYS } from '@/lib/site-copy-definitions';
 import {
 	getAdminSiteCopy,
@@ -16,7 +16,7 @@ const siteCopyKeySchema = z.enum(SITE_COPY_KEYS);
 
 function handleServiceError(error: unknown): never {
 	if (error instanceof ServiceError) {
-		throw new ActionError({ code: error.code, message: error.message });
+		throw new ActionError({ code: actionErrorCode(error.code), message: error.message });
 	}
 	throw error;
 }

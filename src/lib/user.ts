@@ -94,6 +94,27 @@ export async function createUserWithUsernameClaim(data: Prisma.UserCreateInput) 
 	});
 }
 
+/**
+ * 注册专用的原子创建。管理员资格由永久 bootstrap 记录裁决，而非用户数量。
+ * 竞争失败时整个事务回滚，调用方可安全退回普通用户路径重试。
+ */
+export async function createFirstAdminOrUser(data: Prisma.UserCreateInput) {
+	return prisma.$transaction(async (tx) => {
+		const bootstrap = await tx.adminBootstrap.findUnique({ where: { id: 'global' } });
+		const isFirst = !bootstrap;
+		const user = await tx.user.create({
+			data: {
+				...data,
+				role: isFirst ? 'admin' : 'user',
+				emailVerificationRequired: !isFirst
+			}
+		});
+		await tx.usernameClaim.create({ data: { username: user.username, userId: user.id } });
+		if (isFirst) await tx.adminBootstrap.create({ data: { id: 'global', userId: user.id } });
+		return user;
+	});
+}
+
 /** 用户主页详情所需的公开字段与统计信息。 */
 export function findUserDetailByUsername(username: string) {
 	return prisma.user.findFirst({

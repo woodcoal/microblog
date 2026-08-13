@@ -2,13 +2,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '@/lib/db';
 import {
-	MAIL_DELIVERY_MODE,
-	MAIL_DELIVERY_WEBHOOK_AUTHORIZATION,
-	MAIL_DELIVERY_WEBHOOK_URL,
 	PASSWORD_RESET_REQUEST_COOLDOWN_SECONDS,
 	PASSWORD_RESET_TOKEN_TTL_MINUTES,
 	SITE_URL
 } from '@/lib/config';
+import { assertEmailOwnershipEnabled } from '@/services/email-policy.service';
+import { deliverMail } from '@/services/mail-delivery.service';
 
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
@@ -24,35 +23,12 @@ function resetUrl(token: string): string {
 	return new URL(`/reset-password?token=${encodeURIComponent(token)}`, SITE_URL).toString();
 }
 
-async function deliverPasswordResetEmail(email: string, token: string): Promise<void> {
-	if (MAIL_DELIVERY_MODE === 'disabled' || MAIL_DELIVERY_MODE === 'test') return;
-	if (MAIL_DELIVERY_MODE !== 'webhook' || !MAIL_DELIVERY_WEBHOOK_URL) {
-		throw new Error('邮件投递未配置');
-	}
-
-	const response = await fetch(MAIL_DELIVERY_WEBHOOK_URL, {
-		method: 'POST',
-		headers: {
-			'content-type': 'application/json',
-			...(MAIL_DELIVERY_WEBHOOK_AUTHORIZATION
-				? { authorization: MAIL_DELIVERY_WEBHOOK_AUTHORIZATION }
-				: {})
-		},
-		body: JSON.stringify({
-			to: email,
-			template: 'password-reset',
-			resetUrl: resetUrl(token)
-		}),
-		signal: AbortSignal.timeout(10_000)
-	});
-	if (!response.ok) throw new Error('邮件投递失败');
-}
-
 /**
  * 总是静默接受请求。对真实账号，限频后撤销旧未消费令牌并发出一枚新令牌；
  * 对不存在、禁用或未验证账号不写入任何记录，外部响应保持一致。
  */
 export async function requestPasswordReset(email: string): Promise<void> {
+	await assertEmailOwnershipEnabled('reset');
 	const user = await prisma.user.findUnique({
 		where: { email },
 		select: { id: true, email: true, isDisabled: true, deletedAt: true, emailVerifiedAt: true }
@@ -87,7 +63,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
 	});
 
 	try {
-		await deliverPasswordResetEmail(user.email, token);
+		await deliverMail({
+			to: user.email,
+			template: 'password-reset',
+			resetUrl: resetUrl(token)
+		});
 	} catch (error) {
 		// 投递是非关键副作用。不得让网关状态成为账号存在性的外部信号；
 		// 日志不包含邮箱、令牌或投递 URL，供运行环境的日志告警规则捕获。
@@ -108,6 +88,7 @@ export async function consumePasswordResetToken(
 	token: string,
 	passwordHash: string
 ): Promise<boolean> {
+	await assertEmailOwnershipEnabled('reset');
 	const tokenHash = hashPasswordResetToken(token);
 	if (!SHA256_HEX.test(tokenHash)) return false;
 

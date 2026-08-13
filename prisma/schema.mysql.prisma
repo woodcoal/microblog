@@ -24,6 +24,8 @@ model User {
   /// 永久注销墓碑。保留记录及其用户名/邮箱，避免身份重新分配或审计引用断裂。
   deletedAt    DateTime?
   emailVerifiedAt DateTime?
+  /// 仅用于首位管理员和存量兼容；全局策略开启时为 false 的用户无需验证。
+  emailVerificationRequired Boolean @default(true)
   credentialVersion Int @default(0) // 密码重置后递增，使此前签发的 JWT 立即失效
   hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
   createdAt    DateTime @default(now())
@@ -58,6 +60,36 @@ model User {
   emailChangeTokens       EmailChangeToken[]
 
   @@index([deletedAt])
+}
+
+/// 唯一全局配置记录，固定使用 id=global。
+model SystemConfig {
+  id                    String   @id @db.VarChar(191)
+  emailOwnershipEnabled Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+/// 首位管理员的不可重复领取闩锁。即使管理员均已注销，此记录也不会删除。
+model AdminBootstrap {
+  id        String   @id @db.VarChar(191)
+  userId    String   @unique @db.VarChar(191)
+  claimedAt DateTime @default(now())
+}
+
+/// SMTP 凭据独立保存；密码始终是 AES-GCM 密文，绝不返回到 API。
+model SmtpConfiguration {
+  id                 String   @id @db.VarChar(191)
+  host               String?  @db.VarChar(255)
+  port               Int?
+  security           String?  @db.VarChar(16)
+  username           String?  @db.VarChar(255)
+  passwordEncrypted  String?  @db.Text
+  fromName           String?  @db.VarChar(255)
+  fromAddress        String?  @db.VarChar(320)
+  smtpEverConfigured Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 /// 邮箱换绑确认令牌。targetEmail 在确认前不修改 User.email。

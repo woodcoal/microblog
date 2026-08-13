@@ -4,11 +4,10 @@ import { prisma } from '@/lib/db';
 import {
 	EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
 	EMAIL_VERIFICATION_TOKEN_TTL_MINUTES,
-	MAIL_DELIVERY_MODE,
-	MAIL_DELIVERY_WEBHOOK_AUTHORIZATION,
-	MAIL_DELIVERY_WEBHOOK_URL,
 	SITE_URL
 } from '@/lib/config';
+import { assertEmailOwnershipEnabled } from '@/services/email-policy.service';
+import { deliverMail } from '@/services/mail-delivery.service';
 
 const PURPOSE = 'verify_email';
 const SHA256_HEX = /^[a-f0-9]{64}$/;
@@ -25,35 +24,11 @@ function verificationUrl(token: string): string {
 	return new URL(`/verify-email?token=${encodeURIComponent(token)}`, SITE_URL).toString();
 }
 
-/** 默认禁用投递；webhook 模式以运行期机密调用既有邮件网关。 */
-async function deliverVerificationEmail(email: string, token: string): Promise<void> {
-	if (MAIL_DELIVERY_MODE === 'disabled' || MAIL_DELIVERY_MODE === 'test') return;
-	if (MAIL_DELIVERY_MODE !== 'webhook' || !MAIL_DELIVERY_WEBHOOK_URL) {
-		throw new Error('邮件投递未配置');
-	}
-
-	const response = await fetch(MAIL_DELIVERY_WEBHOOK_URL, {
-		method: 'POST',
-		headers: {
-			'content-type': 'application/json',
-			...(MAIL_DELIVERY_WEBHOOK_AUTHORIZATION
-				? { authorization: MAIL_DELIVERY_WEBHOOK_AUTHORIZATION }
-				: {})
-		},
-		body: JSON.stringify({
-			to: email,
-			template: 'verify-email',
-			verificationUrl: verificationUrl(token)
-		}),
-		signal: AbortSignal.timeout(10_000)
-	});
-	if (!response.ok) throw new Error('邮件投递失败');
-}
-
 export async function issueEmailVerificationToken(user: {
 	id: string;
 	email: string;
 }): Promise<void> {
+	await assertEmailOwnershipEnabled();
 	const token = createRawToken();
 	const now = new Date();
 	await prisma.$transaction(async (tx) => {
@@ -73,11 +48,16 @@ export async function issueEmailVerificationToken(user: {
 
 	// 邮件投递是非关键副作用，不能影响注册端点的统一外部语义。
 	// 失败时令牌仍可由重发流程安全轮换；不记录邮箱、令牌或凭据。
-	void deliverVerificationEmail(user.email, token).catch(() => {});
+	void deliverMail({
+		to: user.email,
+		template: 'verify-email',
+		verificationUrl: verificationUrl(token)
+	}).catch(() => {});
 }
 
 /** 可重复调用但不会暴露邮箱或令牌是否有效；仅命中待验证用户才实际重发。 */
 export async function resendEmailVerification(email: string): Promise<void> {
+	await assertEmailOwnershipEnabled();
 	const user = await prisma.user.findUnique({
 		where: { email },
 		select: { id: true, email: true, deletedAt: true, emailVerifiedAt: true }
@@ -99,6 +79,7 @@ export async function resendEmailVerification(email: string): Promise<void> {
 
 /** 原子消费。返回 false 时不区分无效、过期、撤销或已消费，避免状态枚举。 */
 export async function consumeEmailVerificationToken(token: string): Promise<boolean> {
+	await assertEmailOwnershipEnabled();
 	if (!SHA256_HEX.test(hashEmailVerificationToken(token))) return false;
 	const now = new Date();
 	const result = await prisma.$transaction(async (tx) => {
