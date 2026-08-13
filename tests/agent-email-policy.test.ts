@@ -20,7 +20,7 @@ function request(body: Record<string, string>): Request {
 	});
 }
 
-test('邮箱所有权关闭时 Agent 四个入口返回同一机器码和精确文案', async () => {
+test('邮箱所有权关闭时 Agent 四个入口返回精确文案', async () => {
 	await setEmailOwnershipEnabled(false);
 	const cases: Array<[Response | Promise<Response>, string]> = [
 		[
@@ -42,6 +42,6 @@ test('邮箱所有权关闭时 Agent 四个入口返回同一机器码和精确�
 	for (const [responsePromise, message] of cases) {
 		const response = await responsePromise;
 		assert.equal(response.status, 403);
-		assert.equal(await response.text(), `error: EMAIL_OWNERSHIP_DISABLED: ${message}`);
+		assert.equal(await response.text(), `error: ${message}`);
 	}
 });
