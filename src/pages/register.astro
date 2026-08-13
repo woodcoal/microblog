@@ -417,12 +417,16 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 				}
 
 				const needsVerification = result.data?.nextAction === 'verify_email';
-				successMessage.textContent = needsVerification
-					? '验证邮件已发送。账号在完成邮箱验证前无法登录或使用完整功能，请前往邮箱打开验证链接。'
-					: '注册已完成。你可以直接登录；邮箱所有权相关操作仍由站点策略决定。';
+				if (!needsVerification) {
+					// 已自动登录，直接跳转首页
+					window.location.href = '/';
+					return;
+				}
+				successMessage.textContent =
+					'验证邮件已发送。账号在完成邮箱验证前无法登录或使用完整功能，请前往邮箱打开验证链接。';
 				successPanel.hidden = false;
 				resendEmailInput.value = email;
-				resendForm.hidden = !needsVerification;
+				resendForm.hidden = false;
 				form.reset();
 				successPanel.focus();
 			} catch (e) {

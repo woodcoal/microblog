@@ -74,6 +74,7 @@ export interface RegisterUserResult {
 		displayName: string;
 		avatarUrl: string | null;
 		role: string;
+		credentialVersion: number;
 	} | null;
 }
 
@@ -203,7 +204,8 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 					username: user.username,
 					displayName: user.displayName,
 					avatarUrl: user.avatarUrl,
-					role: user.role
+					role: user.role,
+					credentialVersion: user.credentialVersion
 				}
 			});
 		} catch (error) {

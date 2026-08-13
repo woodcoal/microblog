@@ -72,16 +72,27 @@ const register = defineAction({
 		email: z.string().min(1, '邮箱不能为空'),
 		password: z.string().min(1, '密码不能为空')
 	}),
-	handler: async (input) => {
+	handler: async (input, context) => {
 		try {
 			const result = await registerUserService(input);
+
+			// 无需邮箱验证时直接签发 JWT 并设置 cookie，实现注册即登录
+			if (result.nextAction === 'login' && result.user) {
+				const token = await generateToken({
+					userId: result.user.id,
+					username: result.user.username,
+					role: result.user.role,
+					credentialVersion: result.user.credentialVersion
+				});
+				setTokenCookie(context, token);
+			}
 
 			return {
 				accepted: true,
 				nextAction: result.nextAction,
 				message:
 					result.nextAction === 'login'
-						? '注册已完成，请登录'
+						? '注册完成，已自动登录'
 						: '若邮箱可用，验证邮件已发送'
 			};
 		} catch (e) {
