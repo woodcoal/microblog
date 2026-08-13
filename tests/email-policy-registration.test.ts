@@ -48,12 +48,14 @@ test('关闭邮箱所有权后 v1 和 Agent 注册入口均接受普通用户', 
 		request: registerRequest(unique('v1user'), v1Email)
 	} as Parameters<typeof v1Register>[0]);
 	assert.equal(v1.status, 202);
+	assert.equal(((await v1.json()) as { nextAction: string }).nextAction, 'login');
 
 	const agentEmail = `${unique('agentmail')}@example.test`;
 	const agent = await agentRegister({
 		request: registerRequest(unique('agentuser'), agentEmail)
 	} as Parameters<typeof agentRegister>[0]);
 	assert.equal(agent.status, 202);
+	assert.match(await agent.text(), /nextAction: login/);
 	for (const email of [v1Email, agentEmail]) {
 		const user = await prisma.user.findUniqueOrThrow({ where: { email } });
 		assert.equal(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);

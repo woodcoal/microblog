@@ -36,7 +36,9 @@ const token = Astro.url.searchParams.get('token') ?? '';
 			hidden
 		>
 			<h2>验证链接无效或已失效</h2>
-			<p>链接可能已过期、已使用或不完整。请请求一封新的验证邮件后再试。</p>
+			<p id="verification-failure-message">
+				链接可能已过期、已使用或不完整。请请求一封新的验证邮件后再试。
+			</p>
 		</div>
 
 		<form id="resend-form" class="verification-resend-form" aria-describedby="resend-note">
@@ -127,6 +129,7 @@ const token = Astro.url.searchParams.get('token') ?? '';
 	const success = document.getElementById('verification-success') as HTMLElement;
 	const action = document.getElementById('verification-action') as HTMLElement;
 	const failure = document.getElementById('verification-failure') as HTMLElement;
+	const failureMessage = document.getElementById('verification-failure-message') as HTMLElement;
 	const resendForm = document.getElementById('resend-form') as HTMLFormElement;
 	const emailInput = document.getElementById('email') as HTMLInputElement;
 	const resendStatus = document.getElementById('resend-status')!;
@@ -145,6 +148,8 @@ const token = Astro.url.searchParams.get('token') ?? '';
 		showState(pending);
 		try {
 			const result = await actions.verifyEmail({ token });
+			if (result.error?.message === '与管理员联系处理')
+				failureMessage.textContent = '与管理员联系处理';
 			showState(result.error ? failure : success);
 		} catch {
 			showState(failure);

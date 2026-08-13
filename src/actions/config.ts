@@ -8,6 +8,11 @@ import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { actionErrorCode, ServiceError } from '@/lib/errors';
+import {
+	readSystemConfiguration,
+	testSystemSmtp,
+	updateSystemConfiguration
+} from '@/services/system-config.service';
 import { updateTheme as updateThemeService } from '@/services/config.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -48,6 +53,66 @@ export const updateTheme = defineAction({
 			});
 		} catch (e) {
 			handleServiceError(e);
+		}
+	}
+});
+
+const smtpInput = z.object({
+	host: z.string().trim().min(1, 'SMTP 主机不能为空'),
+	port: z.number().int().min(1).max(65535),
+	security: z.enum(['tls', 'starttls']),
+	username: z.string().trim().min(1, 'SMTP 账号不能为空'),
+	password: z.string().optional(),
+	clearPassword: z.boolean().optional(),
+	fromName: z.string().trim().min(1, '发件人名称不能为空'),
+	fromAddress: z.email('发件人邮箱格式无效')
+});
+
+async function requireCurrentUser(context: Parameters<typeof getUserFromRequest>[0]) {
+	const currentUser = await getUserFromRequest(context);
+	if (!currentUser) throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
+	return currentUser;
+}
+
+/** 管理员读取邮件策略与已脱敏的 SMTP 配置。服务层每次重新核验数据库角色。 */
+export const getSystemConfiguration = defineAction({
+	input: z.void(),
+	handler: async (_, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			return await readSystemConfiguration(currentUser.userId);
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+/** 管理员更新邮件策略与 SMTP 配置；空密码保留旧值，clearPassword 明确清除。 */
+export const updateSystemConfigurationAction = defineAction({
+	input: z.object({
+		emailOwnershipEnabled: z.boolean().optional(),
+		smtp: smtpInput.optional()
+	}),
+	handler: async (input, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			return await updateSystemConfiguration({ userId: currentUser.userId, ...input });
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+/** 仅执行 SMTP 握手、认证与 NOOP，不发送邮件。 */
+export const testSystemSmtpAction = defineAction({
+	input: z.object({ smtp: smtpInput.optional() }),
+	handler: async ({ smtp }, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			await testSystemSmtp(currentUser.userId, smtp);
+			return { tested: true };
+		} catch (error) {
+			handleServiceError(error);
 		}
 	}
 });

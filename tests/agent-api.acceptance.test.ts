@@ -108,7 +108,7 @@ async function register(username: string) {
 	});
 	assert.equal(response.status, 202, await response.clone().text());
 	const body = await plainText(response);
-	assert.equal(body, 'ok: 若邮箱可用，验证邮件已发送');
+	assert.match(body, /^ok: .+\nnextAction: (verify_email|login)$/);
 	const user = await prisma.user.findUniqueOrThrow({ where: { username }, select: { id: true } });
 	await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
 	return (await createToken({ userId: user.id, name: 'agent acceptance token' })).token;

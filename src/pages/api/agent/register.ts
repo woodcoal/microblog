@@ -5,18 +5,10 @@
  * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
-import { textResponse, textErrorResponse } from '@/lib/agent';
+import { handleAgentError, textResponse, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { registerUser } from '@/services/auth.service';
 import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
-
-/** ServiceError code → HTTP 状态码映射 */
-const statusCodeMap: Record<string, number> = {
-	NOT_FOUND: 404,
-	BAD_REQUEST: 400,
-	FORBIDDEN: 403,
-	UNAUTHORIZED: 401
-};
 
 export const POST: APIRoute = async (context) => {
 	try {
@@ -34,17 +26,12 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 调用 service 注册用户
-		try {
-			await registerUser({ username, displayName, email, password });
-		} catch (e) {
-			if (e instanceof ServiceError) {
-				return textErrorResponse(e.message, statusCodeMap[e.code] || 400);
-			}
-			throw e;
-		}
-
-		return textResponse('ok: 若邮箱可用，验证邮件已发送', 202);
+		const result = await registerUser({ username, displayName, email, password });
+		const message =
+			result.nextAction === 'login' ? '注册已完成，请登录' : '若邮箱可用，验证邮件已发送';
+		return textResponse(`ok: ${message}\nnextAction: ${result.nextAction}`, 202);
 	} catch (error) {
+		if (error instanceof ServiceError) return handleAgentError(error, '快速注册');
 		if (getErrorStatus(error) === 400) {
 			return textErrorResponse(getErrorMessage(error, '请求参数错误'), 400);
 		}

@@ -42,7 +42,9 @@ const token = Astro.url.searchParams.get('token') ?? '';
 			tabindex="-1"
 		>
 			<h2>确认链接无效或已失效</h2>
-			<p>链接可能已过期、已使用、已被重发链接撤销或不完整。请从账号安全页重新发起换绑。</p>
+			<p id="email-change-invalid-message">
+				链接可能已过期、已使用、已被重发链接撤销或不完整。请从账号安全页重新发起换绑。
+			</p>
 			<a href="/settings?tab=security" class="btn btn-outline">返回账号安全</a>
 		</section>
 	</section>
@@ -85,6 +87,7 @@ const token = Astro.url.searchParams.get('token') ?? '';
 	const action = document.getElementById('email-change-action') as HTMLElement;
 	const success = document.getElementById('email-change-success') as HTMLElement;
 	const invalid = document.getElementById('email-change-invalid') as HTMLElement;
+	const invalidMessage = document.getElementById('email-change-invalid-message') as HTMLElement;
 
 	function showState(state: HTMLElement) {
 		[pending, action, success, invalid].forEach(
@@ -101,6 +104,8 @@ const token = Astro.url.searchParams.get('token') ?? '';
 		showState(pending);
 		try {
 			const result = await actions.confirmEmailChangeAction({ token });
+			if (result.error?.message === '与管理员联系处理')
+				invalidMessage.textContent = '与管理员联系处理';
 			showState(result.error ? invalid : success);
 		} catch {
 			showState(invalid);

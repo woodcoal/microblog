@@ -7,8 +7,11 @@ const read = (path: string) => readFile(new URL(path, root), 'utf8');
 
 test('注册页允许省略用户名，并把占用和保留词裁决交给服务端', async () => {
 	const source = await read('src/pages/register.astro');
-	assert.match(source, /留空将由系统自动生成唯一用户名（如 u_xxxx）/);
-	assert.doesNotMatch(source, /\brequired\s*\n\s*minlength="3"/);
+	assert.match(source, /留空将由系统自动生成唯一用户名（如\s*u_xxxx）/);
+	const usernameIndex = source.indexOf('id="username"');
+	const usernameInputEnd = source.indexOf('/>', usernameIndex);
+	const usernameInput = source.slice(usernameIndex, usernameInputEnd);
+	assert.doesNotMatch(usernameInput, /\brequired/);
 	assert.match(source, /username: username \|\| undefined/);
 	assert.match(source, /保留词、占用和最终可用性均由服务端裁决/);
 	assert.doesNotMatch(source, /RESERVED_USERNAMES/);

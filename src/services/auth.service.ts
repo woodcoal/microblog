@@ -57,6 +57,8 @@ export interface RegisterUserInput {
 
 export interface RegisterUserResult {
 	accepted: true;
+	/** 提示入口下一步；不包含角色或首位管理员状态。 */
+	nextAction: 'verify_email' | 'login';
 	/** 仅供服务层内部测试和后续编排使用，HTTP/Astro Action 不得序列化此字段。 */
 	user: {
 		id: string;
@@ -184,8 +186,13 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 			if (user.emailVerificationRequired && (await isEmailOwnershipEnabled())) {
 				await issueEmailVerificationToken(user);
 			}
+			const emailOwnershipEnabled = await isEmailOwnershipEnabled();
 			return await completeRegistration(startedAt, {
 				accepted: true,
+				nextAction:
+					user.emailVerificationRequired && emailOwnershipEnabled
+						? 'verify_email'
+						: 'login',
 				user: {
 					id: user.id,
 					username: user.username,
@@ -199,10 +206,18 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 			// 首位管理员竞争失败时先前事务已完整回滚；下轮安全作为普通注册重试。
 			if (attempt === 0) continue;
 			if (requestedUsername || isEmailUniqueConstraintError(error) || attempt === 7)
-				return completeRegistration(startedAt, { accepted: true, user: null });
+				return completeRegistration(startedAt, {
+					accepted: true,
+					nextAction: (await isEmailOwnershipEnabled()) ? 'verify_email' : 'login',
+					user: null
+				});
 		}
 	}
-	return completeRegistration(startedAt, { accepted: true, user: null });
+	return completeRegistration(startedAt, {
+		accepted: true,
+		nextAction: (await isEmailOwnershipEnabled()) ? 'verify_email' : 'login',
+		user: null
+	});
 }
 
 /** 将常见注册路径收敛到同一最小时长，降低唯一约束分支的可观测差异。 */

@@ -29,44 +29,6 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 					<>
 						<form id="register-form" class="auth-form">
 							<div class="form-group">
-								<label for="username" class="form-label">
-									用户名
-								</label>
-								<input
-									type="text"
-									id="username"
-									name="username"
-									class="form-input"
-									placeholder="3-20 位字母、数字、下划线"
-									minlength="3"
-									maxlength="20"
-									pattern="[a-zA-Z0-9_]{3,20}"
-									autocomplete="off"
-									aria-describedby="username-error username-hint"
-								/>
-								<div id="username-error" class="form-error" role="alert" />
-								<div id="username-hint" class="form-hint" aria-live="polite">
-									留空将由系统自动生成唯一用户名（如 u_xxxx）。
-								</div>
-							</div>
-
-							<div class="form-group">
-								<label for="displayName" class="form-label">
-									显示名称
-								</label>
-								<input
-									type="text"
-									id="displayName"
-									name="displayName"
-									class="form-input"
-									placeholder="你的昵称"
-									required
-									maxlength="50"
-									autocomplete="off"
-								/>
-							</div>
-
-							<div class="form-group">
 								<label for="email" class="form-label">
 									邮箱
 								</label>
@@ -119,6 +81,30 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 								<div id="confirm-hint" class="form-hint" aria-live="polite" />
 							</div>
 
+							<details class="form-group username-optional">
+								<summary>设置用户名（可选）</summary>
+								<label for="username" class="form-label">
+									用户名
+								</label>
+								<input
+									type="text"
+									id="username"
+									name="username"
+									class="form-input"
+									placeholder="3-20 位字母、数字、下划线"
+									minlength="3"
+									maxlength="20"
+									pattern="[a-zA-Z0-9_]{3,20}"
+									autocomplete="off"
+									aria-describedby="username-error username-hint"
+								/>
+								<div id="username-error" class="form-error" role="alert" />
+								<div id="username-hint" class="form-hint" aria-live="polite">
+									留空将由系统自动生成唯一用户名（如
+									u_xxxx），不消耗后续一次自助改名机会。
+								</div>
+							</details>
+
 							<div
 								id="form-error"
 								class="form-error"
@@ -142,8 +128,8 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 							hidden
 							aria-labelledby="registration-success-title"
 						>
-							<h3 id="registration-success-title">请验证你的邮箱</h3>
-							<p>
+							<h3 id="registration-success-title">注册已受理</h3>
+							<p id="registration-success-message">
 								验证邮件已发送。账号在完成邮箱验证前无法登录或使用完整功能，请前往邮箱打开验证链接。
 							</p>
 							<form id="registration-resend-form" class="verification-resend-form">
@@ -216,6 +202,13 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 		text-align: center;
 		padding: var(--spacing-6) 0;
 	}
+	.username-optional summary {
+		cursor: pointer;
+		color: var(--color-primary);
+	}
+	.username-optional[open] summary {
+		margin-bottom: var(--spacing-3);
+	}
 
 	.registration-closed-title {
 		font-size: 1.125rem;
@@ -276,7 +269,6 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 
 	// 字段引用
 	const usernameInput = document.getElementById('username') as HTMLInputElement;
-	const displayNameInput = document.getElementById('displayName') as HTMLInputElement;
 	const emailInput = document.getElementById('email') as HTMLInputElement;
 	const passwordInput = document.getElementById('password') as HTMLInputElement;
 	const confirmInput = document.getElementById('confirmPassword') as HTMLInputElement;
@@ -289,6 +281,7 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 	const passwordHint = document.getElementById('password-hint')!;
 	const confirmHint = document.getElementById('confirm-hint')!;
 	const successPanel = document.getElementById('registration-success') as HTMLElement;
+	const successMessage = document.getElementById('registration-success-message') as HTMLElement;
 	const resendForm = document.getElementById('registration-resend-form') as HTMLFormElement;
 	const resendEmailInput = document.getElementById(
 		'registration-resend-email'
@@ -370,17 +363,13 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 		passwordInput.addEventListener('blur', () => clearFieldError(passwordHint));
 	}
 
-	// 聚焦显示名称
-	if (displayNameInput) {
-		displayNameInput.focus();
-	}
+	if (emailInput) emailInput.focus();
 
 	if (form) {
 		form.addEventListener('submit', async (e) => {
 			e.preventDefault();
 
 			const username = usernameInput.value.trim();
-			const displayName = displayNameInput.value.trim();
 			const email = emailInput.value.trim();
 			const password = passwordInput.value;
 			const confirmPassword = confirmInput.value;
@@ -414,7 +403,6 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 				// Astro 6 Actions 返回 SafeResult：{ data, error }
 				const result = await actions.register({
 					username: username || undefined,
-					displayName,
 					email,
 					password
 				});
@@ -425,9 +413,13 @@ const introCopy = await getPublicSiteCopy('auth.register.intro');
 					return;
 				}
 
-				// 注册不会建立会话；邮箱验证完成后才能登录并使用完整能力。
+				const needsVerification = result.data?.nextAction === 'verify_email';
+				successMessage.textContent = needsVerification
+					? '验证邮件已发送。账号在完成邮箱验证前无法登录或使用完整功能，请前往邮箱打开验证链接。'
+					: '注册已完成。你可以直接登录；邮箱所有权相关操作仍由站点策略决定。';
 				successPanel.hidden = false;
 				resendEmailInput.value = email;
+				resendForm.hidden = !needsVerification;
 				form.reset();
 				successPanel.focus();
 			} catch (e) {

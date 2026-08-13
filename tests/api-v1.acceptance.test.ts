@@ -123,10 +123,11 @@ before(async () => {
 			})
 		});
 		assert.equal(response.status, 202);
-		assert.deepEqual(await json(response), {
-			accepted: true,
-			message: '若邮箱可用，验证邮件已发送'
-		});
+		const registration = await json<{ accepted: boolean; nextAction: string; message: string }>(
+			response
+		);
+		assert.equal(registration.accepted, true);
+		assert.ok(['verify_email', 'login'].includes(registration.nextAction));
 		const user = await prisma.user.findUniqueOrThrow({ where: { username } });
 		if (username === alice) aliceId = user.id;
 		await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
@@ -252,6 +253,7 @@ test('邮箱验证 API 统一拒绝无效令牌，并在有效令牌被消费后
 	assert.equal(registered.status, 202);
 	assert.deepEqual(await json(registered), {
 		accepted: true,
+		nextAction: 'verify_email',
 		message: '若邮箱可用，验证邮件已发送'
 	});
 	const pending = await prisma.user.findUniqueOrThrow({ where: { email } });
@@ -291,6 +293,7 @@ test(
 		assert.equal(registered.status, 202);
 		assert.deepEqual(await json(registered), {
 			accepted: true,
+			nextAction: 'verify_email',
 			message: '若邮箱可用，验证邮件已发送'
 		});
 		const pending = await prisma.user.findUniqueOrThrow({ where: { email } });

@@ -74,11 +74,15 @@ const register = defineAction({
 	}),
 	handler: async (input) => {
 		try {
-			await registerUserService(input);
+			const result = await registerUserService(input);
 
 			return {
 				accepted: true,
-				message: '若邮箱可用，验证邮件已发送'
+				nextAction: result.nextAction,
+				message:
+					result.nextAction === 'login'
+						? '注册已完成，请登录'
+						: '若邮箱可用，验证邮件已发送'
 			};
 		} catch (e) {
 			handleServiceError(e);
