@@ -15,6 +15,7 @@ import { consumePasswordResetToken, requestPasswordReset } from '@/lib/password-
 import { consumeEmailChangeToken, issueEmailChangeToken } from '@/lib/email-change';
 import {
 	assertEmailOwnershipEnabled,
+	isEmailOwnershipEnabled,
 	assertUserMayAuthenticate
 } from '@/services/email-policy.service';
 
@@ -177,7 +178,12 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 				email,
 				passwordHash
 			});
-			if (user.emailVerificationRequired) await issueEmailVerificationToken(user);
+			// 全局关闭后普通用户不需证明邮箱所有权，不能在写入用户后再把
+			// EMAIL_OWNERSHIP_DISABLED 泄漏为注册失败。令牌服务仍在其入口处
+			// 兜底阻断，避免其他调用方绕过策略。
+			if (user.emailVerificationRequired && (await isEmailOwnershipEnabled())) {
+				await issueEmailVerificationToken(user);
+			}
 			return await completeRegistration(startedAt, {
 				accepted: true,
 				user: {
