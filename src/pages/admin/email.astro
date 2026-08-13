@@ -213,6 +213,7 @@ const smtp = configuration.smtp;
 		test.disabled = true;
 		test.textContent = '测试中…';
 		try {
+			// 密码留空的草稿由服务端与已保存密文合并；浏览器从不读取旧密码。
 			const result = await actions.testSystemSmtpAction({ smtp: input.smtp });
 			setStatus(
 				result.error ? (result.error.message ?? '连接测试失败。') : 'SMTP 连接测试通过。',

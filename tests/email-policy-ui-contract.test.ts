@@ -31,6 +31,7 @@ test('管理邮件页只使用脱敏状态，并经受保护的 Action 保存和
 	assert.doesNotMatch(page, /passwordEncrypted/);
 	assert.match(page, /actions\.updateSystemConfigurationAction/);
 	assert.match(page, /actions\.testSystemSmtpAction/);
+	assert.match(page, /actions\.testSystemSmtpAction\(\{ smtp: input\.smtp \}\)/);
 	assert.match(actions, /readSystemConfiguration/);
 	assert.match(actions, /updateSystemConfiguration/);
 	assert.match(actions, /testSystemSmtp/);
