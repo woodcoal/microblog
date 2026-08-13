@@ -40,6 +40,7 @@ prisma/dev.db-journal
 prisma/*-test.db
 prisma/test-account-deletion.db
 prisma/*-acceptance.db
+prisma/qa-mysql-placeholder.db
 generated/
 
 # 上传文件

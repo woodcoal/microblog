@@ -172,7 +172,7 @@ pnpm exec tsx --test tests/trending.test.ts
 
 Service 测试会清空并写入 `DATABASE_URL` 指向的数据库，禁止直接对开发库或生产库运行。API 验收测试需要独立测试库、已应用迁移、空闲端口和运行中的 Astro 服务；浏览器测试需要 `MUTAN_E2E_BASE_URL` 与夹具数据。
 
-`test:api-v1`、`test:api-agent` 与 `test:admin-auth` 会通过 `scripts/run-api-test.mjs` 创建独立 SQLite 验收库，或读取 MySQL 的 `TEST_DATABASE_URL`。MySQL 必须使用独立测试库，禁止指向开发或生产库。其余引用 `scripts/run-*.mjs` 的测试命令尚未恢复，不能作为通过的 QA 证据。
+`test:api-v1`、`test:api-agent` 与 `test:admin-auth` 会通过 `scripts/run-api-test.mjs` 创建独立 SQLite 验收库，或读取 MySQL 的 `TEST_DATABASE_URL`。MySQL 必须使用独立测试库，禁止指向开发或生产库。`test:mysql-qa` 要求 `DATABASE_PROVIDER=mysql`，并读取 `MYSQL_QA_ADMIN_URL`（兼容使用 `TEST_DATABASE_URL`）；运行器用管理连接创建带随机后缀的临时库，应用当前 MySQL 迁移，执行 20 路并发首注册验收，最后删除并复查临时库。管理账号只需具备创建、删除临时库和访问信息_schema 的权限；不要将生产连接填入任一变量。
 
 页面、API 或数据库改动至少执行相关的 `typecheck`、格式检查和针对性测试；涉及真实 HTTP/认证/数据库链路时优先使用验收测试，而不是只 mock Service。
 
