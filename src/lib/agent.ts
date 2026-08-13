@@ -54,7 +54,12 @@ const SERVICE_ERROR_STATUS = {
 /** 将 service 与请求解析错误转换为 Agent API 的纯文本错误契约。 */
 export function handleAgentError(error: unknown, operation: string): Response {
 	if (error instanceof ServiceError) {
-		return textErrorResponse(error.message, SERVICE_ERROR_STATUS[error.code]);
+		// Agent 协议没有 JSON body，因此业务机器码作为稳定文本前缀返回。
+		// 不能只给中文文案，否则调用方无法与 Web/v1 的错误码对齐。
+		return textErrorResponse(
+			`${error.code}: ${error.message}`,
+			SERVICE_ERROR_STATUS[error.code]
+		);
 	}
 	if (
 		error instanceof Error &&

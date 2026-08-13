@@ -1,8 +1,7 @@
 import type { APIRoute } from 'astro';
-import { textErrorResponse, textResponse } from '@/lib/agent';
+import { handleAgentError, textErrorResponse, textResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
 import { resetPassword } from '@/services/auth.service';
-import { ServiceError } from '@/lib/errors';
 
 export const POST: APIRoute = async ({ request }) => {
 	try {
@@ -15,7 +14,6 @@ export const POST: APIRoute = async ({ request }) => {
 			return textErrorResponse('重置链接无效或已失效');
 		return textResponse('ok: 密码已重置，请使用新密码重新登录');
 	} catch (error) {
-		if (error instanceof ServiceError) return textErrorResponse(error.message);
-		return textErrorResponse('请求参数错误');
+		return handleAgentError(error, '重置密码');
 	}
 };

@@ -10,10 +10,28 @@ import { registerUser, loginUser } from '../src/services/auth.service';
 const unique = (prefix: string) =>
 	`${prefix}${crypto.randomUUID().replaceAll('-', '')}`.slice(0, 20);
 const password = 'email-verification-password';
+let bootstrapCreated = false;
+
+async function createBootstrapAdmin() {
+	if (bootstrapCreated) return;
+	const admin = await registerUser({
+		username: unique('bootstrap'),
+		email: `${unique('bootstrapmail')}@example.test`,
+		password
+	});
+	assert.ok(admin.user);
+	assert.equal(admin.user.role, 'admin');
+	assert.equal(
+		await prisma.emailVerificationToken.count({ where: { userId: admin.user.id } }),
+		0
+	);
+	bootstrapCreated = true;
+}
 
 after(async () => prisma.$disconnect());
 
 test('注册只创建待验证账号和安全摘要；单次消费后才允许登录', async () => {
+	await createBootstrapAdmin();
 	const registered = await registerUser({
 		username: unique('mailuser'),
 		email: `${unique('mail')}@example.test`,
@@ -44,7 +62,18 @@ test('注册只创建待验证账号和安全摘要；单次消费后才允许�
 	await assert.doesNotReject(loginUser({ email: persisted.email, password }));
 });
 
+test('首位有效注册用户为管理员且不需要邮箱验证', async () => {
+	// 该断言在干净库中由第一个测试的 bootstrap 建立后仍可独立验证。
+	const bootstrap = await prisma.adminBootstrap.findUniqueOrThrow({ where: { id: 'global' } });
+	const admin = await prisma.user.findUniqueOrThrow({ where: { id: bootstrap.userId } });
+	assert.equal(admin.role, 'admin');
+	assert.equal(admin.emailVerificationRequired, false);
+	assert.equal(admin.emailVerifiedAt, null);
+	assert.equal(await prisma.emailVerificationToken.count({ where: { userId: admin.id } }), 0);
+});
+
 test('过期或已撤销令牌不会激活账号', async () => {
+	await createBootstrapAdmin();
 	const registered = await registerUser({
 		username: unique('expired'),
 		email: `${unique('mail')}@example.test`,
@@ -69,6 +98,7 @@ test('过期或已撤销令牌不会激活账号', async () => {
 });
 
 test('并发消费同一个有效令牌只允许一个请求激活账号', async () => {
+	await createBootstrapAdmin();
 	const registered = await registerUser({
 		username: unique('concurrent'),
 		email: `${unique('mail')}@example.test`,
