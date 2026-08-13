@@ -12,6 +12,12 @@ import { deliverMail } from '@/services/mail-delivery.service';
 const PURPOSE = 'verify_email';
 const SHA256_HEX = /^[a-f0-9]{64}$/;
 
+export type EmailVerificationTokenDraft = {
+	token: string;
+	tokenHash: string;
+	expiresAt: Date;
+};
+
 export function hashEmailVerificationToken(token: string): string {
 	return createHash('sha256').update(token).digest('hex');
 }
@@ -24,12 +30,34 @@ function verificationUrl(token: string): string {
 	return new URL(`/verify-email?token=${encodeURIComponent(token)}`, SITE_URL).toString();
 }
 
+/** 创建待持久化的令牌。调用方必须在自己的事务中保存摘要。 */
+export function createEmailVerificationTokenDraft(): EmailVerificationTokenDraft {
+	const token = createRawToken();
+	return {
+		token,
+		tokenHash: hashEmailVerificationToken(token),
+		expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TOKEN_TTL_MINUTES * 60_000)
+	};
+}
+
+/** 邮件属于提交后的非关键副作用，不能改变已提交注册的结果。 */
+export function scheduleEmailVerificationDelivery(
+	user: { email: string },
+	token: EmailVerificationTokenDraft
+): void {
+	void deliverMail({
+		to: user.email,
+		template: 'verify-email',
+		verificationUrl: verificationUrl(token.token)
+	}).catch(() => {});
+}
+
 export async function issueEmailVerificationToken(user: {
 	id: string;
 	email: string;
 }): Promise<void> {
 	await assertEmailOwnershipEnabled();
-	const token = createRawToken();
+	const token = createEmailVerificationTokenDraft();
 	const now = new Date();
 	await prisma.$transaction(async (tx) => {
 		await tx.emailVerificationToken.updateMany({
@@ -39,20 +67,13 @@ export async function issueEmailVerificationToken(user: {
 		await tx.emailVerificationToken.create({
 			data: {
 				userId: user.id,
-				tokenHash: hashEmailVerificationToken(token),
+				tokenHash: token.tokenHash,
 				purpose: PURPOSE,
-				expiresAt: new Date(now.getTime() + EMAIL_VERIFICATION_TOKEN_TTL_MINUTES * 60_000)
+				expiresAt: token.expiresAt
 			}
 		});
 	});
-
-	// 邮件投递是非关键副作用，不能影响注册端点的统一外部语义。
-	// 失败时令牌仍可由重发流程安全轮换；不记录邮箱、令牌或凭据。
-	void deliverMail({
-		to: user.email,
-		template: 'verify-email',
-		verificationUrl: verificationUrl(token)
-	}).catch(() => {});
+	scheduleEmailVerificationDelivery(user, token);
 }
 
 /** 可重复调用但不会暴露邮箱或令牌是否有效；仅命中待验证用户才实际重发。 */
