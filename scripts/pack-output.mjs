@@ -15,7 +15,7 @@
  *   pnpm install --prod → prisma generate → prisma migrate deploy
  */
 
-import { existsSync, mkdirSync, copyFileSync, cpSync, writeFileSync, readFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, copyFileSync, cpSync, writeFileSync, readFileSync, unlinkSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -299,7 +299,39 @@ mkdirSync(join(output, 'logs'), { recursive: true });
 ok('清理完成');
 
 // ── 完成 ────────────────────────────────────────────
-const size = execSync(`du -sh "${output}"`, { encoding: 'utf-8' }).split('\t')[0];
+/**
+ * 递归计算目录总大小（字节）
+ * 替代 du 命令，Windows 没有 du。
+ *
+ * @param dir - 目录路径
+ * @returns 字节数
+ */
+function dirSize(dir) {
+	let total = 0;
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) {
+			total += dirSize(path);
+		} else {
+			total += statSync(path).size;
+		}
+	}
+	return total;
+}
+
+/**
+ * 将字节数格式化为人类可读的大小
+ *
+ * @param bytes - 字节数
+ * @returns 如 "12.3M"
+ */
+function formatSize(bytes) {
+	if (bytes < 1024) return `${bytes}B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`;
+	return `${(bytes / 1024 / 1024).toFixed(1)}M`;
+}
+
+const size = formatSize(dirSize(output));
 console.log('');
 log(`\x1b[32m部署包已生成: .output/ (${size})\x1b[0m`);
 console.log('  部署方式：');
