@@ -6,64 +6,73 @@ const token = Astro.url.searchParams.get('token') ?? '';
 ---
 
 <BaseLayout title="验证邮箱" narrow>
-	<section
-		class="auth-page verification-page"
-		data-verification-token={token}
-		aria-labelledby="verify-email-title"
-	>
-		<h1 id="verify-email-title" class="auth-title">验证邮箱</h1>
-		<div id="verification-pending" class="verification-state" aria-live="polite" hidden>
-			<p>正在验证你的邮箱，请稍候…</p>
-		</div>
-		<div
-			id="verification-success"
-			class="verification-state verification-state-success"
-			role="status"
-			hidden
+	<div class="auth-page-shell auth-page-shell-single">
+		<section
+			class="auth-page verification-page"
+			data-verification-token={token}
+			aria-labelledby="verify-email-title"
 		>
-			<h2>邮箱验证完成</h2>
-			<p>你的账号现已可用，可以登录并使用完整功能。</p>
-			<a href="/login" class="btn btn-primary">前往登录</a>
-		</div>
-		<div id="verification-action" class="verification-state" hidden>
-			<h2>需要验证链接</h2>
-			<p>请从验证邮件中打开链接；如果邮件未送达，可以安全地请求重新发送。</p>
-		</div>
-		<div
-			id="verification-failure"
-			class="verification-state verification-state-error"
-			role="alert"
-			hidden
-		>
-			<h2>验证链接无效或已失效</h2>
-			<p id="verification-failure-message">
-				链接可能已过期、已使用或不完整。请请求一封新的验证邮件后再试。
-			</p>
-		</div>
-
-		<form id="resend-form" class="verification-resend-form" aria-describedby="resend-note">
-			<label for="email" class="form-label">邮箱</label>
-			<div class="verification-resend-controls">
-				<input
-					type="email"
-					id="email"
-					name="email"
-					class="form-input"
-					autocomplete="email"
-					placeholder="your@email.com"
-					required
-				/>
-				<button type="submit" class="btn btn-outline">重新发送</button>
+			<h1 id="verify-email-title" class="auth-title">验证邮箱</h1>
+			<div id="verification-pending" class="verification-state" aria-live="polite" hidden>
+				<p>正在验证你的邮箱，请稍候…</p>
 			</div>
-			<p id="resend-note" class="form-hint">重发频率由服务端保护；请勿频繁重复操作。</p>
-			<p id="resend-status" class="form-hint" role="status" aria-live="polite"></p>
-		</form>
+			<div
+				id="verification-success"
+				class="verification-state verification-state-success"
+				role="status"
+				hidden
+			>
+				<h2>邮箱验证完成</h2>
+				<p>你的账号现已可用，可以登录并使用完整功能。</p>
+				<a href="/login" class="btn btn-primary">前往登录</a>
+			</div>
+			<div id="verification-action" class="verification-state" hidden>
+				<h2>需要验证链接</h2>
+				<p>请从验证邮件中打开链接；如果邮件未送达，可以安全地请求重新发送。</p>
+			</div>
+			<div
+				id="verification-failure"
+				class="verification-state verification-state-error"
+				role="alert"
+				hidden
+			>
+				<h2>验证链接无效或已失效</h2>
+				<p id="verification-failure-message">
+					链接可能已过期、已使用或不完整。请请求一封新的验证邮件后再试。
+				</p>
+			</div>
 
-		<p class="auth-footer"><a href="/login">返回登录</a> · <a href="/register">创建账号</a></p>
-	</section>
+			<form id="resend-form" class="verification-resend-form" aria-describedby="resend-note">
+				<label for="email" class="form-label">邮箱</label>
+				<div class="verification-resend-controls">
+					<input
+						type="email"
+						id="email"
+						name="email"
+						class="form-input"
+						autocomplete="email"
+						placeholder="your@email.com"
+						required
+					/>
+					<button type="submit" class="btn btn-outline">重新发送</button>
+				</div>
+				<p id="resend-note" class="form-hint">重发频率由服务端保护；请勿频繁重复操作。</p>
+				<p id="resend-status" class="form-hint" role="status" aria-live="polite"></p>
+			</form>
+
+			<p class="auth-footer">
+				<a href="/login">返回登录</a> · <a href="/register">创建账号</a>
+			</p>
+		</section>
+	</div>
 </BaseLayout>
 
 <style>
+	.auth-page-shell-single {
+		grid-template-columns: 1fr;
+		justify-items: center;
+	}
+
 	.verification-page {
 		max-width: 34rem;
 	}
@@ -138,6 +147,8 @@ const token = Astro.url.searchParams.get('token') ?? '';
 		[pending, success, action, failure].forEach(
 			(element) => (element.hidden = element !== state)
 		);
+		// 验证成功后隐藏重发表单——用户已确认邮箱，无需再重发
+		resendForm.hidden = state === success;
 	}
 
 	async function verify() {
