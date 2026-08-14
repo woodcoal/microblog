@@ -7,7 +7,9 @@ export const prerender = false;
 const notFound = () => new Response('Not Found', { status: 404 });
 async function handle(context: Parameters<APIRoute>[0], head: boolean) {
 	const mediaId = context.params.mediaId;
-	const media = mediaId ? await getVisibleMedia(mediaId, await getUserFromRequest(context)) : null;
+	const media = mediaId
+		? await getVisibleMedia(mediaId, await getUserFromRequest(context), undefined, context.request)
+		: null;
 	if (!media || media.fileType !== 'image') return notFound();
 	const body = await readStoredFile(media.fileStorage.displayFilePath || media.fileStorage.filePath);
 	if (!body) return notFound();

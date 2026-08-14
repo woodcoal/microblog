@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { checkPostVisibility } from '@/lib/visibility';
 import { findFollow } from '@/lib/social';
+import { hasPostPasswordAccess } from '@/lib/post-password-access';
 
 interface Viewer {
 	userId: string;
@@ -8,7 +9,12 @@ interface Viewer {
 }
 
 /** 返回可见 Media；所有拒绝分支统一返回 null，避免资源探测。 */
-export async function getVisibleMedia(mediaId: string, viewer: Viewer | null, password?: string) {
+export async function getVisibleMedia(
+	mediaId: string,
+	viewer: Viewer | null,
+	password?: string,
+	request?: Request
+) {
 	const media = await prisma.media.findUnique({
 		where: { id: mediaId },
 		include: {
@@ -49,10 +55,14 @@ export async function getVisibleMedia(mediaId: string, viewer: Viewer | null, pa
 		isFollower = !!followsAuthor;
 		isFollowing = !!authorFollowsViewer;
 	}
+	const verifiedPasswordAccess =
+		media.post.visibility === 'password' && request
+			? await hasPostPasswordAccess(request, media.postId)
+			: false;
 	const visible = await checkPostVisibility(
 		media.post,
 		viewer ? { userId: viewer.userId } : null,
-		{ password, isFollower, isFollowing }
+		{ password: verifiedPasswordAccess ? undefined : password, isFollower, isFollowing }
 	);
-	return visible ? media : null;
+	return visible || verifiedPasswordAccess ? media : null;
 }
