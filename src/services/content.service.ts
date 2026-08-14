@@ -415,11 +415,18 @@ export async function createPost(input: CreatePostInput) {
 						consumedAt: null,
 						cancelledAt: null
 					},
-					select: { id: true, fileStorageId: true }
+					select: {
+						id: true,
+						fileStorageId: true,
+						fileStorage: { select: { fileType: true } }
+					}
 				})
 			: [];
 		if (reservations.length !== reservationIds.length) {
 			throw new ServiceError('BAD_REQUEST', '部分图片不存在');
+		}
+		if (reservations.some((reservation) => reservation.fileStorage.fileType !== 'image')) {
+			throw new ServiceError('BAD_REQUEST', '仅支持图片类型的文件');
 		}
 
 		const filePaths = [...new Set(filePathByUrl.values())];
