@@ -671,6 +671,13 @@ dialog.dialog-overlay::backdrop {
 	height: 100%;
 	object-fit: cover;
 }
+.post-editor-preview-item video {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+	background: #000;
+}
 .post-editor-preview-remove {
 	position: absolute;
 	top: 4px;

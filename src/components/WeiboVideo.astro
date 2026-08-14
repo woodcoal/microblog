@@ -1,0 +1,39 @@
+---
+interface Props {
+	media: {
+		id: string;
+		originalName?: string;
+	};
+}
+
+const { media } = Astro.props;
+const label = media.originalName ? `播放视频：${media.originalName}` : '播放视频';
+---
+
+<div class="weibo-video">
+	<video
+		controls
+		preload="metadata"
+		playsinline
+		src={`/media/${media.id}/stream`}
+		aria-label={label}
+	>
+		你的浏览器不支持视频播放。
+	</video>
+</div>
+
+<style>
+	.weibo-video {
+		inline-size: 100%;
+		max-inline-size: min(100%, var(--weibo-media-max-width, 640px));
+		margin-top: var(--spacing-2);
+	}
+
+	.weibo-video video {
+		display: block;
+		inline-size: 100%;
+		max-block-size: min(70vh, 640px);
+		border-radius: var(--radius-md);
+		background: #000;
+	}
+</style>
