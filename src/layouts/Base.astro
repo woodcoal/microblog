@@ -30,7 +30,7 @@ import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme
 import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
 import { getPublicSiteCopy } from '@/services/site-copy.service';
-import { readPublicPageCustomization } from '@/services/page-customization.service';
+import { getPublicAnalyticsScript } from '@/services/page-customization.service';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 import SearchSuggest from '@/components/SearchSuggest.astro';
@@ -79,8 +79,7 @@ const currentPath = Astro.url.pathname;
 const pageSurface = getPageSurface(currentPath);
 const shouldRenderFooter = pageSurface === 'public' || pageSurface === 'identity';
 const footerCopy = shouldRenderFooter ? await getPublicSiteCopy('global.footer') : null;
-const publicAnalyticsScript =
-	pageSurface === 'public' ? (await readPublicPageCustomization()).publicAnalyticsScript : '';
+const publicAnalyticsScript = pageSurface === 'public' ? await getPublicAnalyticsScript() : '';
 /** These paths are account, operational, or query-result surfaces and must never become search entries. */
 const isPrivateSurface = [
 	'/admin',

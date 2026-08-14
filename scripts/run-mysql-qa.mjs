@@ -151,7 +151,8 @@ try {
 		DATABASE_PROVIDER: 'mysql',
 		DATABASE_URL: databaseUrl.toString(),
 		TEST_DATABASE_URL: databaseUrl.toString(),
-		MAIL_DELIVERY_MODE: 'disabled'
+		MAIL_DELIVERY_MODE: 'disabled',
+		API_AGENT_KEY: process.env.API_AGENT_KEY || 'agent-api-test-key'
 	};
 
 	console.log(

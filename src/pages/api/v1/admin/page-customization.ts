@@ -21,13 +21,12 @@ export const PUT: APIRoute = async (context) => {
 	if (user instanceof Response) return user;
 	try {
 		const body = await parseJsonObject(context.request);
-		if (body.footerMarkdown !== undefined && typeof body.footerMarkdown !== 'string')
-			throw new ServiceError('BAD_REQUEST', 'footerMarkdown 必须是字符串');
 		if (
-			body.publicAnalyticsScript !== undefined &&
-			typeof body.publicAnalyticsScript !== 'string'
+			(body.footerMarkdown !== undefined && typeof body.footerMarkdown !== 'string') ||
+			(body.publicAnalyticsScript !== undefined &&
+				typeof body.publicAnalyticsScript !== 'string')
 		)
-			throw new ServiceError('BAD_REQUEST', 'publicAnalyticsScript 必须是字符串');
+			throw new ServiceError('BAD_REQUEST', '页脚文案和统计脚本必须是字符串');
 		return jsonResponse(
 			await updatePageCustomization({
 				userId: user.userId,

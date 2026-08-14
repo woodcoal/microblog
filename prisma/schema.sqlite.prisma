@@ -67,7 +67,6 @@ model User {
 model SystemConfig {
   id                       String  @id
   emailOwnershipEnabled    Boolean @default(true)
-  publicAnalyticsScript    String  @default("")
   // 邮件模板主题；留空使用内置默认值。
   mailSubjectVerifyEmail   String  @default("")
   mailBodyVerifyEmail      String  @default("")
@@ -75,6 +74,7 @@ model SystemConfig {
   mailBodyPasswordReset    String  @default("")
   mailSubjectChangeEmail   String  @default("")
   mailBodyChangeEmail      String  @default("")
+  publicAnalyticsScript    String  @default("")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }
@@ -455,8 +455,11 @@ model ApiToken {
   tokenHash  String    @unique // Token SHA-256 哈希（不存明文）
   lastUsedAt DateTime? // 最后使用时间
   createdAt  DateTime  @default(now())
+  purpose    String?
 
   user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, purpose])
 }
 
 /// 操作日志表（记录用户行为，用于管理后台审计）

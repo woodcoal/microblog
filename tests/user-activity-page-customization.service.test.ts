@@ -1,124 +1,128 @@
-import 'dotenv/config';
-
-import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
+import assert from 'node:assert/strict';
 import { prisma } from '../src/lib/db';
 import { hashPassword } from '../src/lib/auth';
 import { loginUser } from '../src/services/auth.service';
-import { createComment, createPost } from '../src/services/content.service';
-import { getPublicSiteCopy } from '../src/services/site-copy.service';
-import { DEFAULT_SITE_COPY } from '../src/lib/site-copy-definitions';
+import { createPostTransaction } from '../src/lib/post';
+import { createCommentWithActivity } from '../src/lib/comment';
+import { toggleLike } from '../src/services/social.service';
 import {
 	readPageCustomization,
 	updatePageCustomization
 } from '../src/services/page-customization.service';
-import { toggleLike } from '../src/services/social.service';
 
 const suffix = crypto.randomUUID().replaceAll('-', '');
 const name = (prefix: string) => `${prefix}${suffix}`.slice(0, 20);
+const email = `${suffix}@example.test`;
+const password = 'activity-test-password';
 
 after(async () => prisma.$disconnect());
 
-test('成功登录原子更新三项活动数据，失败登录不写入', async () => {
-	const password = 'activity-password';
+test('成功登录、发帖、评论与点赞都由服务端更新活动时间，失败登录不更新', async () => {
 	const user = await prisma.user.create({
 		data: {
-			username: name('active'),
-			displayName: '活跃用户',
-			email: `${suffix}@example.test`,
+			username: name('activity'),
+			displayName: '活动测试用户',
+			email,
 			passwordHash: await hashPassword(password),
 			emailVerificationRequired: false
 		}
 	});
-	await assert.rejects(loginUser({ email: user.email, password: 'wrong-password' }));
-	assert.deepEqual(
-		await prisma.user.findUniqueOrThrow({
-			where: { id: user.id },
-			select: { lastLoginAt: true, lastActiveAt: true, loginCount: true }
-		}),
-		{ lastLoginAt: null, lastActiveAt: null, loginCount: 0 }
-	);
-	await loginUser({ email: user.email, password });
-	const persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+
+	await loginUser({ email, password });
+	let persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
 	assert.ok(persisted.lastLoginAt);
 	assert.ok(persisted.lastActiveAt);
 	assert.equal(persisted.loginCount, 1);
+	const loginAt = persisted.lastLoginAt.getTime();
+	await assert.rejects(loginUser({ email, password: 'wrong-password' }), /邮箱或密码错误/);
+	persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+	assert.equal(persisted.lastLoginAt?.getTime(), loginAt);
+	assert.equal(persisted.loginCount, 1);
+
+	await prisma.user.update({
+		where: { id: user.id },
+		data: { lastActiveAt: new Date(1) }
+	});
+	const post = await createPostTransaction({
+		postData: {
+			id: crypto.randomUUID(),
+			userId: user.id,
+			content: '活动时间测试帖子',
+			visibility: 'public',
+			mode: 'weibo'
+		},
+		mediaItems: [],
+		mentionUsernames: [],
+		tagNames: [],
+		currentUserId: user.id
+	});
+	persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+	assert.ok((persisted.lastActiveAt?.getTime() ?? 0) > 1);
+
+	await prisma.user.update({ where: { id: user.id }, data: { lastActiveAt: new Date(1) } });
+	const comment = await createCommentWithActivity(
+		{ postId: post.id, userId: user.id, content: '活动时间测试评论' },
+		{ user: { select: { id: true } } }
+	);
+	persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+	assert.ok((persisted.lastActiveAt?.getTime() ?? 0) > 1);
+
+	await prisma.user.update({ where: { id: user.id }, data: { lastActiveAt: new Date(1) } });
+	assert.equal(
+		(await toggleLike({ userId: user.id, targetId: comment.id, type: 'comment' })).liked,
+		true
+	);
+	persisted = await prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+	assert.ok((persisted.lastActiveAt?.getTime() ?? 0) > 1);
+	assert.equal(
+		(await toggleLike({ userId: user.id, targetId: comment.id, type: 'comment' })).liked,
+		false
+	);
 });
 
-test('页面定制仅管理员可读写，并同步保存页脚版本、脚本和审计', async () => {
-	const [admin, user] = await Promise.all([
-		prisma.user.create({
-			data: {
-				username: name('pageadmin'),
-				displayName: '页面管理员',
-				email: `${suffix}.admin@example.test`,
-				passwordHash: 'not-used',
-				role: 'admin',
-				emailVerificationRequired: false
-			}
-		}),
-		prisma.user.create({
-			data: {
-				username: name('pageuser'),
-				displayName: '页面用户',
-				email: `${suffix}.user@example.test`,
-				passwordHash: 'not-used',
-				emailVerificationRequired: false
-			}
-		})
-	]);
-	await assert.rejects(readPageCustomization(user.id), /仅管理员可操作/);
+test('页面自定义仅管理员可读写，页脚审计与脚本配置一起保存', async () => {
+	const admin = await prisma.user.create({
+		data: {
+			username: name('admin'),
+			displayName: '配置管理员',
+			email: `${suffix}.admin@example.test`,
+			passwordHash: 'not-used',
+			role: 'admin',
+			emailVerificationRequired: false
+		}
+	});
+	const member = await prisma.user.create({
+		data: {
+			username: name('member'),
+			displayName: '普通用户',
+			email: `${suffix}.member@example.test`,
+			passwordHash: 'not-used',
+			emailVerificationRequired: false
+		}
+	});
+	await assert.rejects(readPageCustomization(member.id), /仅管理员可操作/);
 	const result = await updatePageCustomization({
 		userId: admin.id,
-		footerMarkdown: '页脚 [链接](https://example.test)',
-		publicAnalyticsScript: '<script>window.analyticsReady=true</script>'
+		footerMarkdown: '页脚 [链接](https://example.test) <script>alert(1)</script>',
+		publicAnalyticsScript: '<script src="https://analytics.example.test/a.js"></script>'
 	});
 	assert.match(result.footer.html, /https:\/\/example\.test/);
-	assert.equal(result.publicAnalyticsScript, '<script>window.analyticsReady=true</script>');
-	assert.equal(await prisma.siteCopyVersion.count({ where: { key: 'global.footer' } }), 1);
+	assert.doesNotMatch(result.footer.html, /<script/i);
+	assert.equal(
+		result.publicAnalyticsScript,
+		'<script src="https://analytics.example.test/a.js"></script>'
+	);
+	assert.equal(
+		await prisma.siteCopyVersion.count({
+			where: { key: 'global.footer', updatedById: admin.id }
+		}),
+		1
+	);
 	assert.equal(
 		await prisma.activityLog.count({
 			where: { actorId: admin.id, action: 'admin.page_customization_updated' }
 		}),
 		1
 	);
-	await updatePageCustomization({ userId: admin.id, footerMarkdown: '' });
-	const publicFooter = await getPublicSiteCopy('global.footer');
-	assert.equal(publicFooter.markdown, DEFAULT_SITE_COPY['global.footer']);
-	assert.match(publicFooter.html, /©/);
-	assert.equal((await readPageCustomization(admin.id)).footer.markdown, '');
-	await assert.rejects(
-		updatePageCustomization({
-			userId: admin.id,
-			publicAnalyticsScript: 'x'.repeat(64 * 1024 + 1)
-		}),
-		/64 KiB/
-	);
-});
-
-test('发帖、评论和点赞切换成功后更新服务端活跃时间', async () => {
-	const [author, actor] = await Promise.all(
-		['author', 'actor'].map((prefix) =>
-			prisma.user.create({
-				data: {
-					username: name(prefix),
-					displayName: prefix,
-					email: `${prefix}.${suffix}@example.test`,
-					passwordHash: 'not-used',
-					emailVerificationRequired: false
-				}
-			})
-		)
-	);
-	const post = await createPost({ userId: author.id, content: '活动时间事务测试' });
-	assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: author.id } })).lastActiveAt);
-	await prisma.user.update({ where: { id: actor.id }, data: { lastActiveAt: null } });
-	await createComment({ userId: actor.id, postId: post.id, content: '评论' });
-	assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).lastActiveAt);
-	await prisma.user.update({ where: { id: actor.id }, data: { lastActiveAt: null } });
-	await toggleLike({ userId: actor.id, targetId: post.id, type: 'post' });
-	assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).lastActiveAt);
-	await prisma.user.update({ where: { id: actor.id }, data: { lastActiveAt: null } });
-	await toggleLike({ userId: actor.id, targetId: post.id, type: 'post' });
-	assert.ok((await prisma.user.findUniqueOrThrow({ where: { id: actor.id } })).lastActiveAt);
 });

@@ -18,7 +18,7 @@ import {
 
 const API_PREFIXES = ['/api/agent', '/api/v1'];
 const API_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
-const API_CORS_HEADERS = ['accept', 'authorization', 'content-type', 'x-csrf-token'];
+const API_CORS_HEADERS = ['accept', 'authorization', 'content-type', 'x-agent-key', 'x-csrf-token'];
 const rateLimitBuckets = new Map<string, number[]>();
 
 export interface RateLimitInfo {

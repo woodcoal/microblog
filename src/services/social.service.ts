@@ -15,12 +15,13 @@ import {
 	BOOKMARK_CREATE,
 	BOOKMARK_REMOVE
 } from '@/lib/activity';
-import { findLike, countLikes, toggleLikeWithActivity } from '@/lib/social';
+import { findLike, countLikes } from '@/lib/social';
 import { findFollow, upsertFollow, deleteFollow, countFollows } from '@/lib/social';
 import { findBookmark, upsertBookmark, deleteBookmark, countBookmarks } from '@/lib/social';
 import { findPostById, findPostByIdSelect } from '@/lib/post';
 import { findCommentById, findCommentByIdSelect } from '@/lib/comment';
 import { findUserByUsername } from '@/lib/user';
+import { prisma } from '@/lib/db';
 
 // ── Agent API 专用查询函数 ──
 
@@ -140,23 +141,48 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 		}
 	}
 
-	// 2. 查询当前点赞状态（仅用于确定操作意图）
-	const whereClause =
-		type === 'post'
-			? { userId_postId: { userId, postId: targetId } }
-			: { userId_commentId: { userId, commentId: targetId } };
+	// 2. 点赞主写入与活动时间在同一事务中完成。
+	const liked = await prisma.$transaction(async (tx) => {
+		const existingLike =
+			type === 'post'
+				? await tx.like.findUnique({
+						where: { userId_postId: { userId, postId: targetId } }
+					})
+				: await tx.like.findUnique({
+						where: { userId_commentId: { userId, commentId: targetId } }
+					});
 
-	const existingLike = await findLike(whereClause);
+		if (existingLike) {
+			if (type === 'post')
+				await tx.like.delete({ where: { userId_postId: { userId, postId: targetId } } });
+			else
+				await tx.like.delete({
+					where: { userId_commentId: { userId, commentId: targetId } }
+				});
+			await tx.user.update({ where: { id: userId }, data: { lastActiveAt: new Date() } });
+			return false;
+		}
 
-	const createData =
-		type === 'post' ? { userId, postId: targetId } : { userId, commentId: targetId };
-	const liked = await toggleLikeWithActivity({
-		where: whereClause,
-		create: createData,
-		existing: Boolean(existingLike),
-		userId
+		if (type === 'post') {
+			await tx.like.upsert({
+				where: { userId_postId: { userId, postId: targetId } },
+				create: { userId, postId: targetId },
+				update: {}
+			});
+		} else {
+			await tx.like.upsert({
+				where: { userId_commentId: { userId, commentId: targetId } },
+				create: { userId, commentId: targetId },
+				update: {}
+			});
+		}
+		await tx.user.update({ where: { id: userId }, data: { lastActiveAt: new Date() } });
+		return true;
 	});
+
 	if (!liked) {
+		// 已点赞 → 取消。主写入和活跃时间已在同一事务完成。
+
 		// 记录取消点赞活动（异步，不阻塞主流程）
 		if (type === 'post') {
 			const post = await findPostByIdSelect(targetId, { userId: true });
@@ -183,7 +209,7 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 			}
 		}
 	} else {
-		// 发送点赞通知 + 记录活动（异步，不阻塞主流程）
+		// 未点赞 → 点赞。通知和审计不决定活动时间。
 		if (type === 'post') {
 			const post = await findPostByIdSelect(targetId, { userId: true });
 			if (post) {

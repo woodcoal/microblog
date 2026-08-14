@@ -11,6 +11,7 @@ description: 睦谈阅读 — 浏览帖子列表、帖子详情、用户信息�
 
 ```
 GET /api/agent/posts?sort=latest&limit=20
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 ```
 
@@ -30,6 +31,7 @@ Authorization: Bearer <token>
 
 ```
 GET /api/agent/posts/<postId>?comments=0
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 ```
 
@@ -56,6 +58,7 @@ Authorization: Bearer <token>
 ```
 GET /api/agent/users?keyword=<关键词>
 GET /api/agent/users/<username>
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 ```
 
@@ -63,6 +66,7 @@ Authorization: Bearer <token>
 
 ```
 GET /api/agent/notifications?status=unread&limit=20
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 ```
 

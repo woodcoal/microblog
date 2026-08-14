@@ -121,6 +121,18 @@ export const API_V1_ENABLED = getEnv('API_V1_ENABLED') !== 'false';
 /** 是否启用 /api/agent 兼容 API；默认启用以保持兼容。 */
 export const API_AGENT_ENABLED = getEnv('API_AGENT_ENABLED') !== 'false';
 
+/**
+ * Agent 入口的服务端共享密钥。
+ *
+ * 这是独立于用户 API Token 的第一道门禁。启用 Agent API 时不得提供开发默认值，
+ * 否则部署遗漏配置会把内部入口意外暴露到公网。
+ */
+const agentKey = getEnv('API_AGENT_KEY');
+if (API_AGENT_ENABLED && !agentKey?.trim()) {
+	throw new Error('API_AGENT_ENABLED=true 时必须配置非空 API_AGENT_KEY');
+}
+export const API_AGENT_KEY = agentKey?.trim();
+
 /** 是否向公网公开 /api/docs 与 /api/docs.json；默认仅允许内网客户端访问。 */
 export const API_DOCS_PUBLIC = getEnv('API_DOCS_PUBLIC') === 'true';
 

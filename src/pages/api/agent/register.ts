@@ -1,13 +1,13 @@
 /**
  * Agent 快速注册 API
  *
- * POST /api/agent/register — 注册待验证用户
+ * POST /api/agent/register — 注册免邮箱验证的 Agent 用户并签发 API Token
  * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
-import { handleAgentError, textResponse, textErrorResponse } from '@/lib/agent';
+import { agentCredentialResponse, handleAgentError, textErrorResponse } from '@/lib/agent';
 import { parseJsonBody } from '@/lib/utils';
-import { registerUser } from '@/services/auth.service';
+import { registerAgentUser } from '@/services/auth.service';
 import { getErrorMessage, getErrorStatus, ServiceError } from '@/lib/errors';
 
 export const POST: APIRoute = async (context) => {
@@ -26,10 +26,11 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 调用 service 注册用户
-		const result = await registerUser({ username, displayName, email, password });
-		const message =
-			result.nextAction === 'login' ? '注册已完成，请登录' : '若邮箱可用，验证邮件已发送';
-		return textResponse(`ok: ${message}\nnextAction: ${result.nextAction}`, 202);
+		const result = await registerAgentUser({ username, displayName, email, password });
+		return agentCredentialResponse(
+			`ok: 注册已完成\nnextAction: use_api_key\napiKey: ${result.apiKey}`,
+			201
+		);
 	} catch (error) {
 		if (error instanceof ServiceError) return handleAgentError(error, '快速注册');
 		if (getErrorStatus(error) === 400) {

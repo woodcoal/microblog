@@ -23,10 +23,7 @@ test('基础布局仅在允许页面渲染页脚和公开统计脚本', async ()
 	assert.match(source, /getPageSurface\(currentPath\)/);
 	assert.match(source, /pageSurface === 'public' \|\| pageSurface === 'identity'/);
 	assert.match(source, /getPublicSiteCopy\('global\.footer'\)/);
-	assert.match(
-		source,
-		/pageSurface === 'public' \? \(await readPublicPageCustomization\(\)\)\.publicAnalyticsScript/
-	);
+	assert.match(source, /pageSurface === 'public' \? await getPublicAnalyticsScript\(\) : ''/);
 	assert.match(source, /<Fragment set:html=\{publicAnalyticsScript\} \/>/);
 });
 

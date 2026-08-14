@@ -172,7 +172,7 @@ export async function getUserFromBearerRequest(request: Request): Promise<JwtPay
 	const token = authHeader.slice(7).trim();
 	if (!token) return null;
 
-	if (token.startsWith('mt_')) return verifyApiTokenFromRequest(token);
+	if (token.startsWith('mt_')) return getUserFromApiTokenRequest(request);
 
 	const payload = await verifyToken(token);
 	if (payload && (await isUserUnavailable(payload.userId, payload.credentialVersion)))
@@ -208,7 +208,12 @@ export async function getUserFromRequest(context: AuthContext): Promise<JwtPaylo
  * @param token - API Token 明文（mt_ 前缀格式）
  * @returns 用户信息，验证失败返回 null
  */
-async function verifyApiTokenFromRequest(token: string): Promise<JwtPayload | null> {
+/** 仅接受 Authorization: Bearer mt_...，供 Agent API 排除 JWT 与 Cookie。 */
+export async function getUserFromApiTokenRequest(request: Request): Promise<JwtPayload | null> {
+	const authHeader = request.headers.get('authorization');
+	if (!authHeader?.startsWith('Bearer ')) return null;
+	const token = authHeader.slice(7).trim();
+	if (!token.startsWith('mt_')) return null;
 	try {
 		// 动态导入避免循环依赖
 		const { hashToken } = await import('./token');
