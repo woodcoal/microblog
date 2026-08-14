@@ -644,6 +644,9 @@ export async function createPostTransaction(data: {
 			}
 		}
 
+		// 仅在帖子及其关联数据完整写入后更新活跃时间，失败事务不会留下活跃记录。
+		await tx.user.update({ where: { id: currentUserId }, data: { lastActiveAt: new Date() } });
+
 		return createdPost;
 	});
 }

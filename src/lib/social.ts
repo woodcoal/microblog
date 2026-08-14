@@ -110,6 +110,34 @@ export function deleteLike(where: Prisma.LikeWhereUniqueInput) {
 	return prisma.like.delete({ where });
 }
 
+/** 点赞切换和作者活跃时间同一事务提交。 */
+export async function toggleLikeWithActivity(input: {
+	where: Prisma.LikeWhereUniqueInput;
+	create: Prisma.LikeUncheckedCreateInput;
+	existing: boolean;
+	userId: string;
+}) {
+	return prisma.$transaction(async (tx) => {
+		if (input.existing) {
+			try {
+				await tx.like.delete({ where: input.where });
+			} catch (error) {
+				if (!(
+					typeof error === 'object' &&
+					error !== null &&
+					'code' in error &&
+					error.code === 'P2025'
+				))
+					throw error;
+			}
+		} else {
+			await tx.like.upsert({ where: input.where, update: {}, create: input.create });
+		}
+		await tx.user.update({ where: { id: input.userId }, data: { lastActiveAt: new Date() } });
+		return !input.existing;
+	});
+}
+
 // ── 关注（Follow）操作 ──
 
 /**

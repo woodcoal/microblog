@@ -97,6 +97,7 @@ import { markdownPreview } from './misc';
 
 // 站点固定文案管理模块
 import { getSiteCopy, getSiteCopyHistory, previewSiteCopy, updateSiteCopy } from './site-copy';
+import { getPageCustomization, updatePageCustomizationAction } from './page-customization';
 
 /** 导出所有服务端 Actions */
 export const server = {
@@ -175,6 +176,8 @@ export const server = {
 	getSiteCopyHistory,
 	previewSiteCopy,
 	updateSiteCopy,
+	getPageCustomization,
+	updatePageCustomizationAction,
 	// 工具
 	markdownPreview
 };

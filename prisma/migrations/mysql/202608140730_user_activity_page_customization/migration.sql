@@ -1,0 +1,5 @@
+ALTER TABLE `User`
+  ADD COLUMN `lastLoginAt` DATETIME(3) NULL,
+  ADD COLUMN `lastActiveAt` DATETIME(3) NULL,
+  ADD COLUMN `loginCount` INT NOT NULL DEFAULT 0;
+ALTER TABLE `SystemConfig` ADD COLUMN `publicAnalyticsScript` LONGTEXT NOT NULL DEFAULT '';

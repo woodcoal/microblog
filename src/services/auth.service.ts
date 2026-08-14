@@ -21,6 +21,7 @@ import {
 	isEmailOwnershipEnabled,
 	assertUserMayAuthenticate
 } from '@/services/email-policy.service';
+import { updateUser } from '@/lib/user';
 
 /** 邮箱格式正则 */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -301,15 +302,27 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 		throw new ServiceError('FORBIDDEN', DISABLED_USER_MESSAGE);
 	}
 	await assertUserMayAuthenticate(user);
+	const now = new Date();
+	const updatedUser = await updateUser(
+		user.id,
+		{
+			lastLoginAt: now,
+			lastActiveAt: now,
+			loginCount: { increment: 1 }
+		},
+		{
+			id: true,
+			username: true,
+			displayName: true,
+			avatarUrl: true,
+			role: true,
+			email: true,
+			isDisabled: true,
+			credentialVersion: true
+		}
+	);
 
 	return {
-		id: user.id,
-		username: user.username,
-		displayName: user.displayName,
-		avatarUrl: user.avatarUrl,
-		role: user.role,
-		email: user.email,
-		isDisabled: user.isDisabled,
-		credentialVersion: user.credentialVersion
+		...updatedUser
 	};
 }

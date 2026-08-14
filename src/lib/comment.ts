@@ -111,6 +111,18 @@ export function createCommentRecord<T extends Prisma.CommentInclude>(
 	});
 }
 
+/** 评论或回复与作者活跃时间必须同一事务提交。 */
+export function createCommentWithActivity<T extends Prisma.CommentInclude>(
+	data: Prisma.CommentUncheckedCreateInput,
+	include: T
+) {
+	return prisma.$transaction(async (tx) => {
+		const comment = await tx.comment.create({ data, include });
+		await tx.user.update({ where: { id: data.userId }, data: { lastActiveAt: new Date() } });
+		return comment;
+	});
+}
+
 // ── 软删除 ──
 
 /**

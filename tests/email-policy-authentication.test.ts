@@ -170,7 +170,7 @@ test('升级迁移将无有效管理员的历史库修复为可用管理员', as
 	const database = createPrismaClient(url);
 	try {
 		await database.$executeRawUnsafe(
-			'CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "username" TEXT UNIQUE NOT NULL, "displayName" TEXT NOT NULL, "email" TEXT UNIQUE NOT NULL, "passwordHash" TEXT NOT NULL, "avatarUrl" TEXT NOT NULL DEFAULT \'\', "bio" TEXT NOT NULL DEFAULT \'\', "note" TEXT NOT NULL DEFAULT \'\', "role" TEXT NOT NULL DEFAULT \'user\', "isDisabled" BOOLEAN NOT NULL DEFAULT false, "deletedAt" DATETIME, "emailVerifiedAt" DATETIME, "emailVerificationRequired" BOOLEAN NOT NULL DEFAULT true, "credentialVersion" INTEGER NOT NULL DEFAULT 0, "hasSelfRenamed" BOOLEAN NOT NULL DEFAULT false, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)'
+			'CREATE TABLE "User" ("id" TEXT PRIMARY KEY, "username" TEXT UNIQUE NOT NULL, "displayName" TEXT NOT NULL, "email" TEXT UNIQUE NOT NULL, "passwordHash" TEXT NOT NULL, "avatarUrl" TEXT NOT NULL DEFAULT \'\', "bio" TEXT NOT NULL DEFAULT \'\', "note" TEXT NOT NULL DEFAULT \'\', "role" TEXT NOT NULL DEFAULT \'user\', "isDisabled" BOOLEAN NOT NULL DEFAULT false, "deletedAt" DATETIME, "emailVerifiedAt" DATETIME, "emailVerificationRequired" BOOLEAN NOT NULL DEFAULT true, "lastLoginAt" DATETIME, "lastActiveAt" DATETIME, "loginCount" INTEGER NOT NULL DEFAULT 0, "credentialVersion" INTEGER NOT NULL DEFAULT 0, "hasSelfRenamed" BOOLEAN NOT NULL DEFAULT false, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL)'
 		);
 		await database.user.create({
 			data: {

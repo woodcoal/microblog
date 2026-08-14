@@ -15,7 +15,7 @@ import {
 	BOOKMARK_CREATE,
 	BOOKMARK_REMOVE
 } from '@/lib/activity';
-import { findLike, upsertLike, deleteLike, countLikes } from '@/lib/social';
+import { findLike, countLikes, toggleLikeWithActivity } from '@/lib/social';
 import { findFollow, upsertFollow, deleteFollow, countFollows } from '@/lib/social';
 import { findBookmark, upsertBookmark, deleteBookmark, countBookmarks } from '@/lib/social';
 import { findPostById, findPostByIdSelect } from '@/lib/post';
@@ -148,22 +148,15 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 
 	const existingLike = await findLike(whereClause);
 
-	let liked: boolean;
-	if (existingLike) {
-		// 已点赞 → 取消：直接 delete 并 catch P2025（记录不存在），避免竞态
-		try {
-			await deleteLike(whereClause);
-		} catch (deleteError) {
-			if (!(
-				typeof deleteError === 'object' &&
-				deleteError !== null &&
-				'code' in deleteError &&
-				deleteError.code === 'P2025'
-			))
-				throw deleteError;
-		}
-		liked = false;
-
+	const createData =
+		type === 'post' ? { userId, postId: targetId } : { userId, commentId: targetId };
+	const liked = await toggleLikeWithActivity({
+		where: whereClause,
+		create: createData,
+		existing: Boolean(existingLike),
+		userId
+	});
+	if (!liked) {
 		// 记录取消点赞活动（异步，不阻塞主流程）
 		if (type === 'post') {
 			const post = await findPostByIdSelect(targetId, { userId: true });
@@ -190,13 +183,6 @@ export async function toggleLike(input: ToggleLikeInput): Promise<ToggleLikeResu
 			}
 		}
 	} else {
-		// 未点赞 → 点赞：使用 upsert 避免竞态，已存在则忽略
-		const createData =
-			type === 'post' ? { userId, postId: targetId } : { userId, commentId: targetId };
-
-		await upsertLike(whereClause, createData);
-		liked = true;
-
 		// 发送点赞通知 + 记录活动（异步，不阻塞主流程）
 		if (type === 'post') {
 			const post = await findPostByIdSelect(targetId, { userId: true });
