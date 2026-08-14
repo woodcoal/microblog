@@ -25,6 +25,10 @@ interface UserData {
 	role: string;
 	isDisabled: boolean;
 	createdAt: string;
+	emailVerifiedAt: string | null;
+	lastLoginAt: string | null;
+	lastActiveAt: string | null;
+	loginCount: number;
 }
 
 interface Props {
@@ -35,15 +39,28 @@ interface Props {
 	hasPrev: boolean;
 	hasNext: boolean;
 	search: string;
+	emailOwnershipEnabled: boolean;
 }
 
-const { users, total, page, totalPages, hasPrev, hasNext, search } = Astro.props;
+const { users, total, page, totalPages, hasPrev, hasNext, search, emailOwnershipEnabled } =
+	Astro.props;
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符
 const hasUsers = users.length > 0;
 const prevPage = page - 1;
 const nextPage = page + 1;
 const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+
+function formatAdminDate(value: string | null): string {
+	if (!value) return '暂无记录';
+	return new Date(value).toLocaleDateString('zh-CN', {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit'
+	});
+}
 ---
 
 <!-- 搜索栏 -->
@@ -181,7 +198,11 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 				<th>邮箱</th>
 				<th>角色</th>
 				<th>状态</th>
+				<th>邮箱验证</th>
 				<th>注册时间</th>
+				<th>最后登录</th>
+				<th>最后活跃</th>
+				<th>登录次数</th>
 				<th>操作</th>
 			</tr>
 		</thead>
@@ -199,13 +220,16 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 					const actionBtnClass = user.isDisabled
 						? 'admin-btn-sm-primary'
 						: 'admin-btn-sm-danger';
-					const formattedDate = new Date(user.createdAt).toLocaleDateString('zh-CN', {
-						year: 'numeric',
-						month: '2-digit',
-						day: '2-digit',
-						hour: '2-digit',
-						minute: '2-digit'
-					});
+					const isEmailVerified = user.emailVerifiedAt !== null;
+					const verificationBadgeClass = isEmailVerified
+						? 'admin-badge-active'
+						: emailOwnershipEnabled
+							? 'admin-badge-unverified'
+							: 'admin-badge-user';
+					const verificationLabel = isEmailVerified ? '已验证' : '未验证';
+					const formattedDate = formatAdminDate(user.createdAt);
+					const formattedLastLogin = formatAdminDate(user.lastLoginAt);
+					const formattedLastActive = formatAdminDate(user.lastActiveAt);
 
 					return (
 						<tr>
@@ -234,7 +258,22 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 							<td>
 								<span class={`admin-badge ${statusBadgeClass}`}>{statusLabel}</span>
 							</td>
+							<td>
+								<span
+									class={`admin-badge ${verificationBadgeClass}`}
+									aria-label={`邮箱${verificationLabel}${
+										!isEmailVerified && emailOwnershipEnabled
+											? '，当前需完成验证'
+											: ''
+									}`}
+								>
+									{verificationLabel}
+								</span>
+							</td>
 							<td>{formattedDate}</td>
+							<td>{formattedLastLogin}</td>
+							<td>{formattedLastActive}</td>
+							<td>{user.loginCount}</td>
 							<td>
 								<div class="admin-actions">
 									<button
@@ -262,7 +301,7 @@ const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 			{
 				!hasUsers && (
 					<tr>
-						<td colspan="8" class="admin-empty-cell">
+						<td colspan="12" class="admin-empty-cell">
 							暂无用户数据
 						</td>
 					</tr>

@@ -9,8 +9,10 @@
  * - 分页
  */
 import AdminLayout from '@/layouts/Admin.astro';
+import { getUserFromRequest } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import AdminUserList from '@/components/admin/AdminUserList.astro';
+import { readSystemConfiguration } from '@/services/system-config.service';
 
 // 分页参数
 const page = Math.max(Number(Astro.url.searchParams.get('page')) || 1, 1);
@@ -26,7 +28,12 @@ const where = search
 	: {};
 
 // 并行查询
-const [users, total] = await Promise.all([
+const currentUser = await getUserFromRequest(Astro);
+if (!currentUser) return Astro.redirect('/login');
+if (currentUser.role !== 'admin')
+	return new Response('Forbidden: 无权访问管理后台', { status: 403 });
+
+const [users, total, systemConfiguration] = await Promise.all([
 	prisma.user.findMany({
 		where,
 		select: {
@@ -36,13 +43,18 @@ const [users, total] = await Promise.all([
 			email: true,
 			role: true,
 			isDisabled: true,
-			createdAt: true
+			createdAt: true,
+			emailVerifiedAt: true,
+			lastLoginAt: true,
+			lastActiveAt: true,
+			loginCount: true
 		},
 		orderBy: { createdAt: 'desc' },
 		skip,
 		take: limit
 	}),
-	prisma.user.count({ where })
+	prisma.user.count({ where }),
+	readSystemConfiguration(currentUser.userId)
 ]);
 
 // 计算总页数
@@ -53,7 +65,10 @@ const hasNext = page < totalPages;
 // 序列化日期为字符串
 const serializedUsers = users.map((u) => ({
 	...u,
-	createdAt: u.createdAt.toISOString()
+	createdAt: u.createdAt.toISOString(),
+	emailVerifiedAt: u.emailVerifiedAt?.toISOString() ?? null,
+	lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+	lastActiveAt: u.lastActiveAt?.toISOString() ?? null
 }));
 ---
 
@@ -73,6 +88,7 @@ const serializedUsers = users.map((u) => ({
 			hasPrev={hasPrev}
 			hasNext={hasNext}
 			search={search}
+			emailOwnershipEnabled={systemConfiguration.emailOwnershipEnabled}
 		/>
 	</section>
 </AdminLayout>
