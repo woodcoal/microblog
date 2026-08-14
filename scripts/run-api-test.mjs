@@ -53,6 +53,7 @@ const env = {
 	...process.env,
 	DATABASE_PROVIDER: provider,
 	DATABASE_URL: databaseUrl,
+	API_AGENT_KEY: process.env.API_AGENT_KEY || 'agent-api-test-key',
 	...config.rateLimits
 };
 

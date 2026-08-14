@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { isInternalIpAddress, mayAccessApiDocs } from '../src/lib/network';
+import { createAgentOpenApiSpec } from '../src/lib/agent-openapi';
 
 test('内网地址判定仅允许回环、私有和链路本地地址', () => {
 	for (const address of [
@@ -49,4 +50,32 @@ test('文档非公开时仅内网客户端可访问', () => {
 test('文档公开时任何客户端均可访问', () => {
 	assert.equal(mayAccessApiDocs('8.8.8.8', true), true);
 	assert.equal(mayAccessApiDocs('2001:4860:4860::8888', true), true);
+});
+
+test('Agent OpenAPI 表达全局入口密钥与用户 Token 的 AND 关系', () => {
+	const spec = createAgentOpenApiSpec();
+	assert.deepEqual(spec.components.securitySchemes.AgentGlobalKey, {
+		type: 'api',
+		in: 'header',
+		name: 'x-agent-key',
+		description: 'Agent 服务端入口密钥。所有 Agent 接口均要求。'
+	});
+	assert.deepEqual(spec.paths['/posts'].get.security, [
+		{ AgentGlobalKey: [], BearerAPIToken: [] }
+	]);
+	for (const path of [
+		'/register',
+		'/login',
+		'/verify-email',
+		'/resend-verification',
+		'/forgot-password',
+		'/reset-password',
+		'/confirm-email-change'
+	] as const) {
+		assert.deepEqual(spec.paths[path].post.security, [{ AgentGlobalKey: [] }], path);
+	}
+	assert.match(
+		spec.paths['/login'].post.responses[200].content['text/plain'].example,
+		/apiKey: mt_example/
+	);
 });

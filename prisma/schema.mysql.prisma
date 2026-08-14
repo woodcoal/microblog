@@ -453,8 +453,11 @@ model ApiToken {
   tokenHash  String    @unique // Token SHA-256 哈希（不存明文）
   lastUsedAt DateTime? // 最后使用时间
   createdAt  DateTime  @default(now())
+  purpose    String?
 
   user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, purpose])
 }
 
 /// 操作日志表（记录用户行为，用于管理后台审计）

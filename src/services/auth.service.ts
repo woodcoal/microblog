@@ -4,7 +4,12 @@
  * 编排用户注册、登录的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { findUserByEmail, findUserById, createFirstAdminOrUser } from '@/lib/user';
+import {
+	findUserByEmail,
+	findUserById,
+	createFirstAdminOrUser,
+	createFirstAdminOrAgentUser
+} from '@/lib/user';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
@@ -76,6 +81,11 @@ export interface RegisterUserResult {
 		role: string;
 		credentialVersion: number;
 	} | null;
+}
+
+export interface RegisterAgentUserResult {
+	id: string;
+	apiKey: string;
 }
 
 export interface LoginUserInput {
@@ -227,6 +237,41 @@ export async function registerUser(input: RegisterUserInput): Promise<RegisterUs
 	});
 }
 
+/**
+ * Agent 注册不走邮件验证，但与 Web 注册使用同一份输入校验、用户名规则和首管竞争。
+ * 唯一冲突被调用方统一映射为 400，避免泄露邮箱或用户名已被占用的具体原因。
+ */
+export async function registerAgentUser(
+	input: RegisterUserInput
+): Promise<RegisterAgentUserResult> {
+	const { displayName, email, password } = input;
+	const startedAt = performance.now();
+	if (!ALLOW_REGISTRATION) throw new ServiceError('FORBIDDEN', '注册已关闭');
+	if (!EMAIL_PATTERN.test(email)) throw new ServiceError('BAD_REQUEST', '邮箱格式无效');
+	if (password.length < PASSWORD_MIN_LENGTH)
+		throw new ServiceError('BAD_REQUEST', `密码长度不能少于 ${PASSWORD_MIN_LENGTH} 个字符`);
+
+	const passwordHash = await hashPassword(password);
+	const requestedUsername = input.username?.trim();
+	const username = requestedUsername
+		? assertValidUsername(requestedUsername)
+		: generateUsernameCandidate();
+	try {
+		const registration = await createFirstAdminOrAgentUser({
+			username,
+			displayName: displayName || username,
+			email,
+			passwordHash
+		});
+		await completeRegistration(startedAt, null);
+		return { id: registration.user.id, apiKey: registration.token };
+	} catch (error) {
+		await completeRegistration(startedAt, null);
+		if (isUniqueConstraintError(error)) throw new ServiceError('BAD_REQUEST', '无法完成注册');
+		throw error;
+	}
+}
+
 const TRANSACTION_RETRY_LIMIT = 5;
 
 /** MySQL 可报告写冲突或死锁；每次重试都是完整注册事务，不会留下部分记录。 */
@@ -246,10 +291,7 @@ async function createFirstAdminOrUserWithRetry(
 }
 
 /** 将常见注册路径收敛到同一最小时长，降低唯一约束分支的可观测差异。 */
-async function completeRegistration(
-	startedAt: number,
-	result: RegisterUserResult
-): Promise<RegisterUserResult> {
+async function completeRegistration<T>(startedAt: number, result: T): Promise<T> {
 	const remaining = REGISTER_RESPONSE_MINIMUM_MS - (performance.now() - startedAt);
 	if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
 	return result;

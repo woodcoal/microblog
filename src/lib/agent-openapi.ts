@@ -14,7 +14,9 @@ const errors = {
 	500: plainText('服务器内部错误', 'error: 服务器错误')
 };
 
-const bearer = [{ BearerAPIToken: [] }];
+const globalKey = [{ AgentGlobalKey: [] }];
+/** OpenAPI 同一对象表示 AND：业务接口必须同时具备入口密钥与用户 Token。 */
+const bearer = [{ AgentGlobalKey: [], BearerAPIToken: [] }];
 const id = { name: 'id', in: 'path', required: true, schema: { type: 'string' } };
 const username = { name: 'username', in: 'path', required: true, schema: { type: 'string' } };
 const pagination = [
@@ -36,7 +38,7 @@ export function createAgentOpenApiSpec() {
 			description: `${SITE_DESCRIPTION} 的自动化 Agent 接口。所有响应均为 text/plain；成功以 ok 或 ok: 开头，失败以 error: 开头。`
 		},
 		servers: [{ url: '/api/agent', description: 'Agent 纯文本 API' }],
-		security: [{ BearerAPIToken: [] }],
+		security: bearer,
 		tags: [
 			{ name: '认证' },
 			{ name: '帖子' },
@@ -47,6 +49,12 @@ export function createAgentOpenApiSpec() {
 		],
 		components: {
 			securitySchemes: {
+				AgentGlobalKey: {
+					type: 'api',
+					in: 'header',
+					name: 'x-agent-key',
+					description: 'Agent 服务端入口密钥。所有 Agent 接口均要求。'
+				},
 				BearerAPIToken: {
 					type: 'http',
 					scheme: 'bearer',
@@ -59,8 +67,8 @@ export function createAgentOpenApiSpec() {
 			'/register': {
 				post: {
 					tags: ['认证'],
-					summary: '注册待验证账号',
-					security: [],
+					summary: '注册免邮箱验证的 Agent 账号并签发 API Token',
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -82,9 +90,9 @@ export function createAgentOpenApiSpec() {
 						}
 					},
 					responses: {
-						202: plainText(
-							'注册请求已受理；不会披露邮箱是否已注册',
-							'ok: 若邮箱可用，验证邮件已发送'
+						201: plainText(
+							'注册成功并签发唯一的 Agent Token',
+							'ok: 注册已完成\nnextAction: use_api_key\napiKey: mt_example'
 						),
 						400: errors[400],
 						403: plainText('注册已关闭', 'error: 注册已关闭'),
@@ -96,7 +104,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '消费一次性邮箱验证令牌',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -120,7 +128,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '请求重发验证邮件',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -144,7 +152,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '请求密码重置邮件（抗枚举）',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -168,7 +176,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '消费一次性密码重置令牌并撤销旧凭据',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -225,7 +233,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '确认邮箱换绑并撤销旧凭据',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -249,7 +257,7 @@ export function createAgentOpenApiSpec() {
 				post: {
 					tags: ['认证'],
 					summary: '验证邮箱密码并查询 Token 状态',
-					security: [],
+					security: globalKey,
 					requestBody: {
 						required: true,
 						content: {
@@ -267,16 +275,12 @@ export function createAgentOpenApiSpec() {
 					},
 					responses: {
 						200: plainText(
-							'已有 API Token',
-							'ok: 该用户已有 1 个 API Token，但 Token 明文仅在创建时返回一次。请使用已保存的 Token，或通过 /api/tokens 创建新 Token'
+							'登录成功并轮换 Agent Token',
+							'ok: 登录成功\napiKey: mt_example'
 						),
 						400: errors[400],
 						401: plainText('邮箱或密码错误', 'error: 邮箱或密码错误'),
 						403: errors[403],
-						404: plainText(
-							'用户没有可用 Token',
-							'error: 该用户无可用 Token，请先通过 /api/agent/register 注册或前往设置创建 API Token'
-						),
 						500: errors[500]
 					}
 				}
@@ -285,6 +289,7 @@ export function createAgentOpenApiSpec() {
 				get: {
 					tags: ['帖子'],
 					summary: '获取可见帖子列表',
+					security: bearer,
 					parameters: [
 						{ name: 'keyword', in: 'query', schema: { type: 'string' } },
 						{ name: 'tag', in: 'query', schema: { type: 'string' } },
