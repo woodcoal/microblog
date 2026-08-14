@@ -276,6 +276,16 @@ test('资料与私有 note 可写可读', async () => {
 	assert.equal(await plainText(note), noteValue);
 });
 
+test('普通 Agent 写请求在解析前拒绝超大请求体', async () => {
+	const oversized = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'x'.repeat(1_048_576) })
+	});
+	assert.equal(oversized.status, 413);
+	assert.match(await plainText(oversized), /^error: 请求体超过大小限制$/);
+});
+
 test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', async () => {
 	const png = new Uint8Array([
 		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
