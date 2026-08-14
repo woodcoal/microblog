@@ -13,6 +13,10 @@ import {
 	testSystemSmtp,
 	updateSystemConfiguration
 } from '@/services/system-config.service';
+import {
+	readPageCustomization,
+	updatePageCustomization
+} from '@/services/page-customization.service';
 import { updateTheme as updateThemeService } from '@/services/config.service';
 
 /** 将 ServiceError 转换为 ActionError */
@@ -133,6 +137,44 @@ export const testSystemSmtpAction = defineAction({
 		try {
 			await testSystemSmtp(currentUser.userId, smtp);
 			return { tested: true };
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+export const getPageCustomization = defineAction({
+	input: z.void(),
+	handler: async (_, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			return await readPageCustomization(currentUser.userId);
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+export const updatePageCustomizationAction = defineAction({
+	input: z
+		.object({
+			footerMarkdown: z.string().max(4000).optional(),
+			publicAnalyticsScript: z
+				.string()
+				.max(64 * 1024)
+				.optional()
+		})
+		.refine(
+			(value) =>
+				value.footerMarkdown !== undefined || value.publicAnalyticsScript !== undefined,
+			{
+				message: '至少提供一项页面自定义配置'
+			}
+		),
+	handler: async (input, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			return await updatePageCustomization({ userId: currentUser.userId, ...input });
 		} catch (error) {
 			handleServiceError(error);
 		}

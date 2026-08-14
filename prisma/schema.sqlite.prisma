@@ -24,6 +24,9 @@ model User {
   emailVerifiedAt DateTime?
   /// 仅用于首位管理员和存量兼容；全局策略开启时为 false 的用户无需验证。
   emailVerificationRequired Boolean @default(true)
+  lastLoginAt DateTime?
+  lastActiveAt DateTime?
+  loginCount Int @default(0)
   credentialVersion Int @default(0) // 密码重置后递增，使此前签发的 JWT 立即失效
   hasSelfRenamed Boolean @default(false) // 用户是否已使用一次自助改名额度
   createdAt    DateTime @default(now())
@@ -71,6 +74,7 @@ model SystemConfig {
   mailBodyPasswordReset    String  @default("")
   mailSubjectChangeEmail   String  @default("")
   mailBodyChangeEmail      String  @default("")
+  publicAnalyticsScript    String  @default("")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }
