@@ -25,9 +25,12 @@ import {
 	getModeLabel
 } from '@/lib/config';
 import { getCanonicalUrl } from '@/lib/seo';
+import { getPageSurface } from '@/lib/page-surface';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
+import { getPublicSiteCopy } from '@/services/site-copy.service';
+import { readPublicPageCustomization } from '@/services/page-customization.service';
 import ThemeSwitcher from '@/components/ThemeSwitcher.astro';
 import ComposeModal from '@/components/ComposeModal.astro';
 import SearchSuggest from '@/components/SearchSuggest.astro';
@@ -73,6 +76,11 @@ const {
 } = Astro.props;
 
 const currentPath = Astro.url.pathname;
+const pageSurface = getPageSurface(currentPath);
+const shouldRenderFooter = pageSurface === 'public' || pageSurface === 'identity';
+const footerCopy = shouldRenderFooter ? await getPublicSiteCopy('global.footer') : null;
+const publicAnalyticsScript =
+	pageSurface === 'public' ? (await readPublicPageCustomization()).publicAnalyticsScript : '';
 /** These paths are account, operational, or query-result surfaces and must never become search entries. */
 const isPrivateSurface = [
 	'/admin',
@@ -509,9 +517,16 @@ const resolvedJsonLd = shouldNoindex
 			<slot />
 		</main>
 
-		<footer class="footer">
-			<p>&copy; {new Date().getFullYear()} {siteTitle}</p>
-		</footer>
+		{
+			footerCopy && (
+				<footer class="footer">
+					<div
+						class="site-copy-content site-copy-content-footer"
+						set:html={footerCopy.html}
+					/>
+				</footer>
+			)
+		}
 
 		<!-- 移动端底部 Tab Bar -->
 		<nav class="tab-bar-mobile" aria-label="移动端主导航">
@@ -955,5 +970,7 @@ const resolvedJsonLd = shouldNoindex
 				})();
 			}
 		</script>
+
+		{publicAnalyticsScript && <Fragment set:html={publicAnalyticsScript} />}
 	</body>
 </html>

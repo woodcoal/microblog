@@ -1,0 +1,143 @@
+---
+/** 管理员页面定制表单。读取与保存均走受 CSRF 保护的 Astro Action。 */
+---
+
+<form id="page-customization-form" class="admin-form" aria-describedby="page-customization-status">
+	<fieldset class="admin-fieldset">
+		<legend>全局页脚</legend>
+		<p class="admin-fieldset-desc">
+			支持纯文本、换行和安全链接。不会渲染 HTML、图片或脚本；留空后使用站点默认页脚。
+		</p>
+		<div class="admin-form-group">
+			<label class="admin-form-label" for="global-footer-markdown">页脚文案</label>
+			<textarea
+				id="global-footer-markdown"
+				class="admin-form-input admin-form-textarea"
+				rows="6"
+				maxlength="4000"
+				disabled
+				aria-describedby="global-footer-help"></textarea>
+			<p class="admin-form-hint" id="global-footer-help">最多 4000 个字符。</p>
+		</div>
+	</fieldset>
+
+	<hr class="admin-form-divider" />
+
+	<fieldset class="admin-fieldset">
+		<legend>公开页面统计脚本</legend>
+		<p class="admin-fieldset-desc">
+			脚本只会在公开页面的 <code>&lt;/body&gt;</code> 前运行，不会进入后台或验证页面。
+		</p>
+		<p class="admin-security-warning" role="note">
+			安全提示：脚本会以本站权限在访客浏览器执行。仅粘贴可信统计服务提供的代码。
+		</p>
+		<div class="admin-form-group">
+			<label class="admin-form-label" for="public-analytics-script">统计脚本</label>
+			<textarea
+				id="public-analytics-script"
+				class="admin-form-input admin-form-textarea page-customization-script"
+				rows="8"
+				disabled
+				spellcheck="false"
+				aria-describedby="public-analytics-help"></textarea>
+			<p class="admin-form-hint" id="public-analytics-help">最多 64 KiB；留空即清除。</p>
+		</div>
+	</fieldset>
+
+	<div class="admin-form-actions">
+		<button type="submit" class="btn btn-primary" id="page-customization-save" disabled
+			>保存设置</button
+		>
+		<button type="button" class="btn btn-outline" id="page-customization-clear" disabled>
+			清空全部设置
+		</button>
+		<p id="page-customization-status" class="admin-form-msg" role="status" aria-live="polite">
+		</p>
+	</div>
+</form>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	const form = document.getElementById('page-customization-form') as HTMLFormElement;
+	const footer = document.getElementById('global-footer-markdown') as HTMLTextAreaElement;
+	const analyticsScript = document.getElementById(
+		'public-analytics-script'
+	) as HTMLTextAreaElement;
+	const saveButton = document.getElementById('page-customization-save') as HTMLButtonElement;
+	const clearButton = document.getElementById('page-customization-clear') as HTMLButtonElement;
+	const status = document.getElementById('page-customization-status') as HTMLParagraphElement;
+
+	function getErrorMessage(error: { message?: string } | undefined, fallback: string): string {
+		return error?.message || fallback;
+	}
+
+	function setControlsDisabled(disabled: boolean): void {
+		footer.disabled = disabled;
+		analyticsScript.disabled = disabled;
+		saveButton.disabled = disabled;
+		clearButton.disabled = disabled;
+	}
+
+	function setStatus(message: string, isError = false): void {
+		status.textContent = message;
+		status.classList.toggle('admin-form-msg-error', isError);
+		status.classList.toggle('admin-form-msg-success', !isError && message.length > 0);
+	}
+
+	async function loadCustomization(): Promise<void> {
+		setStatus('正在读取页面设置…');
+		try {
+			const result = await actions.getPageCustomization();
+			if (result.error || !result.data) {
+				setStatus(getErrorMessage(result.error, '读取页面设置失败，请刷新后重试。'), true);
+				return;
+			}
+			footer.value = result.data.footer.markdown;
+			analyticsScript.value = result.data.publicAnalyticsScript;
+			setControlsDisabled(false);
+			setStatus('');
+		} catch (error) {
+			setStatus(
+				error instanceof Error ? error.message : '读取页面设置失败，请刷新后重试。',
+				true
+			);
+		}
+	}
+
+	async function saveCustomization(input: {
+		footerMarkdown?: string;
+		publicAnalyticsScript?: string;
+	}): Promise<void> {
+		setControlsDisabled(true);
+		setStatus('正在保存…');
+		try {
+			const result = await actions.updatePageCustomizationAction(input);
+			if (result.error || !result.data) {
+				setStatus(getErrorMessage(result.error, '保存失败，请稍后重试。'), true);
+				return;
+			}
+			footer.value = result.data.footer.markdown;
+			analyticsScript.value = result.data.publicAnalyticsScript;
+			setStatus('已保存，允许展示的页面会在下次请求时使用最新设置。');
+		} catch (error) {
+			setStatus(error instanceof Error ? error.message : '保存失败，请稍后重试。', true);
+		} finally {
+			setControlsDisabled(false);
+		}
+	}
+
+	form.addEventListener('submit', (event) => {
+		event.preventDefault();
+		void saveCustomization({
+			footerMarkdown: footer.value,
+			publicAnalyticsScript: analyticsScript.value
+		});
+	});
+
+	clearButton.addEventListener('click', () => {
+		void saveCustomization({ footerMarkdown: '', publicAnalyticsScript: '' });
+	});
+
+	void loadCustomization();
+</script>

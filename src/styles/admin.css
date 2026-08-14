@@ -657,6 +657,13 @@
 	color: var(--color-muted);
 }
 
+.admin-badge-unverified {
+	background: color-mix(in srgb, #b45309 16%, transparent);
+	color: #92400e;
+	border: 1px solid currentColor;
+	font-weight: 700;
+}
+
 .admin-badge-deleted {
 	background: color-mix(in srgb, var(--color-danger) 15%, transparent);
 	color: var(--color-danger);
@@ -1076,6 +1083,20 @@ dialog.admin-modal::backdrop {
 
 .admin-form-msg-error {
 	color: var(--color-danger);
+}
+
+.admin-security-warning {
+	margin: 0 0 var(--spacing-4);
+	padding: var(--spacing-3);
+	border-left: 3px solid #b45309;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, #f59e0b 12%, transparent);
+	color: var(--color-text);
+	font-size: 0.875rem;
+}
+
+.page-customization-script {
+	font-family: var(--font-mono, ui-monospace, monospace);
 }
 
 .admin-toggle-label {
