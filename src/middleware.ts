@@ -53,6 +53,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
+	// 五种上传协议只经过这一处请求体门禁，且早于 API、Action、CSRF 的所有解析。
+	if (UNSAFE_METHODS.has(request.method.toUpperCase()) && isUploadRoute(url.pathname)) {
+		const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
+		if (!bodyResult.allowed) {
+			const response = bodyLimitResponse(
+				bodyResult,
+				isV1ApiRoute(url.pathname),
+				url.pathname === '/api/agent/upload'
+			);
+			return isApiRoute(url.pathname) ? withCorsHeaders(response, request) : response;
+		}
+	}
+
 	if (isApiRoute(url.pathname)) {
 		const isV1 = isV1ApiRoute(url.pathname);
 		if ((isV1 && !API_V1_ENABLED) || (!isV1 && !API_AGENT_ENABLED)) {
@@ -88,26 +101,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			);
 		}
 
-		if (UNSAFE_METHODS.has(request.method.toUpperCase())) {
-			const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
-			if (!bodyResult.allowed) {
-				return withCorsHeaders(
-					withRateLimitHeaders(bodyLimitResponse(bodyResult, isV1), rateLimitInfo),
-					request
-				);
-			}
-		}
-
 		const response = await next();
 		return withCorsHeaders(withRateLimitHeaders(response, rateLimitInfo), request);
 	}
 
 	// Astro Actions 和普通 SSR 表单都必须带同步器 token；GET/HEAD 不改变状态，放行。
 	if (UNSAFE_METHODS.has(request.method.toUpperCase())) {
-		if (isUploadRoute(url.pathname)) {
-			const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
-			if (!bodyResult.allowed) return bodyLimitResponse(bodyResult);
-		}
 		const valid = await validateCsrfToken(request, context.cookies);
 		if (!valid) return csrfFailureResponse();
 	}

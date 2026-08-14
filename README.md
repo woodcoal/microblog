@@ -92,7 +92,7 @@ pnpm run dev
 | `API_V1_ENABLED` / `API_AGENT_ENABLED`                                                | 是否启用两组外部 API                    | `true` / `true`                                                |
 | `API_CORS_ORIGINS`                                                                    | API CORS 来源白名单                     | `self`                                                         |
 | `API_RATE_LIMIT_*`                                                                    | API 限流窗口与读/写/上传上限            | 见 `.env.example`                                              |
-| `API_BODY_LIMIT_BYTES` / `API_UPLOAD_BODY_LIMIT_BYTES`                                | 普通请求体/上传请求体上限               | 见 `.env.example`                                              |
+| `API_BODY_LIMIT_BYTES` / `API_UPLOAD_BODY_LIMIT_BYTES`                                | 普通请求体上限 / 全部上传入口唯一上限   | 见 `.env.example`                                              |
 | `TRENDING_FORMULA`                                                                    | 热门分数公式 JSON                       | 见 `.env.example`                                              |
 | `WEIBO_MEDIA_MAX_WIDTH_PX`                                                            | 微博媒体区域最大宽度                    | `640`                                                          |
 

@@ -10,7 +10,9 @@ after(async () => {
 });
 
 test('图片上传保存私有原图和 WebP 展示副本', async () => {
-	const png = await sharp({ create: { width: 2001, height: 1000, channels: 3, background: '#246' } })
+	const png = await sharp({
+		create: { width: 2001, height: 1000, channels: 3, background: '#246' }
+	})
 		.png()
 		.toBuffer();
 	const result = await saveFile(
@@ -18,7 +20,10 @@ test('图片上传保存私有原图和 WebP 展示副本', async () => {
 		'image'
 	);
 	assert.match(result.fileStorage.filePath, /^protected\/images\/original\//);
-	assert.match(result.fileStorage.displayFilePath || '', /^protected\/images\/display-v1\/.*\.webp$/);
+	assert.match(
+		result.fileStorage.displayFilePath || '',
+		/^protected\/images\/display-v1\/.*\.webp$/
+	);
 	assert.equal(result.fileStorage.displayMimeType, 'image/webp');
 	assert.equal(result.fileStorage.displayWidth, 1600);
 	await deleteFileRef(result.fileStorage.id);
@@ -40,12 +45,17 @@ test('视频必须同时是 mp4 扩展、声明 MIME 和有效 ftyp', async () =
 	assert.equal(result.fileStorage.mimeType, 'video/mp4');
 	await deleteFileRef(result.fileStorage.id);
 	await assert.rejects(
-		saveFile(new File([new Uint8Array(validMp4)], 'clip.mp4', { type: 'application/octet-stream' }), 'video'),
+		saveFile(
+			new File([new Uint8Array(validMp4)], 'clip.mp4', { type: 'application/octet-stream' }),
+			'video'
+		),
 		/MIME/
 	);
 	await assert.rejects(
 		saveFile(
-			new File([new Uint8Array(Buffer.from('not a video'))], 'clip.mp4', { type: 'video/mp4' }),
+			new File([new Uint8Array(Buffer.from('not a video'))], 'clip.mp4', {
+				type: 'video/mp4'
+			}),
 			'video'
 		),
 		/MP4/

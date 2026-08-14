@@ -29,12 +29,6 @@ function handleServiceError(e: unknown): never {
 /** 评论排序合法值 */
 const VALID_SORT_ORDERS = ['asc', 'desc'];
 
-/** 头像最大文件大小：2MB */
-const AVATAR_MAX_SIZE = 2 * 1024 * 1024;
-
-/** 头像允许的图片扩展名 */
-const AVATAR_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-
 /**
  * 获取当前用户设置 Action
  */
@@ -186,26 +180,10 @@ const uploadAvatar = defineAction({
 			throw new ActionError({ code: 'UNAUTHORIZED', message: '请先登录' });
 		}
 
-		const { image } = input;
-
-		// 校验文件类型
-		const ext = image.name.split('.').pop()?.toLowerCase() || '';
-		if (!AVATAR_EXTENSIONS.includes(ext)) {
-			throw new ActionError({
-				code: 'BAD_REQUEST',
-				message: `不支持的文件类型: .${ext}，允许的类型: ${AVATAR_EXTENSIONS.join(', ')}`
-			});
-		}
-
-		// 校验文件大小
-		if (image.size > AVATAR_MAX_SIZE) {
-			throw new ActionError({ code: 'BAD_REQUEST', message: '头像图片大小不能超过 2MB' });
-		}
-
 		try {
 			return await uploadAvatarService({
 				userId: currentUser.userId,
-				image
+				image: input.image
 			});
 		} catch (e) {
 			handleServiceError(e);

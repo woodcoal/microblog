@@ -12,7 +12,15 @@ const env = {
 for (const [command, args] of [
 	['pnpm', ['exec', 'prisma', 'generate']],
 	['pnpm', ['exec', 'prisma', 'migrate', 'deploy']],
-	[process.execPath, ['--import=tsx', '--test', 'tests/blog-assets.service.test.ts', 'tests/blog-assets-ui.test.ts']]
+	[
+		process.execPath,
+		[
+			'--import=tsx',
+			'--test',
+			'tests/blog-assets.service.test.ts',
+			'tests/blog-assets-ui.test.ts'
+		]
+	]
 ]) {
 	const result = spawnSync(command, args, { env, stdio: 'inherit' });
 	if (result.error) throw result.error;

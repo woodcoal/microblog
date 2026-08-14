@@ -77,7 +77,10 @@ export async function uploadFile(input: UploadFileInput): Promise<UploadFileResu
 			url: `/media/reservations/${reservation.id}/preview`,
 			previewUrl: `/media/reservations/${reservation.id}/preview`,
 			displayUrl: `/media/reservations/${reservation.id}/preview`,
-			originalUrl: fileType === 'image' ? `/media/reservations/${reservation.id}/preview?original=1` : null,
+			originalUrl:
+				fileType === 'image'
+					? `/media/reservations/${reservation.id}/preview?original=1`
+					: null,
 			fileType: fileStorage.fileType,
 			originalName: file.name,
 			fileSize: fileStorage.fileSize

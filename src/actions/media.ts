@@ -8,10 +8,8 @@ import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { actionErrorCode, ServiceError } from '@/lib/errors';
-import {
-	cancelUpload as cancelUploadService,
-	uploadFile as uploadFileService
-} from '@/services/media.service';
+import { cancelUpload as cancelUploadService } from '@/services/media.service';
+import { executeUpload } from '@/services/upload.service';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -37,11 +35,14 @@ export const uploadMedia = defineAction({
 		}
 
 		try {
-			return await uploadFileService({
+			const result = await executeUpload({
 				userId: currentUser.userId,
+				channel: 'web-action',
+				purpose: 'media',
 				file: input.file,
-				fileType: input.fileType
+				requestedType: input.fileType
 			});
+			return result.data;
 		} catch (e) {
 			handleServiceError(e);
 		}

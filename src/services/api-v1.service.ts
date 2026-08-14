@@ -44,7 +44,8 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 				.filter(
 					(media) =>
 						media.slot === null &&
-						(media.fileStorage.fileType === 'image' || media.fileStorage.fileType === 'video')
+						(media.fileStorage.fileType === 'image' ||
+							media.fileStorage.fileType === 'video')
 				)
 				.map((media) => ({
 					id: media.id,
@@ -53,7 +54,10 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 							? `/media/${media.id}/stream`
 							: `/media/${media.id}/display`,
 					...(media.fileStorage.fileType === 'image'
-						? { displayUrl: `/media/${media.id}/display`, originalUrl: `/media/${media.id}/original` }
+						? {
+								displayUrl: `/media/${media.id}/display`,
+								originalUrl: `/media/${media.id}/original`
+							}
 						: { streamUrl: `/media/${media.id}/stream` }),
 					mimeType: media.fileStorage.mimeType,
 					size: media.fileStorage.fileSize,
@@ -66,9 +70,9 @@ function toPostDto(post: ApiPost, contentRestricted = false): PostDto {
 	const thumbnail = thumbnailMedia
 		? {
 				id: thumbnailMedia.id,
-			url: `/media/${thumbnailMedia.id}/display`,
-			displayUrl: `/media/${thumbnailMedia.id}/display`,
-			originalUrl: `/media/${thumbnailMedia.id}/original`,
+				url: `/media/${thumbnailMedia.id}/display`,
+				displayUrl: `/media/${thumbnailMedia.id}/display`,
+				originalUrl: `/media/${thumbnailMedia.id}/original`,
 				mimeType: thumbnailMedia.fileStorage.mimeType,
 				size: thumbnailMedia.fileStorage.fileSize,
 				type: 'image' as const,

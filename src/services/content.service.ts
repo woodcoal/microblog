@@ -418,7 +418,10 @@ export async function createPost(input: CreatePostInput) {
 		const type = requestedById.get(id)?.fileType;
 		return type === 'image' || type === 'video';
 	});
-	if (bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length > MAX_IMAGE_COUNT) {
+	if (
+		bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length >
+		MAX_IMAGE_COUNT
+	) {
 		throw new ServiceError('BAD_REQUEST', `图片最多 ${MAX_IMAGE_COUNT} 张`);
 	}
 	const legacyAttachmentIds = dedupedMediaIds.filter(
@@ -624,7 +627,10 @@ export async function updatePost(input: UpdatePostInput) {
 		const type = requestedById.get(id)?.fileType;
 		return type === 'image' || type === 'video';
 	});
-	if (bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length > MAX_IMAGE_COUNT) {
+	if (
+		bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length >
+		MAX_IMAGE_COUNT
+	) {
 		throw new ServiceError('BAD_REQUEST', '图片最多 ' + MAX_IMAGE_COUNT + ' 张');
 	}
 	const legacyAttachmentIds = dedupedMediaIds.filter(

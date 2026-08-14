@@ -250,18 +250,25 @@ export async function checkBodyLimit(request: Request, limit: number): Promise<B
 	}
 }
 
-export function bodyLimitResponse(result: BodyLimitResult, v1 = false): Response {
+export function bodyLimitResponse(result: BodyLimitResult, v1 = false, agent = false): Response {
 	const message = result.malformedLength ? 'Content-Length 无效' : '请求体超过大小限制';
 	return new Response(
-		JSON.stringify(
-			v1
-				? { error: { code: 'BAD_REQUEST', message } }
-				: { success: false, error: { message, status: result.malformedLength ? 400 : 413 } }
-		),
+		agent
+			? `error: ${message}`
+			: JSON.stringify(
+					v1
+						? { error: { code: 'BAD_REQUEST', message } }
+						: {
+								success: false,
+								error: { message, status: result.malformedLength ? 400 : 413 }
+							}
+				),
 		{
 			status: result.malformedLength ? 400 : 413,
 			headers: {
-				'Content-Type': 'application/json; charset=utf-8',
+				'Content-Type': agent
+					? 'text/plain; charset=utf-8'
+					: 'application/json; charset=utf-8',
 				'Cache-Control': 'no-store'
 			}
 		}
