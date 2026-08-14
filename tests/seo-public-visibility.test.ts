@@ -62,9 +62,49 @@ test('robots 与 sitemap 只暴露当前公开可索引的 canonical 路径', as
 	);
 	assert.match(sitemap, /isDisabled: false, deletedAt: null/);
 	assert.match(sitemap, /isHidden: false/);
-	assert.match(sitemap, /escapeXml\(u\.loc\)/);
+	assert.match(
+		sitemap,
+		/getCanonicalUrl\(u\.loc\)|getCanonicalUrl\(`\/\$\{post\.user\.username\}/
+	);
 	assert.match(
 		search,
 		/visibility: 'public',[\s\S]*isDeleted: false,[\s\S]*user: \{ deletedAt: null, isDisabled: false \}/
 	);
+});
+
+test('高频页面将交互与样式迁移到独立资源文件', async () => {
+	const [
+		home,
+		login,
+		register,
+		verifyEmail,
+		forgotPassword,
+		resetPassword,
+		changeEmail,
+		apiDocs
+	] = await Promise.all([
+		read('src/pages/index.astro'),
+		read('src/pages/login.astro'),
+		read('src/pages/register.astro'),
+		read('src/pages/verify-email.astro'),
+		read('src/pages/forgot-password.astro'),
+		read('src/pages/reset-password.astro'),
+		read('src/pages/change-email.astro'),
+		read('src/pages/api/docs.astro')
+	]);
+	for (const page of [
+		home,
+		login,
+		register,
+		verifyEmail,
+		forgotPassword,
+		resetPassword,
+		changeEmail
+	]) {
+		assert.match(page, /import '@\/styles\/pages\//);
+		assert.match(page, /<script src="\.\.\/scripts\/pages\//);
+		assert.doesNotMatch(page, /<style(?:\s|>)/);
+	}
+	assert.match(apiDocs, /import '@\/styles\/pages\/api-docs\.css'/);
+	assert.match(apiDocs, /<script src="\.\.\/\.\.\/scripts\/pages\/api-docs\.ts"><\/script>/);
 });

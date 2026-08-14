@@ -1,6 +1,7 @@
 ---
 /** 邮箱换绑确认落地页。令牌的有效性、消费与凭据撤销均由服务端 Action 决定。 */
 import BaseLayout from '@/layouts/Base.astro';
+import '@/styles/pages/change-email.css';
 
 const token = Astro.url.searchParams.get('token') ?? '';
 ---
@@ -50,67 +51,4 @@ const token = Astro.url.searchParams.get('token') ?? '';
 	</section>
 </BaseLayout>
 
-<style>
-	.email-change-state {
-		padding: var(--spacing-4);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-md);
-		background: var(--color-card-bg);
-	}
-
-	.email-change-state h2,
-	.email-change-state p {
-		margin: 0;
-	}
-
-	.email-change-state p + .btn,
-	.email-change-state .btn {
-		display: inline-flex;
-		margin-top: var(--spacing-4);
-	}
-
-	.email-change-success {
-		border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
-	}
-
-	.email-change-error {
-		border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
-	}
-</style>
-
-<script>
-	import { actions } from 'astro:actions';
-
-	const page = document.querySelector('.email-change-page') as HTMLElement;
-	const token = page.dataset.emailChangeToken ?? '';
-	const pending = document.getElementById('email-change-pending') as HTMLElement;
-	const action = document.getElementById('email-change-action') as HTMLElement;
-	const success = document.getElementById('email-change-success') as HTMLElement;
-	const invalid = document.getElementById('email-change-invalid') as HTMLElement;
-	const invalidMessage = document.getElementById('email-change-invalid-message') as HTMLElement;
-
-	function showState(state: HTMLElement) {
-		[pending, action, success, invalid].forEach(
-			(element) => (element.hidden = element !== state)
-		);
-		if (state !== pending) state.focus();
-	}
-
-	async function confirm() {
-		if (!token) {
-			showState(action);
-			return;
-		}
-		showState(pending);
-		try {
-			const result = await actions.confirmEmailChangeAction({ token });
-			if (result.error?.message === '与管理员联系处理')
-				invalidMessage.textContent = '与管理员联系处理';
-			showState(result.error ? invalid : success);
-		} catch {
-			showState(invalid);
-		}
-	}
-
-	void confirm();
-</script>
+<script src="../scripts/pages/change-email.ts"></script>

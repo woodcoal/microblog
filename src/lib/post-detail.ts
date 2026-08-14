@@ -7,7 +7,12 @@ import { renderMarkdown, renderFullMarkdown } from '@/lib/markdown';
 import { checkPostVisibility } from '@/lib/visibility';
 import { SITE_URL, SITE_TITLE, MAX_USER_PINNED_POSTS, getModeLabel } from '@/lib/config';
 import { resolveUsername } from '@/lib/user';
-import { createGoneResponse, createNoindexNotFoundResponse, getCanonicalUrl } from '@/lib/seo';
+import {
+	createGoneResponse,
+	createNoindexNotFoundResponse,
+	getAbsoluteUrl,
+	getCanonicalUrl
+} from '@/lib/seo';
 
 export const POST_DETAIL_MODES = ['weibo', 'forum', 'blog'] as const;
 export type PostDetailMode = (typeof POST_DETAIL_MODES)[number];
@@ -513,7 +518,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 	// OG 图片：取帖子第一张图片，无图片时不设置
 	const ogImageUrl =
 		!isNotPublic && hasImages
-			? `${SITE_URL}/uploads/${images[0].fileStorage.filePath}`
+			? getAbsoluteUrl(`/uploads/${images[0].fileStorage.filePath}`)
 			: undefined;
 
 	return {

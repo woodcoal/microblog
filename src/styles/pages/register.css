@@ -1,0 +1,79 @@
+/** src/pages/register.astro 的页面级样式。 */
+.form-hint {
+	font-size: 0.75rem;
+	color: var(--color-muted);
+	margin-top: 0.25rem;
+	display: none;
+}
+.form-hint-visible {
+	display: block;
+}
+.form-hint-ok {
+	color: var(--color-success);
+}
+.form-hint-err {
+	color: var(--color-danger);
+}
+
+.registration-closed {
+	text-align: center;
+	padding: var(--spacing-6) 0;
+}
+.username-optional summary {
+	cursor: pointer;
+	color: var(--color-primary);
+}
+.username-optional[open] summary {
+	margin-bottom: var(--spacing-3);
+}
+
+.registration-closed-title {
+	font-size: 1.125rem;
+	font-weight: 600;
+	margin-bottom: var(--spacing-2);
+}
+
+.registration-closed-hint {
+	font-size: 0.875rem;
+	color: var(--color-muted);
+	font-weight: 400;
+	margin-bottom: var(--spacing-6);
+}
+
+.verification-panel {
+	margin-top: var(--spacing-5);
+	padding: var(--spacing-4);
+	border: 1px solid color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--color-success) 7%, var(--color-card-bg));
+}
+
+.verification-panel h3 {
+	margin: 0 0 var(--spacing-2);
+	font-size: 1rem;
+}
+
+.verification-panel p {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.verification-resend-form {
+	margin-top: var(--spacing-4);
+}
+
+.verification-resend-controls {
+	display: flex;
+	gap: var(--spacing-2);
+	margin-top: var(--spacing-1);
+}
+
+.verification-resend-controls .form-input {
+	min-width: 0;
+}
+
+@media (max-width: 480px) {
+	.verification-resend-controls {
+		flex-direction: column;
+	}
+}

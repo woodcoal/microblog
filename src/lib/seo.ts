@@ -32,6 +32,18 @@ export function getCanonicalUrl(pathname: string): string {
 	return url.toString();
 }
 
+/**
+ * 将站内相对路径、站点绝对路径或第三方绝对 URL 标准化为可供分享爬虫读取的绝对 URL。
+ *
+ * @param value - 相对路径或绝对 URL
+ * @returns 不含片段的绝对 URL
+ */
+export function getAbsoluteUrl(value: string): string {
+	const url = new URL(value, SITE_URL);
+	url.hash = '';
+	return url.toString();
+}
+
 /** 非公开页面、以及筛选/分页等非主版本 URL 都不应成为搜索入口。 */
 export function shouldNoindexPage(pathname: string, hasSearchParams = false): boolean {
 	return (

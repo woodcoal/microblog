@@ -1,0 +1,55 @@
+/** src/pages/login.astro 的页面级样式。 */
+.auth-error-shake {
+	animation: auth-shake 0.3s ease;
+}
+
+@keyframes auth-shake {
+	0%,
+	100% {
+		transform: translateX(0);
+	}
+	25% {
+		transform: translateX(-4px);
+	}
+	75% {
+		transform: translateX(4px);
+	}
+}
+
+.verification-help {
+	margin-top: var(--spacing-4);
+	padding: var(--spacing-4);
+	border: 1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+	border-radius: var(--radius-md);
+	background: var(--color-card-bg);
+}
+
+.verification-help h2 {
+	margin: 0 0 var(--spacing-2);
+	font-size: 1rem;
+}
+
+.verification-help p {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.verification-resend-form {
+	margin-top: var(--spacing-3);
+}
+
+.verification-resend-controls {
+	display: flex;
+	gap: var(--spacing-2);
+	margin-top: var(--spacing-1);
+}
+
+.verification-resend-controls .form-input {
+	min-width: 0;
+}
+
+@media (max-width: 480px) {
+	.verification-resend-controls {
+		flex-direction: column;
+	}
+}

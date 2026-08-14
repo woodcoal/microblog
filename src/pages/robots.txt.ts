@@ -5,7 +5,7 @@
  * Sitemap URL 使用 SITE_URL 环境变量，避免硬编码端口。
  */
 import type { APIRoute } from 'astro';
-import { SITE_URL } from '@/lib/config';
+import { getCanonicalUrl } from '@/lib/seo';
 
 /**
  * GET 请求处理函数
@@ -18,7 +18,7 @@ import { SITE_URL } from '@/lib/config';
  * @returns Response - text/plain 格式的 robots.txt 响应
  */
 export const GET: APIRoute = async () => {
-	const siteUrl = SITE_URL;
+	const sitemapUrl = getCanonicalUrl('/sitemap.xml');
 	const content = `User-agent: *
 Allow: /
 Disallow: /api/
@@ -38,7 +38,7 @@ Disallow: /change-email
 Disallow: /*/edit
 Disallow: /*/revisions
 
-Sitemap: ${siteUrl}/sitemap.xml`;
+Sitemap: ${sitemapUrl}`;
 
 	return new Response(content, {
 		headers: { 'Content-Type': 'text/plain' }

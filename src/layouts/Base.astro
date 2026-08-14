@@ -24,6 +24,7 @@ import {
 	isSingleMode,
 	getModeLabel
 } from '@/lib/config';
+import { getCanonicalUrl } from '@/lib/seo';
 import { getThemeFromUserSettings, getAccentFromUserSettings } from '@/lib/theme';
 import { prisma } from '@/lib/db';
 import { getOrCreateCsrfToken } from '@/lib/csrf';
@@ -93,7 +94,7 @@ const isTaskSurface = currentPath === '/blog/write' || /\/(?:edit|revisions)$/.t
 const shouldNoindex = Boolean(noindex) || isPrivateSurface || isTaskSurface || !!Astro.url.search;
 const resolvedCanonicalUrl = shouldNoindex
 	? undefined
-	: (canonicalUrl ?? new URL(currentPath, SITE_URL).toString());
+	: (canonicalUrl ?? getCanonicalUrl(currentPath));
 
 // 由全局 middleware 首次生成，SSR 页面将 token 注入 HTML，供 Actions 和表单回传。
 const csrfToken = Astro.locals.csrfToken ?? getOrCreateCsrfToken(Astro);
@@ -223,58 +224,7 @@ const resolvedJsonLd = shouldNoindex
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<meta name="csrf-token" content={csrfToken} />
 		<!-- 为同源 Action/fetch 自动加入 CSRF header，并为原生表单补充隐藏字段。 -->
-		<script is:inline>
-			(function () {
-				const tokenMeta = document.querySelector('meta[name="csrf-token"]');
-				const token = tokenMeta && tokenMeta.getAttribute('content');
-				if (!token) return;
-
-				const unsafeMethods = { POST: true, PUT: true, PATCH: true, DELETE: true };
-				const originalFetch = window.fetch.bind(window);
-				window.fetch = function (input, init) {
-					const request = input instanceof Request ? input : null;
-					const targetUrl = new URL(
-						request ? request.url : String(input),
-						window.location.href
-					);
-					const method = String(
-						(init && init.method) || (request && request.method) || 'GET'
-					).toUpperCase();
-					if (targetUrl.origin !== window.location.origin || !unsafeMethods[method]) {
-						return originalFetch(input, init);
-					}
-
-					const headers = new Headers(request ? request.headers : undefined);
-					if (init && init.headers) {
-						new Headers(init.headers).forEach(function (value, key) {
-							headers.set(key, value);
-						});
-					}
-					if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', token);
-					const nextInit = Object.assign({}, init || {}, { headers: headers });
-					return originalFetch(input, nextInit);
-				};
-
-				document.addEventListener('submit', function (event) {
-					const form = event.target;
-					if (!(form instanceof HTMLFormElement)) return;
-					const method = (form.method || 'GET').toUpperCase();
-					if (!unsafeMethods[method]) return;
-					const action = new URL(
-						form.getAttribute('action') || window.location.href,
-						window.location.href
-					);
-					if (action.origin !== window.location.origin) return;
-					if (!form.querySelector('input[name="csrf_token"]')) {
-						const input = document.createElement('input');
-						input.type = 'hidden';
-						input.name = 'csrf_token';
-						input.value = token;
-						form.appendChild(input);
-					}
-				});
-			})();
-		</script>
+		<script src="../scripts/shared/csrf.ts"></script>
 		<meta name="description" content={siteDesc} />
 		<title>{pageTitle}</title>
 		<link rel="icon" type="image/svg+xml" href={SITE_FAVICON_URL} />
@@ -288,12 +238,20 @@ const resolvedJsonLd = shouldNoindex
 				<script type="application/ld+json" set:html={JSON.stringify(resolvedJsonLd)} />
 			)
 		}
-		<!-- Open Graph 元标签，用于社交平台分享预览 -->
+		<!-- Open Graph 与 Twitter 元标签使用同一规范 URL，保证分享预览与搜索归一化一致。 -->
 		<meta property="og:title" content={resolvedOgTitle} />
 		<meta property="og:description" content={resolvedOgDescription} />
 		<meta property="og:type" content={resolvedOgType} />
 		{resolvedCanonicalUrl && <meta property="og:url" content={resolvedCanonicalUrl} />}
 		{!shouldNoindex && ogImage && <meta property="og:image" content={ogImage} />}
+		{
+			!shouldNoindex && (
+				<meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+			)
+		}
+		{!shouldNoindex && <meta name="twitter:title" content={resolvedOgTitle} />}
+		{!shouldNoindex && <meta name="twitter:description" content={resolvedOgDescription} />}
+		{!shouldNoindex && ogImage && <meta name="twitter:image" content={ogImage} />}
 		<!-- 主题初始化脚本：在渲染前设置 data-theme 和 data-accent，防止闪烁（FOUC） -->
 		<script is:inline>
 			(function () {

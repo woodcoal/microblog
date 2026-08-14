@@ -1,0 +1,60 @@
+/** src/pages/verify-email.astro 的页面级样式。 */
+.auth-page-shell-single {
+	grid-template-columns: 1fr;
+	justify-items: center;
+}
+
+.verification-page {
+	max-width: 34rem;
+}
+
+.verification-state,
+.verification-resend-form {
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-card-bg);
+}
+
+.verification-state h2 {
+	margin: 0 0 var(--spacing-2);
+	font-size: 1.125rem;
+}
+
+.verification-state p {
+	margin: 0;
+	color: var(--color-muted);
+}
+
+.verification-state .btn {
+	display: inline-flex;
+	margin-top: var(--spacing-4);
+}
+
+.verification-state-success {
+	border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+}
+
+.verification-state-error {
+	border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+}
+
+.verification-resend-form {
+	margin-top: var(--spacing-4);
+}
+
+.verification-resend-controls {
+	display: flex;
+	gap: var(--spacing-2);
+	margin-top: var(--spacing-1);
+}
+
+.verification-resend-controls .form-input {
+	min-width: 0;
+}
+
+@media (max-width: 480px) {
+	.verification-resend-controls {
+		flex-direction: column;
+	}
+}

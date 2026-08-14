@@ -15,10 +15,10 @@ import { renderMarkdown } from '@/lib/markdown';
 import { getVisibilityFilter, checkPostVisibility } from '@/lib/visibility';
 import { getBookmarkedPostIds, getLikedPostIds } from '@/lib/queries';
 import { getPopularTagItems } from '@/lib/discovery';
-import { SITE_URL, SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
+import { SITE_TITLE, getModeLabel, isModeEnabled } from '@/lib/config';
 import { isTombstonedUsername, resolveUsername } from '@/lib/user';
 import { goneResponse } from '@/lib/public-route';
-import { createNoindexNotFoundResponse } from '@/lib/seo';
+import { createNoindexNotFoundResponse, getAbsoluteUrl, getCanonicalUrl } from '@/lib/seo';
 
 // 路由参数
 const { username } = Astro.params;
@@ -249,15 +249,15 @@ const [recentFollows, recommendedTags] = await Promise.all([
 	title={user.displayName}
 	ogTitle={`${user.displayName} (@${user.username}) - ${SITE_TITLE}`}
 	ogDescription={user.bio || `${user.displayName} 的${getModeLabel('weibo')}主页`}
-	ogImage={user.avatarUrl || undefined}
-	canonicalUrl={`${SITE_URL}/${user.username}`}
+	ogImage={user.avatarUrl ? getAbsoluteUrl(user.avatarUrl) : undefined}
+	canonicalUrl={getCanonicalUrl(`/${user.username}`)}
 	jsonLd={{
 		'@context': 'https://schema.org',
 		'@type': 'ProfilePage',
 		name: user.displayName,
 		alternateName: user.username,
-		url: `${SITE_URL}/${user.username}`,
-		image: user.avatarUrl,
+		url: getCanonicalUrl(`/${user.username}`),
+		image: user.avatarUrl ? getAbsoluteUrl(user.avatarUrl) : undefined,
 		description: user.bio
 	}}
 >

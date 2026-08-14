@@ -13,10 +13,11 @@ test('公开页面使用同一 canonical URL 作为 Open Graph 与 JSON-LD 来�
 		read('src/lib/post-detail.ts')
 	]);
 	assert.match(seo, /export function getCanonicalUrl/);
+	assert.match(seo, /export function getAbsoluteUrl/);
 	assert.match(base, /const shouldNoindex = Boolean\(noindex\) \|\| isPrivateSurface/);
 	assert.match(
 		base,
-		/const resolvedCanonicalUrl = shouldNoindex[\s\S]*canonicalUrl \?\? new URL\(currentPath, SITE_URL\)/
+		/const resolvedCanonicalUrl = shouldNoindex[\s\S]*canonicalUrl \?\? getCanonicalUrl\(currentPath\)/
 	);
 	assert.match(
 		base,
@@ -26,14 +27,22 @@ test('公开页面使用同一 canonical URL 作为 Open Graph 与 JSON-LD 来�
 		base,
 		/resolvedCanonicalUrl && <meta property="og:url" content=\{resolvedCanonicalUrl\} \/>/
 	);
+	assert.match(base, /twitter:card/);
+	assert.match(base, /twitter:title/);
+	assert.match(base, /twitter:description/);
 	assert.match(base, /const resolvedJsonLd = shouldNoindex[\s\S]*: \(jsonLd \?\? \{/);
 	assert.match(base, /url: resolvedCanonicalUrl/);
-	assert.match(profile, /canonicalUrl=\{`\$\{SITE_URL\}\/\$\{user\.username\}`\}/);
-	assert.match(profile, /url: `\$\{SITE_URL\}\/\$\{user\.username\}`/);
+	assert.match(profile, /canonicalUrl=\{getCanonicalUrl\(`\/\$\{user\.username\}`\)\}/);
+	assert.match(profile, /url: getCanonicalUrl\(`\/\$\{user\.username\}`\)/);
+	assert.match(
+		profile,
+		/ogImage=\{user\.avatarUrl \? getAbsoluteUrl\(user\.avatarUrl\) : undefined\}/
+	);
 	assert.match(
 		detail,
 		/const canonicalUrl = getCanonicalUrl\(`\/\$\{post\.user\.username\}\/\$\{post\.id\}`\)/
 	);
+	assert.match(detail, /getAbsoluteUrl\(`\/uploads\/\$\{images\[0\]\.fileStorage\.filePath\}`\)/);
 });
 
 test('非公开、已删除和已注销入口都有明确的 noindex 或 410 收口', async () => {
@@ -67,5 +76,6 @@ test('非公开、已删除和已注销入口都有明确的 noindex 或 410 收
 	assert.match(robots, /Disallow: \/search/);
 	assert.match(robots, /Disallow: \/settings/);
 	assert.match(sitemap, /user: \{ deletedAt: null, isDisabled: false \}/);
-	assert.match(sitemap, /loc: `\$\{SITE_URL\}\/\$\{post\.user\.username\}\/\$\{post\.id\}`/);
+	assert.match(sitemap, /getCanonicalUrl\(`\/\$\{post\.user\.username\}\/\$\{post\.id\}`\)/);
+	assert.match(robots, /getCanonicalUrl\('\/sitemap\.xml'\)/);
 });

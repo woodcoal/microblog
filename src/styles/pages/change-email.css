@@ -1,0 +1,26 @@
+/** src/pages/change-email.astro 的页面级样式。 */
+.email-change-state {
+	padding: var(--spacing-4);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-card-bg);
+}
+
+.email-change-state h2,
+.email-change-state p {
+	margin: 0;
+}
+
+.email-change-state p + .btn,
+.email-change-state .btn {
+	display: inline-flex;
+	margin-top: var(--spacing-4);
+}
+
+.email-change-success {
+	border-color: color-mix(in srgb, var(--color-success) 45%, var(--color-border));
+}
+
+.email-change-error {
+	border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border));
+}
