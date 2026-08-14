@@ -6,6 +6,8 @@ import { prisma } from '../src/lib/db';
 import { hashPassword } from '../src/lib/auth';
 import { loginUser } from '../src/services/auth.service';
 import { createComment, createPost } from '../src/services/content.service';
+import { getPublicSiteCopy } from '../src/services/site-copy.service';
+import { DEFAULT_SITE_COPY } from '../src/lib/site-copy-definitions';
 import {
 	readPageCustomization,
 	updatePageCustomization
@@ -80,6 +82,11 @@ test('页面定制仅管理员可读写，并同步保存页脚版本、脚本�
 		}),
 		1
 	);
+	await updatePageCustomization({ userId: admin.id, footerMarkdown: '' });
+	const publicFooter = await getPublicSiteCopy('global.footer');
+	assert.equal(publicFooter.markdown, DEFAULT_SITE_COPY['global.footer']);
+	assert.match(publicFooter.html, /©/);
+	assert.equal((await readPageCustomization(admin.id)).footer.markdown, '');
 	await assert.rejects(
 		updatePageCustomization({
 			userId: admin.id,
