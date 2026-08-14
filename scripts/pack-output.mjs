@@ -7,15 +7,25 @@
  *   1. pnpm run build          — 构建产物
  *   2. 清空 .output/           — 移除旧包
  *   3. 复制 dist/ generated/ prisma/ 等部署文件（不含 node_modules）
- *   4. 生成生产 package.json   — 仅运行时依赖
- *   5. 启动验证（HTTP 200 探针，用源项目 node_modules）
- *   6. 清理测试残留
+ *   4. 生成生产 package.json   — 保留全部声明的生产依赖
+ *   5. 在 .output 安装生产依赖并启动验证
+ *   6. 清理测试残留和根目录 dist/
  *
  * 部署时由 deploy.sh 执行：
  *   pnpm install --prod → prisma generate → prisma migrate deploy
  */
 
-import { existsSync, mkdirSync, copyFileSync, cpSync, writeFileSync, readFileSync, unlinkSync, readdirSync, statSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	copyFileSync,
+	cpSync,
+	writeFileSync,
+	readFileSync,
+	unlinkSync,
+	readdirSync,
+	statSync
+} from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -58,6 +68,23 @@ function forceRemove(dir) {
 	}
 }
 
+/**
+ * 清空既有目录但保留目录本身，避免 Windows 下编辑器占用目录句柄时删除失败。
+ *
+ * @param dir - 要清空的目录路径
+ */
+function clearDirectory(dir) {
+	if (!existsSync(dir)) {
+		mkdirSync(dir, { recursive: true });
+		return;
+	}
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory() || entry.isSymbolicLink()) forceRemove(path);
+		else unlinkSync(path);
+	}
+}
+
 // ── 1. 构建 ──────────────────────────────────────────
 log('构建项目 ...');
 run('pnpm run build');
@@ -66,8 +93,7 @@ ok('构建完成');
 
 // ── 2. 清空 .output ─────────────────────────────────
 log('清空 .output/ ...');
-if (existsSync(output)) forceRemove(output);
-mkdirSync(output, { recursive: true });
+clearDirectory(output);
 ok('.output/ 已就绪');
 
 // ── 3. 复制部署文件 ──────────────────────────────────
@@ -108,24 +134,12 @@ const prodPkg = {
 	},
 	dependencies: {}
 };
-// 只保留运行时依赖，排除构建工具和类型定义
-const buildOnly = new Set([
-	'@astrojs/node', '@astrojs/react', 'astro',
-	'@scalar/api-reference',
-	'@tiptap/core', '@tiptap/extension-bubble-menu', '@tiptap/extension-code-block-lowlight',
-	'@tiptap/extension-image', '@tiptap/extension-link', '@tiptap/extension-placeholder',
-	'@tiptap/extension-task-item', '@tiptap/extension-task-list', '@tiptap/extension-underline',
-	'@tiptap/pm', '@tiptap/react', '@tiptap/starter-kit', '@tiptap/suggestion', 'tiptap-markdown',
-	'react', 'react-dom', 'tippy.js'
-]);
-for (const [name, version] of Object.entries(pkg.dependencies)) {
-	if (!buildOnly.has(name)) {
-		prodPkg.dependencies[name] = version;
-	}
-}
-// 迁移部署需要 prisma 和 @prisma/config
-prodPkg.dependencies['prisma'] = pkg.dependencies['prisma'] ?? '^7.9.1';
-prodPkg.dependencies['@prisma/config'] = pkg.devDependencies['@prisma/config'] ?? '^7.9.1';
+// 源 package.json 的 dependencies 即应用声明的生产运行时依赖。
+// Astro 的服务端产物保留 React、Tiptap 等外部导入，不能按构建时用途排除。
+prodPkg.dependencies = { ...pkg.dependencies };
+// 迁移部署额外需要 Prisma CLI 与配置加载器。
+prodPkg.dependencies.prisma = pkg.devDependencies.prisma;
+prodPkg.dependencies['@prisma/config'] = pkg.devDependencies['@prisma/config'];
 
 writeFileSync(join(output, 'package.json'), JSON.stringify(prodPkg, null, '\t') + '\n');
 ok('生产 package.json 已生成');
@@ -231,7 +245,6 @@ echo "  PM2：  ./start.sh --pm2"
 `
 );
 
-
 // README.md — 部署说明
 writeFileSync(
 	join(output, 'README.md'),
@@ -328,9 +341,7 @@ pm2 restart mutan             # 重启
 );
 ok('部署辅助文件已生成');
 
-// ── 5. 启动验证 ──────────────────────────────────────
-// 不在 .output 中安装依赖，而是用源项目的 node_modules 做启动探针。
-// 部署时由 deploy.sh 执行 pnpm install --prod + prisma generate + migrate。
+// 在 .output 中安装声明的生产依赖，避免根目录 node_modules 掩盖部署包缺依赖。
 log('启动服务验证 ...');
 const testPort = 14399;
 
@@ -340,13 +351,17 @@ writeFileSync(
 	`DATABASE_PROVIDER="sqlite"\nDATABASE_URL="file:./_test.db"\nJWT_SECRET="mutan-dev-secret-change-in-production"\nSITE_URL="http://localhost:${testPort}"\nSITE_MODES="weibo,forum,blog"\n`
 );
 
+log('安装生产依赖进行隔离验证 ...');
+run('pnpm install --prod --ignore-scripts --lockfile=false', { cwd: output });
+ok('生产依赖安装完成');
+
 // 应用迁移到测试库（用环境变量覆盖 DATABASE_URL，确保不读到源项目的 .env）
 run(`npx prisma migrate deploy`, {
 	cwd: output,
 	env: { ...process.env, DATABASE_PROVIDER: 'sqlite', DATABASE_URL: 'file:./_test.db' }
 });
 
-// 用源项目的 node_modules 启动服务
+// 使用 .output 自身已安装的生产依赖启动服务。
 const probe = execSync(
 	`node -e "
 		const { spawn } = require('child_process');
@@ -377,7 +392,12 @@ const probe = execSync(
 		}
 		setTimeout(() => { console.log('TIMEOUT'); srv.kill('SIGTERM'); process.exit(1); }, 15000);
 	"`,
-	{ cwd: output, env: { ...process.env, PORT: String(testPort), NODE_ENV: 'test' }, stdio: 'pipe', timeout: 20000 }
+	{
+		cwd: output,
+		env: { ...process.env, PORT: String(testPort), NODE_ENV: 'test' },
+		stdio: 'pipe',
+		timeout: 20000
+	}
 ).toString();
 
 console.log(probe);
@@ -388,10 +408,13 @@ log('清理测试残留 ...');
 if (existsSync(join(output, '.env'))) unlinkSync(join(output, '.env'));
 if (existsSync(join(output, '_test.db'))) unlinkSync(join(output, '_test.db'));
 if (existsSync(join(output, 'app.db'))) unlinkSync(join(output, 'app.db'));
+if (existsSync(join(output, 'node_modules'))) forceRemove(join(output, 'node_modules'));
 // uploads 和 logs 保留空目录
 mkdirSync(join(output, 'uploads'), { recursive: true });
 mkdirSync(join(output, 'logs'), { recursive: true });
 ok('清理完成');
+forceRemove(join(root, 'dist'));
+ok('根目录 dist/ 已移除');
 
 // ── 完成 ────────────────────────────────────────────
 /**
