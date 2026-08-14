@@ -5,13 +5,7 @@ import { join, extname } from 'node:path';
 import sharp from 'sharp';
 import { prisma } from './db';
 import { UPLOAD_DIR } from './config';
-import {
-	ATTACHMENT_EXTENSIONS,
-	ATTACHMENT_MAX_SIZE,
-	IMAGE_EXTENSIONS,
-	IMAGE_MAX_SIZE,
-	VIDEO_MAX_SIZE
-} from './upload-policy';
+import { ATTACHMENT_EXTENSIONS, IMAGE_EXTENSIONS } from './upload-policy';
 import type { FileStorage } from '../../generated/prisma/client';
 
 const MIME_MAP: Record<string, string> = {
@@ -97,16 +91,6 @@ export async function saveFile(
 				? ['mp4']
 				: ATTACHMENT_EXTENSIONS;
 	if (!allowedExtensions.includes(ext)) throw new Error(`不支持的文件类型: .${ext}`);
-	const maxSize =
-		fileType === 'image'
-			? IMAGE_MAX_SIZE
-			: fileType === 'video'
-				? VIDEO_MAX_SIZE
-				: ATTACHMENT_MAX_SIZE;
-	if (maxSize <= 0 || file.size > maxSize)
-		throw new Error(
-			`文件大小超过限制，最大 ${Math.floor(Math.max(maxSize, 0) / 1024 / 1024)} MiB`
-		);
 	if (fileType === 'video' && file.type !== 'video/mp4')
 		throw new Error('视频 MIME 必须为 video/mp4');
 

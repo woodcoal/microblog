@@ -2,7 +2,6 @@ import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 
 export const MAX_BLOG_ATTACHMENTS = 10;
-export const MAX_BLOG_ATTACHMENTS_SIZE = 100 * 1024 * 1024;
 
 export interface PostAssetMediaItem {
 	fileStorageId: string;
@@ -101,14 +100,6 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	if (requestedAttachments.some((id) => fileById.get(id)?.fileType !== 'attachment')) {
 		throw new ServiceError('BAD_REQUEST', '附件文件类型无效');
 	}
-	const attachmentSize = requestedAttachments.reduce(
-		(sum, id) => sum + (fileById.get(id)?.fileSize || 0),
-		0
-	);
-	if (attachmentSize > MAX_BLOG_ATTACHMENTS_SIZE) {
-		throw new ServiceError('BAD_REQUEST', '附件总大小不能超过 100 MiB');
-	}
-
 	const currentKeys = new Set(current.map((m) => `${m.slot || ''}:${m.fileStorageId}`));
 	const desired = [
 		...requestedBody.map((fileStorageId, sortOrder) => ({

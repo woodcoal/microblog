@@ -40,7 +40,7 @@ export interface UploadFileResult {
 /**
  * 上传文件
  *
- * 调用 saveFile 保存文件（含去重、大小校验、类型校验）。
+ * 调用 saveFile 保存文件（含去重、类型校验）。请求体大小由解析前门禁统一校验。
  * 返回文件信息。
  */
 export async function uploadFile(input: UploadFileInput): Promise<UploadFileResult> {

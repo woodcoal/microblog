@@ -11,10 +11,10 @@ const [assets, editor, writePage, editPage, articleList, detailBody] = await Pro
 	readFile(new URL('../src/components/post-detail/PostDetailBody.astro', import.meta.url), 'utf8')
 ]);
 
-test('博客资源面板限制客户端选择，并通过 reservation action 管理放弃的上传', () => {
+test('博客资源面板仅限制格式和数量，并通过 reservation action 管理放弃的上传', () => {
 	assert.match(assets, /const MAX_ATTACHMENTS = 10/);
-	assert.match(assets, /MAX_ATTACHMENT_SIZE = 20 \* 1024 \* 1024/);
-	assert.match(assets, /MAX_TOTAL_ATTACHMENT_SIZE = 100 \* 1024 \* 1024/);
+	assert.doesNotMatch(assets, /MAX_ATTACHMENT_SIZE|MAX_TOTAL_ATTACHMENT_SIZE|file\.size\s*[><=]/);
+	assert.doesNotMatch(assets, /附件总大小|单附件.*限制/);
 	assert.match(assets, /actions\.uploadMedia/);
 	assert.match(assets, /actions\.cancelUpload/);
 	assert.match(assets, /attachmentFileStorageIds/);
