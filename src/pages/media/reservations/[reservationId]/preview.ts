@@ -20,11 +20,17 @@ export const GET: APIRoute = async (context) => {
 		include: { fileStorage: true }
 	});
 	if (!reservation) return notFound();
-	const body = await readStoredFile(reservation.fileStorage.filePath);
+	const wantsOriginal = new URL(context.request.url).searchParams.get('original') === '1';
+	const filePath = wantsOriginal
+		? reservation.fileStorage.filePath
+		: reservation.fileStorage.displayFilePath || reservation.fileStorage.filePath;
+	const body = await readStoredFile(filePath);
 	if (!body) return notFound();
 	return new Response(toResponseBody(body), {
 		headers: {
-			'Content-Type': reservation.fileStorage.mimeType,
+			'Content-Type': wantsOriginal
+				? reservation.fileStorage.mimeType
+				: reservation.fileStorage.displayMimeType || reservation.fileStorage.mimeType,
 			'Content-Length': String(body.byteLength),
 			'Content-Disposition':
 				reservation.fileType === 'attachment'

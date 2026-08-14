@@ -28,7 +28,7 @@ export const uploadMedia = defineAction({
 	accept: 'form',
 	input: z.object({
 		file: z.instanceof(File),
-		fileType: z.enum(['image', 'attachment']).optional()
+		fileType: z.enum(['image', 'video', 'attachment']).optional()
 	}),
 	handler: async (input, context) => {
 		const currentUser = await getUserFromRequest(context);

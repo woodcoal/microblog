@@ -46,6 +46,9 @@ function getMimeType(filePath: string): string {
 export const GET: APIRoute = async (context) => {
 	try {
 		const filePath = context.params.path as string;
+		if (filePath?.startsWith('protected/')) {
+			return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
+		}
 		if (!filePath || filePath.includes('..') || filePath.includes('~')) {
 			return new Response('Forbidden', {
 				status: 403,

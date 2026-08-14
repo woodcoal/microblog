@@ -114,9 +114,10 @@ export const POST: APIRoute = async (context) => {
 		const currentUser = authResult;
 
 		const body = await parseJsonBody(context.request);
-		const { content, imageUrls, images, visibility } = body as {
+		const { content, imageUrls, images, mediaIds, visibility } = body as {
 			content?: string;
 			imageUrls?: string[];
+			mediaIds?: string[];
 			/** 兼容早期代码实际使用、但未正式发布的字段名。 */
 			images?: string[];
 			visibility?: string;
@@ -139,6 +140,7 @@ export const POST: APIRoute = async (context) => {
 			userId: currentUser.userId,
 			content,
 			visibility: vis,
+			mediaIds,
 			images: imageUrls ?? images
 		});
 

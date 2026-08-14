@@ -1,9 +1,6 @@
 ---
 interface MediaItem {
 	id: string;
-	fileStorage: {
-		filePath: string;
-	};
 }
 
 interface Props {
@@ -29,10 +26,11 @@ const columns = imageCount === 1 ? 1 : imageCount === 2 || imageCount === 4 ? 2 
 				return (
 					<div class="weibo-media-item">
 						<img
-							src={`/uploads/${media.fileStorage.filePath}`}
+							src={`/media/${media.id}/display`}
 							alt=""
 							loading="lazy"
 							data-lightbox={lightbox ? 'true' : undefined}
+							data-lightbox-src={lightbox ? `/media/${media.id}/original` : undefined}
 						/>
 						{hiddenCount > 0 && isLast && (
 							<span

@@ -282,7 +282,10 @@ const spec = {
 					url: { type: 'string' },
 					mimeType: { type: 'string' },
 					size: { type: 'integer', minimum: 0 },
-					type: { type: 'string', enum: ['image', 'attachment'] },
+					type: { type: 'string', enum: ['image', 'video', 'attachment'] },
+					displayUrl: { type: 'string', description: '图片展示副本的受控地址' },
+					originalUrl: { type: 'string', description: '图片原图的受控地址' },
+					streamUrl: { type: 'string', description: '视频 Range 流地址' },
 					slot: { type: 'string', enum: ['thumbnail'], nullable: true }
 				},
 				required: ['id', 'url', 'mimeType', 'size', 'type', 'slot']
@@ -394,6 +397,28 @@ const spec = {
 		}
 	},
 	paths: {
+		'/upload': {
+			post: {
+				tags: ['帖子'],
+				summary: '上传媒体',
+				security: bearerSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						'multipart/form-data': {
+							schema: {
+								type: 'object', required: ['file'],
+								properties: {
+									file: { type: 'string', format: 'binary' },
+									fileType: { type: 'string', enum: ['image', 'video', 'attachment'], default: 'image' }
+								}
+							}
+						}
+					}
+				},
+				responses: { 201: successResponse('上传预约', '#/components/schemas/Media'), ...commonResponses }
+			}
+		},
 		'/auth/register': {
 			post: {
 				tags: ['认证'],

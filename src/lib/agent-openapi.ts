@@ -358,6 +358,12 @@ export function createAgentOpenApiSpec() {
 											maxItems: 4,
 											items: { type: 'string' }
 										},
+										mediaIds: {
+											type: 'array',
+											maxItems: 9,
+											items: { type: 'string' },
+											description: '由 /upload 返回的 fileStorageId；支持 0–9 图或一个视频。'
+										},
 										images: {
 											type: 'array',
 											maxItems: 4,
@@ -702,7 +708,7 @@ export function createAgentOpenApiSpec() {
 						}
 					},
 					responses: {
-						201: plainText('上传成功', 'ok: /uploads/xxx.png'),
+						201: plainText('上传成功', 'ok: fileStorageId /media/reservations/id/preview'),
 						400: errors[400],
 						401: errors[401],
 						500: errors[500]

@@ -31,7 +31,7 @@ export const POST: APIRoute = async (context) => {
 		}
 
 		// 校验文件类型参数
-		if (fileType !== 'image' && fileType !== 'attachment') {
+		if (fileType !== 'image' && fileType !== 'video' && fileType !== 'attachment') {
 			return jsonErrorResponse('文件类型参数无效');
 		}
 
@@ -40,7 +40,7 @@ export const POST: APIRoute = async (context) => {
 			const result = await uploadFile({
 				userId: authResult.userId,
 				file,
-				fileType: fileType as 'image' | 'attachment'
+				fileType: fileType as 'image' | 'video' | 'attachment'
 			});
 
 			return new Response(JSON.stringify(successResponse(result)), {

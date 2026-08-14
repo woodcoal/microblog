@@ -18,5 +18,9 @@ export default [
 	{
 		files: ['ecosystem.config.js'],
 		languageOptions: { globals: { module: 'readonly' } }
+	},
+	{
+		files: ['scripts/pack-output.mjs'],
+		languageOptions: { globals: { console: 'readonly', process: 'readonly' } }
 	}
 ];

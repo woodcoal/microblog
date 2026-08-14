@@ -38,7 +38,9 @@ interface ResolveInput {
 /** 解析并验证帖子媒体；所有新增文件必须由当前用户的有效 reservation 授权。 */
 export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetMediaItem[]> {
 	const current = input.currentMedia || [];
-	const currentBody = current.filter((m) => m.slot === null && m.fileType === 'image');
+	const currentBody = current.filter(
+		(m) => m.slot === null && (m.fileType === 'image' || m.fileType === 'video')
+	);
 	const currentThumbnail = current.find((m) => m.slot === 'thumbnail');
 	const currentAttachments = current.filter(
 		(m) => m.slot === null && m.fileType === 'attachment'
@@ -60,6 +62,12 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	if (requestedAttachments.length > MAX_BLOG_ATTACHMENTS) {
 		throw new ServiceError('BAD_REQUEST', `附件最多 ${MAX_BLOG_ATTACHMENTS} 个`);
 	}
+	if (input.mode !== 'weibo' && requestedBody.some((id) => id)) {
+		// 论坛和博客继续只有图片正文；视频只属于微博，避免扩大既有资产模型。
+		const bodyFiles = await prisma.fileStorage.findMany({ where: { id: { in: requestedBody } } });
+		if (bodyFiles.some((file) => file.fileType === 'video'))
+			throw new ServiceError('BAD_REQUEST', '仅微博支持视频');
+	}
 
 	const roleIds = [
 		...requestedBody,
@@ -74,8 +82,13 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	const files = await prisma.fileStorage.findMany({ where: { id: { in: roleIds } } });
 	if (files.length !== roleIds.length) throw new ServiceError('BAD_REQUEST', '部分文件不存在');
 	const fileById = new Map(files.map((file) => [file.id, file]));
-	if (requestedBody.some((id) => fileById.get(id)?.fileType !== 'image')) {
-		throw new ServiceError('BAD_REQUEST', '正文媒体只能使用图片');
+	if (requestedBody.some((id) => !['image', 'video'].includes(fileById.get(id)?.fileType || ''))) {
+		throw new ServiceError('BAD_REQUEST', '正文媒体只能使用图片或视频');
+	}
+	const videoCount = requestedBody.filter((id) => fileById.get(id)?.fileType === 'video').length;
+	const imageCount = requestedBody.length - videoCount;
+	if (videoCount > 1 || (videoCount > 0 && imageCount > 0)) {
+		throw new ServiceError('BAD_REQUEST', '微博只能发布 0–9 张图片或一个视频');
 	}
 	if (requestedThumbnail && fileById.get(requestedThumbnail)?.fileType !== 'image') {
 		throw new ServiceError('BAD_REQUEST', '缩略图必须是图片');
@@ -95,7 +108,7 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	const desired = [
 		...requestedBody.map((fileStorageId, sortOrder) => ({
 			fileStorageId,
-			fileType: 'image',
+			fileType: fileById.get(fileStorageId)?.fileType || 'image',
 			sortOrder,
 			slot: null as string | null
 		})),

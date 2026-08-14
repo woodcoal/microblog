@@ -237,7 +237,12 @@ model FileStorage {
   filePath  String // 实际文件路径（本地或 R2）
   fileSize  Int // 文件大小（字节）
   mimeType  String // MIME 类型
-  fileType  String   @default("image") // image / attachment
+  fileType  String   @default("image") // image / video / attachment
+  displayFilePath   String?
+  displayFileSize   Int?
+  displayMimeType   String?
+  displayWidth      Int?
+  displayHeight     Int?
   refCount  Int      @default(1) // 引用计数
   createdAt DateTime @default(now())
 
@@ -269,7 +274,7 @@ model Media {
   id            String   @id @default(cuid())
   postId        String
   fileStorageId String
-  fileType      String   @default("image") // image / attachment
+  fileType      String   @default("image") // image / video / attachment
   originalName  String   @default("") // 原始文件名（附件保留）
   sortOrder     Int      @default(0) // 排序
   slot          String? // null=普通正文媒体/附件，thumbnail=文章缩略图
