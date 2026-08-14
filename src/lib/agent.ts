@@ -190,7 +190,7 @@ export function formatPostDetail(
 		content: string;
 		createdAt: Date;
 		user: { username: string; displayName: string; deletedAt?: Date | null };
-		media?: Array<{ fileStorage: { filePath: string; fileType: string } }>;
+		media?: Array<{ id: string; fileStorage: { filePath: string; fileType: string } }>;
 	},
 	comments?: Array<{
 		id: string;
@@ -252,7 +252,7 @@ export function formatPostDetail(
 			lines.push('');
 			lines.push('#MEDIA');
 			for (const m of imageMedia) {
-				const url = `/uploads/${m.fileStorage.filePath}`;
+				const url = `/media/${m.id}/display`;
 				// 从 filePath 提取文件名作为 alt
 				const parts = m.fileStorage.filePath.split('/');
 				const fileName = parts[parts.length - 1] || 'image';

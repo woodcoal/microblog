@@ -414,10 +414,11 @@ export async function createPost(input: CreatePostInput) {
 		throw new ServiceError('BAD_REQUEST', '部分文件不存在');
 	}
 	const requestedById = new Map(requestedFiles.map((file) => [file.id, file]));
-	const bodyFileStorageIds = dedupedMediaIds.filter(
-		(id) => requestedById.get(id)?.fileType === 'image'
-	);
-	if (bodyFileStorageIds.length > MAX_IMAGE_COUNT) {
+	const bodyFileStorageIds = dedupedMediaIds.filter((id) => {
+		const type = requestedById.get(id)?.fileType;
+		return type === 'image' || type === 'video';
+	});
+	if (bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length > MAX_IMAGE_COUNT) {
 		throw new ServiceError('BAD_REQUEST', `图片最多 ${MAX_IMAGE_COUNT} 张`);
 	}
 	const legacyAttachmentIds = dedupedMediaIds.filter(
@@ -619,10 +620,11 @@ export async function updatePost(input: UpdatePostInput) {
 		throw new ServiceError('BAD_REQUEST', '部分文件不存在');
 	}
 	const requestedById = new Map(requestedFiles.map((file) => [file.id, file]));
-	const bodyFileStorageIds = dedupedMediaIds.filter(
-		(id) => requestedById.get(id)?.fileType === 'image'
-	);
-	if (bodyFileStorageIds.length > MAX_IMAGE_COUNT) {
+	const bodyFileStorageIds = dedupedMediaIds.filter((id) => {
+		const type = requestedById.get(id)?.fileType;
+		return type === 'image' || type === 'video';
+	});
+	if (bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length > MAX_IMAGE_COUNT) {
 		throw new ServiceError('BAD_REQUEST', '图片最多 ' + MAX_IMAGE_COUNT + ' 张');
 	}
 	const legacyAttachmentIds = dedupedMediaIds.filter(

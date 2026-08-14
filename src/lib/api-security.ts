@@ -38,7 +38,13 @@ export function isV1ApiRoute(pathname: string): boolean {
 }
 
 export function isUploadRoute(pathname: string): boolean {
-	return pathname === '/api/agent/upload' || pathname.startsWith('/api/v1/upload');
+	return (
+		pathname === '/api/upload' ||
+		pathname === '/api/agent/upload' ||
+		pathname.startsWith('/api/v1/upload') ||
+		pathname === '/_actions/uploadMedia' ||
+		pathname === '/_actions/uploadAvatar'
+	);
 }
 
 function normalizeOrigin(origin: string): string | null {

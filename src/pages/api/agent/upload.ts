@@ -17,15 +17,16 @@ export const POST: APIRoute = async (context) => {
 		// 解析 FormData
 		const formData = await context.request.formData();
 		const file = formData.get('file') as File | null;
+		const fileType = formData.get('fileType') || 'image';
 
 		if (!file) {
 			return textErrorResponse('请选择要上传的文件');
 		}
 
-		// Agent API 默认只支持图片上传
+		if (fileType !== 'image' && fileType !== 'video') return textErrorResponse('fileType 仅支持 image 或 video');
 		try {
-			const result = await uploadFile({ userId: authResult.userId, file, fileType: 'image' });
-			return textResponse(`ok: ${result.url}`, 201);
+			const result = await uploadFile({ userId: authResult.userId, file, fileType });
+			return textResponse(`ok: ${result.fileStorageId} ${result.url}`, 201);
 		} catch (e) {
 			if (e instanceof ServiceError) {
 				return textErrorResponse(e.message);

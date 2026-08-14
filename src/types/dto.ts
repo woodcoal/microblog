@@ -17,8 +17,11 @@ export interface MediaDto {
 	url: string;
 	mimeType: string;
 	size: number;
-	type: 'image' | 'attachment';
+	type: 'image' | 'video' | 'attachment';
 	slot: 'thumbnail' | null;
+	displayUrl?: string;
+	originalUrl?: string;
+	streamUrl?: string;
 }
 
 export interface AttachmentDto extends MediaDto {

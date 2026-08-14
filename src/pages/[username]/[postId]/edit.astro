@@ -84,7 +84,7 @@ const initialMedia = post.media.map((m) => ({
 	fileStorageId: m.fileStorageId,
 	fileType: m.fileType,
 	originalName: m.originalName,
-	url: `/uploads/${m.fileStorage.filePath}`
+	url: m.fileType === 'video' ? `/media/${m.id}/stream` : `/media/${m.id}/display`
 }));
 
 // 在 frontmatter 中提取变量，避免模板表达式中使用比较运算符

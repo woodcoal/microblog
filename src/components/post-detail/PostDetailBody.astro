@@ -322,10 +322,11 @@ const {
 							{images.map((media) => (
 								<div class="post-detail-image-item">
 									<img
-										src={`/uploads/${media.fileStorage.filePath}`}
+										src={`/media/${media.id}/display`}
 										alt=""
 										loading="lazy"
 										data-lightbox="true"
+										data-lightbox-src={`/media/${media.id}/original`}
 									/>
 								</div>
 							))}
@@ -338,10 +339,11 @@ const {
 						{images.map((media) => (
 							<div class="post-detail-image-item">
 								<img
-									src={`/uploads/${media.fileStorage.filePath}`}
+							src={`/media/${media.id}/display`}
 									alt=""
 									loading="lazy"
-									data-lightbox="true"
+							data-lightbox="true"
+							data-lightbox-src={`/media/${media.id}/original`}
 								/>
 							</div>
 						))}

@@ -202,8 +202,9 @@ export async function loadPostDetail(context: PostDetailContext) {
 	// 分离图片和附件
 	const thumbnail = post.media.find((m) => m.slot === 'thumbnail') || null;
 	const images = post.media.filter((m) => m.fileType === 'image' && m.slot === null);
+	const videos = post.media.filter((m) => m.fileType === 'video' && m.slot === null);
 	const attachments = post.media.filter((m) => m.fileType === 'attachment' && m.slot === null);
-	const hasImages = images.length > 0;
+	const hasImages = images.length > 0 || videos.length > 0;
 	const hasAttachments = attachments.length > 0;
 	const isWeiboPost = post.mode === 'weibo';
 
@@ -517,8 +518,8 @@ export async function loadPostDetail(context: PostDetailContext) {
 
 	// OG 图片：取帖子第一张图片，无图片时不设置
 	const ogImageUrl =
-		!isNotPublic && hasImages
-			? getAbsoluteUrl(`/uploads/${images[0].fileStorage.filePath}`)
+		!isNotPublic && images.length > 0
+			? getAbsoluteUrl(`/media/${images[0].id}/display`)
 			: undefined;
 
 	return {
@@ -532,6 +533,7 @@ export async function loadPostDetail(context: PostDetailContext) {
 		isLocked,
 		canPin,
 		images,
+		videos,
 		thumbnail,
 		attachments,
 		hasImages,

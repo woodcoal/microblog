@@ -11,6 +11,7 @@ import {
 	consumeRateLimit,
 	corsRejectedResponse,
 	getBodyLimit,
+	isUploadRoute,
 	handleCorsPreflight,
 	isAllowedCorsOrigin,
 	isApiRoute,
@@ -103,6 +104,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// Astro Actions 和普通 SSR 表单都必须带同步器 token；GET/HEAD 不改变状态，放行。
 	if (UNSAFE_METHODS.has(request.method.toUpperCase())) {
+		if (isUploadRoute(url.pathname)) {
+			const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
+			if (!bodyResult.allowed) return bodyLimitResponse(bodyResult);
+		}
 		const valid = await validateCsrfToken(request, context.cookies);
 		if (!valid) return csrfFailureResponse();
 	}

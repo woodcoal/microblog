@@ -4,7 +4,12 @@
  * 编排文件上传的业务流程。
  * 不依赖 Astro 上下文，仅接收纯参数，返回纯数据。
  */
-import { cancelUploadReservation, cleanupExpiredUploadReservations, saveFile } from '@/lib/upload';
+import {
+	cancelUploadReservation,
+	cleanupExpiredUploadReservations,
+	saveFile,
+	type UploadFileType
+} from '@/lib/upload';
 import { ServiceError } from '@/lib/errors';
 import { prisma } from '@/lib/db';
 
@@ -13,7 +18,7 @@ import { prisma } from '@/lib/db';
 export interface UploadFileInput {
 	userId: string;
 	file: File;
-	fileType?: 'image' | 'attachment';
+	fileType?: UploadFileType;
 }
 
 export interface UploadFileResult {
@@ -23,6 +28,8 @@ export interface UploadFileResult {
 	expiresAt: string;
 	previewUrl: string;
 	url: string;
+	displayUrl: string;
+	originalUrl: string | null;
 	fileType: string;
 	originalName: string;
 	fileSize: number;
@@ -66,13 +73,11 @@ export async function uploadFile(input: UploadFileInput): Promise<UploadFileResu
 			fileStorageId: fileStorage.id,
 			reservationId: reservation.id,
 			expiresAt: expiresAt.toISOString(),
-			// 正文图片继续保留既有公开 URL；附件及缩略图消费者使用 previewUrl，
-			// 提交后改用受控 Media URL。
-			url:
-				fileType === 'image'
-					? `/uploads/${fileStorage.filePath.split('\\').join('/')}`
-					: `/media/reservations/${reservation.id}/preview`,
+			// reservation 在提交前只有上传者可见。提交后 DTO 改为 Media 的受控 URL。
+			url: `/media/reservations/${reservation.id}/preview`,
 			previewUrl: `/media/reservations/${reservation.id}/preview`,
+			displayUrl: `/media/reservations/${reservation.id}/preview`,
+			originalUrl: fileType === 'image' ? `/media/reservations/${reservation.id}/preview?original=1` : null,
 			fileType: fileStorage.fileType,
 			originalName: file.name,
 			fileSize: fileStorage.fileSize
