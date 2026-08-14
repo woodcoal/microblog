@@ -53,14 +53,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	// 五种上传协议只经过这一处请求体门禁，且早于 API、Action、CSRF 的所有解析。
-	if (UNSAFE_METHODS.has(request.method.toUpperCase()) && isUploadRoute(url.pathname)) {
+	// 所有 API 写请求都在解析前检查请求体。上传入口仍使用更高的专用上限。
+	// 两个 Action 上传入口不属于 API 前缀，故一并纳入此处处理。
+	if (
+		UNSAFE_METHODS.has(request.method.toUpperCase()) &&
+		(isApiRoute(url.pathname) || isUploadRoute(url.pathname))
+	) {
 		const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
 		if (!bodyResult.allowed) {
 			const response = bodyLimitResponse(
 				bodyResult,
 				isV1ApiRoute(url.pathname),
-				url.pathname === '/api/agent/upload'
+				url.pathname === '/api/agent' || url.pathname.startsWith('/api/agent/')
 			);
 			return isApiRoute(url.pathname) ? withCorsHeaders(response, request) : response;
 		}
