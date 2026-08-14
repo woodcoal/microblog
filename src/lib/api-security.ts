@@ -41,7 +41,7 @@ export function isUploadRoute(pathname: string): boolean {
 	return (
 		pathname === '/api/upload' ||
 		pathname === '/api/agent/upload' ||
-		pathname.startsWith('/api/v1/upload') ||
+		pathname === '/api/v1/upload' ||
 		pathname === '/_actions/uploadMedia' ||
 		pathname === '/_actions/uploadAvatar'
 	);

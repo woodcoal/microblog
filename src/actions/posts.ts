@@ -8,6 +8,7 @@ import { defineAction, ActionError } from 'astro:actions';
 import { z } from 'astro/zod';
 import { getUserFromRequest } from '@/lib/auth';
 import { actionErrorCode, ServiceError } from '@/lib/errors';
+import { setPostPasswordAccess } from '@/lib/post-password-access';
 import {
 	getPostLikers as getPostLikersService,
 	togglePin as togglePinService,
@@ -90,9 +91,11 @@ const verifyPostPassword = defineAction({
 		postId: z.string().min(1, '帖子 ID 不能为空'),
 		password: z.string().min(1, '请输入密码')
 	}),
-	handler: async (input) => {
+	handler: async (input, context) => {
 		try {
-			return await verifyPostPasswordService(input);
+			const result = await verifyPostPasswordService(input);
+			if (result.valid) await setPostPasswordAccess(context, input.postId);
+			return result;
 		} catch (e) {
 			handleServiceError(e);
 		}

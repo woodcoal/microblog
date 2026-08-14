@@ -18,7 +18,9 @@ function rangeFor(header: string | null, length: number): { start: number; end: 
 }
 async function handle(context: Parameters<APIRoute>[0], head: boolean) {
 	const mediaId = context.params.mediaId;
-	const media = mediaId ? await getVisibleMedia(mediaId, await getUserFromRequest(context)) : null;
+	const media = mediaId
+		? await getVisibleMedia(mediaId, await getUserFromRequest(context), undefined, context.request)
+		: null;
 	if (!media || media.fileType !== 'video') return notFound();
 	const body = await readStoredFile(media.fileStorage.filePath);
 	if (!body) return notFound();
