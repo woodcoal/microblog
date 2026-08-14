@@ -8,6 +8,7 @@ import { findUserByEmail, findUserById, createFirstAdminOrUser } from '@/lib/use
 import { verifyPassword, hashPassword } from '@/lib/auth';
 import { countApiTokens } from '@/lib/token';
 import { ServiceError } from '@/lib/errors';
+import { prisma } from '@/lib/db';
 import { ALLOW_REGISTRATION, PASSWORD_MIN_LENGTH, DISABLED_USER_MESSAGE } from '@/lib/config';
 import { assertValidUsername, generateUsernameCandidate } from '@/lib/username';
 import {
@@ -301,15 +302,24 @@ export async function loginUser(input: LoginUserInput): Promise<LoginUserResult>
 		throw new ServiceError('FORBIDDEN', DISABLED_USER_MESSAGE);
 	}
 	await assertUserMayAuthenticate(user);
+	const now = new Date();
+	const authenticatedUser = await prisma.user.update({
+		where: { id: user.id },
+		data: {
+			lastLoginAt: now,
+			lastActiveAt: now,
+			loginCount: { increment: 1 }
+		}
+	});
 
 	return {
-		id: user.id,
-		username: user.username,
-		displayName: user.displayName,
-		avatarUrl: user.avatarUrl,
-		role: user.role,
-		email: user.email,
-		isDisabled: user.isDisabled,
-		credentialVersion: user.credentialVersion
+		id: authenticatedUser.id,
+		username: authenticatedUser.username,
+		displayName: authenticatedUser.displayName,
+		avatarUrl: authenticatedUser.avatarUrl,
+		role: authenticatedUser.role,
+		email: authenticatedUser.email,
+		isDisabled: authenticatedUser.isDisabled,
+		credentialVersion: authenticatedUser.credentialVersion
 	};
 }

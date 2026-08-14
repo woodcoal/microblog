@@ -17,7 +17,7 @@ import {
 import {
 	findCommentById,
 	findAgentPostComments,
-	createCommentRecord,
+	createCommentWithActivity,
 	softDeleteComment
 } from '@/lib/comment';
 import {
@@ -143,7 +143,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 	}
 
 	// 4. 创建评论
-	const comment = await createCommentRecord(
+	const comment = await createCommentWithActivity(
 		{
 			postId,
 			userId,

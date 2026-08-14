@@ -20,7 +20,9 @@ import { searchUsers, searchSuggest } from './search';
 // 用户配置模块
 import {
 	getSystemConfiguration,
+	getPageCustomization,
 	testSystemSmtpAction,
+	updatePageCustomizationAction,
 	updateSystemConfigurationAction,
 	updateTheme
 } from './config';
@@ -113,7 +115,9 @@ export const server = {
 	searchUsers,
 	updateTheme,
 	getSystemConfiguration,
+	getPageCustomization,
 	updateSystemConfigurationAction,
+	updatePageCustomizationAction,
 	testSystemSmtpAction,
 	searchSuggest,
 	createWebhook,

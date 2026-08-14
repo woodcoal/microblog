@@ -644,6 +644,11 @@ export async function createPostTransaction(data: {
 			}
 		}
 
+		await tx.user.update({
+			where: { id: postData.userId },
+			data: { lastActiveAt: new Date() }
+		});
+
 		return createdPost;
 	});
 }
