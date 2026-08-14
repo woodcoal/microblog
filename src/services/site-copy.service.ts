@@ -39,7 +39,8 @@ function requireSiteCopyKey(key: string): asserts key is SiteCopyKey {
 }
 
 function toPublicSiteCopy(key: SiteCopyKey, record: { markdown: string; updatedAt: Date } | null) {
-	const markdown = record?.markdown ?? DEFAULT_SITE_COPY[key];
+	// 空值是管理员清空配置后的明确状态，公开页面需回退到代码内默认文案。
+	const markdown = record?.markdown || DEFAULT_SITE_COPY[key];
 	return {
 		key,
 		markdown,

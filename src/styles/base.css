@@ -580,6 +580,18 @@ body[data-ux-shell='home'] .navbar-inner {
 	border-top: 1px solid var(--color-border);
 }
 
+.site-copy-content-footer > :first-child {
+	margin-top: 0;
+}
+
+.site-copy-content-footer > :last-child {
+	margin-bottom: 0;
+}
+
+.site-copy-content-footer a {
+	color: inherit;
+}
+
 /* ===== 通用按钮 ===== */
 .btn {
 	display: inline-flex;

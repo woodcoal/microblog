@@ -19,7 +19,7 @@ export const DEFAULT_SITE_COPY: Record<SiteCopyKey, string> = {
 	'auth.login.intro':
 		'轻量、多元、自在\n\n# 把想说的，交给愿意听的人。\n\n在微博记录当下，在论坛展开讨论，在博客沉淀观点。',
 	'auth.register.intro': `加入${SITE_TITLE}\n\n# 在这里，留下一点有用的声音。\n\n选择适合的表达方式，让一段想法获得持续的回应。`,
-	'global.footer': `© ${SITE_TITLE}`,
+	'global.footer': `© ${new Date().getFullYear()} ${SITE_TITLE}`,
 	'channel.weibo.hero': '此刻正在发生\n\n# 💬 微博\n\n分享你的想法，随时随地说点什么',
 	'channel.forum.hero': '把问题聊透\n\n# 📋 论坛\n\n按版块分类讨论，找到你感兴趣的话题',
 	'channel.blog.hero': '为想法留出篇幅\n\n# 📝 博客\n\n长文写作，深度思考'
