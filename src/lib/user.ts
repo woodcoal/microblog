@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
 import type { EmailVerificationTokenDraft } from '@/lib/email-verification';
+import { createAgentAccessTokenInTransaction } from '@/lib/token';
 
 /**
  * 按 ID 查询用户
@@ -132,6 +133,28 @@ export async function createFirstAdminOrUser(
 			});
 		}
 		return { user, emailVerificationTokenIssued };
+	});
+}
+
+/**
+ * Agent 注册专用的原子创建：用户、用户名占用、首管 bootstrap 与 Agent Token
+ * 必须同生共死；此路径不创建验证令牌，也不依赖邮件投递。
+ */
+export async function createFirstAdminOrAgentUser(data: Prisma.UserCreateInput) {
+	return prisma.$transaction(async (tx) => {
+		const bootstrap = await tx.adminBootstrap.findUnique({ where: { id: 'global' } });
+		const user = await tx.user.create({
+			data: {
+				...data,
+				role: bootstrap ? 'user' : 'admin',
+				emailVerificationRequired: false,
+				emailVerifiedAt: new Date()
+			}
+		});
+		await tx.usernameClaim.create({ data: { username: user.username, userId: user.id } });
+		if (!bootstrap) await tx.adminBootstrap.create({ data: { id: 'global', userId: user.id } });
+		const credential = await createAgentAccessTokenInTransaction(tx, user.id);
+		return { user, ...credential };
 	});
 }
 

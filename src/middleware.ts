@@ -21,6 +21,7 @@ import {
 	withRateLimitHeaders
 } from '@/lib/api-security';
 import { API_AGENT_ENABLED, API_V1_ENABLED } from '@/lib/config';
+import { requireAgentGlobalKey } from '@/lib/agent-security';
 import { getUserFromRequest } from '@/lib/auth';
 import { getOrCreateCsrfToken, csrfFailureResponse, validateCsrfToken } from '@/lib/csrf';
 
@@ -72,6 +73,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	if (isApiRoute(url.pathname)) {
 		const isV1 = isV1ApiRoute(url.pathname);
+		const isAgent = !isV1;
 		if ((isV1 && !API_V1_ENABLED) || (!isV1 && !API_AGENT_ENABLED)) {
 			return new Response(
 				isV1
@@ -103,6 +105,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				withRateLimitHeaders(rateLimitExceededResponse(rateLimitInfo, isV1), rateLimitInfo),
 				request
 			);
+		}
+		// Agent 入口密钥在 API 开关、CORS、预检和限流之后执行。OPTIONS 已在上方
+		// 返回，未知 Agent 路径也会经过此处，避免路由存在性成为可探测信息。
+		if (isAgent) {
+			const keyFailure = requireAgentGlobalKey(request);
+			if (keyFailure)
+				return withCorsHeaders(withRateLimitHeaders(keyFailure, rateLimitInfo), request);
 		}
 		const response = await next();
 		return withCorsHeaders(withRateLimitHeaders(response, rateLimitInfo), request);

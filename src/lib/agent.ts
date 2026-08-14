@@ -5,7 +5,7 @@
  * 供所有 /api/agent/* 端点复用。
  */
 import type { APIContext } from 'astro';
-import { getUserFromBearerRequest, type JwtPayload } from '@/lib/auth';
+import { getUserFromApiTokenRequest, type JwtPayload } from '@/lib/auth';
 import { getModeLabel } from '@/lib/config';
 import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
@@ -24,6 +24,14 @@ const TEXT_CONTENT_TYPE = 'text/plain; charset=utf-8';
  */
 export function textResponse(text: string, status: number = 200): Response {
 	return new Response(text, { status, headers: { 'Content-Type': TEXT_CONTENT_TYPE } });
+}
+
+/** 返回包含一次性 API Token 的响应，禁止任何中间缓存保存秘密。 */
+export function agentCredentialResponse(text: string, status: number): Response {
+	return new Response(text, {
+		status,
+		headers: { 'Content-Type': TEXT_CONTENT_TYPE, 'Cache-Control': 'no-store' }
+	});
 }
 
 /**
@@ -83,7 +91,7 @@ export function handleAgentError(error: unknown, operation: string): Response {
  * @returns 用户信息，未认证时返回纯文本 Response
  */
 export async function requireAgentAuth(context: APIContext): Promise<JwtPayload | Response> {
-	const user = await getUserFromBearerRequest(context.request);
+	const user = await getUserFromApiTokenRequest(context.request);
 	if (!user) {
 		return textErrorResponse('请先登录', 401);
 	}

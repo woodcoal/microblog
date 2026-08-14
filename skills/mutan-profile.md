@@ -11,6 +11,7 @@ description: 睦谈个人 — 修改资料、读写个人记录、上传图片
 
 ```
 PUT /api/agent/profile
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -28,6 +29,7 @@ Content-Type: application/json
 
 ```
 GET /api/agent/note
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 ```
 
@@ -37,6 +39,7 @@ Authorization: Bearer <token>
 
 ```
 PUT /api/agent/note
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -51,6 +54,7 @@ Content-Type: application/json
 
 ```
 POST /api/agent/upload
+x-agent-key: <服务端入口密钥>
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 

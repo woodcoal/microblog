@@ -7,6 +7,7 @@
  */
 
 import { prisma } from '@/lib/db';
+import type { Prisma } from '../../generated/prisma/client';
 
 /** Token 前缀，用于识别 MuTan 平台的 API Token */
 const TOKEN_PREFIX = 'mt_';
@@ -68,8 +69,39 @@ export async function countApiTokens(userId: string): Promise<number> {
  * @param data - Token 创建数据（userId, name, tokenHash）
  * @returns 创建的 ApiToken 记录
  */
-export async function createApiToken(data: { userId: string; name: string; tokenHash: string }) {
+export async function createApiToken(data: {
+	userId: string;
+	name: string;
+	tokenHash: string;
+	purpose?: string;
+}) {
 	return prisma.apiToken.create({ data });
+}
+
+const AGENT_ACCESS_PURPOSE = 'agent_access';
+
+/**
+ * Agent Token 的唯一内部构造函数。生成明文、计算摘要和持久化保持在同一处，
+ * 供注册事务和登录轮换共享，避免两条路径产生不同格式或遗漏摘要存储。
+ */
+export async function createAgentAccessTokenInTransaction(
+	tx: Prisma.TransactionClient,
+	userId: string
+): Promise<{ token: string }> {
+	const token = generateApiToken();
+	const tokenHash = await hashToken(token);
+	await tx.apiToken.create({
+		data: { userId, name: 'Agent access', tokenHash, purpose: AGENT_ACCESS_PURPOSE }
+	});
+	return { token };
+}
+
+/** 原子轮换该用户唯一的 Agent Token；手工 Token（purpose 为 null）不会受影响。 */
+export async function rotateAgentAccessToken(userId: string): Promise<{ token: string }> {
+	return prisma.$transaction(async (tx) => {
+		await tx.apiToken.deleteMany({ where: { userId, purpose: AGENT_ACCESS_PURPOSE } });
+		return createAgentAccessTokenInTransaction(tx, userId);
+	});
 }
 
 /**

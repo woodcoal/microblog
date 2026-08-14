@@ -54,8 +54,8 @@ test('关闭邮箱所有权后 v1 和 Agent 注册入口均接受普通用户', 
 	const agent = await agentRegister({
 		request: registerRequest(unique('agentuser'), agentEmail)
 	} as Parameters<typeof agentRegister>[0]);
-	assert.equal(agent.status, 202);
-	assert.match(await agent.text(), /nextAction: login/);
+	assert.equal(agent.status, 201);
+	assert.match(await agent.text(), /^ok: 注册已完成\nnextAction: use_api_key\napiKey: mt_/);
 	for (const email of [v1Email, agentEmail]) {
 		const user = await prisma.user.findUniqueOrThrow({ where: { email } });
 		assert.equal(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);

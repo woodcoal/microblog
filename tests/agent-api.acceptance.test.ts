@@ -12,6 +12,7 @@ import { hashEmailChangeToken } from '../src/lib/email-change';
 
 const PORT = 4330;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+const AGENT_KEY = 'agent-api-test-key';
 // 用户名最长 20 个字符；长前缀会截断 RUN_ID，因此随机值必须置于开头，避免共享
 // MySQL 验收库的连续运行复用同一个用户名。
 const RUN_ID = `${crypto.randomUUID().replaceAll('-', '')}${Date.now()}`;
@@ -31,7 +32,7 @@ let uploadedUrl = '';
 async function request(path: string, init: RequestInit = {}) {
 	return fetch(`${BASE_URL}${path}`, {
 		...init,
-		headers: { origin: BASE_URL, ...(init.headers ?? {}) }
+		headers: { origin: BASE_URL, 'x-agent-key': AGENT_KEY, ...(init.headers ?? {}) }
 	});
 }
 
@@ -106,12 +107,11 @@ async function register(username: string) {
 			password
 		})
 	});
-	assert.equal(response.status, 202, await response.clone().text());
+	assert.equal(response.status, 201, await response.clone().text());
 	const body = await plainText(response);
-	assert.match(body, /^ok: .+\nnextAction: (verify_email|login)$/);
-	const user = await prisma.user.findUniqueOrThrow({ where: { username }, select: { id: true } });
-	await prisma.user.update({ where: { id: user.id }, data: { emailVerifiedAt: new Date() } });
-	return (await createToken({ userId: user.id, name: 'agent acceptance token' })).token;
+	const apiKey = /^ok: 注册已完成\nnextAction: use_api_key\napiKey: (mt_\w+)$/.exec(body)?.[1];
+	assert.ok(apiKey, body);
+	return apiKey;
 }
 
 before(async () => {
@@ -125,7 +125,8 @@ before(async () => {
 				...process.env,
 				API_RATE_LIMIT_READ: '1000',
 				API_RATE_LIMIT_WRITE: '1000',
-				API_RATE_LIMIT_UPLOAD: '1000'
+				API_RATE_LIMIT_UPLOAD: '1000',
+				API_AGENT_KEY: AGENT_KEY
 			},
 			stdio: 'pipe',
 			detached: process.platform !== 'win32'
@@ -153,16 +154,66 @@ after(async () => {
 	}
 });
 
-test('注册、登录、Bearer-only 认证及 v1 Token 互通', async () => {
+test('全局密钥先于全部 Agent 路由门禁，并允许携带 x-agent-key 的 CORS 预检', async () => {
+	const noKey = await fetch(`${BASE_URL}/api/agent/no-such-route`, {
+		headers: { origin: BASE_URL }
+	});
+	assert.equal(noKey.status, 401);
+	assert.equal(await plainText(noKey), 'error: Agent 入口密钥无效');
+	assert.equal(noKey.headers.get('cache-control'), 'no-store');
+
+	const options = await request('/api/agent/posts', {
+		method: 'OPTIONS',
+		headers: {
+			'access-control-request-method': 'GET',
+			'access-control-request-headers': 'x-agent-key, authorization'
+		}
+	});
+	assert.equal(options.status, 204);
+	assert.match(options.headers.get('access-control-allow-headers') ?? '', /x-agent-key/);
+});
+
+test('全部业务方法在通过全局门禁后仍要求 mt_ 用户 Token', async () => {
+	const protectedMethods: Array<[string, string]> = [
+		['GET', '/api/agent/posts'],
+		['POST', '/api/agent/posts'],
+		['GET', '/api/agent/posts/unknown'],
+		['GET', '/api/agent/users'],
+		['GET', '/api/agent/users/unknown'],
+		['POST', '/api/agent/comments'],
+		['POST', '/api/agent/likes'],
+		['POST', '/api/agent/follows'],
+		['POST', '/api/agent/change-email'],
+		['POST', '/api/agent/delete-account'],
+		['GET', '/api/agent/notifications'],
+		['PUT', '/api/agent/profile'],
+		['GET', '/api/agent/note'],
+		['PUT', '/api/agent/note'],
+		['POST', '/api/agent/upload']
+	];
+	for (const [method, path] of protectedMethods) {
+		const response = await request(path, { method });
+		assert.equal(response.status, 401, `${method} ${path}`);
+		assert.equal(await plainText(response), 'error: 请先登录');
+	}
+});
+
+test('注册、登录轮换、Bearer mt_ 限制及 v1 Token 互通', async () => {
 	const login = await request('/api/agent/login', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ email: `${alice}@example.test`, password })
 	});
 	assert.equal(login.status, 200);
-	assert.match(await plainText(login), /^ok: 该用户已有 1 个 API Token/);
+	assert.equal(login.headers.get('cache-control'), 'no-store');
+	aliceReplacementToken =
+		/^ok: 登录成功\napiKey: (mt_\w+)$/.exec(await plainText(login))?.[1] ?? '';
+	assert.ok(aliceReplacementToken);
+	assert.equal((await request('/api/agent/note', { headers: bearer(aliceToken) })).status, 401);
 
-	const v1 = await request('/api/v1/timeline/following', { headers: bearer(aliceToken) });
+	const v1 = await request('/api/v1/timeline/following', {
+		headers: bearer(aliceReplacementToken)
+	});
 	assert.equal(v1.status, 200);
 	assert.match(v1.headers.get('content-type') ?? '', /^application\/json/);
 
@@ -177,9 +228,12 @@ test('注册、登录、Bearer-only 认证及 v1 Token 互通', async () => {
 	});
 	assert.equal(cookieOnly.status, 401);
 	assert.equal(await plainText(cookieOnly), 'error: 请先登录');
+	const jwtOnly = await request('/api/agent/note', { headers: bearer(jwt) });
+	assert.equal(jwtOnly.status, 401);
+	assert.equal(await plainText(jwtOnly), 'error: 请先登录');
 });
 
-test('注册对已存在与不存在邮箱返回完全一致的受理语义', async () => {
+test('Agent 注册冲突统一为 400，且不会创建验证令牌', async () => {
 	const username = `enum_${RUN_ID}`.slice(0, 20);
 	const payload = { username, email: `${username}@example.test`, password };
 	const first = await request('/api/agent/register', {
@@ -192,9 +246,11 @@ test('注册对已存在与不存在邮箱返回完全一致的受理语义', as
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify(payload)
 	});
-	assert.equal(first.status, 202);
-	assert.equal(second.status, first.status);
-	assert.equal(await plainText(second), await plainText(first));
+	assert.equal(first.status, 201);
+	assert.equal(second.status, 400);
+	assert.equal(await plainText(second), 'error: 无法完成注册');
+	const user = await prisma.user.findUniqueOrThrow({ where: { username } });
+	assert.equal(await prisma.emailVerificationToken.count({ where: { userId: user.id } }), 0);
 });
 
 test('密码重置 Agent 契约抗枚举，并在成功后拒绝旧 API Token', async () => {
@@ -233,9 +289,6 @@ test('密码重置 Agent 契约抗枚举，并在成功后拒绝旧 API Token', 
 	});
 	assert.equal(replay.status, 400);
 	assert.equal((await request('/api/agent/note', { headers: bearer(aliceToken) })).status, 401);
-	aliceReplacementToken = (
-		await createToken({ userId: aliceId, name: 'agent password reset replacement token' })
-	).token;
 	const login = await request('/api/agent/login', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
@@ -245,6 +298,9 @@ test('密码重置 Agent 契约抗枚举，并在成功后拒绝旧 API Token', 
 		})
 	});
 	assert.equal(login.status, 200);
+	aliceReplacementToken =
+		/^ok: 登录成功\napiKey: (mt_\w+)$/.exec(await plainText(login))?.[1] ?? '';
+	assert.ok(aliceReplacementToken);
 });
 
 test('资料与私有 note 可写可读', async () => {
@@ -532,7 +588,8 @@ test('Agent 换绑确认前保持旧邮箱，确认后旧 API Token 立即失效
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ email: targetEmail, password: 'agent-change-password' })
 	});
-	assert.equal(login.status, 404);
+	assert.equal(login.status, 200);
+	assert.match(await plainText(login), /^ok: 登录成功\napiKey: mt_/);
 });
 
 test('评论、点赞和关注的显式 action 保持幂等', async () => {
@@ -606,7 +663,7 @@ test('Agent 注销端点要求认证和当前密码，并立即拒绝旧 JWT 与
 
 	const wrongPassword = await request('/api/agent/delete-account', {
 		method: 'POST',
-		headers: bearer(oldJwt, true),
+		headers: bearer(activeApiToken, true),
 		body: JSON.stringify({ currentPassword: 'incorrect-password' })
 	});
 	assert.equal(wrongPassword.status, 401);
