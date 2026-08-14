@@ -51,6 +51,15 @@ test('Content-Length 和 chunked 请求都会在上传解析前被拒绝', async
 	}
 });
 
+test('伪报的 Content-Length 不会绕过实际请求体大小检查', async () => {
+	const request = new Request('http://localhost/api/upload', {
+		method: 'POST',
+		headers: { 'content-length': '1' },
+		body: '0123456789'
+	});
+	assert.deepEqual(await checkBodyLimit(request, 8), { allowed: false });
+});
+
 test('Agent 上传超限保持纯文本协议', async () => {
 	const response = bodyLimitResponse({ allowed: false }, false, true);
 	assert.equal(response.status, 413);

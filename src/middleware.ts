@@ -104,7 +104,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				request
 			);
 		}
-
 		const response = await next();
 		return withCorsHeaders(withRateLimitHeaders(response, rateLimitInfo), request);
 	}
