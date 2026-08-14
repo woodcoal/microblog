@@ -33,6 +33,7 @@ interface ResolveInput {
 	preserveThumbnail?: boolean;
 	preserveAttachments?: boolean;
 	legacyBodyFileStorageIds?: Set<string>;
+	reservationIdByFileStorageId?: Map<string, string>;
 }
 
 /** 解析并验证帖子媒体；所有新增文件必须由当前用户的有效 reservation 授权。 */
@@ -148,7 +149,13 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	});
 	const reservationByFile = new Map<string, (typeof reservations)[number]>();
 	for (const reservation of reservations) {
-		if (!reservationByFile.has(reservation.fileStorageId)) {
+		const requiredReservationId = input.reservationIdByFileStorageId?.get(
+			reservation.fileStorageId
+		);
+		if (
+			(!requiredReservationId || reservation.id === requiredReservationId) &&
+			!reservationByFile.has(reservation.fileStorageId)
+		) {
 			reservationByFile.set(reservation.fileStorageId, reservation);
 		}
 	}
