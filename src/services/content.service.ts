@@ -387,6 +387,7 @@ export async function createPost(input: CreatePostInput) {
 
 	let dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
 	const legacyBodyFileStorageIds = new Set<string>();
+	const reservationIdByFileStorageId = new Map<string, string>();
 
 	// Agent API 兼容旧 /uploads 路径，也接受自身上传接口返回的预约预览 URL。
 	// 预览 URL 必须映射到当前用户的有效 reservation，随后由同一帖子事务消费。
@@ -441,7 +442,13 @@ export async function createPost(input: CreatePostInput) {
 			...new Set(
 				dedupedImages.map((url) => {
 					const reservationId = reservationIdByUrl.get(url);
-					if (reservationId) return reservationById.get(reservationId)!.fileStorageId;
+					if (reservationId) {
+						const fileStorageId = reservationById.get(reservationId)!.fileStorageId;
+						if (!reservationIdByFileStorageId.has(fileStorageId)) {
+							reservationIdByFileStorageId.set(fileStorageId, reservationId);
+						}
+						return fileStorageId;
+					}
 					const fileStorage = fileStorageByPath.get(filePathByUrl.get(url)!);
 					legacyBodyFileStorageIds.add(fileStorage!.id);
 					return fileStorage!.id;
@@ -477,7 +484,8 @@ export async function createPost(input: CreatePostInput) {
 		bodyFileStorageIds,
 		thumbnailFileStorageId,
 		attachmentFileStorageIds: attachmentFileStorageIds ?? legacyAttachmentIds,
-		legacyBodyFileStorageIds
+		legacyBodyFileStorageIds,
+		reservationIdByFileStorageId
 	});
 
 	const mentionUsernames = parseMentions(content.trim());

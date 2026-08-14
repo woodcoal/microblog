@@ -402,6 +402,47 @@ test('上传预览 URL、imageUrls 旧路径兼容、组合过滤、详情和错
 	}
 });
 
+test('imageUrls 拒绝篡改和过期的上传预览 URL', async () => {
+	const png = new Uint8Array([
+		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
+		0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+	]);
+	const form = new FormData();
+	form.set('file', new File([png], 'expired.png', { type: 'image/png' }));
+	const upload = await request('/api/agent/upload', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken),
+		body: form
+	});
+	assert.equal(upload.status, 201, await upload.clone().text());
+	const uploadResult = /^ok: \S+ (\S+)$/.exec(await plainText(upload));
+	assert.ok(uploadResult, '上传响应必须包含预览 URL');
+	const previewUrl = uploadResult[1];
+
+	const tampered = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'tampered preview', imageUrls: [`${previewUrl}/tampered`] })
+	});
+	assert.equal(tampered.status, 400);
+	assert.match(await plainText(tampered), /^error: 部分图片不存在$/);
+
+	const reservationId = previewUrl.match(/^\/media\/reservations\/([^/]+)\/preview$/)?.[1];
+	assert.ok(reservationId);
+	await prisma.uploadReservation.update({
+		where: { id: reservationId },
+		data: { expiresAt: new Date(Date.now() - 1_000) }
+	});
+	const expired = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'expired preview', imageUrls: [previewUrl] })
+	});
+	assert.equal(expired.status, 400);
+	assert.match(await plainText(expired), /^error: 部分图片不存在$/);
+});
+
 test('Agent 换绑确认前保持旧邮箱，确认后旧 API Token 立即失效', async () => {
 	const username = `agent_change_${RUN_ID}`.slice(0, 20);
 	const oldEmail = `${username}@example.test`;
