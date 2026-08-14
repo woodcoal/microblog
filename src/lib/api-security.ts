@@ -216,7 +216,8 @@ export interface BodyLimitResult {
 }
 
 /**
- * 检查请求体大小。Content-Length 可直接拒绝；chunked 请求则读取 clone，
+ * 检查请求体大小。Content-Length 只能用于提前拒绝，不能作为放行依据，
+ * 因为客户端可能伪报；所有带请求体的请求都读取 clone 的实际字节数。
  * 超限时立即取消 clone，原请求仍保留给 Astro 路由消费。
  */
 export async function checkBodyLimit(request: Request, limit: number): Promise<BodyLimitResult> {
@@ -226,7 +227,6 @@ export async function checkBodyLimit(request: Request, limit: number): Promise<B
 		if (!Number.isFinite(length) || length < 0)
 			return { allowed: false, malformedLength: true };
 		if (length > limit) return { allowed: false };
-		return { allowed: true };
 	}
 
 	if (!request.body) return { allowed: true };
