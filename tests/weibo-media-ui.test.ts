@@ -22,6 +22,13 @@ test('微博编辑器使用独立图片和视频选择器，并在混选时保�
 	assert.match(editor, /uploadFiles\(Array\.from\(files\), 'video'\)/);
 	assert.match(editor, /已选择视频，请先删除视频后再添加图片/);
 	assert.match(editor, /已选择图片，请先删除图片后再添加视频/);
+	assert.match(editor, /let pendingImageUploads = 0/);
+	assert.match(editor, /let pendingVideoUploads = 0/);
+	assert.match(editor, /const imageCount = getReservedImageCount\(\)/);
+	assert.match(editor, /const videoCount = getReservedVideoCount\(\)/);
+	assert.match(editor, /pendingImageUploads \+= filesToUpload\.length/);
+	assert.match(editor, /pendingVideoUploads \+= filesToUpload\.length/);
+	assert.match(editor, /pendingImageUploads > 0[\s\S]*\|\|[\s\S]*pendingVideoUploads > 0/);
 	assert.match(editor, /fileType: 'image' \| 'video' \| 'attachment'/);
 	assert.match(editor, /mediaIds/);
 	assert.match(editor, /role="alert"/);
