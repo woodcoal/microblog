@@ -154,12 +154,12 @@ writeFileSync(
 # 睦谈生产启动脚本
 set -euo pipefail
 cd "$(dirname "$0")"
-
 if [ ! -f .env ]; then
   echo "错误：未找到 .env 文件。请复制 .env.example 为 .env 并填写生产配置。"
   exit 1
 fi
 
+# dotenv 在本次进程启动时读取 .env；修改 .env 后必须重启此脚本或 PM2 进程。
 export NODE_ENV=production
 export HOST="\${HOST:-0.0.0.0}"
 export PORT="\${PORT:-4321}"
@@ -177,12 +177,12 @@ writeFileSync(
 	join(output, 'start.bat'),
 	`@echo off
 cd /d "%~dp0"
-
 if not exist .env (
   echo 错误：未找到 .env 文件。请复制 .env.example 为 .env 并填写生产配置。
   exit /b 1
 )
 
+rem dotenv 在本次进程启动时读取 .env；修改 .env 后必须重新运行此脚本或重启 PM2 进程。
 set NODE_ENV=production
 if not defined HOST set HOST=0.0.0.0
 if not defined PORT set PORT=4321
@@ -348,7 +348,7 @@ const testPort = 14399;
 // 生成临时 .env 供服务启动读取
 writeFileSync(
 	join(output, '.env'),
-	`DATABASE_PROVIDER="sqlite"\nDATABASE_URL="file:./_test.db"\nJWT_SECRET="mutan-dev-secret-change-in-production"\nSITE_URL="http://localhost:${testPort}"\nSITE_MODES="weibo,forum,blog"\n`
+	`DATABASE_PROVIDER="sqlite"\nDATABASE_URL="file:./_test.db"\nJWT_SECRET="mutan-dev-secret-change-in-production"\nSITE_URL="http://localhost:${testPort}"\nSITE_TITLE="运行期配置验证"\nSITE_MODES="weibo,forum,blog"\n`
 );
 
 log('安装生产依赖进行隔离验证 ...');
@@ -371,20 +371,44 @@ const probe = execSync(
 			cwd: process.cwd()
 		});
 		let buf = '';
-		srv.stdout.on('data', d => { buf += d; if (buf.includes('listening')) check(); });
-		srv.stderr.on('data', d => { buf += d; if (buf.includes('listening')) check(); });
+		srv.stdout.on('data', (d) => {
+			buf += d;
+			if (buf.includes('listening')) check();
+		});
+		srv.stderr.on('data', (d) => {
+			buf += d;
+			if (buf.includes('listening')) check();
+		});
 		let checked = false;
 		function check() {
 			if (checked) return; checked = true;
 			setTimeout(async () => {
-				const routes = ['/', '/login', '/register', '/weibo', '/api/v1/posts?page=1&pageSize=1', '/robots.txt'];
+				const routes = [
+					'/',
+					'/login',
+					'/register',
+					'/weibo',
+					'/api/v1/posts?page=1&pageSize=1',
+					'/robots.txt'
+				];
 				let allOk = true;
 				for (const r of routes) {
 					try {
 						const res = await fetch('http://localhost:${testPort}' + r);
-						if (!res.ok) { console.log('FAIL ' + res.status + ' ' + r); allOk = false; }
-						else console.log('OK   ' + res.status + ' ' + r);
-					} catch (e) { console.log('ERR  ' + r + ' ' + e.message); allOk = false; }
+						if (!res.ok) {
+							console.log('FAIL ' + res.status + ' ' + r);
+							allOk = false;
+						} else {
+							console.log('OK   ' + res.status + ' ' + r);
+							if (r === '/' && !(await res.text()).includes('运行期配置验证')) {
+								console.log('FAIL 运行期 .env 配置未生效');
+								allOk = false;
+							}
+						}
+					} catch (e) {
+						console.log('ERR  ' + r + ' ' + e.message);
+						allOk = false;
+					}
 				}
 				srv.kill('SIGTERM');
 				process.exit(allOk ? 0 : 1);

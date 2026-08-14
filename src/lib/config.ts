@@ -4,30 +4,22 @@
  * 统一管理所有配置项，避免在业务代码中直接读取环境变量。
  * 未设置的环境变量使用默认值。
  *
- * 重要：Astro/Vite 通过 import.meta.env 加载 .env 文件变量，
- * process.env 仅包含系统级环境变量。因此所有 .env 变量
- * 必须通过 import.meta.env 读取。
+ * Node standalone SSR 在服务启动时由 dotenv 加载部署目录 .env。
+ * 禁止读取 import.meta.env：Astro/Vite 会在构建时内联该值，部署后修改 .env 将失效。
  */
 
 /**
- * 获取环境变量值
+ * 获取服务启动时已加载的环境变量。
  *
- * 优先从 import.meta.env（Astro/Vite 加载的 .env 变量）读取，
- * 回退到 process.env（系统环境变量，用于非 Astro 上下文如 CLI 脚本）。
+ * 启动入口必须使用 `node -r dotenv/config`，使部署目录 .env 在导入此模块前写入 process.env。
+ * 进程已启动后修改 .env 不会热更新，必须重启服务使新配置生效。
  *
  * @param key - 环境变量名
  * @returns 变量值字符串，未设置时返回 undefined
  */
 export function getEnv(key: string): string | undefined {
-	// import.meta.env 由 Vite 在构建时注入 .env 文件变量
-	if (typeof import.meta !== 'undefined' && import.meta.env && key in import.meta.env) {
-		return import.meta.env[key] as string;
-	}
-	// 回退到 process.env（系统环境变量或 dotenv 加载的变量）
-	// 浏览器端没有 process 对象，需要安全访问
-	if (typeof process !== 'undefined' && process.env && key in process.env) {
-		return process.env[key];
-	}
+	// 浏览器端不包含 process；此模块的环境配置只允许在服务端解析。
+	if (typeof process !== 'undefined') return process.env[key];
 	return undefined;
 }
 
