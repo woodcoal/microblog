@@ -49,6 +49,7 @@ import {
 	getVisibilityFilter
 } from '@/lib/visibility';
 import { POST_CONTENT_MAX_LENGTH } from '@/lib/config';
+import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
 import { hashPassword } from '@/lib/auth';
 import { resolvePostAssets } from '@/services/post-assets.service';
@@ -58,6 +59,7 @@ const COMMENT_MAX_LENGTH = 1000;
 
 const VALID_MODES = ['weibo', 'forum', 'blog'] as const;
 const CUSTOM_CATEGORY_MAX_LENGTH = 50;
+const UPLOAD_RESERVATION_PREVIEW_PATH = /^\/media\/reservations\/([^/?]+)\/preview(?:\?[^#]*)?$/;
 
 const SENSITIVE_FIELDS = ['passwordHash', 'allowedUserIds'] as const;
 
@@ -386,7 +388,8 @@ export async function createPost(input: CreatePostInput) {
 	let dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
 	const legacyBodyFileStorageIds = new Set<string>();
 
-	// Agent API 传入 images URL 数组，转换为 mediaIds
+	// Agent API 兼容旧 /uploads 路径，也接受自身上传接口返回的预约预览 URL。
+	// 预览 URL 必须映射到当前用户的有效 reservation，随后由同一帖子事务消费。
 	if (input.images && input.images.length > 0 && dedupedMediaIds.length === 0) {
 		const { findFileStoragesByFilePaths, MAX_IMAGE_COUNT: IMG_MAX } =
 			await import('@/lib/upload');
@@ -394,9 +397,32 @@ export async function createPost(input: CreatePostInput) {
 		if (dedupedImages.length > IMG_MAX) {
 			throw new ServiceError('BAD_REQUEST', `图片最多 ${IMG_MAX} 张`);
 		}
-		const filePaths = dedupedImages.map((url: string) =>
-			url.startsWith('/uploads/') ? url.slice(9) : url
-		);
+		const reservationIdByUrl = new Map<string, string>();
+		const filePathByUrl = new Map<string, string>();
+		for (const url of dedupedImages) {
+			const previewMatch = UPLOAD_RESERVATION_PREVIEW_PATH.exec(url);
+			if (previewMatch) reservationIdByUrl.set(url, previewMatch[1]);
+			else filePathByUrl.set(url, url.startsWith('/uploads/') ? url.slice(9) : url);
+		}
+
+		const reservationIds = [...new Set(reservationIdByUrl.values())];
+		const reservations = reservationIds.length
+			? await prisma.uploadReservation.findMany({
+					where: {
+						id: { in: reservationIds },
+						userId,
+						expiresAt: { gt: new Date() },
+						consumedAt: null,
+						cancelledAt: null
+					},
+					select: { id: true, fileStorageId: true }
+				})
+			: [];
+		if (reservations.length !== reservationIds.length) {
+			throw new ServiceError('BAD_REQUEST', '部分图片不存在');
+		}
+
+		const filePaths = [...new Set(filePathByUrl.values())];
 		const fileStorages = await findFileStoragesByFilePaths(filePaths);
 		if (fileStorages.length !== filePaths.length) {
 			throw new ServiceError('BAD_REQUEST', '部分图片不存在');
@@ -405,8 +431,23 @@ export async function createPost(input: CreatePostInput) {
 		if (imageCount !== fileStorages.length) {
 			throw new ServiceError('BAD_REQUEST', '仅支持图片类型的文件');
 		}
-		dedupedMediaIds = fileStorages.map((f) => f.id);
-		for (const id of dedupedMediaIds) legacyBodyFileStorageIds.add(id);
+		const reservationById = new Map(
+			reservations.map((reservation) => [reservation.id, reservation])
+		);
+		const fileStorageByPath = new Map(
+			fileStorages.map((fileStorage) => [fileStorage.filePath, fileStorage])
+		);
+		dedupedMediaIds = [
+			...new Set(
+				dedupedImages.map((url) => {
+					const reservationId = reservationIdByUrl.get(url);
+					if (reservationId) return reservationById.get(reservationId)!.fileStorageId;
+					const fileStorage = fileStorageByPath.get(filePathByUrl.get(url)!);
+					legacyBodyFileStorageIds.add(fileStorage!.id);
+					return fileStorage!.id;
+				})
+			)
+		];
 	}
 
 	const requestedFiles = await findFileStoragesByIds(dedupedMediaIds);

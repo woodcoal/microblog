@@ -286,7 +286,7 @@ test('普通 Agent 写请求在解析前拒绝超大请求体', async () => {
 	assert.match(await plainText(oversized), /^error: 请求体超过大小限制$/);
 });
 
-test('mediaIds 发帖、imageUrls 旧路径兼容、组合过滤、详情和错误映射', async () => {
+test('上传预览 URL、imageUrls 旧路径兼容、组合过滤、详情和错误映射', async () => {
 	const png = new Uint8Array([
 		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
 		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
@@ -310,7 +310,7 @@ test('mediaIds 发帖、imageUrls 旧路径兼容、组合过滤、详情和错�
 		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({
 			content: `agent acceptance ${RUN_ID} #agentqa#`,
-			mediaIds: [uploadResult[1]],
+			imageUrls: [uploadedUrl],
 			visibility: 'public'
 		})
 	});
@@ -338,6 +338,24 @@ test('mediaIds 发帖、imageUrls 旧路径兼容、组合过滤、详情和错�
 		})
 	});
 	assert.equal(legacyImageUrls.status, 201, await legacyImageUrls.clone().text());
+
+	const bobForm = new FormData();
+	bobForm.set('file', new File([png], 'bob-pixel.png', { type: 'image/png' }));
+	const bobUpload = await request('/api/agent/upload', {
+		method: 'POST',
+		headers: bearer(bobToken),
+		body: bobForm
+	});
+	assert.equal(bobUpload.status, 201, await bobUpload.clone().text());
+	const bobUploadResult = /^ok: \S+ (\S+)$/.exec(await plainText(bobUpload));
+	assert.ok(bobUploadResult, '上传响应必须包含预览 URL');
+	const foreignPreview = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'foreign preview', imageUrls: [bobUploadResult[1]] })
+	});
+	assert.equal(foreignPreview.status, 400);
+	assert.equal(await plainText(foreignPreview), 'error: 部分图片不存在');
 
 	const list = await request(
 		`/api/agent/posts?keyword=${RUN_ID}&tag=agentqa&user=${alice}&sort=latest&limit=10`,
