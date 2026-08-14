@@ -286,7 +286,7 @@ test('普通 Agent 写请求在解析前拒绝超大请求体', async () => {
 	assert.match(await plainText(oversized), /^error: 请求体超过大小限制$/);
 });
 
-test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', async () => {
+test('mediaIds 发帖、imageUrls 旧路径兼容、组合过滤、详情和错误映射', async () => {
 	const png = new Uint8Array([
 		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
 		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
@@ -300,20 +300,44 @@ test('imageUrls 发帖、组合过滤、详情、兼容字段和错误映射', a
 		body: form
 	});
 	assert.equal(upload.status, 201, await upload.clone().text());
-	uploadedUrl = (await plainText(upload)).slice(4);
+	const uploadResult = /^ok: (\S+) (\S+)$/.exec(await plainText(upload));
+	assert.ok(uploadResult, '上传响应必须包含 fileStorageId 与 URL');
+	assert.match(uploadResult[1], /^\S+$/);
+	uploadedUrl = uploadResult[2];
 
 	const create = await request('/api/agent/posts', {
 		method: 'POST',
 		headers: bearer(aliceReplacementToken || aliceToken, true),
 		body: JSON.stringify({
 			content: `agent acceptance ${RUN_ID} #agentqa#`,
-			imageUrls: [uploadedUrl],
+			mediaIds: [uploadResult[1]],
 			visibility: 'public'
 		})
 	});
 	assert.equal(create.status, 201, await create.clone().text());
 	postId = (await plainText(create)).slice(4);
 	assert.equal(await prisma.media.count({ where: { postId } }), 1);
+
+	const legacyPath = `legacy/agent-${RUN_ID}.png`;
+	await prisma.fileStorage.create({
+		data: {
+			md5Hash: `agent-legacy-${RUN_ID}`,
+			filePath: legacyPath,
+			fileSize: 1,
+			mimeType: 'image/png',
+			fileType: 'image',
+			refCount: 1
+		}
+	});
+	const legacyImageUrls = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({
+			content: 'agent legacy imageUrls',
+			imageUrls: [`/uploads/${legacyPath}`]
+		})
+	});
+	assert.equal(legacyImageUrls.status, 201, await legacyImageUrls.clone().text());
 
 	const list = await request(
 		`/api/agent/posts?keyword=${RUN_ID}&tag=agentqa&user=${alice}&sort=latest&limit=10`,
