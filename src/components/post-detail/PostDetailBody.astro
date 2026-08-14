@@ -7,6 +7,7 @@ import LikeButton from '@/components/LikeButton.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import WeiboPostActions from '@/components/WeiboPostActions.astro';
 import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
+import WeiboVideo from '@/components/WeiboVideo.astro';
 import { getAsideExcerpt } from '@/lib/post-detail';
 import { formatRelativeTime } from '@/lib/utils';
 import type { PostDetailModel } from '@/lib/post-detail';
@@ -26,9 +27,9 @@ const {
 	isLocked,
 	canPin,
 	images,
+	videos,
 	thumbnail,
 	attachments,
-	hasImages,
 	hasAttachments,
 	isWeiboPost,
 	postTags,
@@ -55,6 +56,8 @@ const {
 	visibilityLabel,
 	hasTitle
 } = model;
+const hasImageMedia = images.length > 0;
+const hasVideos = videos.length > 0;
 ---
 
 <div class={`post-detail-primary post-detail-layout post-detail-layout-${postMode}`}>
@@ -305,7 +308,7 @@ const {
 		}
 
 		{
-			hasImages &&
+			hasImageMedia &&
 				!isDeleted &&
 				!needPassword &&
 				(isWeiboPost ? (
@@ -339,16 +342,23 @@ const {
 						{images.map((media) => (
 							<div class="post-detail-image-item">
 								<img
-							src={`/media/${media.id}/display`}
+									src={`/media/${media.id}/display`}
 									alt=""
 									loading="lazy"
-							data-lightbox="true"
-							data-lightbox-src={`/media/${media.id}/original`}
+									data-lightbox="true"
+									data-lightbox-src={`/media/${media.id}/original`}
 								/>
 							</div>
 						))}
 					</div>
 				))
+		}
+
+		{
+			hasVideos &&
+				!isDeleted &&
+				!needPassword &&
+				videos.map((media) => <WeiboVideo media={media} />)
 		}
 
 		{

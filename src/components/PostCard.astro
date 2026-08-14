@@ -17,6 +17,7 @@ import BookmarkButton from '@/components/BookmarkButton.astro';
 import WeiboMediaGallery from '@/components/WeiboMediaGallery.astro';
 import WeiboPostActions from '@/components/WeiboPostActions.astro';
 import WeiboPostHeader from '@/components/WeiboPostHeader.astro';
+import WeiboVideo from '@/components/WeiboVideo.astro';
 import { formatRelativeTime } from '@/lib/utils';
 import { getModeLabel } from '@/lib/config';
 
@@ -125,6 +126,7 @@ const hasAvatar = !!post.user.avatarUrl;
 const images = post.media?.filter((m) => m.fileType === 'image') ?? [];
 const galleryImages = images.slice(0, 9);
 const hasImages = galleryImages.length > 0;
+const video = post.media?.find((m) => m.fileType === 'video');
 const isPinned = post.isPinned || post.isGlobalPinned;
 const hasTags = tags.length > 0;
 const relativeTime = formatRelativeTime(new Date(post.createdAt));
@@ -279,15 +281,18 @@ const blogDate = isBlog
 			</a>
 		) : (
 			/* 微博模式：内容为主，title 作为副标题 */
-			<a
-				href={`/${post.user.username}/${post.id}`}
-				class="post-card-body"
-				aria-label="查看帖子详情"
-			>
-				{hasTitle && <h3 class="post-card-subtitle">{post.title}</h3>}
-				<div class="post-card-content" set:html={htmlContent} />
+			<>
+				<a
+					href={`/${post.user.username}/${post.id}`}
+					class="post-card-body"
+					aria-label="查看帖子详情"
+				>
+					{hasTitle && <h3 class="post-card-subtitle">{post.title}</h3>}
+					<div class="post-card-content" set:html={htmlContent} />
+				</a>
 				{hasImages && <WeiboMediaGallery images={galleryImages} />}
-			</a>
+				{video && <WeiboVideo media={video} />}
+			</>
 		)
 	}
 
