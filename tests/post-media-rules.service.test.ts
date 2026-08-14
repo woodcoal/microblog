@@ -8,7 +8,12 @@ let sequence = 0;
 async function createUser() {
 	const suffix = `media_rules_${sequence++}`;
 	return prisma.user.create({
-		data: { username: suffix, displayName: suffix, email: `${suffix}@example.test`, passwordHash: 'hash' }
+		data: {
+			username: suffix,
+			displayName: suffix,
+			email: `${suffix}@example.test`,
+			passwordHash: 'hash'
+		}
 	});
 }
 
@@ -44,22 +49,46 @@ after(async () => prisma.$disconnect());
 
 test('创建微博只允许 0–9 图或一个视频', async () => {
 	const user = await createUser();
-	const empty = await createPost({ userId: user.id, mode: 'weibo', content: 'empty', mediaIds: [] });
+	const empty = await createPost({
+		userId: user.id,
+		mode: 'weibo',
+		content: 'empty',
+		mediaIds: []
+	});
 	assert.equal(await prisma.media.count({ where: { postId: empty.id } }), 0);
 
-	const nine = await reserve(user.id, Array.from({ length: 9 }, () => 'image' as const));
-	const imagePost = await createPost({ userId: user.id, mode: 'weibo', content: 'nine', mediaIds: nine });
+	const nine = await reserve(
+		user.id,
+		Array.from({ length: 9 }, () => 'image' as const)
+	);
+	const imagePost = await createPost({
+		userId: user.id,
+		mode: 'weibo',
+		content: 'nine',
+		mediaIds: nine
+	});
 	assert.equal(await prisma.media.count({ where: { postId: imagePost.id } }), 9);
 
-	const ten = await reserve(user.id, Array.from({ length: 10 }, () => 'image' as const));
+	const ten = await reserve(
+		user.id,
+		Array.from({ length: 10 }, () => 'image' as const)
+	);
 	await assert.rejects(
 		createPost({ userId: user.id, mode: 'weibo', content: 'ten', mediaIds: ten }),
 		/图片最多 9 张/
 	);
 
 	const video = await reserve(user.id, ['video']);
-	const videoPost = await createPost({ userId: user.id, mode: 'weibo', content: 'video', mediaIds: video });
-	assert.equal((await prisma.media.findFirstOrThrow({ where: { postId: videoPost.id } })).fileType, 'video');
+	const videoPost = await createPost({
+		userId: user.id,
+		mode: 'weibo',
+		content: 'video',
+		mediaIds: video
+	});
+	assert.equal(
+		(await prisma.media.findFirstOrThrow({ where: { postId: videoPost.id } })).fileType,
+		'video'
+	);
 
 	const twoVideos = await reserve(user.id, ['video', 'video']);
 	await assert.rejects(
@@ -75,22 +104,50 @@ test('创建微博只允许 0–9 图或一个视频', async () => {
 
 test('编辑微博同样限制 0–9 图或一个视频', async () => {
 	const user = await createUser();
-	const post = await createPost({ userId: user.id, mode: 'weibo', content: 'before', mediaIds: [] });
-	const nine = await reserve(user.id, Array.from({ length: 9 }, () => 'image' as const));
+	const post = await createPost({
+		userId: user.id,
+		mode: 'weibo',
+		content: 'before',
+		mediaIds: []
+	});
+	const nine = await reserve(
+		user.id,
+		Array.from({ length: 9 }, () => 'image' as const)
+	);
 	await updatePost({ userId: user.id, postId: post.id, content: 'nine', mediaIds: nine });
 	assert.equal(await prisma.media.count({ where: { postId: post.id } }), 9);
 
-	const ten = await reserve(user.id, Array.from({ length: 10 }, () => 'image' as const));
-	await assert.rejects(updatePost({ userId: user.id, postId: post.id, content: 'ten', mediaIds: ten }), /图片最多 9 张/);
+	const ten = await reserve(
+		user.id,
+		Array.from({ length: 10 }, () => 'image' as const)
+	);
+	await assert.rejects(
+		updatePost({ userId: user.id, postId: post.id, content: 'ten', mediaIds: ten }),
+		/图片最多 9 张/
+	);
 
 	const video = await reserve(user.id, ['video']);
 	await updatePost({ userId: user.id, postId: post.id, content: 'video', mediaIds: video });
-	assert.equal((await prisma.media.findFirstOrThrow({ where: { postId: post.id } })).fileType, 'video');
+	assert.equal(
+		(await prisma.media.findFirstOrThrow({ where: { postId: post.id } })).fileType,
+		'video'
+	);
 
 	const twoVideos = await reserve(user.id, ['video', 'video']);
-	await assert.rejects(updatePost({ userId: user.id, postId: post.id, content: 'two videos', mediaIds: twoVideos }), /0–9 张图片或一个视频/);
+	await assert.rejects(
+		updatePost({
+			userId: user.id,
+			postId: post.id,
+			content: 'two videos',
+			mediaIds: twoVideos
+		}),
+		/0–9 张图片或一个视频/
+	);
 	const mixed = await reserve(user.id, ['image', 'video']);
-	await assert.rejects(updatePost({ userId: user.id, postId: post.id, content: 'mixed', mediaIds: mixed }), /0–9 张图片或一个视频/);
+	await assert.rejects(
+		updatePost({ userId: user.id, postId: post.id, content: 'mixed', mediaIds: mixed }),
+		/0–9 张图片或一个视频/
+	);
 	await updatePost({ userId: user.id, postId: post.id, content: 'empty', mediaIds: [] });
 	assert.equal(await prisma.media.count({ where: { postId: post.id } }), 0);
 });

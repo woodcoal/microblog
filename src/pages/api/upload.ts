@@ -9,7 +9,7 @@
 import type { APIRoute } from 'astro';
 import { requireAuth } from '@/lib/auth';
 import { successResponse, jsonErrorResponse } from '@/lib/utils';
-import { uploadFile } from '@/services/media.service';
+import { executeUpload } from '@/services/upload.service';
 import { ServiceError } from '@/lib/errors';
 
 export const POST: APIRoute = async (context) => {
@@ -26,24 +26,17 @@ export const POST: APIRoute = async (context) => {
 		const fileType = (formData.get('fileType') as string) || 'image';
 
 		// 校验文件是否存在
-		if (!file) {
-			return jsonErrorResponse('请选择要上传的文件');
-		}
-
-		// 校验文件类型参数
-		if (fileType !== 'image' && fileType !== 'video' && fileType !== 'attachment') {
-			return jsonErrorResponse('文件类型参数无效');
-		}
-
-		// 3. 调用 service 保存文件
+		// 3. 唯一上传应用接口负责文件和类型校验、存储及 reservation。
 		try {
-			const result = await uploadFile({
+			const result = await executeUpload({
 				userId: authResult.userId,
+				channel: 'legacy-api',
+				purpose: 'media',
 				file,
-				fileType: fileType as 'image' | 'video' | 'attachment'
+				requestedType: fileType
 			});
 
-			return new Response(JSON.stringify(successResponse(result)), {
+			return new Response(JSON.stringify(successResponse(result.data)), {
 				status: 201,
 				headers: { 'Content-Type': 'application/json' }
 			});

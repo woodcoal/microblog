@@ -6,7 +6,7 @@
  */
 import type { APIRoute } from 'astro';
 import { requireAgentAuth, textResponse, textErrorResponse } from '@/lib/agent';
-import { uploadFile } from '@/services/media.service';
+import { executeUpload } from '@/services/upload.service';
 import { ServiceError } from '@/lib/errors';
 
 export const POST: APIRoute = async (context) => {
@@ -19,14 +19,15 @@ export const POST: APIRoute = async (context) => {
 		const file = formData.get('file') as File | null;
 		const fileType = formData.get('fileType') || 'image';
 
-		if (!file) {
-			return textErrorResponse('请选择要上传的文件');
-		}
-
-		if (fileType !== 'image' && fileType !== 'video') return textErrorResponse('fileType 仅支持 image 或 video');
 		try {
-			const result = await uploadFile({ userId: authResult.userId, file, fileType });
-			return textResponse(`ok: ${result.fileStorageId} ${result.url}`, 201);
+			const result = await executeUpload({
+				userId: authResult.userId,
+				channel: 'agent',
+				purpose: 'media',
+				file,
+				requestedType: fileType
+			});
+			return textResponse(`ok: ${result.data.fileStorageId} ${result.data.url}`, 201);
 		} catch (e) {
 			if (e instanceof ServiceError) {
 				return textErrorResponse(e.message);

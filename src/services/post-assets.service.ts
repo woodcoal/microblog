@@ -64,7 +64,9 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	}
 	if (input.mode !== 'weibo' && requestedBody.some((id) => id)) {
 		// 论坛和博客继续只有图片正文；视频只属于微博，避免扩大既有资产模型。
-		const bodyFiles = await prisma.fileStorage.findMany({ where: { id: { in: requestedBody } } });
+		const bodyFiles = await prisma.fileStorage.findMany({
+			where: { id: { in: requestedBody } }
+		});
 		if (bodyFiles.some((file) => file.fileType === 'video'))
 			throw new ServiceError('BAD_REQUEST', '仅微博支持视频');
 	}
@@ -82,7 +84,9 @@ export async function resolvePostAssets(input: ResolveInput): Promise<PostAssetM
 	const files = await prisma.fileStorage.findMany({ where: { id: { in: roleIds } } });
 	if (files.length !== roleIds.length) throw new ServiceError('BAD_REQUEST', '部分文件不存在');
 	const fileById = new Map(files.map((file) => [file.id, file]));
-	if (requestedBody.some((id) => !['image', 'video'].includes(fileById.get(id)?.fileType || ''))) {
+	if (
+		requestedBody.some((id) => !['image', 'video'].includes(fileById.get(id)?.fileType || ''))
+	) {
 		throw new ServiceError('BAD_REQUEST', '正文媒体只能使用图片或视频');
 	}
 	const videoCount = requestedBody.filter((id) => fileById.get(id)?.fileType === 'video').length;

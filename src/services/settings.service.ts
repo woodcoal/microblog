@@ -10,8 +10,7 @@ import { verifyPassword, hashPassword } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 import { isValidTheme, isValidAccent, DEFAULT_THEME, DEFAULT_ACCENT } from '@/lib/theme';
-import { uploadFile as uploadFileService } from '@/services/media.service';
-import { findFileStorageByFilePath, deleteFileRef } from '@/lib/upload';
+import { executeUpload } from '@/services/upload.service';
 import { renameUsername } from '@/services/username.service';
 
 /** 评论排序合法值 */
@@ -325,32 +324,13 @@ export interface UploadAvatarResult {
 export async function uploadAvatar(input: UploadAvatarInput): Promise<UploadAvatarResult> {
 	const { userId, image } = input;
 
-	// 保存文件
-	const fileResult = await uploadFileService({ userId, file: image, fileType: 'image' });
-	const { consumeStandaloneUpload } = await import('@/services/media.service');
-	await consumeStandaloneUpload(userId, fileResult.reservationId);
-	const newAvatarUrl = fileResult.url;
-
-	// 获取旧头像 URL
-	const user = await findUserById(userId, { avatarUrl: true });
-
-	// 更新用户头像 URL
-	await updateUser(userId, { avatarUrl: newAvatarUrl });
-
-	// 清理旧头像文件的引用计数（仅清理本站上传的头像）
-	if (user?.avatarUrl && user.avatarUrl.startsWith('/uploads/')) {
-		const oldFilePath = user.avatarUrl.replace('/uploads/', '');
-		try {
-			const oldFile = await findFileStorageByFilePath(oldFilePath);
-			if (oldFile) {
-				await deleteFileRef(oldFile.id);
-			}
-		} catch (err) {
-			console.error('清理旧头像文件引用失败:', err);
-		}
-	}
-
-	return { avatarUrl: newAvatarUrl };
+	const result = await executeUpload({
+		userId,
+		channel: 'web-action',
+		purpose: 'avatar',
+		file: image
+	});
+	return result.data;
 }
 
 // ── 更新评论排序偏好 ──

@@ -407,16 +407,24 @@ const spec = {
 					content: {
 						'multipart/form-data': {
 							schema: {
-								type: 'object', required: ['file'],
+								type: 'object',
+								required: ['file'],
 								properties: {
 									file: { type: 'string', format: 'binary' },
-									fileType: { type: 'string', enum: ['image', 'video', 'attachment'], default: 'image' }
+									fileType: {
+										type: 'string',
+										enum: ['image', 'video', 'attachment'],
+										default: 'image'
+									}
 								}
 							}
 						}
 					}
 				},
-				responses: { 201: successResponse('上传预约', '#/components/schemas/Media'), ...commonResponses }
+				responses: {
+					201: successResponse('上传预约', '#/components/schemas/Media'),
+					...commonResponses
+				}
 			}
 		},
 		'/auth/register': {

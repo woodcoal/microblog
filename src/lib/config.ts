@@ -139,7 +139,6 @@ export const API_BODY_LIMIT_BYTES = Math.max(
 	Math.floor(envNumber('API_BODY_LIMIT_BYTES', 1024 * 1024))
 );
 export const API_UPLOAD_BODY_LIMIT_BYTES = Math.max(
-	API_BODY_LIMIT_BYTES,
 	Math.floor(envNumber('API_UPLOAD_BODY_LIMIT_BYTES', 10 * 1024 * 1024))
 );
 

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { checkBodyLimit, isUploadRoute } from '../src/lib/api-security';
+import { bodyLimitResponse, checkBodyLimit, isUploadRoute } from '../src/lib/api-security';
 
 const uploadRoutes = [
 	'/api/upload',
@@ -32,13 +32,28 @@ test('Content-Length 和 chunked 请求都会在上传解析前被拒绝', async
 			headers: { 'content-length': '10' },
 			body: '0123456789'
 		});
-		assert.deepEqual(await checkBodyLimit(contentLengthRequest, 8), { allowed: false }, `${pathname} Content-Length`);
+		assert.deepEqual(
+			await checkBodyLimit(contentLengthRequest, 8),
+			{ allowed: false },
+			`${pathname} Content-Length`
+		);
 
 		const chunkedRequest = new Request(`http://localhost${pathname}`, {
 			method: 'POST',
 			body: chunkedBody('0123456789'),
 			duplex: 'half'
 		} as RequestInit);
-		assert.deepEqual(await checkBodyLimit(chunkedRequest, 8), { allowed: false }, `${pathname} chunked`);
+		assert.deepEqual(
+			await checkBodyLimit(chunkedRequest, 8),
+			{ allowed: false },
+			`${pathname} chunked`
+		);
 	}
+});
+
+test('Agent 上传超限保持纯文本协议', async () => {
+	const response = bodyLimitResponse({ allowed: false }, false, true);
+	assert.equal(response.status, 413);
+	assert.equal(response.headers.get('content-type'), 'text/plain; charset=utf-8');
+	assert.match(await response.text(), /^error: /);
 });
