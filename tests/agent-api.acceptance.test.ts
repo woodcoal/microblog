@@ -357,6 +357,45 @@ test('上传预览 URL、imageUrls 旧路径兼容、组合过滤、详情和错
 	assert.equal(foreignPreview.status, 400);
 	assert.equal(await plainText(foreignPreview), 'error: 部分图片不存在');
 
+	const videoStorage = await prisma.fileStorage.create({
+		data: {
+			md5Hash: `agent-video-${RUN_ID}`,
+			filePath: `protected/videos/agent-${RUN_ID}.mp4`,
+			fileSize: 24,
+			mimeType: 'video/mp4',
+			fileType: 'video',
+			refCount: 1
+		}
+	});
+	const videoReservation = await prisma.uploadReservation.create({
+		data: {
+			userId: aliceId,
+			fileStorageId: videoStorage.id,
+			originalName: 'agent-video.mp4',
+			fileType: 'video',
+			expiresAt: new Date(Date.now() + 60_000)
+		}
+	});
+	const videoPreview = `/media/reservations/${videoReservation.id}/preview`;
+	const rejectedVideoImageUrl = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'video imageUrls', imageUrls: [videoPreview] })
+	});
+	assert.equal(rejectedVideoImageUrl.status, 400);
+	assert.equal(await plainText(rejectedVideoImageUrl), 'error: 仅支持图片类型的文件');
+	assert.equal(
+		(await prisma.uploadReservation.findUniqueOrThrow({ where: { id: videoReservation.id } }))
+			.consumedAt,
+		null
+	);
+	const videoMediaIds = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken, true),
+		body: JSON.stringify({ content: 'video mediaIds', mediaIds: [videoStorage.id] })
+	});
+	assert.equal(videoMediaIds.status, 201, await videoMediaIds.clone().text());
+
 	const list = await request(
 		`/api/agent/posts?keyword=${RUN_ID}&tag=agentqa&user=${alice}&sort=latest&limit=10`,
 		{ headers: bearer(aliceReplacementToken || aliceToken) }
