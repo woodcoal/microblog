@@ -161,6 +161,23 @@ test('越权、过期、非博客缩略图及附件数量上限均由服务端�
 	);
 });
 
+test('博客附件总量仅受数量和请求体门禁约束，不再受业务累计大小限制', async () => {
+	const author = await createUser('asset_large_attachments');
+	const first = await reserve(author.id, 'attachment', { size: 60 * 1024 * 1024 });
+	const second = await reserve(author.id, 'attachment', { size: 60 * 1024 * 1024 });
+	const post = await createPost({
+		userId: author.id,
+		mode: 'blog',
+		title: '大附件',
+		content: '正文',
+		attachmentFileStorageIds: [first.file.id, second.file.id]
+	});
+	assert.equal(
+		await prisma.media.count({ where: { postId: post.id, fileType: 'attachment' } }),
+		2
+	);
+});
+
 test('编辑替换资产同时写入 v2 快照、释放旧引用且不产生负数', async () => {
 	const author = await createUser('asset_editor');
 	const oldAttachment = await reserve(author.id, 'attachment');

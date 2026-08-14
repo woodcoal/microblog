@@ -1,6 +1,5 @@
 /** 所有外部上传协议共用的应用层入口。 */
 import { ServiceError } from '@/lib/errors';
-import { AVATAR_MAX_SIZE } from '@/lib/upload-policy';
 import { deleteFileRef, findFileStorageByFilePath } from '@/lib/upload';
 import { findUserById, updateUser } from '@/lib/user';
 import {
@@ -52,9 +51,6 @@ export async function executeUpload(command: UploadCommand): Promise<UploadResul
 		};
 	}
 	if (command.channel !== 'web-action') throw new ServiceError('BAD_REQUEST', '头像上传通道无效');
-	if (command.file.size > AVATAR_MAX_SIZE) {
-		throw new ServiceError('BAD_REQUEST', '头像图片大小不能超过 2MB');
-	}
 	const stored = await uploadFile({
 		userId: command.userId,
 		file: command.file,

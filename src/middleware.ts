@@ -53,7 +53,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
-	// 所有 API 写请求都在解析前检查请求体。上传入口仍使用更高的专用上限。
+	// 所有 API 写请求都在解析前检查请求体。上传入口使用唯一上传上限。
 	// 两个 Action 上传入口不属于 API 前缀，故一并纳入此处处理。
 	if (
 		UNSAFE_METHODS.has(request.method.toUpperCase()) &&

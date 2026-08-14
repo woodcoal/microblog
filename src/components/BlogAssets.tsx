@@ -4,8 +4,6 @@ import { createPortal } from 'react-dom';
 import type { ChangeEvent } from 'react';
 
 const MAX_ATTACHMENTS = 10;
-const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
-const MAX_TOTAL_ATTACHMENT_SIZE = 100 * 1024 * 1024;
 const ATTACHMENT_ACCEPT = '.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rar,.7z';
 
 export interface BlogAsset {
@@ -176,19 +174,6 @@ export default function BlogAssets({
 				setError(`“${invalid.name}”不是支持的附件类型。`);
 				return;
 			}
-			const oversized = files.find((file) => file.size > MAX_ATTACHMENT_SIZE);
-			if (oversized) {
-				setError(`“${oversized.name}”超过单附件 20 MB 限制。`);
-				return;
-			}
-			const total =
-				attachments.reduce((sum, asset) => sum + asset.fileSize, 0) +
-				files.reduce((sum, file) => sum + file.size, 0);
-			if (total > MAX_TOTAL_ATTACHMENT_SIZE) {
-				setError('附件总大小不能超过 100 MB。');
-				return;
-			}
-
 			setError(null);
 			setUploading('attachments');
 			const uploaded: BlogAsset[] = [];
@@ -235,7 +220,7 @@ export default function BlogAssets({
 		<section className="blog-assets" aria-labelledby="blog-assets-title">
 			<div className="blog-assets-heading">
 				<h2 id="blog-assets-title">文章资源</h2>
-				<p>缩略图限 1 张；附件最多 10 个，单个不超过 20 MB、合计不超过 100 MB。</p>
+				<p>缩略图限 1 张；附件最多 10 个。</p>
 			</div>
 			<div className="blog-assets-grid">
 				<section className="blog-asset-section" aria-labelledby="blog-thumbnail-title">
@@ -275,7 +260,7 @@ export default function BlogAssets({
 							选择缩略图
 						</button>
 					)}
-					<p className="blog-asset-hint">支持 JPG、PNG、GIF、WebP，单张不超过 5 MB。</p>
+					<p className="blog-asset-hint">支持 JPG、PNG、GIF、WebP。</p>
 					<input
 						ref={thumbnailInputRef}
 						className="visually-hidden"

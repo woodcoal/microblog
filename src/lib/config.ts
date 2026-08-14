@@ -133,7 +133,7 @@ export const API_RATE_LIMIT_UPLOAD = Math.max(
 	Math.floor(envNumber('API_RATE_LIMIT_UPLOAD', 10))
 );
 
-/** API 请求体限制；上传接口单独放宽。 */
+/** API 请求体限制；上传入口使用唯一上传上限。 */
 export const API_BODY_LIMIT_BYTES = Math.max(
 	1024,
 	Math.floor(envNumber('API_BODY_LIMIT_BYTES', 1024 * 1024))

@@ -2,6 +2,7 @@
  * 设置 Actions
  *
  * 提供用户设置、个人资料、密码修改、头像上传、评论排序偏好的服务端 Actions。
+ * 上传请求体大小由解析前门禁统一校验。
  * 业务逻辑委托 settings.service，本层仅负责鉴权 + 输入校验。
  */
 import { defineAction, ActionError } from 'astro:actions';
