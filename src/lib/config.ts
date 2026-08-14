@@ -121,6 +121,9 @@ export const API_V1_ENABLED = getEnv('API_V1_ENABLED') !== 'false';
 /** 是否启用 /api/agent 兼容 API；默认启用以保持兼容。 */
 export const API_AGENT_ENABLED = getEnv('API_AGENT_ENABLED') !== 'false';
 
+/** 是否向公网公开 /api/docs 与 /api/docs.json；默认仅允许内网客户端访问。 */
+export const API_DOCS_PUBLIC = getEnv('API_DOCS_PUBLIC') === 'true';
+
 /** API 限流窗口（秒）及按请求类型区分的上限。 */
 export const API_RATE_LIMIT_WINDOW_SECONDS = Math.max(
 	1,

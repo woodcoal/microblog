@@ -5,7 +5,8 @@
  * 统一位于 /api/v1。站内 SSR/Astro Actions 不属于该外部契约。
  */
 import type { APIRoute } from 'astro';
-import { SITE_TITLE, SITE_DESCRIPTION } from '@/lib/config';
+import { API_DOCS_PUBLIC, SITE_DESCRIPTION, SITE_TITLE } from '@/lib/config';
+import { mayAccessApiDocs } from '@/lib/network';
 import { createAgentOpenApiSpec } from '@/lib/agent-openapi';
 
 const bearerSecurity = [{ BearerJWT: [] }, { BearerAPIToken: [] }];
@@ -1037,7 +1038,17 @@ const spec = {
 	}
 };
 
-export const GET: APIRoute = ({ request }) => {
+export const GET: APIRoute = ({ request, clientAddress }) => {
+	if (!mayAccessApiDocs(clientAddress, API_DOCS_PUBLIC)) {
+		return new Response(JSON.stringify({ error: 'API 文档未对公网开放' }), {
+			status: 403,
+			headers: {
+				'Content-Type': 'application/json; charset=utf-8',
+				'Cache-Control': 'no-store'
+			}
+		});
+	}
+
 	const api = new URL(request.url).searchParams.get('api');
 	const document = api === 'agent' ? createAgentOpenApiSpec() : spec;
 

@@ -7,8 +7,16 @@
  *
  * 路由：/api/docs
  */
-import { SITE_TITLE } from '@/lib/config';
+import { API_DOCS_PUBLIC, SITE_TITLE } from '@/lib/config';
+import { mayAccessApiDocs } from '@/lib/network';
 import '@/styles/pages/api-docs.css';
+
+if (!mayAccessApiDocs(Astro.clientAddress, API_DOCS_PUBLIC)) {
+	return new Response('Forbidden', {
+		status: 403,
+		headers: { 'Cache-Control': 'no-store' }
+	});
+}
 
 const selectedApi = Astro.url.searchParams.get('api') === 'agent' ? 'agent' : 'v1';
 ---
