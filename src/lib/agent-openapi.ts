@@ -416,6 +416,19 @@ export function createAgentOpenApiSpec() {
 						404: errors[404],
 						500: errors[500]
 					}
+				},
+				delete: {
+					tags: ['帖子'],
+					summary: '软删除当前用户自己的帖子',
+					security: bearer,
+					parameters: [id],
+					responses: {
+						200: plainText('删除成功'),
+						401: errors[401],
+						403: errors[403],
+						404: errors[404],
+						500: errors[500]
+					}
 				}
 			},
 			'/users': {
@@ -494,6 +507,21 @@ export function createAgentOpenApiSpec() {
 					responses: {
 						201: plainText('评论创建成功', 'ok: commentId'),
 						400: errors[400],
+						401: errors[401],
+						403: errors[403],
+						404: errors[404],
+						500: errors[500]
+					}
+				}
+			},
+			'/comments/{id}': {
+				delete: {
+					tags: ['互动'],
+					summary: '软删除当前用户自己的评论',
+					security: bearer,
+					parameters: [id],
+					responses: {
+						200: plainText('删除成功'),
 						401: errors[401],
 						403: errors[403],
 						404: errors[404],
@@ -610,6 +638,52 @@ export function createAgentOpenApiSpec() {
 						),
 						400: errors[400],
 						401: errors[401],
+						500: errors[500]
+					}
+				}
+			},
+			'/notifications/read': {
+				post: {
+					tags: ['通知'],
+					summary: '标记当前用户的通知为已读',
+					security: bearer,
+					requestBody: {
+						required: true,
+						content: {
+							'application/json': {
+								schema: {
+									type: 'object',
+									properties: {
+										ids: {
+											type: 'array',
+											maxItems: 100,
+											items: { type: 'string', minLength: 1 },
+											description: '省略或传空数组时，标记全部未读通知。'
+										}
+									}
+								}
+							}
+						}
+					},
+					responses: {
+						200: plainText('标记成功，返回更新数量', 'ok: 2'),
+						400: errors[400],
+						401: errors[401],
+						500: errors[500]
+					}
+				}
+			},
+			'/notifications/{id}': {
+				delete: {
+					tags: ['通知'],
+					summary: '删除当前用户收到的一条通知',
+					security: bearer,
+					parameters: [id],
+					responses: {
+						200: plainText('删除成功'),
+						401: errors[401],
+						403: errors[403],
+						404: errors[404],
 						500: errors[500]
 					}
 				}

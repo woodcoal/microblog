@@ -5,8 +5,14 @@
  * 面向自动化 Agent 的稳定纯文本接口；通用客户端优先使用 /api/v1。
  */
 import type { APIRoute } from 'astro';
-import { requireAgentAuth, textResponse, textErrorResponse, formatPostDetail } from '@/lib/agent';
-import { getPostDetail } from '@/services/content.service';
+import {
+	requireAgentAuth,
+	textResponse,
+	textErrorResponse,
+	formatPostDetail,
+	handleAgentError
+} from '@/lib/agent';
+import { deletePost, getPostDetail } from '@/services/content.service';
 
 /**
  * 获取帖子详情
@@ -53,5 +59,18 @@ export const GET: APIRoute = async (context) => {
 	} catch (error) {
 		console.error('获取帖子详情失败:', error);
 		return textErrorResponse('服务器错误', 500);
+	}
+};
+
+/** 删除当前用户自己的帖子（软删除）。 */
+export const DELETE: APIRoute = async (context) => {
+	try {
+		const authResult = await requireAgentAuth(context);
+		if (authResult instanceof Response) return authResult;
+
+		await deletePost({ userId: authResult.userId, postId: context.params.id ?? '' });
+		return textResponse('ok');
+	} catch (error) {
+		return handleAgentError(error, '删除帖子');
 	}
 };
