@@ -11,7 +11,9 @@ export default defineConfig({
 	// 保持 Astro 6 及以前版本的完整 HTML 压缩行为，避免内联元素间距变化。
 	compressHTML: true,
 	adapter: node({
-		mode: 'standalone'
+		mode: 'standalone',
+		// Node 入口的静态安全顶棚。运行期上传上限须不高于此值。
+		bodySizeLimit: 25 * 1024 * 1024
 	}),
 	server: {
 		host: '0.0.0.0',
