@@ -56,10 +56,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// 所有 API 写请求都在解析前检查请求体。上传入口使用唯一上传上限。
 	// 两个 Action 上传入口不属于 API 前缀，故一并纳入此处处理。
-	if (
-		UNSAFE_METHODS.has(request.method.toUpperCase()) &&
-		(isApiRoute(url.pathname) || isUploadRoute(url.pathname))
-	) {
+	const isUpload = isUploadRoute(url.pathname);
+	const isApi = isApiRoute(url.pathname);
+	if (UNSAFE_METHODS.has(request.method.toUpperCase()) && (isApi || isUpload)) {
 		const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));
 		if (!bodyResult.allowed) {
 			const response = bodyLimitResponse(
@@ -67,11 +66,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				isV1ApiRoute(url.pathname),
 				url.pathname === '/api/agent' || url.pathname.startsWith('/api/agent/')
 			);
-			return isApiRoute(url.pathname) ? withCorsHeaders(response, request) : response;
+			return isApi ? withCorsHeaders(response, request) : response;
 		}
 	}
 
-	if (isApiRoute(url.pathname)) {
+	// /api/upload 是浏览器 Cookie 上传入口，不属于外部 API 前缀，仍需独立消耗上传配额。
+	if (isUpload && !isApi) {
+		const rateLimitInfo = consumeRateLimit(request, url.pathname);
+		if (!rateLimitInfo.allowed)
+			return withRateLimitHeaders(rateLimitExceededResponse(rateLimitInfo), rateLimitInfo);
+	}
+
+	if (isApi) {
 		const isV1 = isV1ApiRoute(url.pathname);
 		const isAgent = !isV1;
 		if ((isV1 && !API_V1_ENABLED) || (!isV1 && !API_AGENT_ENABLED)) {

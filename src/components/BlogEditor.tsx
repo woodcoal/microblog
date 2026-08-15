@@ -33,9 +33,9 @@ import { common, createLowlight } from 'lowlight';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, ReactNode, SyntheticEvent } from 'react';
 import type { Editor } from '@tiptap/core';
-import { actions } from 'astro:actions';
 import BlogAssets from './BlogAssets';
 import type { BlogAsset, BlogAssetValues } from './BlogAssets';
+import { uploadMedia } from '@/scripts/shared/upload-media';
 
 /** lowlight 实例，用于代码块语法高亮 */
 const lowlight = createLowlight(common);
@@ -130,22 +130,15 @@ function getMarkdown(editor: Editor): string {
 /**
  * 上传图片到服务器
  *
- * 使用 Astro Action 调用统一的上传接口。
+ * 使用运行期 /api/upload 调用统一的上传接口。
  *
  * @param file - 要上传的图片文件
  * @returns 上传成功后的图片 URL 或错误信息
  */
 async function uploadImage(file: File): Promise<{ url?: string; error?: string }> {
-	const formData = new FormData();
-	formData.append('file', file);
-	formData.append('fileType', 'image');
-
 	try {
-		const result = await actions.uploadMedia(formData);
-		if (result.data?.url) {
-			return { url: result.data.url };
-		}
-		return { error: result.error?.message || '图片上传失败，请重试' };
+		const result = await uploadMedia(file, 'image');
+		return { url: result.url };
 	} catch (error) {
 		return { error: error instanceof Error ? error.message : '图片上传失败，请重试' };
 	}

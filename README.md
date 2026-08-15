@@ -98,6 +98,11 @@ pnpm run dev
 
 `SITE_LOGO_URL`、`SITE_FAVICON_URL`、密码保护、置顶上限、保留用户名和模式别名等高级变量见 `.env.example`。不要提交 `.env` 或生产凭证。
 
+帖子、论坛和博客的媒体与附件通过同源 `/api/upload` 上传。修改
+`API_UPLOAD_BODY_LIMIT_BYTES` 后重启 Node 服务即可生效，无需重新构建。Node adapter、
+反向代理和网关的请求体上限也必须不小于此值；实际可上传上限取三者中的最小值。
+头像仍使用 Astro Action，保持原有语义。
+
 邮箱验证邮件默认不投递，确保本地开发与测试不会误发真实邮件。生产环境可配置受信任的邮件 webhook；其 URL 和 Authorization 仅从运行期机密配置读取，原始验证令牌只进入一次性链接，不写入数据库、日志或仓库。
 
 ## 项目结构
