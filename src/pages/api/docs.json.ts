@@ -387,6 +387,11 @@ const spec = {
 				},
 				required: ['content']
 			},
+			AvatarUploadResult: {
+				type: 'object',
+				properties: { avatarUrl: { type: 'string', description: '新头像的受控公开 URL' } },
+				required: ['avatarUrl']
+			},
 			ToggleResult: {
 				type: 'object',
 				properties: {
@@ -424,6 +429,30 @@ const spec = {
 				},
 				responses: {
 					201: successResponse('上传预约', '#/components/schemas/Media'),
+					...commonResponses
+				}
+			}
+		},
+		'/upload/avatar': {
+			post: {
+				tags: ['用户'],
+				summary: '上传并设置头像',
+				description: '仅接受图片；上传成功后立即替换当前用户头像，并释放旧的站内头像引用。',
+				security: bearerSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						'multipart/form-data': {
+							schema: {
+								type: 'object',
+								required: ['file'],
+								properties: { file: { type: 'string', format: 'binary' } }
+							}
+						}
+					}
+				},
+				responses: {
+					201: successResponse('头像已更新', '#/components/schemas/AvatarUploadResult'),
 					...commonResponses
 				}
 			}

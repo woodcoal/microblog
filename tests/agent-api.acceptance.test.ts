@@ -193,7 +193,8 @@ test('全部业务方法在通过全局门禁后仍要求 mt_ 用户 Token', asy
 		['PUT', '/api/agent/profile'],
 		['GET', '/api/agent/note'],
 		['PUT', '/api/agent/note'],
-		['POST', '/api/agent/upload']
+		['POST', '/api/agent/upload'],
+		['POST', '/api/agent/upload/avatar']
 	];
 	for (const [method, path] of protectedMethods) {
 		const response = await request(path, { method });
@@ -423,6 +424,29 @@ test('浏览器 /api/upload 保留 Cookie 与 CSRF，并在真实 HTTP 流中执
 		success: false,
 		error: { message: '请求体超过大小限制', status: 413 }
 	});
+});
+
+test('Agent 可上传图片并立即替换当前用户头像', async () => {
+	const png = new Uint8Array([
+		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
+		0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+	]);
+	const form = new FormData();
+	form.set('file', new File([png], 'agent-avatar.png', { type: 'image/png' }));
+	const uploaded = await request('/api/agent/upload/avatar', {
+		method: 'POST',
+		headers: bearer(aliceReplacementToken || aliceToken),
+		body: form
+	});
+	assert.equal(uploaded.status, 201, await uploaded.clone().text());
+	const avatarUrl = /^ok: (\/media\/avatars\/\S+)$/.exec(await plainText(uploaded))?.[1];
+	assert.ok(avatarUrl);
+	assert.equal(
+		(await prisma.user.findUniqueOrThrow({ where: { id: aliceId } })).avatarUrl,
+		avatarUrl
+	);
+	assert.equal((await request(avatarUrl)).status, 200);
 });
 
 test('上传预览 URL、imageUrls 旧路径兼容、组合过滤、详情和错误映射', async () => {

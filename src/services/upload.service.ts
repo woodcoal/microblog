@@ -50,7 +50,6 @@ export async function executeUpload(command: UploadCommand): Promise<UploadResul
 			})
 		};
 	}
-	if (command.channel !== 'web-action') throw new ServiceError('BAD_REQUEST', '头像上传通道无效');
 	const stored = await uploadFile({
 		userId: command.userId,
 		file: command.file,
@@ -58,10 +57,14 @@ export async function executeUpload(command: UploadCommand): Promise<UploadResul
 	});
 	await consumeStandaloneUpload(command.userId, stored.reservationId);
 	const user = await findUserById(command.userId, { avatarUrl: true });
-	await updateUser(command.userId, { avatarUrl: stored.url });
-	if (user?.avatarUrl?.startsWith('/uploads/')) {
+	const avatarUrl = `/media/avatars/${stored.fileStorageId}`;
+	await updateUser(command.userId, { avatarUrl });
+	const oldAvatarFileStorageId = user?.avatarUrl?.match(/^\/media\/avatars\/([^/?]+)$/)?.[1];
+	if (oldAvatarFileStorageId) {
+		await deleteFileRef(oldAvatarFileStorageId);
+	} else if (user?.avatarUrl?.startsWith('/uploads/')) {
 		const old = await findFileStorageByFilePath(user.avatarUrl.slice('/uploads/'.length));
 		if (old) await deleteFileRef(old.id);
 	}
-	return { purpose: 'avatar', data: { avatarUrl: stored.url } };
+	return { purpose: 'avatar', data: { avatarUrl } };
 }

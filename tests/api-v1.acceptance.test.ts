@@ -210,7 +210,8 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 		['/timeline/following', 'get'],
 		['/search/posts', 'get'],
 		['/search/users', 'get'],
-		['/tags/{name}/posts', 'get']
+		['/tags/{name}/posts', 'get'],
+		['/upload/avatar', 'post']
 	]) {
 		assert.ok(spec.paths[path]?.[method], `${method.toUpperCase()} ${path}`);
 	}
@@ -371,6 +372,37 @@ test(
 	}
 );
 
+test('v1 可上传图片并立即替换当前用户头像', async () => {
+	const png = new Uint8Array([
+		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
+		0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+	]);
+	const uploadAvatar = async (name: string) => {
+		const form = new FormData();
+		form.set('file', new File([png], name, { type: 'image/png' }));
+		const uploaded = await request('/api/v1/upload/avatar', {
+			method: 'POST',
+			headers: { authorization: `Bearer ${aliceToken}` },
+			body: form
+		});
+		assert.equal(uploaded.status, 201, await uploaded.clone().text());
+		return (await json<{ avatarUrl: string }>(uploaded)).avatarUrl;
+	};
+	const firstAvatarUrl = await uploadAvatar('avatar.png');
+	const avatarUrl = await uploadAvatar('avatar-replacement.png');
+	assert.match(avatarUrl, /^\/media\/avatars\/\w+$/);
+	assert.equal(
+		(await prisma.user.findUniqueOrThrow({ where: { id: aliceId } })).avatarUrl,
+		avatarUrl
+	);
+	assert.equal((await request(firstAvatarUrl)).status, 404);
+	const displayed = await request(avatarUrl);
+	assert.equal(displayed.status, 200);
+	assert.match(displayed.headers.get('content-type') ?? '', /^image\/webp/);
+	const rejected = await request('/api/v1/upload/avatar', { method: 'POST' });
+	assert.equal(rejected.status, 401);
+});
 test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => {
 	const spec = await json<OpenApiDocument>(await request('/api/docs.json?api=agent'));
 	assert.equal(spec.openapi, '3.0.3');
@@ -381,7 +413,7 @@ test('OpenAPI 可按 api 参数返回 Agent 纯文本接口文档', async () => 
 		['/posts', 'post'],
 		['/notifications', 'get'],
 		['/profile', 'put'],
-		['/upload', 'post']
+		['/upload/avatar', 'post']
 	]) {
 		assert.ok(spec.paths[path]?.[method], `${method.toUpperCase()} ${path}`);
 	}

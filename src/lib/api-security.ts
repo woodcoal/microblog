@@ -40,10 +40,12 @@ export function isV1ApiRoute(pathname: string): boolean {
 export function isUploadRoute(pathname: string): boolean {
 	return (
 		pathname === '/api/upload' ||
-		pathname === '/api/agent/upload' ||
-		pathname === '/api/v1/upload' ||
 		pathname === '/_actions/uploadMedia' ||
-		pathname === '/_actions/uploadAvatar'
+		pathname === '/_actions/uploadAvatar' ||
+		pathname === '/api/agent/upload' ||
+		pathname.startsWith('/api/agent/upload/') ||
+		pathname === '/api/v1/upload' ||
+		pathname.startsWith('/api/v1/upload/')
 	);
 }
 

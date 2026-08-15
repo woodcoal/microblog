@@ -723,6 +723,32 @@ export function createAgentOpenApiSpec() {
 						500: errors[500]
 					}
 				}
+			},
+			'/upload/avatar': {
+				post: {
+					tags: ['个人账号'],
+					summary: '上传并设置头像',
+					description: '仅接受图片；成功后立即替换当前用户头像。',
+					security: bearer,
+					requestBody: {
+						required: true,
+						content: {
+							'multipart/form-data': {
+								schema: {
+									type: 'object',
+									required: ['file'],
+									properties: { file: { type: 'string', format: 'binary' } }
+								}
+							}
+						}
+					},
+					responses: {
+						201: plainText('头像已更新', 'ok: /media/avatars/file-storage-id'),
+						400: errors[400],
+						401: errors[401],
+						500: errors[500]
+					}
+				}
 			}
 		}
 	};
