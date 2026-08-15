@@ -34,14 +34,20 @@ interface WebhookRecord {
 	updatedAt: Date;
 }
 
-/**
- * Webhook 发送时的 payload 结构
- */
-interface WebhookPayload {
+/** Webhook 发送时的稳定事件信封。 */
+export interface WebhookPayload {
+	schemaVersion: 1;
+	id: string;
 	event: string;
-	timestamp: string;
-	signature: string;
-	data: Record<string, unknown>;
+	occurredAt: string;
+	data: WebhookEventData;
+}
+
+export interface WebhookEventData {
+	notification: { id: string; type: string; createdAt: string };
+	actor: { id: string; username: string; displayName: string; avatarUrl: string | null };
+	post?: { id: string; title: string | null; url: string };
+	comment?: { id: string; content: string; parentId: string | null; url: string };
 }
 
 /**
@@ -109,104 +115,61 @@ async function signPayload(payload: string, secret: string): Promise<string> {
 }
 
 /**
- * 发送 Webhook 请求
+ * 发送已构造的 Webhook 事件。
  *
- * 构造完整的 Webhook payload（含 event、timestamp、signature、data），
- * 通过 HTTP POST 发送到 webhook.url。
- * 超时 10 秒，失败不抛错（仅记录日志），不影响主流程。
+ * HMAC 覆盖最终发送的 UTF-8 请求体；接收端必须以原始 body 验签。
  *
- * @param webhook - Webhook 记录（需包含 url、secret、events）
- * @param event - 触发的事件类型（如 notification.follow）
- * @param data - 事件数据
+ * @param webhook - 接收地址及其签名密钥
+ * @param payload - 稳定事件信封
  */
-async function sendWebhook(
-	webhook: WebhookRecord,
-	event: string,
-	data: Record<string, unknown>
-): Promise<void> {
+async function sendWebhook(webhook: WebhookRecord, payload: WebhookPayload): Promise<void> {
 	try {
-		const timestamp = new Date().toISOString();
-
-		// 构造待签名的 payload 字符串
-		const payloadString = JSON.stringify({
-			event,
-			timestamp,
-			data
-		});
-
-		// 计算 HMAC-SHA256 签名
+		const payloadString = JSON.stringify(payload);
 		const signature = await signPayload(payloadString, webhook.secret);
-
-		// 构造完整的 Webhook payload
-		const payload: WebhookPayload = {
-			event,
-			timestamp,
-			signature,
-			data
-		};
-
-		// 发送 HTTP POST 请求，设置超时
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), WEBHOOK_TIMEOUT);
-
-		await fetch(webhook.url, {
+		const response = await fetch(webhook.url, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
+				'X-Webhook-Id': payload.id,
+				'X-Webhook-Timestamp': payload.occurredAt,
 				'X-Webhook-Signature': signature
 			},
-			body: JSON.stringify(payload),
-			signal: controller.signal
+			body: payloadString,
+			signal: AbortSignal.timeout(WEBHOOK_TIMEOUT)
 		});
-
-		clearTimeout(timeoutId);
+		if (!response.ok) {
+			console.error(
+				`Webhook 投递失败 [${webhook.id}] ${webhook.url}: HTTP ${response.status}`
+			);
+		}
 	} catch (error) {
-		// Webhook 发送失败不抛错，仅记录日志
 		console.error(`Webhook 发送失败 [${webhook.id}] ${webhook.url}:`, error);
 	}
 }
 
 /**
- * 触发用户的所有匹配 Webhook
- *
- * 查询该用户 isActive=true 且 events 包含该 event 的 Webhook，
- * 逐一调用 sendWebhook。异步执行，不阻塞主流程。
+ * 触发用户的所有匹配 Webhook。
  *
  * @param userId - 接收通知的用户 ID
- * @param event - 触发的事件类型（如 notification.follow）
- * @param data - 事件数据（通知详情）
+ * @param event - 通知事件类型
+ * @param payload - 已冻结的通知展示快照
  */
 export async function triggerWebhooks(
 	userId: string,
 	event: string,
-	data: Record<string, unknown>
+	payload: WebhookPayload
 ): Promise<void> {
 	try {
-		// 查询该用户所有激活的 Webhook
-		const webhooks = await prisma.webhook.findMany({
-			where: {
-				userId,
-				isActive: true
-			}
-		});
-
-		// 筛选出 events 包含该 event 的 Webhook
-		const matchedWebhooks = webhooks.filter((wh: { events: string }) => {
+		const webhooks = await prisma.webhook.findMany({ where: { userId, isActive: true } });
+		for (const webhook of webhooks) {
 			try {
-				const events: string[] = JSON.parse(wh.events);
-				return events.includes(event);
+				const events: string[] = JSON.parse(webhook.events);
+				if (events.includes(event)) void sendWebhook(webhook, payload);
 			} catch {
-				return false;
+				// 历史损坏的事件配置不应影响同一用户的其他 Webhook。
 			}
-		});
-
-		// 逐一发送，不阻塞主流程
-		for (const webhook of matchedWebhooks) {
-			// 异步执行，不 await，失败也不影响其他 Webhook
-			sendWebhook(webhook, event, data).catch(() => {});
 		}
 	} catch (error) {
-		// 触发 Webhook 失败不抛错，仅记录日志
 		console.error('触发 Webhook 失败:', error);
 	}
 }

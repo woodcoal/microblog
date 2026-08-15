@@ -5,27 +5,129 @@
  * 通知类型包括：follow（关注）、comment（评论）、like（点赞）、mention（提及）。
  */
 import { prisma } from '@/lib/db';
-import { triggerWebhooks } from '@/lib/webhook';
+import { triggerWebhooks, type WebhookPayload } from '@/lib/webhook';
 import type { Prisma } from '../../generated/prisma/client';
 
 /** 允许的通知类型 */
 const VALID_TYPES = ['follow', 'comment', 'like', 'mention'] as const;
 type NotificationType = (typeof VALID_TYPES)[number];
 
+/** 仅将接收者可见的帖子和评论文本写入 Webhook 快照。 */
+async function mayIncludePostSnapshot(
+	post: { userId: string; visibility: string; allowedUserIds: string | null },
+	recipientId: string
+): Promise<boolean> {
+	if (post.userId === recipientId || ['public', 'logged_in'].includes(post.visibility))
+		return true;
+	if (post.visibility === 'users') {
+		try {
+			return (JSON.parse(post.allowedUserIds ?? '[]') as unknown[]).includes(recipientId);
+		} catch {
+			return false;
+		}
+	}
+	if (post.visibility !== 'followers' && post.visibility !== 'following') return false;
+	const follow = await prisma.follow.findUnique({
+		where: {
+			followerId_followingId:
+				post.visibility === 'followers'
+					? { followerId: recipientId, followingId: post.userId }
+					: { followerId: post.userId, followingId: recipientId }
+		},
+		select: { id: true }
+	});
+	return Boolean(follow);
+}
+
 /**
- * 创建通知
+ * 将刚创建的通知映射为可独立消费的 Webhook 事件快照。
  *
- * 当用户触发某操作（关注、评论、点赞、提及）时，向接收者发送通知。
- * 不会给自己发通知（actorId === recipientId 时直接跳过）。
- * 若接收者关闭了通知（notificationsEnabled = false），也跳过创建。
- * type 必须为 follow / comment / like / mention 之一，否则抛错。
+ * @param notification - 已持久化的通知记录
+ */
+export async function buildNotificationWebhookPayload(notification: {
+	id: string;
+	type: string;
+	actorId: string;
+	recipientId: string;
+	postId: string | null;
+	commentId: string | null;
+	createdAt: Date;
+}): Promise<WebhookPayload | null> {
+	try {
+		const [actor, post, comment] = await Promise.all([
+			prisma.user.findUnique({
+				where: { id: notification.actorId },
+				select: { id: true, username: true, displayName: true, avatarUrl: true }
+			}),
+			notification.postId
+				? prisma.post.findUnique({
+						where: { id: notification.postId },
+						select: {
+							id: true,
+							userId: true,
+							title: true,
+							visibility: true,
+							allowedUserIds: true,
+							isDeleted: true,
+							user: { select: { username: true } }
+						}
+					})
+				: null,
+			notification.commentId
+				? prisma.comment.findUnique({
+						where: { id: notification.commentId },
+						select: { id: true, content: true, parentId: true, isDeleted: true }
+					})
+				: null
+		]);
+		if (!actor) return null;
+
+		const postSnapshot =
+			post &&
+			!post.isDeleted &&
+			(await mayIncludePostSnapshot(post, notification.recipientId))
+				? { id: post.id, title: post.title, url: `/${post.user.username}/${post.id}` }
+				: undefined;
+		const commentSnapshot =
+			comment && !comment.isDeleted && postSnapshot
+				? {
+						id: comment.id,
+						content: comment.content,
+						parentId: comment.parentId,
+						url: `${postSnapshot.url}#comment-${comment.id}`
+					}
+				: undefined;
+		return {
+			schemaVersion: 1,
+			id: notification.id,
+			event: `notification.${notification.type}`,
+			occurredAt: notification.createdAt.toISOString(),
+			data: {
+				notification: {
+					id: notification.id,
+					type: notification.type,
+					createdAt: notification.createdAt.toISOString()
+				},
+				actor: { ...actor, avatarUrl: actor.avatarUrl || null },
+				...(postSnapshot ? { post: postSnapshot } : {}),
+				...(commentSnapshot ? { comment: commentSnapshot } : {})
+			}
+		};
+	} catch (error) {
+		console.error(`构造通知 Webhook 快照失败 [${notification.id}]:`, error);
+		return null;
+	}
+}
+
+/**
+ * 创建通知并异步投递对应 Webhook。
  *
- * @param type - 通知类型：follow | comment | like | mention
- * @param actorId - 触发者用户 ID
- * @param recipientId - 接收者用户 ID
- * @param postId - 关联帖子 ID（可选，关注类通知无此字段）
- * @param commentId - 关联评论 ID（可选，仅评论/提及类通知使用）
- * @returns 创建的通知记录，若跳过则返回 null
+ * @param type - 通知类型
+ * @param actorId - 触发者 ID
+ * @param recipientId - 接收者 ID
+ * @param postId - 关联帖子 ID
+ * @param commentId - 关联评论 ID
+ * @returns 新建通知；自通知或关闭通知时返回 null
  */
 export async function createNotification(
 	type: NotificationType,
@@ -63,50 +165,32 @@ export async function createNotification(
 		}
 	});
 
-	// 创建通知成功后触发 Webhook（异步执行，不阻塞主流程）
-	triggerWebhooks(recipientId, `notification.${type}`, {
-		id: notification.id,
-		type,
-		actorId,
-		recipientId,
-		postId: postId ?? null,
-		commentId: commentId ?? null,
-		createdAt: notification.createdAt.toISOString()
-	}).catch(() => {});
+	// 创建通知成功后构造冻结展示快照并异步投递；失败不影响通知主流程。
+	void buildNotificationWebhookPayload(notification).then((payload) => {
+		if (payload) return triggerWebhooks(notification.recipientId, payload.event, payload);
+	});
 
 	return notification;
 }
 
 /**
- * 标记通知已读
+ * 标记通知已读。
  *
- * 将指定用户的通知标记为已读。
- * 若 notificationIds 为空或未提供，则标记该用户全部通知为已读。
- *
- * @param userId - 接收者用户 ID
- * @param notificationIds - 要标记已读的通知 ID 列表（可选）
+ * @param userId - 接收通知的用户 ID
+ * @param notificationIds - 要标记已读的通知 ID 列表；省略时标记全部
  * @returns 更新的记录数
  */
 export async function markNotificationsRead(userId: string, notificationIds?: string[]) {
 	if (notificationIds && notificationIds.length > 0) {
-		// 标记指定通知为已读
 		const result = await prisma.notification.updateMany({
-			where: {
-				id: { in: notificationIds },
-				recipientId: userId,
-				isRead: false
-			},
+			where: { id: { in: notificationIds }, recipientId: userId, isRead: false },
 			data: { isRead: true }
 		});
 		return result.count;
 	}
 
-	// 标记全部未读通知为已读
 	const result = await prisma.notification.updateMany({
-		where: {
-			recipientId: userId,
-			isRead: false
-		},
+		where: { recipientId: userId, isRead: false },
 		data: { isRead: true }
 	});
 	return result.count;

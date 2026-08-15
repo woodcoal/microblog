@@ -105,6 +105,64 @@ pnpm run dev
 
 邮箱验证邮件默认不投递，确保本地开发与测试不会误发真实邮件。生产环境可配置受信任的邮件 webhook；其 URL 和 Authorization 仅从运行期机密配置读取，原始验证令牌只进入一次性链接，不写入数据库、日志或仓库。
 
+## Webhook 协议
+
+Webhook 是用户主动配置的单向通知投递通道；每个事件向配置 URL 发出 `POST` JSON。它不接收或保存接收端响应 body，只有 `2xx` 表示本次投递成功；网络失败、超时和非 `2xx` 仅记录服务端日志，不影响关注、评论、点赞或发帖等主操作，当前不重试。
+
+支持事件：`notification.follow`、`notification.comment`、`notification.like`、`notification.mention`。同一通知的 `id` 在每次投递中稳定，可作为接收端幂等键。
+
+### 请求头与验签
+
+| 请求头                | 含义                                                                      |
+| --------------------- | ------------------------------------------------------------------------- |
+| `Content-Type`        | `application/json`                                                        |
+| `X-Webhook-Id`        | 与 body 的 `id` 相同，用于幂等去重                                        |
+| `X-Webhook-Timestamp` | 与 body 的 `occurredAt` 相同的 ISO 8601 时间                              |
+| `X-Webhook-Signature` | `sha256=<hex>`，使用 Webhook Secret 对**原始 UTF-8 请求体**做 HMAC-SHA256 |
+
+接收端必须先读取原始 body bytes，使用其保存的 64 位十六进制 Secret 计算 HMAC-SHA256，再以恒定时间比较 `X-Webhook-Signature`。不得先解析再序列化 JSON 后验签。建议同时拒绝超出自身允许时间窗的 `X-Webhook-Timestamp`，并按 `X-Webhook-Id` 去重。
+
+### 事件结构
+
+```json
+{
+	"schemaVersion": 1,
+	"id": "通知 ID",
+	"event": "notification.comment",
+	"occurredAt": "2026-08-15T09:00:00.000Z",
+	"data": {
+		"notification": {
+			"id": "通知 ID",
+			"type": "comment",
+			"createdAt": "2026-08-15T09:00:00.000Z"
+		},
+		"actor": {
+			"id": "触发者 ID",
+			"username": "alice",
+			"displayName": "Alice",
+			"avatarUrl": "/media/avatars/file-storage-id"
+		},
+		"post": {
+			"id": "帖子 ID",
+			"title": "帖子标题或 null",
+			"url": "/alice/post-id"
+		},
+		"comment": {
+			"id": "评论 ID",
+			"content": "评论纯文本",
+			"parentId": null,
+			"url": "/alice/post-id#comment-comment-id"
+		}
+	}
+}
+```
+
+- `actor` 始终存在。
+- `post` 仅在事件关联且帖子未删除时存在；链接为相对站内路径。
+- `comment` 仅在关联评论未删除、对应 `post` 可提供且接收者仍可查看该帖子时存在。它包含评论纯文本；帖子正文、邮箱、密码、允许名单和内部管理字段永不投递。
+- 私密、密码保护或接收者不再有权查看的帖子不会提供 `post` 与 `comment`，避免 Webhook 在内容生命周期变化后重新泄露文本。
+- `schemaVersion` 为兼容边界。新增可选字段不会改变 `1` 的既有字段含义。
+
 ## 项目结构
 
 src/

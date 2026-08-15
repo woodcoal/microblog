@@ -33,8 +33,10 @@ const EVENT_OPTIONS = [
 
 <div class="settings-section" data-webhook-manager data-webhooks={initialWebhooks}>
 	<h2 class="section-title">Webhook</h2>
-	<p class="section-desc">当收到通知时，Webhook 会向指定 URL 发送 HTTP POST 请求。</p>
-
+	<p class="section-desc">
+		通知事件会向指定 URL 发送已签名的 HTTP POST。接收端仅将 2xx 视为成功，并应使用
+		X-Webhook-Signature 对原始请求体验签；完整事件结构见 README。
+	</p>
 	{/* 创建 Webhook 表单 */}
 	<div class="create-form">
 		<input
