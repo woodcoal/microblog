@@ -37,6 +37,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const csrfToken = getOrCreateCsrfToken(context);
 	context.locals.csrfToken = csrfToken;
 	const isAdminRoute = url.pathname === '/admin' || url.pathname.startsWith('/admin/');
+	let uploadRateLimitInfo: ReturnType<typeof consumeRateLimit> | undefined;
 
 	// 布局组件无法向页面路由返回 Response，权限分支必须在中间件中短路，
 	// 才能保证未登录重定向和普通用户 403 都保留正确 HTTP 状态。
@@ -72,9 +73,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// /api/upload 是浏览器 Cookie 上传入口，不属于外部 API 前缀，仍需独立消耗上传配额。
 	if (isUpload && !isApi) {
-		const rateLimitInfo = consumeRateLimit(request, url.pathname);
-		if (!rateLimitInfo.allowed)
-			return withRateLimitHeaders(rateLimitExceededResponse(rateLimitInfo), rateLimitInfo);
+		uploadRateLimitInfo = consumeRateLimit(request, url.pathname);
+		if (!uploadRateLimitInfo.allowed)
+			return withRateLimitHeaders(
+				rateLimitExceededResponse(uploadRateLimitInfo),
+				uploadRateLimitInfo
+			);
 	}
 
 	if (isApi) {
@@ -129,5 +133,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		if (!valid) return csrfFailureResponse();
 	}
 
-	return next();
+	const response = await next();
+	return uploadRateLimitInfo ? withRateLimitHeaders(response, uploadRateLimitInfo) : response;
 });

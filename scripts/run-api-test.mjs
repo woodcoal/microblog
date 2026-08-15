@@ -16,6 +16,15 @@ const suites = {
 			API_UPLOAD_BODY_LIMIT_BYTES: '1024'
 		}
 	},
+	'upload-http': {
+		testFile: 'tests/upload-http.acceptance.test.ts',
+		rateLimits: {
+			API_RATE_LIMIT_READ: '1000',
+			API_RATE_LIMIT_WRITE: '1000',
+			API_RATE_LIMIT_UPLOAD: '100'
+		},
+		uploadBodyLimit: '4096'
+	},
 	'admin-auth': {
 		testFile: 'tests/admin-authorization.acceptance.test.ts',
 		rateLimits: {
@@ -55,7 +64,8 @@ const env = {
 	DATABASE_PROVIDER: provider,
 	DATABASE_URL: databaseUrl,
 	API_AGENT_KEY: process.env.API_AGENT_KEY || 'agent-api-test-key',
-	...config.rateLimits
+	...config.rateLimits,
+	...(config.uploadBodyLimit ? { API_UPLOAD_BODY_LIMIT_BYTES: config.uploadBodyLimit } : {})
 };
 
 function run(command, args) {
