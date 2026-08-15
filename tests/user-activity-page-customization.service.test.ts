@@ -10,6 +10,7 @@ import {
 	readPageCustomization,
 	updatePageCustomization
 } from '../src/services/page-customization.service';
+import { updateSiteCopy } from '../src/services/site-copy.service';
 
 const suffix = crypto.randomUUID().replaceAll('-', '');
 const name = (prefix: string) => `${prefix}${suffix}`.slice(0, 20);
@@ -81,7 +82,7 @@ test('成功登录、发帖、评论与点赞都由服务端更新活动时间�
 	);
 });
 
-test('页面自定义仅管理员可读写，页脚审计与脚本配置一起保存', async () => {
+test('页面定制仅管理员可读写统计脚本，页脚通过固定文案版本保存', async () => {
 	const admin = await prisma.user.create({
 		data: {
 			username: name('admin'),
@@ -104,15 +105,19 @@ test('页面自定义仅管理员可读写，页脚审计与脚本配置一起�
 	await assert.rejects(readPageCustomization(member.id), /仅管理员可操作/);
 	const result = await updatePageCustomization({
 		userId: admin.id,
-		footerMarkdown: '页脚 [链接](https://example.test) <script>alert(1)</script>',
 		publicAnalyticsScript: '<script src="https://analytics.example.test/a.js"></script>'
 	});
-	assert.match(result.footer.html, /https:\/\/example\.test/);
-	assert.doesNotMatch(result.footer.html, /<script/i);
 	assert.equal(
 		result.publicAnalyticsScript,
 		'<script src="https://analytics.example.test/a.js"></script>'
 	);
+	const footer = await updateSiteCopy({
+		key: 'global.footer',
+		markdown: '页脚 [链接](https://example.test) <script>alert(1)</script>',
+		updatedById: admin.id
+	});
+	assert.match(footer.html, /https:\/\/example\.test/);
+	assert.doesNotMatch(footer.html, /<script/i);
 	assert.equal(
 		await prisma.siteCopyVersion.count({
 			where: { key: 'global.footer', updatedById: admin.id }

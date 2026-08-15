@@ -1,28 +1,8 @@
 ---
-/** 管理员页面定制表单。读取与保存均走受 CSRF 保护的 Astro Action。 */
+/** 管理员公开页面统计脚本表单。读取与保存均走受 CSRF 保护的 Astro Action。 */
 ---
 
 <form id="page-customization-form" class="admin-form" aria-describedby="page-customization-status">
-	<fieldset class="admin-fieldset">
-		<legend>全局页脚</legend>
-		<p class="admin-fieldset-desc">
-			支持纯文本、换行和安全链接。不会渲染 HTML、图片或脚本；留空后使用站点默认页脚。
-		</p>
-		<div class="admin-form-group">
-			<label class="admin-form-label" for="global-footer-markdown">页脚文案</label>
-			<textarea
-				id="global-footer-markdown"
-				class="admin-form-input admin-form-textarea"
-				rows="6"
-				maxlength="4000"
-				disabled
-				aria-describedby="global-footer-help"></textarea>
-			<p class="admin-form-hint" id="global-footer-help">最多 4000 个字符。</p>
-		</div>
-	</fieldset>
-
-	<hr class="admin-form-divider" />
-
 	<fieldset class="admin-fieldset">
 		<legend>公开页面统计脚本</legend>
 		<p class="admin-fieldset-desc">
@@ -49,7 +29,7 @@
 			>保存设置</button
 		>
 		<button type="button" class="btn btn-outline" id="page-customization-clear" disabled>
-			清空全部设置
+			清空脚本
 		</button>
 		<p id="page-customization-status" class="admin-form-msg" role="status" aria-live="polite">
 		</p>
@@ -60,7 +40,6 @@
 	import { actions } from 'astro:actions';
 
 	const form = document.getElementById('page-customization-form') as HTMLFormElement;
-	const footer = document.getElementById('global-footer-markdown') as HTMLTextAreaElement;
 	const analyticsScript = document.getElementById(
 		'public-analytics-script'
 	) as HTMLTextAreaElement;
@@ -73,7 +52,6 @@
 	}
 
 	function setControlsDisabled(disabled: boolean): void {
-		footer.disabled = disabled;
 		analyticsScript.disabled = disabled;
 		saveButton.disabled = disabled;
 		clearButton.disabled = disabled;
@@ -93,7 +71,6 @@
 				setStatus(getErrorMessage(result.error, '读取页面设置失败，请刷新后重试。'), true);
 				return;
 			}
-			footer.value = result.data.footer.markdown;
 			analyticsScript.value = result.data.publicAnalyticsScript;
 			setControlsDisabled(false);
 			setStatus('');
@@ -105,21 +82,17 @@
 		}
 	}
 
-	async function saveCustomization(input: {
-		footerMarkdown?: string;
-		publicAnalyticsScript?: string;
-	}): Promise<void> {
+	async function saveCustomization(publicAnalyticsScript: string): Promise<void> {
 		setControlsDisabled(true);
 		setStatus('正在保存…');
 		try {
-			const result = await actions.updatePageCustomizationAction(input);
+			const result = await actions.updatePageCustomizationAction({ publicAnalyticsScript });
 			if (result.error || !result.data) {
 				setStatus(getErrorMessage(result.error, '保存失败，请稍后重试。'), true);
 				return;
 			}
-			footer.value = result.data.footer.markdown;
 			analyticsScript.value = result.data.publicAnalyticsScript;
-			setStatus('已保存，允许展示的页面会在下次请求时使用最新设置。');
+			setStatus('已保存，公开页面会在下次请求时使用最新设置。');
 		} catch (error) {
 			setStatus(error instanceof Error ? error.message : '保存失败，请稍后重试。', true);
 		} finally {
@@ -129,14 +102,11 @@
 
 	form.addEventListener('submit', (event) => {
 		event.preventDefault();
-		void saveCustomization({
-			footerMarkdown: footer.value,
-			publicAnalyticsScript: analyticsScript.value
-		});
+		void saveCustomization(analyticsScript.value);
 	});
 
 	clearButton.addEventListener('click', () => {
-		void saveCustomization({ footerMarkdown: '', publicAnalyticsScript: '' });
+		void saveCustomization('');
 	});
 
 	void loadCustomization();

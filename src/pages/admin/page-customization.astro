@@ -1,5 +1,5 @@
 ---
-/** 管理员维护公开页面页脚与统计脚本。权限由 AdminLayout 和 Action 双重核验。 */
+/** 管理员维护公开页面统计脚本。权限由 AdminLayout 和 Action 双重核验。 */
 import PageCustomizationEditor from '@/components/admin/PageCustomizationEditor.astro';
 import AdminLayout from '@/layouts/Admin.astro';
 ---
@@ -9,7 +9,7 @@ import AdminLayout from '@/layouts/Admin.astro';
 		<header class="admin-page-heading">
 			<p class="admin-page-eyebrow">站点设置</p>
 			<h1 class="admin-page-title" id="page-customization-title">页面定制</h1>
-			<p>统一维护公开页面的页脚文案与统计脚本。管理后台和验证流程不会加载统计脚本。</p>
+			<p>统计脚本只在公开页面加载，管理后台和验证流程不会加载。</p>
 		</header>
 
 		<PageCustomizationEditor />

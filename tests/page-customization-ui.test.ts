@@ -27,18 +27,21 @@ test('基础布局仅在允许页面渲染页脚和公开统计脚本', async ()
 	assert.match(source, /<Fragment set:html=\{publicAnalyticsScript\} \/>/);
 });
 
-test('页面定制页使用受保护 Action，并将错误状态暴露给管理员', async () => {
-	const [page, editor, layout] = await Promise.all([
+test('页脚由站点文案页维护，页面定制页仅维护受保护的统计脚本', async () => {
+	const [siteCopyPage, page, editor, layout] = await Promise.all([
+		read('src/pages/admin/site-copy.astro'),
 		read('src/pages/admin/page-customization.astro'),
 		read('src/components/admin/PageCustomizationEditor.astro'),
 		read('src/layouts/Admin.astro')
 	]);
+	assert.match(siteCopyPage, /key: 'global\.footer'/);
+	assert.match(siteCopyPage, /title: '全局页脚'/);
 	assert.match(page, /<AdminLayout title="页面定制">/);
 	assert.match(editor, /actions\.getPageCustomization\(\)/);
-	assert.match(editor, /actions\.updatePageCustomizationAction\(input\)/);
+	assert.match(editor, /actions\.updatePageCustomizationAction\(\{ publicAnalyticsScript \}\)/);
 	assert.match(editor, /安全提示：脚本会以本站权限/);
 	assert.match(editor, /role="status" aria-live="polite"/);
-	assert.match(editor, /footerMarkdown: '', publicAnalyticsScript: ''/);
+	assert.doesNotMatch(editor, /footerMarkdown/);
 	assert.match(layout, /path: '\/admin\/page-customization'/);
 });
 

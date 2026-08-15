@@ -156,21 +156,9 @@ export const getPageCustomization = defineAction({
 });
 
 export const updatePageCustomizationAction = defineAction({
-	input: z
-		.object({
-			footerMarkdown: z.string().max(4000).optional(),
-			publicAnalyticsScript: z
-				.string()
-				.max(64 * 1024)
-				.optional()
-		})
-		.refine(
-			(value) =>
-				value.footerMarkdown !== undefined || value.publicAnalyticsScript !== undefined,
-			{
-				message: '至少提供一项页面自定义配置'
-			}
-		),
+	input: z.object({
+		publicAnalyticsScript: z.string().max(64 * 1024)
+	}),
 	handler: async (input, context) => {
 		const currentUser = await requireCurrentUser(context);
 		try {
