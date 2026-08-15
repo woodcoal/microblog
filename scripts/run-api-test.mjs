@@ -12,7 +12,8 @@ const suites = {
 		rateLimits: {
 			API_RATE_LIMIT_READ: '1000',
 			API_RATE_LIMIT_WRITE: '1000',
-			API_RATE_LIMIT_UPLOAD: '1000'
+			API_RATE_LIMIT_UPLOAD: '1000',
+			API_UPLOAD_BODY_LIMIT_BYTES: '1024'
 		}
 	},
 	'admin-auth': {

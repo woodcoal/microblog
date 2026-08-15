@@ -3,8 +3,7 @@
  *
  * POST /api/upload — 上传文件（需认证）
  *
- * 注意：Astro 组件应优先使用 actions.uploadMedia() SDK 调用，
- * 此 API 路由保留供 React Island 等无法使用 astro:actions 的场景使用。
+ * 帖子、论坛和博客编辑器均通过此入口上传，限制在服务重启后读取运行期环境变量。
  */
 import type { APIRoute } from 'astro';
 import { requireAuth } from '@/lib/auth';

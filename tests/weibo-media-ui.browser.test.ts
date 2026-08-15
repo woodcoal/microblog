@@ -42,7 +42,7 @@ test(
 			await page.setRequestInterception(true);
 			page.on('request', (request) => {
 				const pathname = new URL(request.url()).pathname;
-				if (pathname === '/_actions/uploadMedia') {
+				if (pathname === '/api/upload') {
 					uploadRequests += 1;
 					if (uploadRequests === 1) {
 						heldImageRequest = request;

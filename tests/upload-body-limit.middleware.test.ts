@@ -68,8 +68,19 @@ test('Astro 中间件在 API、Action 与 CSRF 解析前执行上传门禁', asy
 		'const bodyResult = await checkBodyLimit(request, getBodyLimit(url.pathname));'
 	);
 	assert.ok(gate >= 0);
-	assert.ok(gate < source.indexOf('if (isApiRoute(url.pathname))'));
+	assert.ok(gate < source.indexOf('if (isApi)'));
 	assert.ok(
 		gate < source.indexOf('const valid = await validateCsrfToken(request, context.cookies);')
 	);
+});
+
+test('/api/upload 使用独立上传限流，且限流发生在 CSRF 校验前', async () => {
+	const source = await readFile(new URL('../src/middleware.ts', import.meta.url), 'utf8');
+	const rateLimit = source.indexOf('if (isUpload && !isApi)');
+	assert.ok(rateLimit >= 0);
+	assert.ok(
+		rateLimit <
+			source.indexOf('const valid = await validateCsrfToken(request, context.cookies);')
+	);
+	assert.match(source, /consumeRateLimit\(request, url\.pathname\)/);
 });

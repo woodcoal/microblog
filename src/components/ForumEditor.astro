@@ -469,27 +469,20 @@ const hasInitialContent = initialEditorContent.length > 0;
 	 * - 暴露 getContent() 方法供外部表单获取内容
 	 */
 	import { actions } from 'astro:actions';
+	import { uploadMedia } from '@/scripts/shared/upload-media';
 
 	/**
 	 * 上传图片文件到服务器
 	 *
-	 * 通过 Astro Actions SDK 调用 uploadMedia action。
-	 * 因为 action 定义了 accept: 'form'，必须传 FormData 而非普通对象，
-	 * 否则 SDK 会 JSON.stringify 发送 application/json，服务器返回 415。
+	 * 通过运行期 /api/upload 上传，客户端自动携带 Cookie 与 CSRF 令牌。
 	 *
 	 * @param file - 要上传的图片文件
 	 * @returns 上传成功后的图片 URL 或错误信息
 	 */
 	async function uploadImageFile(file: File): Promise<{ url?: string; error?: string }> {
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('fileType', 'image');
 		try {
-			const result = await actions.uploadMedia(formData);
-			if (result.data?.url) {
-				return { url: result.data.url };
-			}
-			return { error: result.error?.message || '图片上传失败，请重试' };
+			const result = await uploadMedia(file, 'image');
+			return { url: result.url };
 		} catch (error) {
 			return { error: error instanceof Error ? error.message : '图片上传失败，请重试' };
 		}

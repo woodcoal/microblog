@@ -28,6 +28,7 @@ let aliceId = '';
 let bobId = '';
 let postId = '';
 let uploadedUrl = '';
+let legacyUploadPath = '';
 
 async function request(path: string, init: RequestInit = {}) {
 	return fetch(`${BASE_URL}${path}`, {
@@ -151,6 +152,9 @@ after(async () => {
 	await prisma.$disconnect();
 	if (uploadedUrl.startsWith('/uploads/') && !uploadedUrl.includes('..')) {
 		await unlink(resolve('public', uploadedUrl.slice(1))).catch(() => {});
+	}
+	if (legacyUploadPath && !legacyUploadPath.includes('..')) {
+		await unlink(resolve('public', legacyUploadPath)).catch(() => {});
 	}
 });
 
@@ -340,6 +344,85 @@ test('普通 Agent 写请求在解析前拒绝超大请求体', async () => {
 	});
 	assert.equal(oversized.status, 413);
 	assert.match(await plainText(oversized), /^error: 请求体超过大小限制$/);
+});
+
+test('浏览器 /api/upload 保留 Cookie 与 CSRF，并在真实 HTTP 流中执行上传体积门禁', async () => {
+	const user = await prisma.user.findUniqueOrThrow({
+		where: { id: aliceId },
+		select: { id: true, username: true, role: true, credentialVersion: true }
+	});
+	const token = await generateToken({
+		userId: user.id,
+		username: user.username,
+		role: user.role,
+		credentialVersion: user.credentialVersion
+	});
+	const csrfToken = 'c'.repeat(43);
+	const cookie = `token=${encodeURIComponent(token)}; mutan_csrf=${csrfToken}`;
+	const headers = { cookie, 'x-csrf-token': csrfToken };
+	const png = new Uint8Array([
+		137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6,
+		0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31,
+		0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130
+	]);
+
+	const form = new FormData();
+	form.set('file', new File([png], 'legacy-upload.png', { type: 'image/png' }));
+	form.set('fileType', 'image');
+	const upload = await request('/api/upload', { method: 'POST', headers, body: form });
+	assert.equal(upload.status, 201, await upload.clone().text());
+	const uploadBody = (await upload.json()) as {
+		success: boolean;
+		data: { fileStorageId: string };
+	};
+	assert.equal(uploadBody.success, true);
+	const stored = await prisma.fileStorage.findUniqueOrThrow({
+		where: { id: uploadBody.data.fileStorageId },
+		select: { filePath: true }
+	});
+	legacyUploadPath = stored.filePath;
+
+	const noLogin = await request('/api/upload', {
+		method: 'POST',
+		headers: { cookie: `mutan_csrf=${csrfToken}`, 'x-csrf-token': csrfToken },
+		body: form
+	});
+	assert.equal(noLogin.status, 401);
+	const invalidCsrf = await request('/api/upload', {
+		method: 'POST',
+		headers: { cookie },
+		body: form
+	});
+	assert.equal(invalidCsrf.status, 403);
+
+	const oversized = await request('/api/upload', {
+		method: 'POST',
+		headers,
+		body: new Uint8Array(1025)
+	});
+	assert.equal(oversized.status, 413);
+	assert.deepEqual(await oversized.json(), {
+		success: false,
+		error: { message: '请求体超过大小限制', status: 413 }
+	});
+
+	const chunked = await request('/api/upload', {
+		method: 'POST',
+		headers,
+		body: new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new Uint8Array(512));
+				controller.enqueue(new Uint8Array(513));
+				controller.close();
+			}
+		}),
+		duplex: 'half'
+	} as RequestInit);
+	assert.equal(chunked.status, 413);
+	assert.deepEqual(await chunked.json(), {
+		success: false,
+		error: { message: '请求体超过大小限制', status: 413 }
+	});
 });
 
 test('上传预览 URL、imageUrls 旧路径兼容、组合过滤、详情和错误映射', async () => {

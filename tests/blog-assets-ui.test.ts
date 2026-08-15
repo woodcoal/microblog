@@ -18,7 +18,7 @@ test('博客资源面板仅限制格式和数量，并通过 reservation action 
 		'const ATTACHMENT_ACCEPT ='
 	]);
 	assert.doesNotMatch(assets, /附件总大小|单附件.*限制/);
-	assert.match(assets, /actions\.uploadMedia/);
+	assert.match(assets, /uploadMedia\(file, fileType\)/);
 	assert.match(assets, /actions\.cancelUpload/);
 	assert.match(assets, /attachmentFileStorageIds/);
 	assert.match(assets, /aria-label={`将 \$\{asset\.originalName\} 上移`}/);

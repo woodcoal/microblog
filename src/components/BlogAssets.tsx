@@ -2,6 +2,7 @@ import { actions } from 'astro:actions';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChangeEvent } from 'react';
+import { uploadMedia } from '@/scripts/shared/upload-media';
 
 const MAX_ATTACHMENTS = 10;
 const ATTACHMENT_ACCEPT = '.pdf,.zip,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rar,.7z';
@@ -28,16 +29,6 @@ interface BlogAssetsProps {
 	containerId?: string;
 }
 
-interface UploadResponse {
-	id: string;
-	fileStorageId: string;
-	reservationId: string;
-	previewUrl: string;
-	fileType: string;
-	originalName: string;
-	fileSize: number;
-}
-
 function formatSize(bytes: number): string {
 	if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 	return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
@@ -49,12 +40,7 @@ function isAllowedAttachment(file: File): boolean {
 }
 
 async function uploadAsset(file: File, fileType: 'image' | 'attachment'): Promise<BlogAsset> {
-	const formData = new FormData();
-	formData.append('file', file);
-	formData.append('fileType', fileType);
-	const result = await actions.uploadMedia(formData);
-	if (!result.data) throw new Error(result.error?.message || '上传失败，请重试');
-	const upload = result.data as UploadResponse;
+	const upload = await uploadMedia(file, fileType);
 	return {
 		fileStorageId: upload.fileStorageId,
 		originalName: upload.originalName,
