@@ -128,6 +128,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 	}
 
 	// 3. 验证 parentId 属于同一帖子
+	let parentCommentAuthorId: string | undefined;
 	if (parentId) {
 		const parentComment = await findCommentById(parentId);
 		if (!parentComment) {
@@ -140,6 +141,7 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 		if (parentComment.parentId) {
 			throw new ServiceError('BAD_REQUEST', '不支持多级嵌套回复');
 		}
+		parentCommentAuthorId = parentComment.userId;
 	}
 
 	// 4. 创建评论
@@ -164,6 +166,17 @@ export async function createComment(input: CreateCommentInput): Promise<CreateCo
 
 	// 5. 异步通知和活动日志
 	createNotification('comment', userId, post.userId, postId, comment.id).catch(() => {});
+	if (parentCommentAuthorId && parentCommentAuthorId !== post.userId) {
+		createNotification('comment', userId, parentCommentAuthorId, postId, comment.id).catch(
+			() => {}
+		);
+	}
+	for (const mentionedUser of await findMentionedUserIds(
+		parseMentions(comment.content),
+		userId
+	)) {
+		createNotification('mention', userId, mentionedUser.id, postId, comment.id).catch(() => {});
+	}
 	logActivity(COMMENT_CREATE, userId, 'comment', comment.id, post.userId, postId).catch(() => {});
 
 	return {

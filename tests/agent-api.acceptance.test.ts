@@ -18,14 +18,17 @@ const AGENT_KEY = 'agent-api-test-key';
 const RUN_ID = `${crypto.randomUUID().replaceAll('-', '')}${Date.now()}`;
 const alice = `ag_alice_${RUN_ID}`.slice(0, 20);
 const bob = `ag_bob_${RUN_ID}`.slice(0, 20);
+const charlie = `ag_charlie_${RUN_ID}`.slice(0, 20);
 const password = 'agent-acceptance-password';
 
 let serverOutput = '';
 let aliceToken = '';
 let aliceReplacementToken = '';
 let bobToken = '';
+let charlieToken = '';
 let aliceId = '';
 let bobId = '';
+let charlieId = '';
 let postId = '';
 let uploadedUrl = '';
 let legacyUploadPath = '';
@@ -138,13 +141,15 @@ before(async () => {
 	await waitForServer();
 	aliceToken = await register(alice);
 	bobToken = await register(bob);
+	charlieToken = await register(charlie);
 	const users = await prisma.user.findMany({
-		where: { username: { in: [alice, bob] } },
+		where: { username: { in: [alice, bob, charlie] } },
 		select: { id: true, username: true }
 	});
 	aliceId = users.find((user) => user.username === alice)?.id ?? '';
 	bobId = users.find((user) => user.username === bob)?.id ?? '';
-	assert.ok(aliceId && bobId);
+	charlieId = users.find((user) => user.username === charlie)?.id ?? '';
+	assert.ok(aliceId && bobId && charlieId);
 });
 
 after(async () => {
@@ -699,13 +704,49 @@ test('Agent 换绑确认前保持旧邮箱，确认后旧 API Token 立即失效
 	assert.match(await plainText(login), /^ok: 登录成功\napiKey: mt_/);
 });
 
-test('评论、点赞和关注的显式 action 保持幂等', async () => {
+test('评论、回复、提及、点赞和关注的显式 action 保持幂等', async () => {
 	const comment = await request('/api/agent/comments', {
 		method: 'POST',
 		headers: bearer(bobToken, true),
 		body: JSON.stringify({ postId, content: `comment-${RUN_ID}` })
 	});
 	assert.equal(comment.status, 201, await comment.clone().text());
+	const parentCommentId = (await plainText(comment)).slice(4);
+
+	const reply = await request('/api/agent/comments', {
+		method: 'POST',
+		headers: bearer(charlieToken, true),
+		body: JSON.stringify({ postId, parentId: parentCommentId, content: `reply @${bob}` })
+	});
+	assert.equal(reply.status, 201, await reply.clone().text());
+	const replyId = (await plainText(reply)).slice(4);
+
+	for (let attempt = 0; attempt < 20; attempt++) {
+		const notifications = await prisma.notification.findMany({
+			where: { recipientId: bobId, commentId: replyId },
+			select: { type: true }
+		});
+		if (
+			notifications.some((notification) => notification.type === 'comment') &&
+			notifications.some((notification) => notification.type === 'mention')
+		)
+			break;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+	const replyNotifications = await prisma.notification.findMany({
+		where: { recipientId: bobId, commentId: replyId },
+		select: { type: true }
+	});
+	assert.deepEqual(replyNotifications.map((notification) => notification.type).sort(), [
+		'comment',
+		'mention'
+	]);
+	assert.equal(
+		await prisma.notification.count({
+			where: { recipientId: aliceId, commentId: replyId, type: 'comment' }
+		}),
+		1
+	);
 
 	for (const action of ['like', 'like'] as const) {
 		const response = await request('/api/agent/likes', {
