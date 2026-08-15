@@ -78,4 +78,14 @@ test('Agent OpenAPI 表达全局入口密钥与用户 Token 的 AND 关系', () 
 		spec.paths['/login'].post.responses[200].content['text/plain'].example,
 		/apiKey: mt_example/
 	);
+	for (const path of ['/posts/{id}', '/comments/{id}', '/notifications/{id}'] as const) {
+		assert.deepEqual(
+			spec.paths[path].delete.security,
+			[{ AgentGlobalKey: [], BearerAPIToken: [] }],
+			path
+		);
+	}
+	assert.deepEqual(spec.paths['/notifications/read'].post.security, [
+		{ AgentGlobalKey: [], BearerAPIToken: [] }
+	]);
 });

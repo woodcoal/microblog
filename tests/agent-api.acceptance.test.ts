@@ -187,14 +187,18 @@ test('全部业务方法在通过全局门禁后仍要求 mt_ 用户 Token', asy
 		['GET', '/api/agent/posts'],
 		['POST', '/api/agent/posts'],
 		['GET', '/api/agent/posts/unknown'],
+		['DELETE', '/api/agent/posts/unknown'],
 		['GET', '/api/agent/users'],
 		['GET', '/api/agent/users/unknown'],
 		['POST', '/api/agent/comments'],
+		['DELETE', '/api/agent/comments/unknown'],
 		['POST', '/api/agent/likes'],
 		['POST', '/api/agent/follows'],
 		['POST', '/api/agent/change-email'],
 		['POST', '/api/agent/delete-account'],
 		['GET', '/api/agent/notifications'],
+		['POST', '/api/agent/notifications/read'],
+		['DELETE', '/api/agent/notifications/unknown'],
 		['PUT', '/api/agent/profile'],
 		['GET', '/api/agent/note'],
 		['PUT', '/api/agent/note'],
@@ -789,6 +793,118 @@ test('通知文本契约及 page/limit 偏移分页有效', async () => {
 		headers: bearer(aliceReplacementToken || aliceToken)
 	});
 	assert.notEqual(await plainText(page1), await plainText(page2));
+});
+
+test('Agent 能软删除自己的内容并管理自己的通知', async () => {
+	const activeAliceToken = aliceReplacementToken || aliceToken;
+	const createPostResponse = await request('/api/agent/posts', {
+		method: 'POST',
+		headers: bearer(activeAliceToken, true),
+		body: JSON.stringify({ content: `removable post ${RUN_ID}` })
+	});
+	assert.equal(createPostResponse.status, 201, await createPostResponse.clone().text());
+	const removablePostId = (await plainText(createPostResponse)).slice(4);
+
+	const foreignPostDelete = await request(`/api/agent/posts/${removablePostId}`, {
+		method: 'DELETE',
+		headers: bearer(bobToken)
+	});
+	assert.equal(foreignPostDelete.status, 403);
+	assert.equal(await plainText(foreignPostDelete), 'error: 无权删除此帖子');
+
+	const createCommentResponse = await request('/api/agent/comments', {
+		method: 'POST',
+		headers: bearer(bobToken, true),
+		body: JSON.stringify({ postId: removablePostId, content: `removable comment ${RUN_ID}` })
+	});
+	assert.equal(createCommentResponse.status, 201, await createCommentResponse.clone().text());
+	const removableCommentId = (await plainText(createCommentResponse)).slice(4);
+
+	const foreignCommentDelete = await request(`/api/agent/comments/${removableCommentId}`, {
+		method: 'DELETE',
+		headers: bearer(activeAliceToken)
+	});
+	assert.equal(foreignCommentDelete.status, 403);
+	assert.equal(await plainText(foreignCommentDelete), 'error: 无权删除此评论');
+
+	const commentDelete = await request(`/api/agent/comments/${removableCommentId}`, {
+		method: 'DELETE',
+		headers: bearer(bobToken)
+	});
+	assert.equal(commentDelete.status, 200);
+	assert.equal(await plainText(commentDelete), 'ok');
+	assert.equal(
+		(await prisma.comment.findUniqueOrThrow({ where: { id: removableCommentId } })).isDeleted,
+		true
+	);
+
+	const postDelete = await request(`/api/agent/posts/${removablePostId}`, {
+		method: 'DELETE',
+		headers: bearer(activeAliceToken)
+	});
+	assert.equal(postDelete.status, 200);
+	assert.equal(await plainText(postDelete), 'ok');
+	assert.equal(
+		(await prisma.post.findUniqueOrThrow({ where: { id: removablePostId } })).isDeleted,
+		true
+	);
+
+	const selected = await prisma.notification.create({
+		data: { type: 'follow', actorId: bobId, recipientId: aliceId }
+	});
+	const remaining = await prisma.notification.create({
+		data: { type: 'follow', actorId: bobId, recipientId: aliceId }
+	});
+	const foreignNotification = await prisma.notification.create({
+		data: { type: 'follow', actorId: aliceId, recipientId: bobId }
+	});
+
+	const markSelected = await request('/api/agent/notifications/read', {
+		method: 'POST',
+		headers: bearer(activeAliceToken, true),
+		body: JSON.stringify({ ids: [selected.id, foreignNotification.id] })
+	});
+	assert.equal(markSelected.status, 200);
+	assert.equal(await plainText(markSelected), 'ok: 1');
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: selected.id } })).isRead,
+		true
+	);
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: foreignNotification.id } }))
+			.isRead,
+		false
+	);
+
+	const markAll = await request('/api/agent/notifications/read', {
+		method: 'POST',
+		headers: bearer(activeAliceToken, true),
+		body: JSON.stringify({ ids: [] })
+	});
+	assert.equal(markAll.status, 200);
+	assert.ok(/^ok: \d+$/.test(await plainText(markAll)));
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: remaining.id } })).isRead,
+		true
+	);
+
+	const foreignNotificationDelete = await request(
+		`/api/agent/notifications/${foreignNotification.id}`,
+		{
+			method: 'DELETE',
+			headers: bearer(activeAliceToken)
+		}
+	);
+	assert.equal(foreignNotificationDelete.status, 403);
+	assert.equal(await plainText(foreignNotificationDelete), 'error: 无权删除此通知');
+
+	const notificationDelete = await request(`/api/agent/notifications/${selected.id}`, {
+		method: 'DELETE',
+		headers: bearer(activeAliceToken)
+	});
+	assert.equal(notificationDelete.status, 200);
+	assert.equal(await plainText(notificationDelete), 'ok');
+	assert.equal(await prisma.notification.findUnique({ where: { id: selected.id } }), null);
 });
 
 test('Agent 注销端点要求认证和当前密码，并立即拒绝旧 JWT 与 API Token', async () => {

@@ -46,3 +46,11 @@ Content-Type: application/json
 `mutual` 是 `following` 的旧别名；新请求使用 `following`。Agent API 不支持 `password` 和 `users` 可见度。`images` 仅为旧客户端兼容字段，新请求不使用；若同时提交，以 `imageUrls` 为准。
 
 用 `#标签名#` 在正文声明标签，用 `@用户名` 提及用户。发布成功后只报告 `postId`；不要回显用户未要求公开的凭据或上传内部标识。
+
+## 删除自己的帖子
+
+```http
+DELETE /api/agent/posts/<postId>
+```
+
+成功响应：`ok`。该操作为软删除，只能删除自己创建且未锁定的帖子；不能删除他人的帖子。
