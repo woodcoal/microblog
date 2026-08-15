@@ -13,7 +13,11 @@ export const POST: APIRoute = async (context) => {
 		const authResult = await requireAgentAuth(context);
 		if (authResult instanceof Response) return authResult;
 
-		const body = (await parseJsonBody(context.request)) as { ids?: unknown };
+		const rawBody = await parseJsonBody(context.request);
+		if (rawBody === null || typeof rawBody !== 'object' || Array.isArray(rawBody)) {
+			return textErrorResponse('请求体必须是 JSON 对象');
+		}
+		const body = rawBody as { ids?: unknown };
 		if (
 			body.ids !== undefined &&
 			(!Array.isArray(body.ids) ||

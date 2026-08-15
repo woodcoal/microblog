@@ -858,6 +858,19 @@ test('Agent 能软删除自己的内容并管理自己的通知', async () => {
 	const foreignNotification = await prisma.notification.create({
 		data: { type: 'follow', actorId: aliceId, recipientId: bobId }
 	});
+	for (const invalidBody of ['42', 'null']) {
+		const invalidRead = await request('/api/agent/notifications/read', {
+			method: 'POST',
+			headers: bearer(activeAliceToken, true),
+			body: invalidBody
+		});
+		assert.equal(invalidRead.status, 400, invalidBody);
+		assert.equal(await plainText(invalidRead), 'error: 请求体必须是 JSON 对象');
+	}
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: selected.id } })).isRead,
+		false
+	);
 
 	const markSelected = await request('/api/agent/notifications/read', {
 		method: 'POST',
