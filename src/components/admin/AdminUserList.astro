@@ -77,6 +77,9 @@ function formatAdminDate(value: string | null): string {
 		<button type="submit" class="btn btn-primary"> 搜索 </button>
 	</form>
 	<button type="button" class="btn btn-primary" id="create-user-open">添加用户</button>
+	<button type="button" class="btn btn-danger" id="purge-unverified-empty-users">
+		清理未验证空账号
+	</button>
 </div>
 
 <!-- 添加用户对话框 -->
@@ -353,6 +356,22 @@ function formatAdminDate(value: string | null): string {
 		});
 	}
 
+	function purgeUnverifiedEmptyUsers(): void {
+		runReasonedAdminAction({
+			title: '物理删除未验证空账号',
+			description:
+				'将物理删除所有未完成邮箱验证、从未登录或活跃、未发布内容且没有任何业务关系的普通账号。验证过的账号不会受影响，此操作不可恢复。',
+			confirmLabel: '确认物理删除',
+			allowZeroAffected: true,
+			submit: async ({ reason, requestId }) => {
+				const result = await actions.purgeUnverifiedEmptyUsers({ reason, requestId });
+				if (result.error) throw new Error(result.error.message || '清理未验证空账号失败');
+				return { affected: result.data?.affected ?? 0 };
+			},
+			onSuccess: () => window.location.reload()
+		});
+	}
+
 	const createUserDialog = document.getElementById('create-user-dialog') as HTMLDialogElement;
 	const createUserForm = document.getElementById('create-user-form') as HTMLFormElement;
 	const createUserOpen = document.getElementById('create-user-open');
@@ -365,6 +384,8 @@ function formatAdminDate(value: string | null): string {
 	const renameUserMessage = document.getElementById('rename-user-message') as HTMLElement;
 	const renameUserSubmit = document.getElementById('rename-user-submit') as HTMLButtonElement;
 
+	const purgeUnverifiedEmptyUsersButton = document.getElementById('purge-unverified-empty-users');
+	purgeUnverifiedEmptyUsersButton?.addEventListener('click', purgeUnverifiedEmptyUsers);
 	createUserOpen?.addEventListener('click', () => {
 		createUserForm.reset();
 		createUserDialog.showModal();

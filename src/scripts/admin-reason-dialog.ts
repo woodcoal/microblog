@@ -2,6 +2,7 @@ export interface ReasonedAdminActionOptions {
 	title: string;
 	description: string;
 	confirmLabel?: string;
+	allowZeroAffected?: boolean;
 	submit: (input: { reason: string; requestId: string }) => Promise<{ affected: number }>;
 	onSuccess: (affected: number) => void;
 }
@@ -145,8 +146,12 @@ export function runReasonedAdminAction(options: ReasonedAdminActionOptions): voi
 		status.textContent = '正在处理，请勿重复操作。';
 		try {
 			const { affected } = await options.submit({ reason: normalizedReason, requestId });
-			if (affected < 1) throw new Error('本次操作未影响任何记录。');
-			status.textContent = `处理完成，已影响 ${affected} 条记录。`;
+			if (affected < 1 && !options.allowZeroAffected)
+				throw new Error('本次操作未影响任何记录。');
+			status.textContent =
+				affected > 0
+					? `处理完成，已影响 ${affected} 条记录。`
+					: '处理完成，没有符合条件的记录。';
 			window.setTimeout(() => options.onSuccess(affected), 350);
 		} catch (error) {
 			status.textContent = errorMessage(error);

@@ -16,11 +16,14 @@
 		<select name="action"
 			><option value="">全部</option><option value="user.disable">禁用用户</option><option
 				value="user.enable">启用用户</option
-			><option value="post.delete">删除帖子</option><option value="post.restore"
-				>还原帖子</option
-			><option value="post.lock">锁定帖子</option><option value="post.unlock">解锁帖子</option
-			><option value="post.pin">置顶帖子</option><option value="post.unpin">取消置顶</option
-			><option value="comment.delete">删除评论</option></select
+			><option value="user.purge_unverified_empty">物理清理未验证空账号</option><option
+				value="post.delete">删除帖子</option
+			><option value="post.restore">还原帖子</option><option value="post.lock"
+				>锁定帖子</option
+			><option value="post.unlock">解锁帖子</option><option value="post.pin">置顶帖子</option
+			><option value="post.unpin">取消置顶</option><option value="comment.delete"
+				>删除评论</option
+			></select
 		>
 	</label>
 	<label>操作者公开 ID <input name="operatorId" type="text" autocomplete="off" /></label>

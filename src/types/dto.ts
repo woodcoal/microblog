@@ -32,6 +32,7 @@ export interface AttachmentDto extends MediaDto {
 export type AdminAuditAction =
 	| 'user.disable'
 	| 'user.enable'
+	| 'user.purge_unverified_empty'
 	| 'post.delete'
 	| 'post.restore'
 	| 'post.lock'

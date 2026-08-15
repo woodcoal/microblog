@@ -30,6 +30,24 @@ test('后台处置统一经过理由对话框，且不会退回 prompt', async (
 	assert.match(styles, /\.admin-reason-dialog\s*\{[\s\S]*margin: auto/);
 });
 
+test('用户管理页提供受理由保护的未验证空账号物理清理入口', async () => {
+	const [users, adminActions, adminService, readme] = await Promise.all([
+		read('src/components/admin/AdminUserList.astro'),
+		read('src/actions/admin.ts'),
+		read('src/services/admin.service.ts'),
+		read('README.md')
+	]);
+	assert.match(users, /id="purge-unverified-empty-users"/);
+	assert.match(users, /actions\.purgeUnverifiedEmptyUsers/);
+	assert.match(users, /allowZeroAffected: true/);
+	assert.match(adminActions, /purgeUnverifiedEmptyUsers/);
+	assert.match(adminService, /user\.purge_unverified_empty/);
+	assert.match(adminService, /emailVerifiedAt: null/);
+	assert.match(adminService, /lastLoginAt: null/);
+	assert.match(adminService, /posts: \{ none: \{\} \}/);
+	assert.match(readme, /未验证空账号清理/);
+});
+
 test('后台请求 ID 在缺少 crypto.randomUUID 时仍生成 UUID v4', () => {
 	const nativeUuid = 'ce7d58a1-0ac8-4ee7-a3b2-70682592f10d';
 	assert.equal(createAdminRequestId({ randomUUID: () => nativeUuid }), nativeUuid);

@@ -21,6 +21,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3
 export const ADMIN_AUDIT_ACTIONS = [
 	'user.disable',
 	'user.enable',
+	'user.purge_unverified_empty',
 	'post.delete',
 	'post.restore',
 	'post.lock',
@@ -119,6 +120,12 @@ export async function renameUserByAdmin(input: {
 		username: input.username,
 		isAdmin: true
 	});
+}
+
+export interface PurgeUnverifiedEmptyUsersInput {
+	reason: string;
+	requestId: string;
+	operatorId: string;
 }
 
 type AuditedMutationInput = {
@@ -310,6 +317,116 @@ export async function batchPosts(input: BatchPostsInput) {
 }
 export async function batchComments(input: BatchCommentsInput) {
 	return executeAuditedAdminMutation({ ...input, action: 'comment.delete' });
+}
+
+const UNVERIFIED_EMPTY_USER_WHERE: Prisma.UserWhereInput = {
+	role: 'user',
+	emailVerifiedAt: null,
+	deletedAt: null,
+	lastLoginAt: null,
+	lastActiveAt: null,
+	loginCount: 0,
+	posts: { none: {} },
+	comments: { none: {} },
+	likes: { none: {} },
+	followers: { none: {} },
+	following: { none: {} },
+	bookmarks: { none: {} },
+	sentNotifications: { none: {} },
+	receivedNotifications: { none: {} },
+	apiTokens: { none: {} },
+	webhooks: { none: {} },
+	uploadReservations: { none: {} },
+	settings: { is: null },
+	mentions: { none: {} },
+	postReads: { none: {} },
+	tagInterests: { none: {} },
+	categoryInterests: { none: {} },
+	activityLogs: { none: {} },
+	usernameRenameTargets: { none: {} },
+	usernameRenameActors: { none: {} }
+};
+
+/**
+ * 物理删除未完成邮箱验证且仅注册、没有任何业务关系的普通账号。
+ *
+ * 除无内容和关系外，账号还必须从未登录、从未活跃。每个注册账号必有 UsernameClaim，
+ * 因此同一事务内先释放其用户名占用记录，再删除用户本身；邮箱验证令牌由外键级联删除。
+ * 管理员、验证过的账号、已删除墓碑以及任一业务关系存在的账号均不在候选范围。
+ *
+ * @param input - 管理员身份、理由和幂等 requestId
+ * @returns 实际物理删除的账号数量
+ */
+
+export async function purgeUnverifiedEmptyUsers(
+	input: PurgeUnverifiedEmptyUsersInput
+): Promise<{ affected: number }> {
+	const normalized = normalizeMutationInput({
+		...input,
+		action: 'user.purge_unverified_empty',
+		ids: ['all']
+	});
+	try {
+		return await prisma.$transaction(async (tx) => {
+			await assertAdmin(tx, normalized.operatorId);
+			const replay = await tx.adminAuditLog.findUnique({
+				where: {
+					operatorId_requestId: {
+						operatorId: normalized.operatorId,
+						requestId: normalized.requestId
+					}
+				},
+				select: { affectedCount: true }
+			});
+			if (replay) return { affected: replay.affectedCount };
+
+			const candidates = await tx.user.findMany({
+				where: UNVERIFIED_EMPTY_USER_WHERE,
+				select: { id: true }
+			});
+			const candidateIds = candidates.map((candidate) => candidate.id);
+			if (candidateIds.length) {
+				await tx.usernameClaim.deleteMany({ where: { userId: { in: candidateIds } } });
+			}
+			const deleted = candidateIds.length
+				? await tx.user.deleteMany({
+						where: { id: { in: candidateIds }, ...UNVERIFIED_EMPTY_USER_WHERE }
+					})
+				: { count: 0 };
+			if (deleted.count !== candidateIds.length)
+				throw new ServiceError('BAD_REQUEST', '账号状态已并发变化，请刷新后重试');
+
+			await tx.adminAuditLog.create({
+				data: {
+					operatorId: normalized.operatorId,
+					requestId: normalized.requestId,
+					targetType: 'user',
+					action: normalized.action,
+					reason: normalized.reason,
+					requestedCount: candidateIds.length,
+					affectedCount: deleted.count,
+					targets: {
+						create: candidateIds.map((targetId) => ({ targetId, outcome: 'updated' }))
+					}
+				}
+			});
+			return { affected: deleted.count };
+		});
+	} catch (error) {
+		if (isUniqueConstraintError(error)) {
+			const replay = await prisma.adminAuditLog.findUnique({
+				where: {
+					operatorId_requestId: {
+						operatorId: input.operatorId,
+						requestId: input.requestId
+					}
+				},
+				select: { affectedCount: true }
+			});
+			if (replay) return { affected: replay.affectedCount };
+		}
+		throw error;
+	}
 }
 
 /** 仅管理员可用的最小字段审计查询，使用 (createdAt, id) 复合游标。 */

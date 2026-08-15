@@ -15,7 +15,8 @@ import {
 	queryAdminAuditLogs as queryAdminAuditLogsService,
 	toggleTagVisibility as toggleTagVisibilityService,
 	createUser as createUserService,
-	renameUserByAdmin as renameUserByAdminService
+	renameUserByAdmin as renameUserByAdminService,
+	purgeUnverifiedEmptyUsers as purgeUnverifiedEmptyUsersService
 } from '@/services/admin.service';
 import { PASSWORD_MIN_LENGTH, USERNAME_PATTERN } from '@/lib/config';
 
@@ -106,6 +107,31 @@ const renameUser = defineAction({
 		const currentUser = await requireAdmin(context);
 		try {
 			return await renameUserByAdminService({ ...input, operatorId: currentUser.userId });
+		} catch (e) {
+			handleServiceError(e);
+		}
+	}
+});
+
+/**
+ * 物理清理未完成邮箱验证且无业务关系的普通账号。
+ *
+ * @param input - 管理员处置理由和幂等 requestId
+ * @param context - Astro Action 上下文
+ * @returns 实际删除账号数
+ */
+const purgeUnverifiedEmptyUsers = defineAction({
+	input: z.object({
+		reason: z.string().trim().min(2).max(500),
+		requestId: z.string().uuid()
+	}),
+	handler: async (input, context) => {
+		const currentUser = await requireAdmin(context);
+		try {
+			return await purgeUnverifiedEmptyUsersService({
+				...input,
+				operatorId: currentUser.userId
+			});
 		} catch (e) {
 			handleServiceError(e);
 		}
@@ -223,6 +249,7 @@ const queryAdminAuditLogs = defineAction({
 			.enum([
 				'user.disable',
 				'user.enable',
+				'user.purge_unverified_empty',
 				'post.delete',
 				'post.restore',
 				'post.lock',
@@ -263,6 +290,7 @@ export {
 	batchUsers,
 	createUser,
 	renameUser,
+	purgeUnverifiedEmptyUsers,
 	batchPosts,
 	batchComments,
 	toggleTagVisibility,

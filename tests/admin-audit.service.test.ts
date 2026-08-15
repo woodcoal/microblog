@@ -7,19 +7,23 @@ import {
 	batchPosts,
 	batchUsers,
 	executeAuditedAdminMutation,
+	purgeUnverifiedEmptyUsers,
 	queryAdminAuditLogs
 } from '../src/services/admin.service';
 
 const isMySql = (process.env.DATABASE_PROVIDER ?? '').toLowerCase() === 'mysql';
+const runId = randomUUID().replaceAll('-', '').slice(0, 8);
+let userSequence = 0;
 const reason = '自动化审计测试';
 const request = () => randomUUID();
 
 async function createUser(username: string, role = 'user') {
+	const identity = `${runId}${String(++userSequence).padStart(3, '0')}`;
 	return prisma.user.create({
 		data: {
-			username,
+			username: `audit_${identity}`,
 			displayName: username,
-			email: `${username}@example.test`,
+			email: `audit_${identity}@example.test`,
 			passwordHash: 'hash',
 			role
 		}
@@ -77,7 +81,7 @@ test('解锁和取消置顶按完整动作更新状态，且保留审计幂等�
 	const author = await createUser('audit_post_state_author');
 	const post = await prisma.post.create({
 		data: {
-			id: 'audit-post-state',
+			id: `audit-state-${runId}`,
 			userId: author.id,
 			content: 'post state regression',
 			isLocked: true,
@@ -145,7 +149,7 @@ test('九类处置原子审计、幂等、回滚、筛选与复合游标均成�
 	const admin = await createUser('audit_admin', 'admin');
 	const target = await createUser('audit_target');
 	const post = await prisma.post.create({
-		data: { id: 'auditp01', userId: target.id, content: 'audit post' }
+		data: { id: `auditp${runId}`.slice(0, 8), userId: target.id, content: 'audit post' }
 	});
 	const comment = await prisma.comment.create({
 		data: { postId: post.id, userId: target.id, content: 'audit comment' }
@@ -296,16 +300,61 @@ test('九类处置原子审计、幂等、回滚、筛选与复合游标均成�
 	);
 });
 
+test('一键清理仅物理删除未验证且无业务关系的普通账号，并保留审计幂等性', async () => {
+	const admin = await createUser('purge_admin', 'admin');
+	const removable = await createUser('purge_empty');
+	const verified = await createUser('purge_verified');
+	const withLogin = await createUser('purge_login');
+	const withPost = await createUser('purge_post');
+	const withToken = await createUser('purge_token');
+	await prisma.user.update({ where: { id: verified.id }, data: { emailVerifiedAt: new Date() } });
+	await prisma.user.update({ where: { id: withLogin.id }, data: { loginCount: 1 } });
+	await prisma.post.create({
+		data: { id: `purge${runId}`.slice(0, 8), userId: withPost.id, content: 'has content' }
+	});
+	await prisma.apiToken.create({
+		data: { userId: withToken.id, name: 'used token', tokenHash: `purge-${randomUUID()}` }
+	});
+	const requestId = request();
+	const purged = await purgeUnverifiedEmptyUsers({ operatorId: admin.id, reason, requestId });
+	assert.ok(purged.affected >= 1);
+	assert.equal(await prisma.user.findUnique({ where: { id: removable.id } }), null);
+	assert.equal(await prisma.usernameClaim.findFirst({ where: { userId: removable.id } }), null);
+	for (const user of [verified, withLogin, withPost, withToken]) {
+		assert.ok(await prisma.user.findUnique({ where: { id: user.id } }));
+	}
+	assert.deepEqual(
+		await purgeUnverifiedEmptyUsers({
+			operatorId: admin.id,
+			reason: '同一请求重试不得重复删除',
+			requestId
+		}),
+		purged
+	);
+	const audit = await prisma.adminAuditLog.findUniqueOrThrow({
+		where: { operatorId_requestId: { operatorId: admin.id, requestId } },
+		include: { targets: true }
+	});
+	assert.equal(audit.action, 'user.purge_unverified_empty');
+	assert.equal(audit.affectedCount, purged.affected);
+	assert.ok(audit.targets.some((target) => target.targetId === removable.id));
+});
+
 test('媒体 slot 唯一约束允许多个 null，但拒绝同帖第二张缩略图', async () => {
 	const author = await createUser('audit_media_author');
 	const post = await prisma.post.create({
-		data: { id: 'auditm01', userId: author.id, content: 'media', mode: 'blog' }
+		data: {
+			id: `auditm${runId}`.slice(0, 8),
+			userId: author.id,
+			content: 'media',
+			mode: 'blog'
+		}
 	});
 	const files = await Promise.all(
 		[0, 1, 2, 3].map((index) =>
 			prisma.fileStorage.create({
 				data: {
-					md5Hash: `audit-hash-${index}`,
+					md5Hash: `audit-hash-${runId}-${index}`,
 					filePath: `/audit-${index}.png`,
 					fileSize: 1,
 					mimeType: 'image/png'
