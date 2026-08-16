@@ -115,7 +115,7 @@ const spec = {
 		title: `${SITE_TITLE} API`,
 		description:
 			`${SITE_DESCRIPTION} 的版本化 JSON API。` +
-			'首批仅开放公开读取、内容写入、评论、点赞、关注及登录注册。' +
+			'首批开放公开读取、内容写入、评论、点赞、关注、通知已读及登录注册。' +
 			'管理后台继续使用 Astro Actions，不开放外部 API。',
 		version: '1.0.0',
 		'x-mvp-scope': {
@@ -123,9 +123,10 @@ const spec = {
 				'公开帖子、用户帖子、时间线、搜索与标签读取',
 				'帖子与评论写操作',
 				'点赞与关注切换',
+				'将当前用户通知标记为已读',
 				'登录与注册'
 			],
-			later: ['通知', '上传', '设置', 'API Token 管理', 'Webhook', '帖子置顶'],
+			later: ['通知查询与删除', '上传', '设置', 'API Token 管理', 'Webhook', '帖子置顶'],
 			excluded: ['管理后台：仅 Astro Actions']
 		}
 	},
@@ -139,6 +140,7 @@ const spec = {
 		{ name: '时间线' },
 		{ name: '搜索' },
 		{ name: '标签' },
+		{ name: '通知' },
 		{ name: '后续迭代' }
 	],
 	components: {
@@ -399,6 +401,13 @@ const spec = {
 					count: { type: 'integer', minimum: 0 }
 				},
 				required: ['active']
+			},
+			MarkNotificationsReadResult: {
+				type: 'object',
+				properties: {
+					updatedCount: { type: 'integer', minimum: 0 }
+				},
+				required: ['updatedCount']
 			}
 		}
 	},
@@ -726,6 +735,41 @@ const spec = {
 				},
 				responses: {
 					200: successResponse('账号已永久注销'),
+					401: commonResponses[401],
+					500: commonResponses[500]
+				}
+			}
+		},
+		'/notifications/read': {
+			post: {
+				tags: ['通知'],
+				summary: '标记当前用户的通知为已读',
+				description: '省略 ids 或传空数组时，标记当前用户全部未读通知。',
+				security: bearerSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						'application/json': {
+							schema: {
+								type: 'object',
+								properties: {
+									ids: {
+										type: 'array',
+										maxItems: 100,
+										items: { type: 'string', minLength: 1 },
+										description: '要标记的通知 ID。'
+									}
+								}
+							}
+						}
+					}
+				},
+				responses: {
+					200: successResponse(
+						'标记成功',
+						'#/components/schemas/MarkNotificationsReadResult'
+					),
+					400: commonResponses[400],
 					401: commonResponses[401],
 					500: commonResponses[500]
 				}

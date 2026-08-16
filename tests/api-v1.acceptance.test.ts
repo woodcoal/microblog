@@ -193,6 +193,7 @@ test('OpenAPI 覆盖首批端点，并以产品定义的 7 种可见性描述 DT
 		['/auth/resend-verification', 'post'],
 		['/auth/change-email', 'post'],
 		['/auth/confirm-email-change', 'post'],
+		['/notifications/read', 'post'],
 		['/posts', 'get'],
 		['/posts', 'post'],
 		['/posts/{id}', 'get'],
@@ -442,7 +443,12 @@ test('所有已实现写端点在缺少 Bearer 凭证时返回 401 JSON', async 
 		request('/api/v1/comments/missing', { method: 'DELETE' }),
 		request('/api/v1/comments/missing/like', { method: 'PUT' }),
 		request(`/api/v1/users/${bob}/follow`, { method: 'PUT' }),
-		request('/api/v1/timeline/following')
+		request('/api/v1/timeline/following'),
+		request('/api/v1/notifications/read', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: '{}'
+		})
 	];
 	for (const response of await Promise.all(requests)) {
 		assert.equal(response.status, 401);
@@ -699,6 +705,52 @@ test('mt_ Bearer token 与 JWT token 均可通过 /api/v1 认证', async () => {
 	});
 	assert.equal(response.status, 200);
 	assert.ok(Array.isArray((await json<{ items: unknown[] }>(response)).items));
+});
+
+test('v1 仅将当前用户的通知标记为已读', async () => {
+	const selected = await prisma.notification.create({
+		data: { type: 'follow', actorId: aliceId, recipientId: aliceId }
+	});
+	const remaining = await prisma.notification.create({
+		data: { type: 'follow', actorId: aliceId, recipientId: aliceId }
+	});
+	const headers = { authorization: `Bearer ${aliceToken}`, 'content-type': 'application/json' };
+
+	const invalid = await request('/api/v1/notifications/read', {
+		method: 'POST',
+		headers,
+		body: JSON.stringify({ ids: [''] })
+	});
+	assert.equal(invalid.status, 400);
+	assert.equal((await json<ErrorResponse>(invalid)).error.code, 'BAD_REQUEST');
+
+	const selectedResponse = await request('/api/v1/notifications/read', {
+		method: 'POST',
+		headers,
+		body: JSON.stringify({ ids: [selected.id] })
+	});
+	assert.equal(selectedResponse.status, 200);
+	assert.deepEqual(await json<{ updatedCount: number }>(selectedResponse), { updatedCount: 1 });
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: selected.id } })).isRead,
+		true
+	);
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: remaining.id } })).isRead,
+		false
+	);
+
+	const allResponse = await request('/api/v1/notifications/read', {
+		method: 'POST',
+		headers,
+		body: '{}'
+	});
+	assert.equal(allResponse.status, 200);
+	assert.ok((await json<{ updatedCount: number }>(allResponse)).updatedCount >= 1);
+	assert.equal(
+		(await prisma.notification.findUniqueOrThrow({ where: { id: remaining.id } })).isRead,
+		true
+	);
 });
 
 test('JWT Bearer 覆盖关注切换与关注时间线', async () => {

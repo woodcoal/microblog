@@ -9,7 +9,7 @@ metadata:
 
 # 睦谈 Agent API
 
-面向自动化 Agent 的稳定纯文本接口。通用程序客户端优先使用 `/api/v1`；本技能仅覆盖 `/api/agent`。
+面向自动化 Agent 的稳定纯文本接口。通用程序客户端优先使用 `/api/v1`；其通知已读 JSON 契约见 `/api/docs.json`，本技能仅覆盖 `/api/agent`。
 
 ## 工作边界
 
