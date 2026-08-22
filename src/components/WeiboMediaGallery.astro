@@ -28,9 +28,8 @@ const columns = imageCount === 1 ? 1 : imageCount === 2 || imageCount === 4 ? 2 
 						<img
 							src={`/media/${media.id}/display`}
 							alt=""
-							loading="lazy"
 							data-lightbox={lightbox ? 'true' : undefined}
-							data-lightbox-src={lightbox ? `/media/${media.id}/original` : undefined}
+							data-lightbox-src={lightbox ? `/media/${media.id}/display` : undefined}
 						/>
 						{hiddenCount > 0 && isLast && (
 							<span

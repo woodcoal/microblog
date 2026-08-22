@@ -287,7 +287,6 @@ const spec = {
 					size: { type: 'integer', minimum: 0 },
 					type: { type: 'string', enum: ['image', 'video', 'attachment'] },
 					displayUrl: { type: 'string', description: '图片展示副本的受控地址' },
-					originalUrl: { type: 'string', description: '图片原图的受控地址' },
 					streamUrl: { type: 'string', description: '视频 Range 流地址' },
 					slot: { type: 'string', enum: ['thumbnail'], nullable: true }
 				},

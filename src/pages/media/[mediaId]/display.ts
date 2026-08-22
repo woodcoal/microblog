@@ -17,12 +17,13 @@ async function handle(context: Parameters<APIRoute>[0], head: boolean) {
 		: null;
 	if (!media || media.fileType !== 'image') return notFound();
 	const body = await readStoredFile(
-		media.fileStorage.displayFilePath || media.fileStorage.filePath
+		media.watermarkFilePath || media.fileStorage.displayFilePath || media.fileStorage.filePath
 	);
 	if (!body) return notFound();
 	return new Response(head ? null : toResponseBody(body), {
 		headers: {
-			'Content-Type': media.fileStorage.displayMimeType || media.fileStorage.mimeType,
+			'Content-Type':
+				media.watermarkMimeType || media.fileStorage.displayMimeType || media.fileStorage.mimeType,
 			'Content-Length': String(body.byteLength),
 			'X-Content-Type-Options': 'nosniff',
 			'Cache-Control': 'private, no-store'

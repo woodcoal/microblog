@@ -53,6 +53,11 @@ import { prisma } from '@/lib/db';
 import type { Prisma } from '../../generated/prisma/client';
 import { hashPassword } from '@/lib/auth';
 import { resolvePostAssets } from '@/services/post-assets.service';
+import {
+	cleanupWatermarkFiles,
+	renderMediaWatermark,
+	toWatermarkConfiguration
+} from '@/services/watermark.service';
 
 /** 评论内容最大长度 */
 const COMMENT_MAX_LENGTH = 1000;
@@ -309,6 +314,43 @@ function sanitizePost<T extends Record<string, unknown>>(post: T): T {
 	return sanitized;
 }
 
+/** 在帖子事务提交后逐图渲染水印；任一图片失败不影响发帖或其余图片。 */
+async function renderPostWatermarks(postId: string, mediaIds?: string[]): Promise<void> {
+	const [config, post] = await Promise.all([
+		prisma.systemConfig.findUnique({ where: { id: 'global' } }),
+		prisma.post.findUnique({
+			where: { id: postId },
+			select: {
+				createdAt: true,
+				user: { select: { username: true, displayName: true } },
+				media: {
+					where: { fileType: 'image', ...(mediaIds ? { id: { in: mediaIds } } : {}) },
+					select: { id: true, fileStorage: { select: { filePath: true } } }
+				}
+			}
+		})
+	]);
+	const watermark = toWatermarkConfiguration(config);
+	if (!watermark.enabled || !post) return;
+	for (const media of post.media) {
+		try {
+			await renderMediaWatermark({
+				mediaId: media.id,
+				filePath: media.fileStorage.filePath,
+				configuration: watermark,
+				username: post.user.username,
+				nickname: post.user.displayName,
+				publishedAt: post.createdAt
+			});
+		} catch (error) {
+			console.warn('media.watermark_render_failed', {
+				mediaId: media.id,
+				reason: error instanceof Error ? error.message : 'unknown'
+			});
+		}
+	}
+}
+
 /**
  * 创建帖子
  *
@@ -534,6 +576,7 @@ export async function createPost(input: CreatePostInput) {
 	);
 
 	const fullPost = await findPostWithRelations(id);
+	await renderPostWatermarks(id);
 
 	if (mentionUsernames.length > 0) {
 		const mentionedUsers = await findMentionedUserIds(mentionUsernames, userId);
@@ -765,19 +808,25 @@ export async function updatePost(input: UpdatePostInput) {
 	const tagNames = parseTags(content.trim());
 
 	// 11. 委托 lib 层事务更新帖子
-	const { post: updated, releasedFileStorageIds } = await updatePostTransaction({
-		postId,
-		previousContent: post.content,
-		updateData,
-		currentMedia,
-		mediaItems,
-		mentionUsernames,
-		tagNames,
-		currentUserId: userId
-	});
+	const { post: updated, releasedFileStorageIds, releasedWatermarkFilePaths, addedMediaIds } =
+		await updatePostTransaction({
+			postId,
+			previousContent: post.content,
+			updateData,
+			currentMedia,
+			mediaItems,
+			mentionUsernames,
+			tagNames,
+			currentUserId: userId
+		});
 
 	// 12. 数据库事务提交后再清理归零的物理文件，失败可安全重试。
 	await cleanupUnreferencedFiles(releasedFileStorageIds);
+	await cleanupWatermarkFiles(releasedWatermarkFilePaths);
+	const addedMedia = updated.media.filter((media) =>
+		addedMediaIds.includes(`${media.slot || ''}:${media.fileStorageId}`)
+	);
+	await renderPostWatermarks(postId, addedMedia.map((media) => media.id));
 	await cleanupExpiredUploadReservations().catch((error) =>
 		console.error('清理过期上传凭证失败:', error)
 	);

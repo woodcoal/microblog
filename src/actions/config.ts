@@ -18,6 +18,10 @@ import {
 	updatePageCustomization
 } from '@/services/page-customization.service';
 import { updateTheme as updateThemeService } from '@/services/config.service';
+import {
+	previewWatermark as previewWatermarkImage,
+	validateWatermarkConfiguration
+} from '@/services/watermark.service';
 
 /** 将 ServiceError 转换为 ActionError */
 function handleServiceError(e: unknown): never {
@@ -71,6 +75,18 @@ const smtpInput = z.object({
 	fromName: z.string().trim().min(1, '发件人名称不能为空'),
 	fromAddress: z.email('发件人邮箱格式无效')
 });
+const watermarkInput = z.object({
+	enabled: z.boolean(),
+	template: z.string(),
+	position: z.string(),
+	offsetX: z.number(),
+	offsetY: z.number(),
+	fontSize: z.number(),
+	color: z.string(),
+	opacity: z.number(),
+	rotation: z.number(),
+	tiled: z.boolean()
+});
 
 async function requireCurrentUser(context: Parameters<typeof getUserFromRequest>[0]) {
 	const currentUser = await getUserFromRequest(context);
@@ -117,12 +133,27 @@ export const updateSystemConfigurationAction = defineAction({
 					})
 					.optional()
 			})
-			.optional()
+			.optional(),
+		watermark: watermarkInput.optional()
 	}),
 	handler: async (input, context) => {
 		const currentUser = await requireCurrentUser(context);
 		try {
 			return await updateSystemConfiguration({ userId: currentUser.userId, ...input });
+		} catch (error) {
+			handleServiceError(error);
+		}
+	}
+});
+
+/** 管理员预览统一水印；复用生产校验和渲染器且不产生持久化副作用。 */
+export const previewWatermark = defineAction({
+	input: watermarkInput,
+	handler: async (input, context) => {
+		const currentUser = await requireCurrentUser(context);
+		try {
+			await readSystemConfiguration(currentUser.userId);
+			return await previewWatermarkImage(validateWatermarkConfiguration(input));
 		} catch (error) {
 			handleServiceError(error);
 		}

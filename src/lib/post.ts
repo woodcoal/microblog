@@ -679,6 +679,7 @@ export async function updatePostTransaction(data: {
 		originalName: string;
 		sortOrder: number;
 		slot: string | null;
+		watermarkFilePath: string | null;
 	}>;
 	mediaItems: Array<{
 		fileStorageId: string;
@@ -728,6 +729,7 @@ export async function updatePostTransaction(data: {
 		const desiredByKey = new Map(mediaItems.map((item) => [keyOf(item), item]));
 		const currentByKey = new Map(currentMedia.map((item) => [keyOf(item), item]));
 		const toDelete = currentMedia.filter((item) => !desiredByKey.has(keyOf(item)));
+		const releasedWatermarkFilePaths = toDelete.map((item) => item.watermarkFilePath);
 		const toAdd = mediaItems.filter((item) => !currentByKey.has(keyOf(item)));
 
 		// 删除旧的 Media 关联
@@ -868,7 +870,12 @@ export async function updatePostTransaction(data: {
 			}
 		}
 
-		return { post: updatedPost, releasedFileStorageIds: toDelete.map((m) => m.fileStorageId) };
+		return {
+			post: updatedPost,
+			releasedFileStorageIds: toDelete.map((m) => m.fileStorageId),
+			releasedWatermarkFilePaths,
+			addedMediaIds: toAdd.map((item) => `${item.slot || ''}:${item.fileStorageId}`)
+		};
 	});
 }
 

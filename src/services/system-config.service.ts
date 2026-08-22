@@ -12,6 +12,11 @@ import {
 	testSmtpConfiguration,
 	type SmtpInput
 } from '@/services/mail-delivery.service';
+import {
+	toWatermarkConfiguration,
+	validateWatermarkConfiguration,
+	type WatermarkConfiguration
+} from '@/services/watermark.service';
 
 type SystemConfigClient = Pick<
 	typeof prisma,
@@ -52,7 +57,17 @@ export async function readSystemConfiguration(userId: string) {
 			mailSubjectPasswordReset: true,
 			mailBodyPasswordReset: true,
 			mailSubjectChangeEmail: true,
-			mailBodyChangeEmail: true
+			mailBodyChangeEmail: true,
+			watermarkEnabled: true,
+			watermarkTemplate: true,
+			watermarkPosition: true,
+			watermarkOffsetX: true,
+			watermarkOffsetY: true,
+			watermarkFontSize: true,
+			watermarkColor: true,
+			watermarkOpacity: true,
+			watermarkRotation: true,
+			watermarkTiled: true
 		}
 	});
 	return {
@@ -72,7 +87,8 @@ export async function readSystemConfiguration(userId: string) {
 				subject: config?.mailSubjectChangeEmail ?? '',
 				body: config?.mailBodyChangeEmail ?? ''
 			}
-		}
+		},
+		watermark: toWatermarkConfiguration(config)
 	};
 }
 
@@ -91,9 +107,15 @@ export async function updateSystemConfiguration(input: {
 		passwordReset?: MailTemplateInput;
 		changeEmail?: MailTemplateInput;
 	};
+	watermark?: WatermarkConfiguration;
 }) {
 	await assertLiveAdmin(input.userId);
-	if (input.emailOwnershipEnabled === undefined && !input.smtp && !input.mailTemplates)
+	if (
+		input.emailOwnershipEnabled === undefined &&
+		!input.smtp &&
+		!input.mailTemplates &&
+		!input.watermark
+	)
 		throw new ServiceError('BAD_REQUEST', '没有需要更新的配置');
 	await prisma.$transaction(async (tx) => {
 		if (input.emailOwnershipEnabled !== undefined)
@@ -120,7 +142,39 @@ export async function updateSystemConfiguration(input: {
 					update: data
 				});
 		}
-		await audit(input.userId, 'admin.system_config_updated', tx);
+		if (input.watermark) {
+			const watermark = validateWatermarkConfiguration(input.watermark);
+			await tx.systemConfig.upsert({
+				where: { id: 'global' },
+				create: {
+					id: 'global',
+					watermarkEnabled: watermark.enabled,
+					watermarkTemplate: watermark.template,
+					watermarkPosition: watermark.position,
+					watermarkOffsetX: watermark.offsetX,
+					watermarkOffsetY: watermark.offsetY,
+					watermarkFontSize: watermark.fontSize,
+					watermarkColor: watermark.color,
+					watermarkOpacity: watermark.opacity,
+					watermarkRotation: watermark.rotation,
+					watermarkTiled: watermark.tiled
+				},
+				update: {
+					watermarkEnabled: watermark.enabled,
+					watermarkTemplate: watermark.template,
+					watermarkPosition: watermark.position,
+					watermarkOffsetX: watermark.offsetX,
+					watermarkOffsetY: watermark.offsetY,
+					watermarkFontSize: watermark.fontSize,
+					watermarkColor: watermark.color,
+					watermarkOpacity: watermark.opacity,
+					watermarkRotation: watermark.rotation,
+					watermarkTiled: watermark.tiled
+				}
+			});
+			await audit(input.userId, 'admin.watermark_configuration_updated', tx);
+		}
+		if (!input.watermark) await audit(input.userId, 'admin.system_config_updated', tx);
 	});
 	return readSystemConfiguration(input.userId);
 }
