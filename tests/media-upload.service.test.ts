@@ -95,7 +95,7 @@ test('九宫格和平铺水印可交由 Sharp 渲染预览', async () => {
 	const configuration = validateWatermarkConfiguration({
 		...DEFAULT_WATERMARK_CONFIGURATION,
 		enabled: true,
-		position: 'middle-center',
+		position: 'center',
 		tiled: true
 	});
 	assert.match(createWatermarkSvg(configuration, 'safe', 960, 540).toString(), /pattern/);
@@ -103,4 +103,5 @@ test('九宫格和平铺水印可交由 Sharp 渲染预览', async () => {
 	assert.match(preview.dataUrl, /^data:image\/webp;base64,/);
 	assert.equal(preview.width, 960);
 	assert.equal(preview.height, 540);
+	assert.equal(preview.renderedText, 'example_user · 示例用户 · 2026-01-02T03:04:05.000Z');
 });

@@ -7,27 +7,38 @@ import { prisma } from '@/lib/db';
 import { ServiceError } from '@/lib/errors';
 import { UPLOAD_DIR } from '@/lib/config';
 import { readStoredFile } from '@/lib/media-file';
-const POSITION_ANCHORS: Record<string, { x: string; y: string; anchor: string }> = {
+export type WatermarkPosition =
+	| 'top-left'
+	| 'top-center'
+	| 'top-right'
+	| 'center-left'
+	| 'center'
+	| 'center-right'
+	| 'bottom-left'
+	| 'bottom-center'
+	| 'bottom-right';
+
+const POSITION_ANCHORS: Record<WatermarkPosition, { x: string; y: string; anchor: string }> = {
 	'top-left': { x: '0', y: '0', anchor: 'start' },
 	'top-center': { x: '50%', y: '0', anchor: 'middle' },
 	'top-right': { x: '100%', y: '0', anchor: 'end' },
-	'middle-left': { x: '0', y: '50%', anchor: 'start' },
-	'middle-center': { x: '50%', y: '50%', anchor: 'middle' },
-	'middle-right': { x: '100%', y: '50%', anchor: 'end' },
+	'center-left': { x: '0', y: '50%', anchor: 'start' },
+	center: { x: '50%', y: '50%', anchor: 'middle' },
+	'center-right': { x: '100%', y: '50%', anchor: 'end' },
 	'bottom-left': { x: '0', y: '100%', anchor: 'start' },
 	'bottom-center': { x: '50%', y: '100%', anchor: 'middle' },
 	'bottom-right': { x: '100%', y: '100%', anchor: 'end' }
 };
-const POSITIONS: Record<string, true> = Object.fromEntries(
+const POSITIONS: Record<WatermarkPosition, true> = Object.fromEntries(
 	Object.keys(POSITION_ANCHORS).map((position) => [position, true])
-);
+) as Record<WatermarkPosition, true>;
 const DEFAULT_TEMPLATE = '{{username}} · {{nickname}} · {{publishedAt}}';
 
 /** 水印配置的稳定传输形态。 */
 export type WatermarkConfiguration = {
 	enabled: boolean;
 	template: string;
-	position: string;
+	position: WatermarkPosition;
 	offsetX: number;
 	offsetY: number;
 	fontSize: number;
@@ -66,10 +77,14 @@ export function toWatermarkConfiguration(
 		watermarkTiled: boolean;
 	}> | null
 ): WatermarkConfiguration {
+	const position = config?.watermarkPosition;
 	return {
 		enabled: config?.watermarkEnabled ?? DEFAULT_WATERMARK_CONFIGURATION.enabled,
 		template: config?.watermarkTemplate ?? DEFAULT_WATERMARK_CONFIGURATION.template,
-		position: config?.watermarkPosition ?? DEFAULT_WATERMARK_CONFIGURATION.position,
+		position:
+			typeof position === 'string' && POSITIONS[position as WatermarkPosition]
+				? (position as WatermarkPosition)
+				: DEFAULT_WATERMARK_CONFIGURATION.position,
 		offsetX: config?.watermarkOffsetX ?? DEFAULT_WATERMARK_CONFIGURATION.offsetX,
 		offsetY: config?.watermarkOffsetY ?? DEFAULT_WATERMARK_CONFIGURATION.offsetY,
 		fontSize: config?.watermarkFontSize ?? DEFAULT_WATERMARK_CONFIGURATION.fontSize,
@@ -96,7 +111,14 @@ export function validateWatermarkConfiguration(value: unknown): WatermarkConfigu
 	if (template.length < 1 || template.length > 256 || /[\r\n]/.test(template))
 		throw new ServiceError('BAD_REQUEST', '水印模板必须为 1–256 个单行字符');
 	for (const token of template.match(/{{[^}]*}}|{{|}}/g) ?? []) {
-		if (!({ '{{username}}': true, '{{nickname}}': true, '{{publishedAt}}': true } as Record<string, true>)[token])
+		if (
+			!(
+				{ '{{username}}': true, '{{nickname}}': true, '{{publishedAt}}': true } as Record<
+					string,
+					true
+				>
+			)[token]
+		)
 			throw new ServiceError('BAD_REQUEST', '水印模板包含未知或残缺占位符');
 	}
 	const integer = (key: 'offsetX' | 'offsetY' | 'fontSize', min: number, max: number) => {
@@ -111,16 +133,19 @@ export function validateWatermarkConfiguration(value: unknown): WatermarkConfigu
 			throw new ServiceError('BAD_REQUEST', `${key} 无效`);
 		return number;
 	};
-	if (typeof input.enabled !== 'boolean' || typeof input.tiled !== 'boolean')
-		throw new ServiceError('BAD_REQUEST', '水印开关无效');
-	if (typeof input.position !== 'string' || !POSITIONS[input.position])
-		throw new ServiceError('BAD_REQUEST', '水印位置无效');
+	if (
+		typeof input.enabled !== 'boolean' ||
+		typeof input.tiled !== 'boolean' ||
+		typeof input.position !== 'string' ||
+		!Object.hasOwn(POSITIONS, input.position)
+	)
+		throw new ServiceError('BAD_REQUEST', '水印开关或位置无效');
 	if (typeof input.color !== 'string' || !/^#[0-9A-Fa-f]{6}$/.test(input.color))
 		throw new ServiceError('BAD_REQUEST', '水印颜色必须为 #RRGGBB');
 	return {
 		enabled: input.enabled,
 		template,
-		position: input.position,
+		position: input.position as WatermarkPosition,
 		offsetX: integer('offsetX', -512, 512),
 		offsetY: integer('offsetY', -512, 512),
 		fontSize: integer('fontSize', 10, 128),
@@ -148,11 +173,14 @@ export function interpolateWatermarkTemplate(
 	template: string,
 	values: { username: string; nickname: string; publishedAt: string }
 ): string {
-	return template.replace(/{{(username|nickname|publishedAt)}}/g, (_, key: keyof typeof values) => values[key]);
+	return template.replace(
+		/{{(username|nickname|publishedAt)}}/g,
+		(_, key: keyof typeof values) => values[key]
+	);
 }
 
-function anchorFor(position: string): { x: string; y: string; anchor: string } {
-	return POSITION_ANCHORS[position]!;
+function anchorFor(position: WatermarkPosition): { x: string; y: string; anchor: string } {
+	return POSITION_ANCHORS[position];
 }
 
 /** 创建可交由 sharp 叠加的安全 SVG。 */
@@ -169,7 +197,9 @@ export function createWatermarkSvg(
 	const content = configuration.tiled
 		? `<defs><pattern id="watermark" width="${Math.max(configuration.fontSize * 12, 180)}" height="${Math.max(configuration.fontSize * 5, 96)}" patternUnits="userSpaceOnUse">${label}</pattern></defs><rect width="100%" height="100%" fill="url(#watermark)"/>`
 		: label;
-	return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${content}</svg>`);
+	return Buffer.from(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${content}</svg>`
+	);
 }
 
 /** 渲染固定预览，不写文件、不访问数据库。 */
@@ -185,7 +215,12 @@ export async function previewWatermark(configuration: WatermarkConfiguration) {
 		.composite([{ input: createWatermarkSvg(configuration, text, width, height) }])
 		.webp()
 		.toBuffer();
-	return { dataUrl: `data:image/webp;base64,${image.toString('base64')}`, width, height, text };
+	return {
+		dataUrl: `data:image/webp;base64,${image.toString('base64')}`,
+		width,
+		height,
+		renderedText: text
+	};
 }
 
 async function removeWatermark(path: string | null | undefined): Promise<void> {
@@ -212,7 +247,16 @@ export async function renderMediaWatermark(input: {
 		publishedAt: input.publishedAt.toISOString()
 	});
 	const rendered = await sourceImage
-		.composite([{ input: createWatermarkSvg(input.configuration, text, metadata.width, metadata.height) }])
+		.composite([
+			{
+				input: createWatermarkSvg(
+					input.configuration,
+					text,
+					metadata.width,
+					metadata.height
+				)
+			}
+		])
 		.webp({ quality: 82 })
 		.toBuffer({ resolveWithObject: true });
 	const relativePath = `protected/images/watermark-v1/${input.mediaId}.webp`;
@@ -237,6 +281,8 @@ export async function renderMediaWatermark(input: {
 }
 
 /** 按 Media 记录删除水印派生文件；原始存储及引用计数保持不变。 */
-export async function cleanupWatermarkFiles(paths: Array<string | null | undefined>): Promise<void> {
+export async function cleanupWatermarkFiles(
+	paths: Array<string | null | undefined>
+): Promise<void> {
 	await Promise.allSettled(paths.map((path) => removeWatermark(path)));
 }
