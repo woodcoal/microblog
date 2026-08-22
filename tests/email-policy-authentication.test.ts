@@ -146,6 +146,43 @@ test('系统配置、SMTP 和审计事务同时提交，并撤销旧邮箱令牌
 	);
 });
 
+test('管理员保存完整水印配置会写入专用审计且不记录模板内容', async () => {
+	const admin = await prisma.user.create({
+		data: {
+			username: name('watermarkadmin'),
+			displayName: '水印管理员',
+			email: `${id}.watermark@example.test`,
+			passwordHash: 'not-used',
+			role: 'admin',
+			emailVerificationRequired: false
+		}
+	});
+	const watermark = {
+		enabled: true,
+		template: '{{username}} · {{nickname}} · {{publishedAt}}',
+		position: 'bottom-right',
+		offsetX: -24,
+		offsetY: -24,
+		fontSize: 24,
+		color: '#FFFFFF',
+		opacity: 0.65,
+		rotation: 0,
+		tiled: false
+	};
+	const result = await updateSystemConfiguration({ userId: admin.id, watermark });
+	assert.deepEqual(result.watermark, watermark);
+	assert.equal(
+		await prisma.activityLog.count({
+			where: { actorId: admin.id, action: 'admin.watermark_configuration_updated' }
+		}),
+		1
+	);
+	await assert.rejects(
+		updateSystemConfiguration({ userId: admin.id, watermark: { ...watermark, template: '{{unknown}}' } }),
+		/未知或残缺/
+	);
+});
+
 test('SMTP 拦截 IPv4-mapped IPv6 与 IPv6 特殊地址，允许公开单播地址', () => {
 	for (const address of [
 		'::ffff:127.0.0.1',

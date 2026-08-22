@@ -26,7 +26,11 @@ export const PUT: APIRoute = async (context) => {
 					typeof body.emailOwnershipEnabled === 'boolean'
 						? body.emailOwnershipEnabled
 						: undefined,
-				smtp: body.smtp && typeof body.smtp === 'object' ? (body.smtp as never) : undefined
+				smtp: body.smtp && typeof body.smtp === 'object' ? (body.smtp as never) : undefined,
+				watermark:
+					body.watermark && typeof body.watermark === 'object'
+						? (body.watermark as never)
+						: undefined
 			})
 		);
 	} catch (error) {

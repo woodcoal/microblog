@@ -1,0 +1,15 @@
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkEnabled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkTemplate" TEXT NOT NULL DEFAULT '{{username}} · {{nickname}} · {{publishedAt}}';
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkPosition" TEXT NOT NULL DEFAULT 'bottom-right';
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkOffsetX" INTEGER NOT NULL DEFAULT -24;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkOffsetY" INTEGER NOT NULL DEFAULT -24;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkFontSize" INTEGER NOT NULL DEFAULT 24;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkColor" TEXT NOT NULL DEFAULT '#FFFFFF';
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkOpacity" REAL NOT NULL DEFAULT 0.65;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkRotation" REAL NOT NULL DEFAULT 0;
+ALTER TABLE "SystemConfig" ADD COLUMN "watermarkTiled" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Media" ADD COLUMN "watermarkFilePath" TEXT;
+ALTER TABLE "Media" ADD COLUMN "watermarkFileSize" INTEGER;
+ALTER TABLE "Media" ADD COLUMN "watermarkMimeType" TEXT;
+ALTER TABLE "Media" ADD COLUMN "watermarkWidth" INTEGER;
+ALTER TABLE "Media" ADD COLUMN "watermarkHeight" INTEGER;

@@ -20,7 +20,6 @@ export interface MediaDto {
 	type: 'image' | 'video' | 'attachment';
 	slot: 'thumbnail' | null;
 	displayUrl?: string;
-	originalUrl?: string;
 	streamUrl?: string;
 }
 

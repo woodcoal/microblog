@@ -75,6 +75,17 @@ model SystemConfig {
   mailSubjectChangeEmail   String  @default("")
   mailBodyChangeEmail      String  @default("")
   publicAnalyticsScript    String  @default("")
+  // 发帖图片的统一文字水印配置。
+  watermarkEnabled          Boolean @default(false)
+  watermarkTemplate         String  @default("{{username}} · {{nickname}} · {{publishedAt}}")
+  watermarkPosition         String  @default("bottom-right")
+  watermarkOffsetX          Int     @default(-24)
+  watermarkOffsetY          Int     @default(-24)
+  watermarkFontSize         Int     @default(24)
+  watermarkColor            String  @default("#FFFFFF")
+  watermarkOpacity          Float   @default(0.65)
+  watermarkRotation         Float   @default(0)
+  watermarkTiled            Boolean @default(false)
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }
@@ -282,6 +293,12 @@ model Media {
   originalName  String   @default("") // 原始文件名（附件保留）
   sortOrder     Int      @default(0) // 排序
   slot          String? // null=普通正文媒体/附件，thumbnail=文章缩略图
+  // 派生水印副本独立于全局去重的 FileStorage，绝不覆盖原始或展示副本。
+  watermarkFilePath   String?
+  watermarkFileSize   Int?
+  watermarkMimeType   String?
+  watermarkWidth      Int?
+  watermarkHeight     Int?
   createdAt     DateTime @default(now())
 
   post        Post        @relation(fields: [postId], references: [id])
