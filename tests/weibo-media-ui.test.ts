@@ -42,7 +42,8 @@ test('微博视频组件显式禁止自动播放，并在列表和详情中独�
 	assert.match(detail, /videos\.map\(\(media\) => <WeiboVideo media=\{media\} \/>\)/);
 });
 
-test('图片展示继续使用展示副本，Lightbox 仅按需请求原图', () => {
+test('图片展示和 Lightbox 都只请求受控展示副本', () => {
 	assert.match(detail, /src=\{`\/media\/\$\{media\.id\}\/display`\}/);
-	assert.match(detail, /data-lightbox-src=\{`\/media\/\$\{media\.id\}\/original`\}/);
+	assert.match(detail, /data-lightbox-src=\{`\/media\/\$\{media\.id\}\/display`\}/);
+	assert.doesNotMatch(detail, /\/media\/\$\{media\.id\}\/original/);
 });

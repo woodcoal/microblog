@@ -545,6 +545,7 @@ export async function createPostTransaction(data: {
 		sortOrder: number;
 		slot?: string | null;
 		reservationId?: string;
+		mediaId?: string;
 	}>;
 	mentionUsernames: string[];
 	tagNames: string[];
@@ -598,6 +599,7 @@ export async function createPostTransaction(data: {
 			await consumeUploadReservations(tx, currentUserId, mediaItems);
 			await tx.media.createMany({
 				data: mediaItems.map((item) => ({
+					...(item.mediaId ? { id: item.mediaId } : {}),
 					postId: createdPost.id,
 					fileStorageId: item.fileStorageId,
 					fileType: item.fileType,
@@ -688,6 +690,7 @@ export async function updatePostTransaction(data: {
 		sortOrder: number;
 		slot?: string | null;
 		reservationId?: string;
+		mediaId?: string;
 	}>;
 	mentionUsernames: string[];
 	tagNames: string[];
@@ -747,10 +750,12 @@ export async function updatePostTransaction(data: {
 		}
 
 		// 创建新的 Media 关联
+		// 创建新的 Media 关联
 		if (toAdd.length > 0) {
 			await consumeUploadReservations(tx, currentUserId, toAdd);
 			await tx.media.createMany({
 				data: toAdd.map((item) => ({
+					...(item.mediaId ? { id: item.mediaId } : {}),
 					postId,
 					fileStorageId: item.fileStorageId,
 					fileType: item.fileType,

@@ -21,6 +21,7 @@ import { searchUsers, searchSuggest } from './search';
 import {
 	getSystemConfiguration,
 	getPageCustomization,
+	previewWatermark,
 	testSystemSmtpAction,
 	updatePageCustomizationAction,
 	updateSystemConfigurationAction,
@@ -120,6 +121,7 @@ export const server = {
 	updateSystemConfigurationAction,
 	updatePageCustomizationAction,
 	testSystemSmtpAction,
+	previewWatermark,
 	searchSuggest,
 	createWebhook,
 	updateWebhook,

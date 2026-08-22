@@ -85,7 +85,7 @@ async function setupMedia(type: 'image' | 'video') {
 	return { cookie, context };
 }
 
-test('密码帖图片仅在服务端签发访问 cookie 后可读取 display、original 和 HEAD', async () => {
+test('密码帖图片仅在服务端签发访问 cookie 后可读取 display，原图端点始终 404', async () => {
 	const { cookie, context } = await setupMedia('image');
 	assert.equal(
 		(await display(context(new Request('http://localhost/media/x/display')))).status,
@@ -93,11 +93,7 @@ test('密码帖图片仅在服务端签发访问 cookie 后可读取 display、o
 	);
 	const request = new Request('http://localhost/media/x/display', { headers: { cookie } });
 	assert.equal((await display(context(request))).status, 200);
-	assert.equal(
-		(await original(context(new Request('http://localhost/media/x/original')))).status,
-		404
-	);
-	assert.equal((await original(context(request))).status, 200);
+	assert.equal((await original(context(request))).status, 404);
 	const head = await displayHead(
 		context(new Request('http://localhost/media/x/display', { headers: { cookie } }))
 	);
@@ -109,7 +105,7 @@ test('密码帖图片仅在服务端签发访问 cookie 后可读取 display、o
 				context(new Request('http://localhost/media/x/original', { headers: { cookie } }))
 			)
 		).status,
-		200
+		404
 	);
 });
 

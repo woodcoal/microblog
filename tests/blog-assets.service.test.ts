@@ -115,6 +115,54 @@ test('博客创建原子消费缩略图和附件 reservation，并生成分槽�
 	);
 });
 
+test('论坛和博客创建时消费正文预约图片并改写为 Media display URL', async () => {
+	const author = await createUser('embedded_image_author');
+	for (const mode of ['forum', 'blog'] as const) {
+		const image = await reserve(author.id, 'image');
+		const content = `正文 ![图片](/media/reservations/${image.reservation.id}/preview)`;
+		const category =
+			mode === 'forum'
+				? await prisma.category.create({
+						data: { name: `版块${sequence}`, slug: `board-${sequence++}`, mode: 'forum' }
+					})
+				: null;
+		const post = await createPost({
+			userId: author.id,
+			mode,
+			title: `${mode} 正文图片`,
+			content,
+			categoryId: category?.id
+		});
+		const media = await prisma.media.findFirstOrThrow({ where: { postId: post.id } });
+		const stored = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
+		assert.equal(stored.content.includes(`/media/${media.id}/display`), true);
+		assert.equal(stored.content.includes('/media/reservations/'), false);
+		assert.ok(
+			(await prisma.uploadReservation.findUniqueOrThrow({ where: { id: image.reservation.id } }))
+				.consumedAt
+		);
+	}
+});
+
+test('编辑仅消费正文中新加的预约图片并保持既有图片', async () => {
+	const author = await createUser('embedded_image_editor');
+	const post = await createPost({ userId: author.id, mode: 'blog', title: '编辑', content: '原正文' });
+	const image = await reserve(author.id, 'image');
+	await updatePost({
+		userId: author.id,
+		postId: post.id,
+		mode: 'blog',
+		title: '编辑',
+		content: `新正文 ![图片](/media/reservations/${image.reservation.id}/preview)`
+	});
+	const media = await prisma.media.findFirstOrThrow({ where: { postId: post.id } });
+	const stored = await prisma.post.findUniqueOrThrow({ where: { id: post.id } });
+	assert.match(stored.content, new RegExp(`/media/${media.id}/display`));
+	assert.ok(
+		(await prisma.uploadReservation.findUniqueOrThrow({ where: { id: image.reservation.id } })).consumedAt
+	);
+});
+
 test('越权、过期、非博客缩略图及附件数量上限均由服务端拒绝', async () => {
 	const owner = await createUser('asset_owner');
 	const attacker = await createUser('asset_attacker');

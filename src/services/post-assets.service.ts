@@ -10,6 +10,8 @@ export interface PostAssetMediaItem {
 	sortOrder: number;
 	slot?: string | null;
 	reservationId?: string;
+	/** 正文预约图片在事务前分配的 Media ID，用于稳定改写正文 URL。 */
+	mediaId?: string;
 }
 
 interface CurrentMedia {

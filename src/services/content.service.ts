@@ -242,7 +242,7 @@ export interface CreatePostInput {
 	mediaIds?: string[];
 	thumbnailFileStorageId?: string | null;
 	attachmentFileStorageIds?: string[];
-	/** 图片 URL 数组（Agent API 专用，service 层自动转为 mediaIds） */
+	/** 预约预览 URL 数组；论坛和博客正文也会自动提取同类 URL。 */
 	images?: string[];
 	password?: string;
 	allowedUserIds?: string[];
@@ -252,7 +252,6 @@ export interface CreatePostInput {
 	customCategory?: string;
 }
 
-/** 更新帖子输入参数 */
 export interface UpdatePostInput {
 	userId: string;
 	postId: string;
@@ -261,6 +260,8 @@ export interface UpdatePostInput {
 	mediaIds?: string[];
 	thumbnailFileStorageId?: string | null;
 	attachmentFileStorageIds?: string[];
+	/** 编辑正文中新增的预约预览 URL。 */
+	images?: string[];
 	password?: string;
 	allowedUserIds?: string[];
 	mode?: string;
@@ -349,6 +350,15 @@ async function renderPostWatermarks(postId: string, mediaIds?: string[]): Promis
 			});
 		}
 	}
+}
+
+/** 从论坛/博客正文提取本站上传预约预览 URL，远程图片永不纳入帖子媒体。 */
+function embeddedReservationPreviewUrls(content: string): string[] {
+	return [
+		...new Set(
+			content.match(/\/media\/reservations\/[^/?\s)]+\/preview(?:\?[^\s)]*)?/g) ?? []
+		)
+	];
 }
 
 /**
@@ -440,16 +450,26 @@ export async function createPost(input: CreatePostInput) {
 		throw new ServiceError('BAD_REQUEST', `内容不能超过 ${POST_CONTENT_MAX_LENGTH} 个字符`);
 	}
 
+	const id = generateShortId();
+
 	let dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
 	const legacyBodyFileStorageIds = new Set<string>();
 	const reservationIdByFileStorageId = new Map<string, string>();
+	const embeddedPreviewUrls =
+		postMode === 'forum' || postMode === 'blog' ? embeddedReservationPreviewUrls(content) : [];
+	const embeddedReservationIds = new Set(
+		embeddedPreviewUrls
+			.map((url) => UPLOAD_RESERVATION_PREVIEW_PATH.exec(url)?.[1])
+			.filter((id): id is string => Boolean(id))
+	);
+	const imageUrls = [...new Set([...(input.images ?? []), ...embeddedPreviewUrls])];
 
 	// Agent API 兼容旧 /uploads 路径，也接受自身上传接口返回的预约预览 URL。
-	// 预览 URL 必须映射到当前用户的有效 reservation，随后由同一帖子事务消费。
-	if (input.images && input.images.length > 0 && dedupedMediaIds.length === 0) {
+	// 论坛、博客还会从正文提取本站预约预览 URL，在同一帖子事务中消费。
+	if (imageUrls.length > 0 && dedupedMediaIds.length === 0) {
 		const { findFileStoragesByFilePaths, MAX_IMAGE_COUNT: IMG_MAX } =
 			await import('@/lib/upload');
-		const dedupedImages = [...new Set(input.images)];
+		const dedupedImages = imageUrls;
 		if (dedupedImages.length > IMG_MAX) {
 			throw new ServiceError('BAD_REQUEST', `图片最多 ${IMG_MAX} 张`);
 		}
@@ -538,9 +558,7 @@ export async function createPost(input: CreatePostInput) {
 		(id) => requestedById.get(id)?.fileType === 'attachment'
 	);
 
-	const id = generateShortId();
-
-	const mediaItems = await resolvePostAssets({
+	const mediaItems = (await resolvePostAssets({
 		userId,
 		mode: postMode,
 		bodyFileStorageIds,
@@ -548,7 +566,21 @@ export async function createPost(input: CreatePostInput) {
 		attachmentFileStorageIds: attachmentFileStorageIds ?? legacyAttachmentIds,
 		legacyBodyFileStorageIds,
 		reservationIdByFileStorageId
+	})).map((item) => {
+		const isEmbeddedReservation =
+			item.fileType === 'image' &&
+			Boolean(item.reservationId && embeddedReservationIds.has(item.reservationId));
+		return isEmbeddedReservation ? { ...item, mediaId: generateShortId() } : item;
 	});
+	let persistedContent = content.trim();
+	for (const previewUrl of embeddedPreviewUrls) {
+		const reservationId = UPLOAD_RESERVATION_PREVIEW_PATH.exec(previewUrl)?.[1];
+		const fileStorageId = reservationId
+			? [...reservationIdByFileStorageId].find(([, id]) => id === reservationId)?.[0]
+			: undefined;
+		const mediaId = mediaItems.find((item) => item.fileStorageId === fileStorageId)?.mediaId;
+		if (mediaId) persistedContent = persistedContent.split(previewUrl).join(`/media/${mediaId}/display`);
+	}
 
 	const mentionUsernames = parseMentions(content.trim());
 	const tagNames = parseTags(content.trim());
@@ -557,7 +589,7 @@ export async function createPost(input: CreatePostInput) {
 		postData: {
 			id,
 			userId,
-			content: content.trim(),
+			content: persistedContent,
 			visibility: vis,
 			mode: postMode,
 			title: title?.trim() || null,
@@ -591,14 +623,10 @@ export async function createPost(input: CreatePostInput) {
 }
 
 /**
- * 更新帖子
+ * 更新帖子并消费编辑正文中新加入的图片预约。
  *
- * 校验帖子存在/作者/锁定/删除状态，校验输入参数，
- * 委托 lib 层事务更新帖子（含 revision、media diff、mention/tag 重建），
- * 事务后处理 refCount 和活动日志。
- *
- * @param input - 更新帖子参数
- * @returns 更新后的帖子完整数据（含关联）
+ * @param input - 作者、帖子和完整编辑内容
+ * @returns 更新后的帖子关联数据
  */
 export async function updatePost(input: UpdatePostInput) {
 	const {
@@ -616,135 +644,58 @@ export async function updatePost(input: UpdatePostInput) {
 		categoryId,
 		customCategory
 	} = input;
-
-	// 1. 查询帖子
 	const post = await findPostById(postId);
-	if (!post) {
-		throw new ServiceError('NOT_FOUND', '帖子不存在');
-	}
-
-	// 2. 验证是帖子作者
-	if (post.userId !== userId) {
-		throw new ServiceError('FORBIDDEN', '无权编辑此帖子');
-	}
-
-	// 3. 验证帖子未被锁定
-	if (post.isLocked) {
-		throw new ServiceError('FORBIDDEN', '帖子已被锁定，无法编辑');
-	}
-
-	// 已删除的帖子不可编辑
-	if (post.isDeleted) {
-		throw new ServiceError('BAD_REQUEST', '帖子已删除，无法编辑');
-	}
-
-	// 4. 校验可见度值合法性（如果传了 visibility）
+	if (!post) throw new ServiceError('NOT_FOUND', '帖子不存在');
+	if (post.userId !== userId) throw new ServiceError('FORBIDDEN', '无权编辑此帖子');
+	if (post.isLocked) throw new ServiceError('FORBIDDEN', '帖子已被锁定，无法编辑');
+	if (post.isDeleted) throw new ServiceError('BAD_REQUEST', '帖子已删除，无法编辑');
+	if (!content || !content.trim()) throw new ServiceError('BAD_REQUEST', '帖子内容不能为空');
+	if (content.length > POST_CONTENT_MAX_LENGTH)
+		throw new ServiceError('BAD_REQUEST', `内容不能超过 ${POST_CONTENT_MAX_LENGTH} 个字符`);
 	if (visibility !== undefined) {
 		const vis = visibility as Visibility;
-		if (!VALID_VISIBILITIES.includes(vis)) {
-			throw new ServiceError('BAD_REQUEST', '无效的可见度类型');
-		}
-
-		// visibility=password 时，密码必填
-		if (vis === 'password' && (!password || !password.trim())) {
+		if (!VALID_VISIBILITIES.includes(vis)) throw new ServiceError('BAD_REQUEST', '无效的可见度类型');
+		if (vis === 'password' && (!password || !password.trim()))
 			throw new ServiceError('BAD_REQUEST', '密码保护帖子需要设置密码');
-		}
-
-		// visibility=users 时，allowedUserIds 必填且非空
-		if (vis === 'users' && (!allowedUserIds || allowedUserIds.length === 0)) {
+		if (vis === 'users' && (!allowedUserIds || allowedUserIds.length === 0))
 			throw new ServiceError('BAD_REQUEST', '指定用户可见帖子需要选择至少一个用户');
-		}
 	}
-
-	// 5. 校验 mode/title/categoryId（如果传了 mode）
 	const postMode = (mode || post.mode) as (typeof VALID_MODES)[number];
-	if (mode !== undefined) {
-		if (!VALID_MODES.includes(postMode)) {
-			throw new ServiceError(
-				'BAD_REQUEST',
-				'无效的帖子模式，仅支持: ' + VALID_MODES.join(', ')
-			);
-		}
-	}
-
-	// forum 和 blog 模式下 title 必填
-	if ((postMode === 'forum' || postMode === 'blog') && (!title || !title.trim())) {
-		const effectiveTitle = title ?? post.title;
-		if (!effectiveTitle || !effectiveTitle.trim()) {
-			throw new ServiceError(
-				'BAD_REQUEST',
-				(postMode === 'forum' ? '论坛' : '博客') + '模式下标题必填'
-			);
-		}
-	}
-
-	// forum 模式下 categoryId 必填
-	if (postMode === 'forum' && (!categoryId || !categoryId.trim())) {
-		const effectiveCategoryId = categoryId ?? post.categoryId;
-		if (!effectiveCategoryId || !effectiveCategoryId.trim()) {
-			throw new ServiceError('BAD_REQUEST', '论坛模式下必须选择版块');
-		}
-	}
-
+	if (!VALID_MODES.includes(postMode))
+		throw new ServiceError('BAD_REQUEST', `无效的帖子模式，仅支持: ${VALID_MODES.join(', ')}`);
+	const effectiveTitle = title ?? post.title;
+	if ((postMode === 'forum' || postMode === 'blog') && !effectiveTitle?.trim())
+		throw new ServiceError('BAD_REQUEST', `${postMode === 'forum' ? '论坛' : '博客'}模式下标题必填`);
+	const effectiveCategoryId = categoryId ?? post.categoryId;
+	if (postMode === 'forum' && !effectiveCategoryId?.trim())
+		throw new ServiceError('BAD_REQUEST', '论坛模式下必须选择版块');
 	const normalizedCustomCategory = customCategory?.trim() || null;
-	if (normalizedCustomCategory && postMode !== 'blog') {
+	if (normalizedCustomCategory && postMode !== 'blog')
 		throw new ServiceError('BAD_REQUEST', '仅博客文章支持自定义分类');
-	}
-	if (normalizedCustomCategory && normalizedCustomCategory.length > CUSTOM_CATEGORY_MAX_LENGTH) {
-		throw new ServiceError(
-			'BAD_REQUEST',
-			`自定义分类不能超过 ${CUSTOM_CATEGORY_MAX_LENGTH} 个字符`
-		);
-	}
-	if (normalizedCustomCategory && categoryId?.trim()) {
+	if (normalizedCustomCategory && normalizedCustomCategory.length > CUSTOM_CATEGORY_MAX_LENGTH)
+		throw new ServiceError('BAD_REQUEST', `自定义分类不能超过 ${CUSTOM_CATEGORY_MAX_LENGTH} 个字符`);
+	if (normalizedCustomCategory && categoryId?.trim())
 		throw new ServiceError('BAD_REQUEST', '请选择系统分类或填写自定义分类，不能同时设置');
-	}
-
-	// 如果指定了 categoryId，验证分类存在且 mode 匹配
-	if (categoryId && categoryId.trim()) {
+	if (categoryId?.trim()) {
 		const category = await findCategoryById(categoryId);
-		if (!category) {
-			throw new ServiceError('NOT_FOUND', '分类不存在');
-		}
-		if (category.mode !== postMode) {
-			throw new ServiceError('BAD_REQUEST', '分类模式与帖子模式不匹配');
-		}
-		if (postMode === 'forum' && (await countChildCategories(category.id)) > 0) {
+		if (!category) throw new ServiceError('NOT_FOUND', '分类不存在');
+		if (category.mode !== postMode) throw new ServiceError('BAD_REQUEST', '分类模式与帖子模式不匹配');
+		if (postMode === 'forum' && (await countChildCategories(category.id)) > 0)
 			throw new ServiceError('BAD_REQUEST', '论坛帖子只能发布到末级版块');
-		}
 	}
 
-	// 6. 校验内容非空
-	if (!content || !content.trim()) {
-		throw new ServiceError('BAD_REQUEST', '帖子内容不能为空');
-	}
-
-	// 校验内容长度
-	if (content.length > POST_CONTENT_MAX_LENGTH) {
-		throw new ServiceError(
-			'BAD_REQUEST',
-			'内容不能超过 ' + POST_CONTENT_MAX_LENGTH + ' 个字符'
-		);
-	}
-
-	// 7. 查询当前帖子的 Media 关联并解析完整资产集合
 	const currentMedia = await findMediaByPostId(post.id);
 	const dedupedMediaIds = mediaIds ? [...new Set(mediaIds)] : [];
 	const requestedFiles = await findFileStoragesByIds(dedupedMediaIds);
-	if (requestedFiles.length !== dedupedMediaIds.length) {
+	if (requestedFiles.length !== dedupedMediaIds.length)
 		throw new ServiceError('BAD_REQUEST', '部分文件不存在');
-	}
 	const requestedById = new Map(requestedFiles.map((file) => [file.id, file]));
-	const bodyFileStorageIds = dedupedMediaIds.filter((id) => {
-		const type = requestedById.get(id)?.fileType;
-		return type === 'image' || type === 'video';
+	const bodyFileStorageIds = dedupedMediaIds.filter((fileStorageId) => {
+		const fileType = requestedById.get(fileStorageId)?.fileType;
+		return fileType === 'image' || fileType === 'video';
 	});
-	if (
-		bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length >
-		MAX_IMAGE_COUNT
-	) {
-		throw new ServiceError('BAD_REQUEST', '图片最多 ' + MAX_IMAGE_COUNT + ' 张');
-	}
+	if (bodyFileStorageIds.filter((id) => requestedById.get(id)?.fileType === 'image').length > MAX_IMAGE_COUNT)
+		throw new ServiceError('BAD_REQUEST', `图片最多 ${MAX_IMAGE_COUNT} 张`);
 	const legacyAttachmentIds = dedupedMediaIds.filter(
 		(id) => requestedById.get(id)?.fileType === 'attachment'
 	);
@@ -762,65 +713,73 @@ export async function updatePost(input: UpdatePostInput) {
 			attachmentFileStorageIds === undefined && legacyAttachmentIds.length === 0
 	});
 
-	// 9. 构建更新数据
-	const updateData: Record<string, unknown> = {
-		content: content.trim(),
-		isEdited: true
-	};
-
-	// 如果传了 visibility，更新可见度相关字段
+	const embeddedPreviewUrls =
+		postMode === 'forum' || postMode === 'blog' ? embeddedReservationPreviewUrls(content) : [];
+	const reservationIds = embeddedPreviewUrls
+		.map((url) => UPLOAD_RESERVATION_PREVIEW_PATH.exec(url)?.[1])
+		.filter((id): id is string => Boolean(id));
+	const reservations = reservationIds.length
+		? await prisma.uploadReservation.findMany({
+				where: {
+					id: { in: reservationIds },
+					userId,
+					expiresAt: { gt: new Date() },
+					consumedAt: null,
+					cancelledAt: null,
+					fileStorage: { fileType: 'image' }
+				},
+				select: { id: true, fileStorageId: true }
+			})
+		: [];
+	if (reservations.length !== reservationIds.length)
+		throw new ServiceError('BAD_REQUEST', '部分正文图片上传凭证无效、已过期或不属于当前用户');
+	const existingFileIds = new Set(currentMedia.map((media) => media.fileStorageId));
+	const mediaIdByReservation: Record<string, string> = {};
+	const embeddedMediaItems = reservations
+		.filter((reservation) => !existingFileIds.has(reservation.fileStorageId))
+		.map((reservation, index) => {
+			const mediaId = generateShortId();
+			mediaIdByReservation[reservation.id] = mediaId;
+			return {
+				mediaId,
+				fileStorageId: reservation.fileStorageId,
+				fileType: 'image',
+				sortOrder: currentMedia.length + index,
+				slot: null,
+				reservationId: reservation.id
+			};
+		});
+	let persistedContent = content.trim();
+	for (const previewUrl of embeddedPreviewUrls) {
+		const reservationId = UPLOAD_RESERVATION_PREVIEW_PATH.exec(previewUrl)?.[1];
+		const mediaId = reservationId ? mediaIdByReservation[reservationId] : undefined;
+		if (mediaId) persistedContent = persistedContent.split(previewUrl).join(`/media/${mediaId}/display`);
+	}
+	const updateData: Record<string, unknown> = { content: persistedContent, isEdited: true };
 	if (visibility !== undefined) {
 		updateData.visibility = visibility;
-		if (visibility === 'password' && password) {
-			updateData.passwordHash = await hashPassword(password.trim());
-		} else if (visibility !== 'password') {
-			updateData.passwordHash = null;
-		}
-		if (visibility === 'users' && allowedUserIds) {
-			updateData.allowedUserIds = JSON.stringify(allowedUserIds);
-		} else if (visibility !== 'users') {
-			updateData.allowedUserIds = null;
-		}
+		updateData.passwordHash = visibility === 'password' && password ? await hashPassword(password.trim()) : null;
+		updateData.allowedUserIds = visibility === 'users' && allowedUserIds ? JSON.stringify(allowedUserIds) : null;
 	}
-
-	// 如果传了 mode，更新模式相关字段
-	if (mode !== undefined) {
-		updateData.mode = postMode;
-	}
-	if (title !== undefined) {
-		updateData.title = title.trim() || null;
-	}
-	if (categoryId !== undefined) {
-		updateData.categoryId = categoryId.trim() || null;
-		if (categoryId.trim()) {
-			updateData.customCategory = null;
-		}
-	}
-	if (customCategory !== undefined) {
-		updateData.customCategory = normalizedCustomCategory;
-		if (normalizedCustomCategory) {
-			updateData.categoryId = null;
-		}
-	}
-
-	// 10. 解析 @提及和 #标签
-	const mentionUsernames = parseMentions(content.trim());
-	const tagNames = parseTags(content.trim());
-
-	// 11. 委托 lib 层事务更新帖子
+	if (mode !== undefined) updateData.mode = postMode;
+	if (title !== undefined) updateData.title = title.trim() || null;
+	if (categoryId !== undefined) updateData.categoryId = categoryId.trim() || null;
+	if (customCategory !== undefined) updateData.customCategory = normalizedCustomCategory;
+	if (normalizedCustomCategory) updateData.categoryId = null;
+	else if (categoryId?.trim()) updateData.customCategory = null;
+	const mentionUsernames = parseMentions(persistedContent);
+	const tagNames = parseTags(persistedContent);
 	const { post: updated, releasedFileStorageIds, releasedWatermarkFilePaths, addedMediaIds } =
 		await updatePostTransaction({
 			postId,
 			previousContent: post.content,
 			updateData,
 			currentMedia,
-			mediaItems,
+			mediaItems: [...mediaItems, ...embeddedMediaItems],
 			mentionUsernames,
 			tagNames,
 			currentUserId: userId
 		});
-
-	// 12. 数据库事务提交后再清理归零的物理文件，失败可安全重试。
 	await cleanupUnreferencedFiles(releasedFileStorageIds);
 	await cleanupWatermarkFiles(releasedWatermarkFilePaths);
 	const addedMedia = updated.media.filter((media) =>
@@ -830,10 +789,7 @@ export async function updatePost(input: UpdatePostInput) {
 	await cleanupExpiredUploadReservations().catch((error) =>
 		console.error('清理过期上传凭证失败:', error)
 	);
-
-	// 13. 记录编辑帖子活动（异步，不阻塞主流程）
 	logActivity(POST_UPDATE, userId, 'post', postId, post.userId, postId).catch(() => {});
-
 	return sanitizePost(updated);
 }
 
