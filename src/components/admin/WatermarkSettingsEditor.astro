@@ -1,0 +1,449 @@
+---
+/** 管理员图片水印配置表单；配置与预览均复用受保护的 Astro Action。 */
+---
+
+<form id="watermark-settings-form" class="admin-form" aria-describedby="watermark-settings-status">
+	<fieldset class="admin-fieldset" disabled>
+		<legend>图片水印</legend>
+		<p class="admin-fieldset-desc">
+			统一管理新发微博、论坛和博客图片的文字水印。保存的样式只对后续新发帖生效。
+		</p>
+		<label class="admin-toggle-label" for="watermark-enabled">
+			<input id="watermark-enabled" name="enabled" type="checkbox" />
+			<span>启用新发帖图片水印</span>
+		</label>
+		<p class="admin-form-hint" id="watermark-disabled-hint">
+			关闭时，新发帖图片不加水印；现有样式会保留，重新开启后可继续编辑。
+		</p>
+
+		<hr class="admin-form-divider" />
+
+		<div class="admin-form-grid">
+			<div class="admin-form-group admin-form-group-full">
+				<label class="admin-form-label" for="watermark-template">文字模板</label>
+				<input
+					id="watermark-template"
+					name="template"
+					class="admin-form-input"
+					type="text"
+					required
+					maxlength="256"
+					aria-describedby="watermark-template-help"
+				/>
+				<p class="admin-form-hint" id="watermark-template-help">
+					可用字段：<code>&#123;&#123;username&#125;&#125;</code>（用户名）、<code
+						>&#123;&#123;nickname&#125;&#125;</code
+					>（昵称）、<code>&#123;&#123;publishedAt&#125;&#125;</code>（发布时间）。最多
+					256 个单行字符。
+				</p>
+			</div>
+
+			<div class="admin-form-group admin-form-group-full">
+				<span class="admin-form-label" id="watermark-position-label">水印位置</span>
+				<div
+					class="watermark-position-grid"
+					role="radiogroup"
+					aria-labelledby="watermark-position-label"
+				>
+					<label
+						><input type="radio" name="position" value="top-left" required /><span
+							>左上</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="top-center" /><span>上方</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="top-right" /><span>右上</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="center-left" /><span>左中</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="center" /><span>居中</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="center-right" /><span>右中</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="bottom-left" /><span>左下</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="bottom-center" /><span
+							>下方</span
+						></label
+					>
+					<label
+						><input type="radio" name="position" value="bottom-right" /><span>右下</span
+						></label
+					>
+				</div>
+			</div>
+
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-offset-x">X 偏移（px）</label>
+				<input
+					id="watermark-offset-x"
+					name="offsetX"
+					class="admin-form-input"
+					type="number"
+					min="-512"
+					max="512"
+					step="1"
+					required
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-offset-y">Y 偏移（px）</label>
+				<input
+					id="watermark-offset-y"
+					name="offsetY"
+					class="admin-form-input"
+					type="number"
+					min="-512"
+					max="512"
+					step="1"
+					required
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-font-size">字号（px）</label>
+				<input
+					id="watermark-font-size"
+					name="fontSize"
+					class="admin-form-input"
+					type="number"
+					min="10"
+					max="128"
+					step="1"
+					required
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-color">文字颜色</label>
+				<input
+					id="watermark-color"
+					name="color"
+					class="admin-form-input watermark-color-input"
+					type="color"
+					required
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-opacity">透明度</label>
+				<input
+					id="watermark-opacity"
+					name="opacity"
+					class="admin-form-input"
+					type="number"
+					min="0.05"
+					max="1"
+					step="0.01"
+					required
+				/>
+			</div>
+			<div class="admin-form-group">
+				<label class="admin-form-label" for="watermark-rotation">旋转角度</label>
+				<input
+					id="watermark-rotation"
+					name="rotation"
+					class="admin-form-input"
+					type="number"
+					min="-180"
+					max="180"
+					step="1"
+					required
+				/>
+			</div>
+			<div class="admin-form-group admin-form-group-full">
+				<label class="admin-toggle-label" for="watermark-tiled">
+					<input id="watermark-tiled" name="tiled" type="checkbox" />
+					<span>平铺水印</span>
+				</label>
+				<p class="admin-form-hint">开启后，服务端会在整张图片上重复渲染水印文字。</p>
+			</div>
+		</div>
+	</fieldset>
+
+	<div class="watermark-preview" aria-labelledby="watermark-preview-title">
+		<div class="watermark-preview-heading">
+			<div>
+				<h2 id="watermark-preview-title">服务端预览</h2>
+				<p>预览使用服务端的真实水印渲染器，不保存图片或配置。</p>
+			</div>
+			<button id="watermark-preview-refresh" type="button" class="admin-btn" disabled
+				>刷新预览</button
+			>
+		</div>
+		<div class="watermark-preview-canvas" id="watermark-preview-canvas">
+			<p class="admin-form-hint">加载配置后可手动刷新预览。</p>
+			<img id="watermark-preview-image" alt="服务端生成的水印预览" hidden />
+		</div>
+		<p class="admin-form-hint" id="watermark-preview-text"></p>
+		<p id="watermark-preview-status" class="admin-form-msg" role="status" aria-live="polite">
+		</p>
+	</div>
+
+	<div class="admin-form-actions">
+		<button
+			id="watermark-settings-save"
+			type="submit"
+			class="admin-btn admin-btn-primary"
+			disabled>保存设置</button
+		>
+		<p id="watermark-settings-status" class="admin-form-msg" role="status" aria-live="polite">
+		</p>
+	</div>
+</form>
+
+<script>
+	import { actions } from 'astro:actions';
+
+	type WatermarkPosition =
+		| 'top-left'
+		| 'top-center'
+		| 'top-right'
+		| 'center-left'
+		| 'center'
+		| 'center-right'
+		| 'bottom-left'
+		| 'bottom-center'
+		| 'bottom-right';
+
+	interface WatermarkInput {
+		enabled: boolean;
+		template: string;
+		position: WatermarkPosition;
+		offsetX: number;
+		offsetY: number;
+		fontSize: number;
+		color: string;
+		opacity: number;
+		rotation: number;
+		tiled: boolean;
+	}
+
+	const form = document.getElementById('watermark-settings-form') as HTMLFormElement;
+	const fieldset = form.querySelector('fieldset') as HTMLFieldSetElement;
+	const saveButton = document.getElementById('watermark-settings-save') as HTMLButtonElement;
+	const previewButton = document.getElementById('watermark-preview-refresh') as HTMLButtonElement;
+	const status = document.getElementById('watermark-settings-status') as HTMLParagraphElement;
+	const previewStatus = document.getElementById(
+		'watermark-preview-status'
+	) as HTMLParagraphElement;
+	const previewText = document.getElementById('watermark-preview-text') as HTMLParagraphElement;
+	const previewImage = document.getElementById('watermark-preview-image') as HTMLImageElement;
+	const previewCanvas = document.getElementById('watermark-preview-canvas') as HTMLDivElement;
+
+	/** 提取 ActionError 可展示的消息，避免把未定义的错误对象写入页面。 */
+	function getErrorMessage(error: { message?: string } | undefined, fallback: string): string {
+		return error?.message || fallback;
+	}
+
+	/** 设置状态消息及错误语义色。 */
+	function setStatus(target: HTMLParagraphElement, message: string, isError = false): void {
+		target.textContent = message;
+		target.classList.toggle('admin-form-msg-error', isError);
+		target.classList.toggle('admin-form-msg-success', !isError && message.length > 0);
+	}
+
+	/** 在异步读取、保存或预览时原子禁用可交互控件。 */
+	function setControlsDisabled(disabled: boolean): void {
+		fieldset.disabled = disabled;
+		saveButton.disabled = disabled;
+		previewButton.disabled = disabled;
+	}
+
+	/** 将当前表单值转换为服务端 WatermarkConfiguration 输入。 */
+	function readInput(): WatermarkInput {
+		const data = new FormData(form);
+		return {
+			enabled: data.get('enabled') === 'on',
+			template: String(data.get('template') || '').trim(),
+			position: String(data.get('position') || '') as WatermarkPosition,
+			offsetX: Number(data.get('offsetX')),
+			offsetY: Number(data.get('offsetY')),
+			fontSize: Number(data.get('fontSize')),
+			color: String(data.get('color') || '').toUpperCase(),
+			opacity: Number(data.get('opacity')),
+			rotation: Number(data.get('rotation')),
+			tiled: data.get('tiled') === 'on'
+		};
+	}
+
+	/** 对齐服务端基础校验；服务端仍是最终判定者。 */
+	function validateInput(input: WatermarkInput): string | undefined {
+		if (
+			input.template.length < 1 ||
+			input.template.length > 256 ||
+			/[\r\n]/.test(input.template)
+		)
+			return '水印模板必须为 1–256 个单行字符。';
+		for (const token of input.template.match(/{{[^}]*}}|{{|}}/g) || []) {
+			if (!['{{username}}', '{{nickname}}', '{{publishedAt}}'].includes(token))
+				return '水印模板仅支持用户名、昵称和发布时间字段。';
+		}
+		if (
+			![
+				'top-left',
+				'top-center',
+				'top-right',
+				'center-left',
+				'center',
+				'center-right',
+				'bottom-left',
+				'bottom-center',
+				'bottom-right'
+			].includes(input.position)
+		)
+			return '请选择九宫格中的水印位置。';
+		if (!Number.isInteger(input.offsetX) || input.offsetX < -512 || input.offsetX > 512)
+			return 'X 偏移必须是 -512 到 512 之间的整数。';
+		if (!Number.isInteger(input.offsetY) || input.offsetY < -512 || input.offsetY > 512)
+			return 'Y 偏移必须是 -512 到 512 之间的整数。';
+		if (!Number.isInteger(input.fontSize) || input.fontSize < 10 || input.fontSize > 128)
+			return '字号必须是 10 到 128 之间的整数。';
+		if (!/^#[0-9A-F]{6}$/.test(input.color)) return '文字颜色必须为 #RRGGBB。';
+		if (!Number.isFinite(input.opacity) || input.opacity < 0.05 || input.opacity > 1)
+			return '透明度必须在 0.05 到 1 之间。';
+		if (!Number.isFinite(input.rotation) || input.rotation < -180 || input.rotation > 180)
+			return '旋转角度必须在 -180 到 180 之间。';
+		return undefined;
+	}
+
+	/** 将服务端返回的完整配置回填到表单，确保保存后展示最终值。 */
+	function applyConfiguration(configuration: WatermarkInput): void {
+		(form.elements.namedItem('enabled') as HTMLInputElement).checked = configuration.enabled;
+		(form.elements.namedItem('template') as HTMLInputElement).value = configuration.template;
+		(form.elements.namedItem('offsetX') as HTMLInputElement).value = String(
+			configuration.offsetX
+		);
+		(form.elements.namedItem('offsetY') as HTMLInputElement).value = String(
+			configuration.offsetY
+		);
+		(form.elements.namedItem('fontSize') as HTMLInputElement).value = String(
+			configuration.fontSize
+		);
+		(form.elements.namedItem('color') as HTMLInputElement).value = configuration.color;
+		(form.elements.namedItem('opacity') as HTMLInputElement).value = String(
+			configuration.opacity
+		);
+		(form.elements.namedItem('rotation') as HTMLInputElement).value = String(
+			configuration.rotation
+		);
+		(form.elements.namedItem('tiled') as HTMLInputElement).checked = configuration.tiled;
+		const position = form.querySelector<HTMLInputElement>(
+			`input[name="position"][value="${configuration.position}"]`
+		);
+		if (position) position.checked = true;
+	}
+
+	/** 从受保护的系统配置 Action 读取当前水印设置。 */
+	async function loadConfiguration(): Promise<void> {
+		setControlsDisabled(true);
+		setStatus(status, '正在读取水印设置…');
+		try {
+			const result = await actions.getSystemConfiguration();
+			if (result.error || !result.data) {
+				setStatus(
+					status,
+					getErrorMessage(result.error, '读取水印设置失败，请刷新后重试。'),
+					true
+				);
+				return;
+			}
+			applyConfiguration(result.data.watermark as WatermarkInput);
+			setStatus(status, '');
+		} catch (error) {
+			setStatus(
+				status,
+				error instanceof Error ? error.message : '读取水印设置失败，请刷新后重试。',
+				true
+			);
+		} finally {
+			setControlsDisabled(false);
+		}
+	}
+
+	/** 调用服务端真实渲染器，并仅展示其返回的预览数据。 */
+	async function refreshPreview(): Promise<void> {
+		const input = readInput();
+		const validationError = validateInput(input);
+		if (validationError) {
+			setStatus(previewStatus, validationError, true);
+			return;
+		}
+		previewButton.disabled = true;
+		setStatus(previewStatus, '正在生成服务端预览…');
+		try {
+			const result = await actions.previewWatermark(input);
+			if (result.error || !result.data) {
+				setStatus(
+					previewStatus,
+					getErrorMessage(result.error, '预览生成失败，请稍后重试。'),
+					true
+				);
+				return;
+			}
+			previewImage.src = result.data.dataUrl;
+			previewImage.width = result.data.width;
+			previewImage.height = result.data.height;
+			previewImage.hidden = false;
+			previewCanvas.querySelector('p')?.setAttribute('hidden', '');
+			previewText.textContent = `渲染文字：${result.data.renderedText}`;
+			setStatus(previewStatus, '预览已更新。');
+		} catch (error) {
+			setStatus(
+				previewStatus,
+				error instanceof Error ? error.message : '预览生成失败，请稍后重试。',
+				true
+			);
+		} finally {
+			previewButton.disabled = false;
+		}
+	}
+
+	form.addEventListener('submit', (event) => {
+		event.preventDefault();
+		void (async () => {
+			const watermark = readInput();
+			const validationError = validateInput(watermark);
+			if (validationError) {
+				setStatus(status, validationError, true);
+				return;
+			}
+			setControlsDisabled(true);
+			setStatus(status, '正在保存水印设置…');
+			try {
+				const result = await actions.updateSystemConfigurationAction({ watermark });
+				if (result.error || !result.data) {
+					setStatus(
+						status,
+						getErrorMessage(result.error, '保存失败，请稍后重试。'),
+						true
+					);
+					return;
+				}
+				applyConfiguration(result.data.watermark as WatermarkInput);
+				setStatus(status, '水印设置已保存。');
+			} catch (error) {
+				setStatus(
+					status,
+					error instanceof Error ? error.message : '保存失败，请稍后重试。',
+					true
+				);
+			} finally {
+				setControlsDisabled(false);
+			}
+		})();
+	});
+
+	previewButton.addEventListener('click', () => void refreshPreview());
+	void loadConfiguration();
+</script>

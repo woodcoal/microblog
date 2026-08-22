@@ -10,6 +10,7 @@ import { getUserApiTokenCount } from '../src/services/auth.service';
 import { setEmailOwnershipEnabled } from '../src/services/email-policy.service';
 import { isSmtpAddressBlocked } from '../src/services/mail-delivery.service';
 import { updateSystemConfiguration } from '../src/services/system-config.service';
+import type { WatermarkConfiguration } from '../src/services/watermark.service';
 
 const id = crypto.randomUUID().replaceAll('-', '');
 const name = (prefix: string) => `${prefix}${id}`.slice(0, 20);
@@ -157,7 +158,7 @@ test('管理员保存完整水印配置会写入专用审计且不记录模板�
 			emailVerificationRequired: false
 		}
 	});
-	const watermark = {
+	const watermark: WatermarkConfiguration = {
 		enabled: true,
 		template: '{{username}} · {{nickname}} · {{publishedAt}}',
 		position: 'bottom-right',
@@ -178,7 +179,10 @@ test('管理员保存完整水印配置会写入专用审计且不记录模板�
 		1
 	);
 	await assert.rejects(
-		updateSystemConfiguration({ userId: admin.id, watermark: { ...watermark, template: '{{unknown}}' } }),
+		updateSystemConfiguration({
+			userId: admin.id,
+			watermark: { ...watermark, template: '{{unknown}}' }
+		}),
 		/未知或残缺/
 	);
 });

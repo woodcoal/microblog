@@ -1,0 +1,17 @@
+---
+/** 管理员图片水印配置页；鉴权由 AdminLayout 与服务端 Action 双重保障。 */
+import WatermarkSettingsEditor from '@/components/admin/WatermarkSettingsEditor.astro';
+import AdminLayout from '@/layouts/Admin.astro';
+---
+
+<AdminLayout title="图片水印">
+	<section class="admin-page-workspace" aria-labelledby="watermark-settings-title">
+		<header class="admin-page-heading">
+			<p class="admin-page-eyebrow">站点设置</p>
+			<h1 class="admin-page-title" id="watermark-settings-title">图片水印</h1>
+			<p>管理新发帖图片的统一文字水印，并使用服务端渲染器查看真实预览。</p>
+		</header>
+
+		<WatermarkSettingsEditor />
+	</section>
+</AdminLayout>

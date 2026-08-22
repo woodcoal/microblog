@@ -78,7 +78,17 @@ const smtpInput = z.object({
 const watermarkInput = z.object({
 	enabled: z.boolean(),
 	template: z.string(),
-	position: z.string(),
+	position: z.enum([
+		'top-left',
+		'top-center',
+		'top-right',
+		'center-left',
+		'center',
+		'center-right',
+		'bottom-left',
+		'bottom-center',
+		'bottom-right'
+	]),
 	offsetX: z.number(),
 	offsetY: z.number(),
 	fontSize: z.number(),

@@ -23,7 +23,8 @@ const adminRoutes = [
 	'/admin/audit',
 	'/admin/tags',
 	'/admin/categories',
-	'/admin/site-copy'
+	'/admin/site-copy',
+	'/admin/watermark'
 ];
 
 let adminToken = '';
@@ -79,7 +80,8 @@ before(async () => {
 				displayName: 'QA 管理员',
 				email: `${adminUsername}@example.test`,
 				passwordHash: 'not-used-by-this-test',
-				role: 'admin'
+				role: 'admin',
+				emailVerificationRequired: false
 			}
 		}),
 		prisma.user.create({
@@ -88,7 +90,8 @@ before(async () => {
 				displayName: 'QA 普通用户',
 				email: `${userUsername}@example.test`,
 				passwordHash: 'not-used-by-this-test',
-				role: 'user'
+				role: 'user',
+				emailVerificationRequired: false
 			}
 		})
 	]);
@@ -142,6 +145,54 @@ test('管理员访问每个后台路由得到完整后台壳', async () => {
 		assert.equal(response.status, 200, `${route} 应允许管理员访问`);
 		const body = await response.text();
 		assert.match(body, /data-ux-shell="admin"/);
+	}
+});
+
+test('管理员可在图片水印页调用服务端预览并保存完整配置', async () => {
+	const { default: puppeteer } = await import('puppeteer');
+	const browser = await puppeteer.launch({ headless: true });
+	const page = await browser.newPage();
+	try {
+		await page.setViewport({ width: 1280, height: 900, deviceScaleFactor: 1 });
+		await browser.setCookie({
+			name: 'token',
+			value: adminToken,
+			domain: '127.0.0.1',
+			path: '/'
+		});
+		await page.goto(`${BASE_URL}/admin/watermark`, { waitUntil: 'networkidle0' });
+		await page.waitForSelector('#watermark-settings-save:not([disabled])');
+		await page.locator('#watermark-enabled').click();
+		await page.locator('#watermark-template').fill('{{username}} · {{nickname}}');
+		await page.locator('input[name="position"][value="center"]').click();
+		await page.locator('#watermark-font-size').fill('32');
+		await page.locator('#watermark-preview-refresh').click();
+		await page.waitForSelector('#watermark-preview-image:not([hidden])');
+		assert.match(
+			await page.$eval('#watermark-preview-text', (element) => element.textContent || ''),
+			/渲染文字：example_user · 示例用户/
+		);
+		await page.locator('#watermark-settings-save').click();
+		await page.waitForFunction(
+			() =>
+				document.getElementById('watermark-settings-status')?.textContent ===
+				'水印设置已保存。'
+		);
+		const saved = await prisma.systemConfig.findUniqueOrThrow({
+			where: { id: 'global' },
+			select: {
+				watermarkEnabled: true,
+				watermarkTemplate: true,
+				watermarkPosition: true,
+				watermarkFontSize: true
+			}
+		});
+		assert.equal(saved.watermarkEnabled, true);
+		assert.equal(saved.watermarkTemplate, '{{username}} · {{nickname}}');
+		assert.equal(saved.watermarkPosition, 'center');
+		assert.equal(saved.watermarkFontSize, 32);
+	} finally {
+		await browser.close();
 	}
 });
 
